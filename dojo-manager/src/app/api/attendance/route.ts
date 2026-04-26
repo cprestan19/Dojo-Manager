@@ -89,11 +89,10 @@ export async function POST(req: NextRequest) {
   });
 
   const studentOut = {
-    id:        student.id,
-    firstName: student.firstName,
-    lastName:  student.lastName,
-    photo:     student.photo,
-    belt:      student.beltHistory[0]?.beltColor ?? null,
+    id:       student.id,
+    fullName: student.fullName || `${student.firstName} ${student.lastName}`.trim(),
+    photo:    student.photo,
+    belt:     student.beltHistory[0]?.beltColor ?? null,
   };
 
   if (recent) {

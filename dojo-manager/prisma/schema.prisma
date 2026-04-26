@@ -142,6 +142,7 @@ model Payment {
 
   createdAt DateTime @default(now())
 
+  @@unique([studentId, type, dueDate])
   @@index([studentId])
   @@index([studentId, status, dueDate])
   @@index([status, dueDate])

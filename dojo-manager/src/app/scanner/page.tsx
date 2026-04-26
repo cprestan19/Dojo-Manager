@@ -19,7 +19,7 @@ type ResultKind = "success" | "not_assigned" | "duplicate" | "error";
 
 interface ScanResult {
   type:      ResultKind;
-  student?:  { id: string; firstName: string; lastName: string; photo: string | null; belt: string | null };
+  student?:  { id: string; fullName: string; photo: string | null; belt: string | null };
   attendanceType?: ScanMode;
   message?:  string;
 }
@@ -465,13 +465,13 @@ export default function ScannerPage() {
                     />
                   ) : (
                     <span className="font-display text-4xl font-bold text-dojo-gold">
-                      {result.student.firstName[0]}{result.student.lastName[0]}
+                      {result.student.fullName.split(" ").slice(0,2).map(w => w[0]).join("")}
                     </span>
                   )}
                 </div>
                 <div className="text-center">
                   <p className="font-display text-white text-2xl font-bold leading-tight">
-                    {result.student.firstName} {result.student.lastName}
+                    {result.student.fullName}
                   </p>
                   <p className="font-mono text-xs text-white/60 tracking-widest mt-1">
                     ID · {result.student.id.slice(-8).toUpperCase()}

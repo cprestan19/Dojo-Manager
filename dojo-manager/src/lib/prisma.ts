@@ -3,16 +3,21 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 
 function createPrismaClient() {
+  const isProduction  = process.env.NODE_ENV === "production";
+  const isServerless  = !!process.env.VERCEL;
+
   const pool = new pg.Pool({
-    connectionString:      process.env.DATABASE_URL,
-    max:                   10,    // cap concurrent connections
-    idleTimeoutMillis:     30000, // release idle connections after 30 s
-    connectionTimeoutMillis: 3000,
+    connectionString:        process.env.DATABASE_URL,
+    max:                     isServerless ? 1 : 10,
+    ssl:                     isProduction ? { rejectUnauthorized: false } : false,
+    idleTimeoutMillis:       30_000,
+    connectionTimeoutMillis: 5_000,
   });
+
   const adapter = new PrismaPg(pool);
   return new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    log: isProduction ? ["error"] : ["error", "warn"],
   });
 }
 

@@ -33,10 +33,9 @@ export async function GET(req: NextRequest) {
   if (!student.active) return NextResponse.json({ error: "Alumno inactivo" },      { status: 403 });
 
   const studentOut = {
-    id:        student.id,
-    firstName: student.firstName,
-    lastName:  student.lastName,
-    photo:     student.photo,
+    id:       student.id,
+    fullName: student.fullName || `${student.firstName} ${student.lastName}`.trim(),
+    photo:    student.photo,
   };
 
   if (scheduleId) {
