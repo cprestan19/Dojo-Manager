@@ -26,7 +26,8 @@
       "Bash(node -e \"const p = require\\('c:/Proyectos/dojo-manager/dojo-manager/node_modules/@prisma/client/package.json'\\); console.log\\(p.version\\)\")",
       "PowerShell(netstat -ano)",
       "PowerShell(wmic process where \"processid=38188\" get commandline 2>&1)",
-      "PowerShell(Stop-Process -Force -ErrorAction SilentlyContinue)"
+      "PowerShell(Stop-Process -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(npm view next dist-tags 2>&1)"
     ],
     "additionalDirectories": [
       "c:\\Proyectos\\dojo-manager\\dojo-manager\\src\\app\\api\\schedules\\[id]",
