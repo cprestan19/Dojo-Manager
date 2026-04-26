@@ -1,8 +1,11 @@
 import { defineConfig } from "prisma/config";
-import * as dotenv from "dotenv";
-import * as path from "path";
 
-dotenv.config({ path: path.join(process.cwd(), ".env.local") });
+// Solo cargar .env.local en desarrollo local (en Vercel las variables llegan directo de process.env)
+if (!process.env.VERCEL && !process.env.DATABASE_URL) {
+  const dotenv  = require("dotenv");
+  const path    = require("path");
+  dotenv.config({ path: path.join(process.cwd(), ".env.local") });
+}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
