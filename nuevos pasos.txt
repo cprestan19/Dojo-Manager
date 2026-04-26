@@ -1,0 +1,36 @@
+la pantalla de login en dispositivo mobiles que sea negra y mas transparente para que se aprecie la imagen del fondo.
+El boton de editar alumno se ve salida de la pantalla mobiles
+pantalla de parametrisar el las configuraciones smtp,correo
+solictar a claude que busque la manera mas eficiente para darle acceso al app, a los alumnos y que solo tengan acceso 
+a ver su perfil de alumno, pagos, horarios y marcaciones, y como manejar de forma segura que no vean datos de otros alumnos, 
+su acceso seria correo, que ya tienen registrados, de forma automatica genera un contraseña de aletaroria, y que pida cambio de contraseña obligatorio
+a penas entre por primera vez, Y en que tambien agregar cambio de contraseña en la pantalla de login. 
+Verficiar que todas las funciones existente, el sysadmin de dojo mastes tenga acceso a ver que indique a que dojo pertenece, para soportes y revisiones.
+
+Crear un secciones de videos donde tentran acceso a ver los video de su cinta, y debe crear esa regla segun su cinta de rango.
+Revisar y auditar, y sugerir mejoras para saass
+
+
+Urgente (esta semana)
+#	Acción	Impacto
+1	Cifrar contraseña SMTP en DB	Seguridad crítica   ok
+2	Rate limiting en /api/scan y /api/attendance	Seguridad alta   ok
+3	Rate limiting en login (NextAuth)	Seguridad alta   ok
+4	Agregar índices compuestos faltantes (prisma db push)	Rendimiento alto   ok
+5	Fix N+1 en generación de pagos (createMany)	Rendimiento alto   ok
+Corto plazo (próximo sprint)
+#	Acción	Impacto
+6	Excluir photo de queries de lista de alumnos	Rendimiento alto  ok
+7	unstable_cache para config del dojo y katas	Rendimiento medio   ok
+8	Limitar payments en perfil del alumno (take: 50)	Rendimiento medio ok
+9	Agregar @@unique([studentId, type, dueDate]) en Payment	Integridad media
+10	Dynamic import para qrcode en StudentQR	Bundle medio
+Largo plazo (arquitectura)
+#	Acción	Impacto
+11	Migrar fotos a Cloudflare R2	Rendimiento alto
+12	PgBouncer o Neon con connection pooling	Escalabilidad alta
+13	Redis (Upstash) para rate limiting y caché	Escalabilidad media
+14	Full-text search con pg_trgm para búsqueda de alumnos	UX media
+15	Background jobs para pagos masivos y recordatorios	Confiabilidad media
+El sistema tiene una base sólida. Los 5 puntos urgentes son implementables en menos de un día de trabajo y eliminan los riesgos más graves. La migración de fotos a storage de objetos es el cambio de mayor impacto en rendimiento a largo plazo.
+

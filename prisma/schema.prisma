@@ -1,0 +1,146 @@
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("user")   // sysadmin, admin, user
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@map("users")
+}
+
+model Student {
+  id        String   @id @default(cuid())
+
+  // Datos personales
+  firstName  String
+  lastName   String
+  photo      String?  @db.Text   // base64 o URL
+  birthDate  DateTime
+  gender     String               // M, F
+  nationality String
+
+  // Salud
+  allergy1            String?
+  allergy2            String?
+  hasPrivateInsurance Boolean  @default(false)
+  insuranceName       String?
+
+  // Contacto — Madre
+  motherName  String?
+  motherPhone String?
+  motherEmail String?
+
+  // Contacto — Padre
+  fatherName  String?
+  fatherPhone String?
+  fatherEmail String?
+
+  // Contacto auxiliar
+  auxContactName  String?
+  auxContactPhone String?
+
+  // Domicilio
+  address String? @db.Text
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inscription Inscription?
+  payments    Payment[]
+  beltHistory BeltHistory[]
+
+  @@index([active])
+  @@index([lastName, firstName])
+  @@map("students")
+}
+
+model Inscription {
+  id        String  @id @default(cuid())
+  studentId String  @unique
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  inscriptionDate   DateTime
+  annualPaymentDate DateTime?
+
+  annualAmount   Float @default(0)   // Costo inscripción / anualidad
+  monthlyAmount  Float @default(0)   // Mensualidad base
+  discountAmount Float @default(0)   // Negativo = descuento, Positivo = aumento
+  discountNote   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("inscriptions")
+}
+
+model Payment {
+  id        String  @id @default(cuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  type     String    // monthly, annual
+  amount   Float
+  dueDate  DateTime
+  paidDate DateTime?
+
+  status       String  @default("pending")  // pending, paid, late
+  note         String?
+  reminderSent Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([studentId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("payments")
+}
+
+model Kata {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  beltColor   String
+  order       Int     @default(0)
+  description String?
+  active      Boolean @default(true)
+  createdAt   DateTime @default(now())
+
+  beltHistory BeltHistory[]
+
+  @@index([beltColor])
+  @@map("katas")
+}
+
+model BeltHistory {
+  id        String  @id @default(cuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  beltColor  String
+  changeDate DateTime
+  kataId     String?
+  kata       Kata?    @relation(fields: [kataId], references: [id])
+  isRanking  Boolean  @default(false)
+  notes      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([studentId])
+  @@index([beltColor])
+  @@map("belt_history")
+}

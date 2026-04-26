@@ -1,0 +1,53 @@
+{
+  "name": "dojo-manager",
+  "version": "1.0.0",
+  "description": "DojoManager — Sistema SaaS de Administración de Dojos de Karate",
+  "author": "Ing. Cristhian Paul Prestán",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix dojo-manager run dev",
+    "build": "npm --prefix dojo-manager run build",
+    "start": "npm --prefix dojo-manager run start",
+    "lint": "npm --prefix dojo-manager run lint",
+    "db:push": "npm --prefix dojo-manager run db:push",
+    "db:migrate": "npm --prefix dojo-manager run db:migrate",
+    "db:studio": "npm --prefix dojo-manager run db:studio",
+    "db:generate": "npm --prefix dojo-manager run db:generate",
+    "db:seed": "npm --prefix dojo-manager run db:seed",
+    "setup": "npm --prefix dojo-manager run setup"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.9.0",
+    "@prisma/client": "^5.22.0",
+    "@radix-ui/react-avatar": "^1.1.1",
+    "@radix-ui/react-checkbox": "^1.1.2",
+    "@radix-ui/react-dialog": "^1.1.2",
+    "@radix-ui/react-dropdown-menu": "^2.1.2",
+    "@radix-ui/react-select": "^2.1.2",
+    "@radix-ui/react-tabs": "^1.1.1",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.460.0",
+    "next": "15.0.3",
+    "next-auth": "^4.24.10",
+    "nodemailer": "^7.0.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.53.2",
+    "tailwind-merge": "^2.5.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/nodemailer": "^6.4.16",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "15.0.3",
+    "prisma": "^5.22.0",
+    "typescript": "^5"
+  }
+}
