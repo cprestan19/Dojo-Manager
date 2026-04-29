@@ -17,6 +17,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const student = await prisma.student.findUnique({
     where: { id, dojoId },
     include: {
+      portalUser: { select: { id: true, active: true, email: true } },
       inscription: true,
       payments: {
         orderBy: { dueDate: "desc" },

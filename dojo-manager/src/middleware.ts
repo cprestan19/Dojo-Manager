@@ -66,16 +66,28 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // ── Proteger /portal — solo role: student ───────────────────
+  if (pathname.startsWith("/portal")) {
+    const token          = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const isChangePwd    = pathname === "/portal/change-password";
+    if (!token) return NextResponse.redirect(new URL("/login", req.url));
+    if (token.role !== "student") return NextResponse.redirect(new URL("/dashboard", req.url));
+    if (!isChangePwd && token.mustChangePassword)
+      return NextResponse.redirect(new URL("/portal/change-password", req.url));
+  }
+
   // ── Proteger rutas del dashboard ─────────────────────────────
   if (pathname.startsWith("/dashboard")) {
-    const token      = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token       = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     const isChangePwd = pathname === "/dashboard/change-password";
 
-    if (!token) {
-      return NextResponse.redirect(new URL("/login", req.url));
+    if (!token) return NextResponse.redirect(new URL("/login", req.url));
+
+    if (token.role === "student") {
+      return NextResponse.redirect(new URL("/portal", req.url));
     }
 
-    if (!isChangePwd && token?.mustChangePassword) {
+    if (!isChangePwd && token.mustChangePassword) {
       return NextResponse.redirect(new URL("/dashboard/change-password", req.url));
     }
   }
@@ -86,6 +98,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
+    "/portal/:path*",
     "/api/scan",
     "/api/scan/:path*",
     "/api/attendance",

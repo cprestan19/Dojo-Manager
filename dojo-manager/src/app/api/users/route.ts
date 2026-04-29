@@ -16,9 +16,15 @@ export async function GET() {
 
   // sysadmin can see users from all dojos; admin only sees their dojo
   const users = await prisma.user.findMany({
-    where: role === "sysadmin" ? {} : { dojoId: dojoId ?? undefined },
-    select: { id: true, name: true, email: true, role: true, active: true, dojoId: true, createdAt: true },
-    orderBy: { name: "asc" },
+    where: role === "sysadmin"
+      ? { role: { not: "student" } }
+      : { dojoId: dojoId ?? undefined, role: { not: "student" } },
+    select: {
+      id: true, name: true, email: true, role: true, active: true,
+      dojoId: true, createdAt: true,
+      dojo: { select: { name: true, slug: true } },
+    },
+    orderBy: [{ dojo: { name: "asc" } }, { name: "asc" }],
   });
   return NextResponse.json(users);
 }

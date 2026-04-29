@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Edit, Award, CreditCard, Phone,
   Heart, Calendar, Plus, Shield, Trophy, Fingerprint, Trash2, Pencil, Star,
-  ClipboardList, LogIn, LogOut, UserX, UserCheck,
+  ClipboardList, LogIn, LogOut, UserX, UserCheck, KeyRound,
 } from "lucide-react";
 import { StudentQR } from "@/components/students/StudentQR";
 import { BeltBadge } from "@/components/ui/BeltBadge";
@@ -38,6 +38,7 @@ interface Student {
   fatherName: string | null; fatherPhone: string | null; fatherEmail: string | null;
   address: string | null;
   active: boolean;
+  portalUser: { id: string; active: boolean; email: string } | null;
   dojo: { name: string; phone: string | null; slug: string } | null;
   inscription: {
     inscriptionDate: string; annualPaymentDate: string | null;
@@ -436,6 +437,8 @@ export default function StudentDetailPage() {
   const [payModal,        setPayModal]        = useState(false);
   const [markingPay,      setMarkingPay]      = useState<string | null>(null);
   const [togglingActive,  setTogglingActive]  = useState(false);
+  const [accessLoading,   setAccessLoading]   = useState(false);
+  const [accessResult,    setAccessResult]    = useState<{ email: string; tempPassword: string } | null>(null);
 
   const defaultFrom = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
   const defaultTo   = new Date().toISOString().split("T")[0];
@@ -481,6 +484,24 @@ export default function StudentDetailPage() {
     fetchStudent();
   }
 
+  async function enableAccess() {
+    if (!confirm("¿Crear acceso al portal para este alumno? Se le enviará un correo con su contraseña temporal.")) return;
+    setAccessLoading(true);
+    const r = await fetch(`/api/students/${id}/access`, { method: "POST" });
+    const d = await r.json();
+    setAccessLoading(false);
+    if (r.ok) { setAccessResult({ email: d.email, tempPassword: d.tempPassword }); fetchStudent(); }
+    else alert(d.error ?? "Error al crear acceso");
+  }
+
+  async function disableAccess() {
+    if (!confirm("¿Desactivar el acceso de este alumno al portal?")) return;
+    setAccessLoading(true);
+    await fetch(`/api/students/${id}/access`, { method: "DELETE" });
+    setAccessLoading(false);
+    fetchStudent();
+  }
+
   async function toggleActive() {
     const action = student!.active ? "desactivar" : "activar";
     if (!confirm(`¿Deseas ${action} a este alumno?`)) return;
@@ -514,6 +535,22 @@ export default function StudentDetailPage() {
 
   return (
     <div className="max-w-5xl space-y-6">
+      {accessResult && (
+        <div className="bg-blue-900/20 border border-blue-700/50 rounded-xl p-4 space-y-3">
+          <div className="flex items-start justify-between">
+            <p className="text-blue-300 font-semibold text-sm flex items-center gap-2">
+              <KeyRound size={15}/> Acceso creado — guarda estas credenciales
+            </p>
+            <button onClick={() => setAccessResult(null)} className="text-blue-400 hover:text-blue-200 text-xs">✕</button>
+          </div>
+          <div className="bg-dojo-dark rounded-lg p-3 space-y-1.5 font-mono text-sm">
+            <div className="flex justify-between"><span className="text-dojo-muted">Correo:</span><span className="text-dojo-white">{accessResult.email}</span></div>
+            <div className="flex justify-between"><span className="text-dojo-muted">Contraseña temporal:</span><span className="text-dojo-gold font-bold">{accessResult.tempPassword}</span></div>
+          </div>
+          <p className="text-xs text-blue-300/70">Se envió también por correo al alumno. Deberá cambiar la contraseña al primer ingreso.</p>
+        </div>
+      )}
+
       {!student.active && (
         <div className="flex items-center gap-3 px-4 py-3 bg-red-900/20 border border-red-800/50 rounded-xl">
           <UserX size={16} className="text-red-400 shrink-0" />
@@ -571,6 +608,19 @@ export default function StudentDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {student.portalUser?.active ? (
+            <button onClick={disableAccess} disabled={accessLoading}
+              className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-orange-800/60 text-orange-400 hover:bg-orange-900/20 transition-colors disabled:opacity-50">
+              <KeyRound size={15}/> {accessLoading ? "..." : "Revocar Portal"}
+            </button>
+          ) : (
+            <button onClick={enableAccess} disabled={accessLoading || (!student.motherEmail && !student.fatherEmail)}
+              className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-blue-800/60 text-blue-400 hover:bg-blue-900/20 transition-colors disabled:opacity-40"
+              title={!student.motherEmail && !student.fatherEmail ? "El alumno necesita un correo registrado" : ""}
+            >
+              <KeyRound size={15}/> {accessLoading ? "..." : "Dar acceso portal"}
+            </button>
+          )}
           <button
             onClick={toggleActive}
             disabled={togglingActive}

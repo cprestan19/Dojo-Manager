@@ -228,3 +228,93 @@ export async function sendPaymentReceipt({
   const t = await createTransporter();
   await t.sendMail({ from: fromAddress(dojo), to, subject, html });
 }
+
+export async function sendStudentWelcome({
+  to, studentName, loginEmail, tempPassword, dojo,
+}: {
+  to:           string;
+  studentName:  string;
+  loginEmail:   string;
+  tempPassword: string;
+  dojo?:        DojoMeta;
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://dojomasteronline.com";
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
+      ${dojoHeader(dojo)}
+      <div style="padding:32px 24px;">
+        <h2 style="color:#F0F0F0;margin:0 0 16px;font-size:20px;">¡Bienvenido/a al Portal del Alumno!</h2>
+        <p style="font-size:15px;margin:0 0 12px;">Hola <strong>${studentName}</strong>,</p>
+        <p style="color:#C8D0DA;font-size:13px;margin:0 0 20px;">
+          Se ha creado tu acceso al portal del alumno. Usa las siguientes credenciales para ingresar:
+        </p>
+        <div style="background:#16213E;border:1px solid #2A3550;border-radius:8px;padding:20px;margin-bottom:20px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="padding:8px 0;color:#8892A4;font-size:13px;">URL de acceso</td>
+              <td style="padding:8px 0;text-align:right;">
+                <a href="${appUrl}/login" style="color:#E74C3C;">${appUrl}/login</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;color:#8892A4;font-size:13px;">Correo</td>
+              <td style="padding:8px 0;font-family:monospace;text-align:right;">${loginEmail}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;color:#8892A4;font-size:13px;">Contraseña temporal</td>
+              <td style="padding:8px 0;font-family:monospace;font-size:16px;font-weight:bold;color:#F39C12;text-align:right;">${tempPassword}</td>
+            </tr>
+          </table>
+        </div>
+        <div style="background:#1C2A14;border:1px solid #2E5C14;border-radius:8px;padding:14px;margin-bottom:20px;">
+          <p style="margin:0;color:#7FD44A;font-size:13px;">
+            ⚠️ <strong>Al ingresar por primera vez deberás cambiar tu contraseña.</strong>
+          </p>
+        </div>
+        <p style="color:#8892A4;font-size:12px;text-align:center;margin:0;">
+          Si no solicitaste este acceso, ignora este correo.
+        </p>
+      </div>
+      ${emailFooter(dojo)}
+    </div>`;
+
+  const subject = dojo ? `🎓 Acceso al Portal — ${dojo.name}` : `🎓 Acceso al Portal — DojoManager`;
+  const t = await createTransporter();
+  await t.sendMail({ from: fromAddress(dojo), to, subject, html });
+}
+
+export async function sendPasswordReset({
+  to, name, resetUrl, dojo,
+}: {
+  to:       string;
+  name:     string;
+  resetUrl: string;
+  dojo?:    DojoMeta;
+}) {
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
+      ${dojoHeader(dojo)}
+      <div style="padding:32px 24px;">
+        <h2 style="color:#F0F0F0;margin:0 0 16px;font-size:20px;">Restablecer contraseña</h2>
+        <p style="font-size:15px;margin:0 0 12px;">Hola <strong>${name}</strong>,</p>
+        <p style="color:#C8D0DA;font-size:13px;margin:0 0 24px;">
+          Recibimos una solicitud para restablecer tu contraseña. El enlace expira en <strong>30 minutos</strong>.
+        </p>
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="${resetUrl}"
+            style="display:inline-block;background:#C0392B;color:#fff;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:bold;text-decoration:none;">
+            Restablecer contraseña
+          </a>
+        </div>
+        <p style="color:#8892A4;font-size:11px;text-align:center;margin:0;">
+          Si no solicitaste este cambio, ignora este correo.
+        </p>
+      </div>
+      ${emailFooter(dojo)}
+    </div>`;
+
+  const subject = "🔐 Restablecer contraseña — DojoManager";
+  const t = await createTransporter();
+  await t.sendMail({ from: fromAddress(dojo), to, subject, html });
+}

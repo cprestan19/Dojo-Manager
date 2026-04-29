@@ -2,8 +2,9 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   ClipboardList, Search, Filter, Edit2, Trash2,
-  Save, X, AlertTriangle, LogIn, LogOut,
+  Save, X, AlertTriangle, LogIn, LogOut, Clock,
 } from "lucide-react";
+import Link from "next/link";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { Modal } from "@/components/ui/Modal";
 
@@ -178,6 +179,9 @@ export default function AttendancePage() {
           <p className="text-dojo-muted text-sm mt-1">{filtered.length} marcaciones en el período</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Link href="/dashboard/schedules" className="btn-secondary">
+            <Clock size={16} /> Horarios
+          </Link>
           <a
             href="/scanner"
             target="_blank"

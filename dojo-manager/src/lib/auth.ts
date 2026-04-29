@@ -48,6 +48,7 @@ export const authOptions: NextAuthOptions = {
           name:               user.name,
           role:               user.role,
           dojoId:             user.dojoId,
+          studentId:          user.studentId ?? null,
           mustChangePassword: user.mustChangePassword,
         };
       },
@@ -57,10 +58,11 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        const u = user as { role?: string; dojoId?: string | null; mustChangePassword?: boolean };
+        const u = user as { role?: string; dojoId?: string | null; studentId?: string | null; mustChangePassword?: boolean };
         token.id                 = user.id;
-        token.role               = u.role   ?? "user";
-        token.dojoId             = u.dojoId ?? null;
+        token.role               = u.role      ?? "user";
+        token.dojoId             = u.dojoId    ?? null;
+        token.studentId          = u.studentId ?? null;
         token.mustChangePassword = u.mustChangePassword ?? false;
       }
       return token;
@@ -68,11 +70,12 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         const u = session.user as {
-          id?: string; role?: string; dojoId?: string | null; mustChangePassword?: boolean;
+          id?: string; role?: string; dojoId?: string | null; studentId?: string | null; mustChangePassword?: boolean;
         };
-        u.id                 = token.id as string;
-        u.role               = token.role as string;
-        u.dojoId             = token.dojoId as string | null;
+        u.id                 = token.id        as string;
+        u.role               = token.role      as string;
+        u.dojoId             = token.dojoId    as string | null;
+        u.studentId          = token.studentId as string | null;
         u.mustChangePassword = token.mustChangePassword as boolean;
       }
       return session;

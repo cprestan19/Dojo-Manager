@@ -20,7 +20,6 @@ const navItems = [
   { href: "/dashboard",            label: "Inicio",         icon: LayoutDashboard, roles: ["sysadmin","admin","user"] },
   { href: "/dashboard/students",   label: "Alumnos",        icon: Users,         roles: ["sysadmin","admin","user"] },
   { href: "/dashboard/attendance", label: "Asistencia",     icon: ClipboardList, roles: ["sysadmin","admin","user"] },
-  { href: "/dashboard/schedules",  label: "Horarios",       icon: Clock,         roles: ["sysadmin","admin"] },
   { href: "/dashboard/payments",   label: "Pagos",          icon: CreditCard,    roles: ["sysadmin","admin"] },
   { href: "/dashboard/belts",      label: "Rangos",         icon: Award,         roles: ["sysadmin","admin","user"] },
   { href: "/dashboard/reports",    label: "Reportes",       icon: BarChart2,     roles: ["sysadmin","admin"] },
@@ -34,6 +33,22 @@ const settingsSubItems = [
   { href: "/dashboard/settings/email",  label: "Parámetros de Correo", icon: Mail,     roles: ["sysadmin","admin"] },
   { href: "/dashboard/katas",           label: "Catálogo de Katas",    icon: BookOpen, roles: ["sysadmin","admin","user"] },
 ];
+
+function LogoImg() {
+  return (
+    <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-dojo-red flex items-center justify-center shadow shadow-dojo-red/30">
+      <Image
+        src="/logo.png"
+        alt="Dojo Manager"
+        width={40}
+        height={40}
+        className="w-full h-full object-contain"
+        priority
+        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+      />
+    </div>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -50,33 +65,19 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 min-h-screen bg-dojo-dark border-r border-dojo-border flex flex-col">
-      {/* Branding del dojo */}
-      <div className="p-5 border-b border-dojo-border">
+      {/* App branding — logo + nombre */}
+      <div className="px-4 py-4 border-b border-dojo-border">
         <div className="flex items-center gap-3">
-          {/* Logo del dojo o ícono por defecto */}
-          <div className="w-11 h-11 bg-dojo-red rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow shadow-dojo-red/30">
-            {dojo?.logo ? (
-              <Image src={dojo.logo} alt={dojo.name} width={44} height={44} className="object-contain w-full h-full" />
-            ) : (
-              <span className="font-display text-white font-bold text-base tracking-wider select-none">
-                {(dojo?.name ?? "D").slice(0, 2).toUpperCase()}
-              </span>
-            )}
-          </div>
-
+          <LogoImg />
           <div className="min-w-0">
-            {/* Nombre del dojo (grande) */}
-            <p className="font-display text-dojo-white font-bold text-sm tracking-wide truncate leading-tight">
-              {dojo?.name ?? (role === "sysadmin" ? "Super Admin" : "Cargando...")}
-            </p>
-            {/* Nombre del aplicativo (pequeño) */}
-            <p className="font-display text-dojo-gold text-[10px] tracking-widest leading-tight mt-0.5">
+            <p className="font-display text-dojo-white font-bold text-sm tracking-widest leading-tight">
               DOJO MANAGER
+            </p>
+            <p className="font-display text-dojo-gold text-[10px] tracking-wider leading-tight mt-0.5 truncate">
+              {dojo?.name ?? (role === "sysadmin" ? "Sistema Global" : "Cargando...")}
             </p>
           </div>
         </div>
-
-        {/* Eslogan si existe */}
         {dojo?.slogan && (
           <p className="text-dojo-muted text-[10px] italic mt-2 truncate">{dojo.slogan}</p>
         )}

@@ -25,8 +25,10 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ["'Cinzel'", "serif"],
-        body:    ["'Nunito'", "sans-serif"],
+        display: ["'Poppins'", "sans-serif"],
+        body:    ["'Inter'",   "sans-serif"],
+        inter:   ["'Inter'",   "sans-serif"],
+        poppins: ["'Poppins'", "sans-serif"],
       },
     },
   },

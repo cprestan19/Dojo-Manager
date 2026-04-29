@@ -27,7 +27,13 @@
       "PowerShell(netstat -ano)",
       "PowerShell(wmic process where \"processid=38188\" get commandline 2>&1)",
       "PowerShell(Stop-Process -Force -ErrorAction SilentlyContinue)",
-      "PowerShell(npm view next dist-tags 2>&1)"
+      "PowerShell(npm view next dist-tags 2>&1)",
+      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "Bash(grep -v \"^$\")",
+      "PowerShell(Start-Process -NoNewWindow -FilePath \"npm\" -ArgumentList \"run\",\"dev\" -WorkingDirectory \"C:\\\\Proyectos\\\\dojo-manager\\\\dojo-manager\" -PassThru)",
+      "Bash(grep -v \"EPERM\\\\|trace\\\\|^$\")",
+      "PowerShell(cd \"C:\\\\Proyectos\\\\dojo-manager\\\\dojo-manager\"; $env:NODE_ENV=\"development\"; npm run dev 2>&1 | Select-Object -First 5)"
     ],
     "additionalDirectories": [
       "c:\\Proyectos\\dojo-manager\\dojo-manager\\src\\app\\api\\schedules\\[id]",

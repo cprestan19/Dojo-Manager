@@ -6,6 +6,8 @@ import { formatDate } from "@/lib/utils";
 
 interface User {
   id: string; name: string; email: string; role: string; active: boolean; createdAt: string;
+  dojoId: string | null;
+  dojo: { name: string; slug: string } | null;
 }
 
 const ROLES = [
@@ -90,7 +92,7 @@ export default function UsersPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-dojo-border">
-              {["Nombre","Email","Rol","Estado","Creado"].map(h => (
+              {["Nombre","Email","Dojo","Rol","Estado","Creado"].map(h => (
                 <th key={h} className="text-left text-xs font-semibold text-dojo-muted uppercase tracking-wider px-5 py-3">{h}</th>
               ))}
             </tr>
@@ -98,7 +100,7 @@ export default function UsersPage() {
           <tbody>
             {loading && <tr><td colSpan={5} className="text-center py-12 text-dojo-muted">Cargando...</td></tr>}
             {!loading && users.length === 0 && (
-              <tr><td colSpan={5} className="text-center py-12 text-dojo-muted">No hay usuarios.</td></tr>
+              <tr><td colSpan={6} className="text-center py-12 text-dojo-muted">No hay usuarios.</td></tr>
             )}
             {users.map(u => (
               <tr key={u.id} className="border-b border-dojo-border/40 hover:bg-dojo-border/10">
@@ -110,7 +112,14 @@ export default function UsersPage() {
                     <span className="font-semibold text-dojo-white">{u.name}</span>
                   </div>
                 </td>
-                <td className="px-5 py-3 text-dojo-muted">{u.email}</td>
+                <td className="px-5 py-3 text-dojo-muted text-xs">{u.email}</td>
+                <td className="px-5 py-3">
+                  {u.dojo ? (
+                    <span className="text-xs text-dojo-white">{u.dojo.name}</span>
+                  ) : (
+                    <span className="text-xs text-dojo-muted italic">Global</span>
+                  )}
+                </td>
                 <td className="px-5 py-3">
                   <span className={ROLE_STYLES[u.role] ?? "badge-blue"}>
                     {ROLES.find(r => r.value === u.role)?.label ?? u.role}

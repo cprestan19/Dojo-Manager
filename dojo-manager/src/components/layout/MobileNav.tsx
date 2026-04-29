@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -31,7 +32,6 @@ const navItems = [
   { href: "/dashboard",            label: "Inicio",         icon: LayoutDashboard, roles: ["sysadmin","admin","user"] },
   { href: "/dashboard/students",   label: "Alumnos",        icon: Users,         roles: ["sysadmin","admin","user"] },
   { href: "/dashboard/attendance", label: "Asistencia",     icon: ClipboardList, roles: ["sysadmin","admin","user"] },
-  { href: "/dashboard/schedules",  label: "Horarios",       icon: Clock,         roles: ["sysadmin","admin"] },
   { href: "/dashboard/payments",   label: "Pagos",          icon: CreditCard,    roles: ["sysadmin","admin"] },
   { href: "/dashboard/belts",      label: "Rangos",         icon: Award,         roles: ["sysadmin","admin","user"] },
   { href: "/dashboard/reports",    label: "Reportes",       icon: BarChart2,     roles: ["sysadmin","admin"] },
@@ -49,7 +49,6 @@ const settingsSubItems = [
 const mobileNavItems = [
   { href: "/dashboard",              label: "Inicio",            icon: Home,        roles: ["sysadmin","admin","user"] },
   { href: "/dashboard/students",     label: "Ver Alumnos",       icon: Users,       roles: ["sysadmin","admin","user"] },
-  { href: "/dashboard/schedules",    label: "Turnos / Horarios", icon: Clock,       roles: ["sysadmin","admin"] },
   { href: "/dashboard/payments",     label: "Pagos",             icon: CreditCard,  roles: ["sysadmin","admin"] },
   { href: "/dashboard/students/new", label: "Nuevo Alumno",      icon: UserPlus,    roles: ["sysadmin","admin"] },
   { href: "/scanner",                label: "Marcación QR",      icon: QrCode,      roles: ["sysadmin","admin","user"] },
@@ -59,7 +58,7 @@ const mobileNavItems = [
 const backRoutes: Record<string, string> = {
   "/dashboard/students":   "/dashboard",
   "/dashboard/payments":   "/dashboard",
-  "/dashboard/schedules":  "/dashboard",
+  "/dashboard/schedules":  "/dashboard/attendance",
   "/dashboard/attendance": "/dashboard",
   "/dashboard/belts":      "/dashboard",
   "/dashboard/katas":      "/dashboard/settings",
@@ -120,8 +119,8 @@ export function MobileNav() {
           </button>
         ) : (
           <div className="flex items-center gap-2 shrink-0">
-            <LayoutDashboard size={18} className="text-dojo-red" />
-            <span className="font-display text-dojo-gold text-sm font-bold tracking-widest">INICIO</span>
+            <Image src="/logo.png" alt="Dojo Manager" width={22} height={22} className="rounded object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            <span className="font-display text-dojo-gold text-sm font-bold tracking-widest">DOJO MANAGER</span>
           </div>
         )}
         <p className="font-display text-dojo-white text-sm font-semibold truncate flex-1 text-center">{title}</p>
@@ -147,7 +146,10 @@ export function MobileNav() {
         open ? "translate-x-0" : "translate-x-full"
       )}>
         <div className="flex items-center justify-between px-4 h-14 border-b border-dojo-border shrink-0">
-          <span className="font-display text-dojo-white text-sm font-bold">Menú</span>
+          <div className="flex items-center gap-2">
+            <Image src="/logo.png" alt="Dojo Manager" width={28} height={28} className="rounded-lg object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            <span className="font-display text-dojo-white text-sm font-bold tracking-widest">DOJO MANAGER</span>
+          </div>
           <button onClick={close} className="p-2 rounded-lg hover:bg-dojo-border transition-colors">
             <X size={18} className="text-dojo-muted" />
           </button>

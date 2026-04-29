@@ -41,7 +41,7 @@ model User {
   email     String   @unique
   password  String
   name      String
-  role               String   @default("user")   // sysadmin, admin, user
+  role               String   @default("user")   // sysadmin, admin, user, student
   active             Boolean  @default(true)
   mustChangePassword Boolean  @default(false)
   createdAt          DateTime @default(now())
@@ -49,6 +49,12 @@ model User {
 
   dojoId    String?  @map("dojo_id")
   dojo      Dojo?    @relation(fields: [dojoId], references: [id])
+
+  studentId String?  @unique @map("student_id")
+  student   Student? @relation(fields: [studentId], references: [id])
+
+  resetToken       String?   @map("reset_token")
+  resetTokenExpiry DateTime? @map("reset_token_expiry")
 
   @@index([email])
   @@index([dojoId])
@@ -93,6 +99,7 @@ model Student {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  portalUser        User?
   inscription       Inscription?
   payments          Payment[]
   beltHistory       BeltHistory[]

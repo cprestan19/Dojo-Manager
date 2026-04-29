@@ -43,7 +43,10 @@ function LoginForm() {
     const res = await signIn("credentials", { email, password, redirect: false });
 
     if (res?.ok) {
-      router.push("/dashboard");
+      const { getSession } = await import("next-auth/react");
+      const sess = await getSession();
+      const role = (sess?.user as { role?: string })?.role;
+      router.push(role === "student" ? "/portal" : "/dashboard");
       return;
     }
 
@@ -88,41 +91,45 @@ function LoginForm() {
           </div>
           {dojo ? (
             <>
-              <h1 className="font-display text-3xl font-bold text-dojo-white tracking-widest">{dojo.name.toUpperCase()}</h1>
-              <p className="font-display text-dojo-gold tracking-widest text-sm">DOJO MANAGER</p>
+              <h1 className="font-display text-xl font-bold text-dojo-white tracking-tight">{dojo.name}</h1>
+              <p className="font-display text-dojo-gold tracking-widest text-[10px] font-semibold uppercase mt-1">Dojo Manager</p>
             </>
           ) : (
             <>
-              <h1 className="font-display text-3xl font-bold text-dojo-white tracking-widest">DOJO</h1>
-              <p className="font-display text-dojo-gold tracking-widest text-sm">MANAGER</p>
+              <h1 className="font-display text-xl font-bold text-dojo-white tracking-tight">Dojo Manager</h1>
+              <p className="font-display text-dojo-gold tracking-widest text-[10px] font-semibold uppercase mt-1">Sistema de Karate</p>
             </>
           )}
-          <p className="text-dojo-muted text-sm mt-2">Sistema de Administración de Karate</p>
+          <p className="font-body text-dojo-muted text-xs mt-1.5">Gestión de tu dojo, simplificada</p>
         </div>
 
         {/* Form */}
         <div className="card">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="form-label">Correo Electrónico</label>
+              <label className="font-body text-xs font-semibold text-dojo-muted uppercase tracking-wider block mb-1.5">
+                Correo Electrónico
+              </label>
               <div className="relative">
                 <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
                 <input
                   type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  className="form-input pl-9" placeholder="usuario@dojo.com" required
+                  className="form-input pl-9 font-body" placeholder="usuario@dojo.com" required
                   style={{ fontSize: "16px" }}
                 />
               </div>
             </div>
 
             <div>
-              <label className="form-label">Contraseña</label>
+              <label className="font-body text-xs font-semibold text-dojo-muted uppercase tracking-wider block mb-1.5">
+                Contraseña
+              </label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
                 <input
                   type={showPass ? "text" : "password"} value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="form-input pl-9 pr-10" placeholder="••••••••" required
+                  className="form-input pl-9 pr-10 font-body" placeholder="••••••••" required
                   style={{ fontSize: "16px" }}
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)}
@@ -147,11 +154,17 @@ function LoginForm() {
                 </span>
               ) : "Iniciar Sesión"}
             </button>
+
+            <div className="text-center">
+              <a href="/forgot-password" className="font-body text-xs text-dojo-muted hover:text-dojo-red transition-colors">
+                ¿Olvidaste tu contraseña?
+              </a>
+            </div>
           </form>
         </div>
 
-        <p className="text-center text-dojo-muted text-xs mt-6">
-          © {new Date().getFullYear()} DojoManager · Todos los derechos reservados
+        <p className="font-body text-center text-dojo-muted text-xs mt-6">
+          © {new Date().getFullYear()} Dojo Manager · Todos los derechos reservados
         </p>
       </div>
     </div>
