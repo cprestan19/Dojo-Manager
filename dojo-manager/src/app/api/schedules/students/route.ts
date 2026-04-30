@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 
 type SessionUser = { dojoId?: string; role?: string };
 
@@ -14,6 +15,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { dojoId } = session.user as SessionUser;
+  // NOTE: role needed for sysadmin context — check SessionUser type
   if (!dojoId) return NextResponse.json({ error: "Sin dojo" }, { status: 403 });
 
   const students = await prisma.student.findMany({

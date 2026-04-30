@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -10,7 +11,8 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { dojoId } = session.user as SessionUser;
-  if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
+  // NOTE: role needed for sysadmin context — check SessionUser type
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const studentId = new URL(req.url).searchParams.get("studentId");
 
@@ -31,7 +33,8 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { dojoId } = session.user as SessionUser;
-  if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
+  // NOTE: role needed for sysadmin context — check SessionUser type
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   try {
     const body = await req.json();

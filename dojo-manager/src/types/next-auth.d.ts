@@ -6,6 +6,7 @@ declare module "next-auth" {
     dojoId?: string | null;
     studentId?: string | null;
     mustChangePassword?: boolean;
+    photoUrl?: string | null;
   }
   interface Session {
     user: {

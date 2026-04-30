@@ -4,10 +4,9 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import {
   User, Heart, Phone, CreditCard, Award,
-  Camera, ChevronDown, ChevronUp, Save, ArrowLeft, Calendar
+  Camera, ChevronDown, ChevronUp, Save, ArrowLeft, Calendar, Loader2
 } from "lucide-react";
 import { cn, calculateAge, BELT_COLORS, GENDERS, NATIONALITIES } from "@/lib/utils";
-import Image from "next/image";
 
 interface InscriptionData {
   inscriptionDate: string;
@@ -111,9 +110,11 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
     },
   });
 
-  const [photo,     setPhoto]     = useState<string | null>(defaultValues?.photo ?? null);
-  const [age,       setAge]       = useState<number | null>(null);
-  const [error,     setError]     = useState("");
+  const [photo,          setPhoto]         = useState<string | null>(defaultValues?.photo ?? null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError,     setPhotoError]     = useState("");
+  const [age,            setAge]            = useState<number | null>(null);
+  const [error,          setError]          = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const birthDate          = watch("birthDate");
@@ -126,12 +127,26 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
     else           setAge(null);
   }, [birthDate]);
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setPhoto(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    setPhotoError("");
+    setPhotoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "image");
+      fd.append("purpose", "student-photo");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al subir imagen");
+      setPhoto(data.url);
+    } catch (err: unknown) {
+      setPhotoError(err instanceof Error ? err.message : "Error al subir imagen");
+    } finally {
+      setPhotoUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   async function onSubmit(data: FormData) {
@@ -193,23 +208,35 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
           {/* Photo upload */}
           <div className="flex flex-col items-center gap-3">
             <div
-              onClick={() => fileRef.current?.click()}
-              className="w-44 h-44 rounded-2xl bg-dojo-border border-2 border-dashed border-dojo-border hover:border-dojo-red cursor-pointer flex items-center justify-center overflow-hidden transition-colors relative group"
+              onClick={() => !photoUploading && fileRef.current?.click()}
+              className={cn(
+                "w-44 h-44 rounded-2xl bg-dojo-border border-2 border-dashed border-dojo-border transition-colors relative group overflow-hidden",
+                photoUploading ? "cursor-wait opacity-70" : "hover:border-dojo-red cursor-pointer",
+              )}
             >
-              {photo ? (
-                <Image src={photo} alt="foto" fill className="object-cover" />
+              {photoUploading ? (
+                <div className="flex flex-col items-center justify-center h-full text-dojo-muted">
+                  <Loader2 size={28} className="animate-spin mb-1" />
+                  <p className="text-xs">Subiendo...</p>
+                </div>
+              ) : photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photo} alt="foto" className="w-full h-full object-cover" />
               ) : (
-                <div className="text-center text-dojo-muted">
-                  <Camera size={28} className="mx-auto mb-1" />
+                <div className="flex flex-col items-center justify-center h-full text-dojo-muted">
+                  <Camera size={28} className="mb-1" />
                   <p className="text-xs">Foto</p>
                 </div>
               )}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Camera size={20} className="text-white" />
-              </div>
+              {!photoUploading && (
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera size={20} className="text-white" />
+                </div>
+              )}
             </div>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-            {photo && (
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoChange} />
+            {photoError && <p className="text-xs text-red-400 text-center">{photoError}</p>}
+            {photo && !photoUploading && (
               <button type="button" onClick={() => setPhoto(null)} className="text-xs text-dojo-muted hover:text-red-400 transition-colors">
                 Quitar foto
               </button>

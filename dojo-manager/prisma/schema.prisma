@@ -28,10 +28,12 @@ model Dojo {
   autoRemindersEnabled  Boolean @default(false)
   loginBgImage          String? @db.Text @map("login_bg_image")
 
-  users     User[]
-  students  Student[]
-  katas     Kata[]
-  schedules Schedule[]
+  users           User[]
+  students        Student[]
+  katas           Kata[]
+  schedules       Schedule[]
+  beltVideos      BeltVideo[]
+  rolePermissions DojoRolePermission[]
 
   @@map("dojos")
 }
@@ -46,6 +48,8 @@ model User {
   mustChangePassword Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  photo     String?  @db.Text
 
   dojoId    String?  @map("dojo_id")
   dojo      Dojo?    @relation(fields: [dojoId], references: [id])
@@ -274,6 +278,42 @@ model EmailSettings {
   fromName  String   @default("DojoManager")
   updatedAt DateTime @updatedAt
   @@map("email_settings")
+}
+
+model DojoRolePermission {
+  id          String   @id @default(cuid())
+  dojoId      String   @map("dojo_id")
+  dojo        Dojo     @relation(fields: [dojoId], references: [id])
+  roleName    String   @map("role_name")
+  roleLabel   String   @map("role_label")
+  roleColor   String   @default("blue") @map("role_color")
+  isSystem    Boolean  @default(false)  @map("is_system")
+  permissions Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([dojoId, roleName])
+  @@index([dojoId])
+  @@map("dojo_role_permissions")
+}
+
+model BeltVideo {
+  id          String   @id @default(cuid())
+  dojoId      String   @map("dojo_id")
+  dojo        Dojo     @relation(fields: [dojoId], references: [id])
+  beltColor   String   @map("belt_color")
+  title       String
+  description String?  @db.Text
+  videoUrl    String   @map("video_url")
+  publicId    String   @map("public_id")
+  order       Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([dojoId])
+  @@index([dojoId, beltColor])
+  @@map("belt_videos")
 }
 
 model KataCompetition {

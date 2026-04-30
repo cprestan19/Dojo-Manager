@@ -15,6 +15,7 @@ export interface StudentRow {
   gender: string;
   nationality: string;
   active: boolean;
+  photo: string | null;
   beltHistory: { beltColor: string }[];
   payments: { status: string; dueDate: string }[];
 }
@@ -165,10 +166,11 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
           </div>
         )}
         {!loading && displayed.map(s => {
-          const belt    = s.beltHistory[0]?.beltColor;
-          const payment = s.payments[0];
-          const age     = calculateAge(s.birthDate);
+          const belt     = s.beltHistory[0]?.beltColor;
+          const payment  = s.payments[0];
+          const age      = calculateAge(s.birthDate);
           const beltInfo = belt ? getBeltInfo(belt) : null;
+          const isUrl    = s.photo?.startsWith("http");
           return (
             <Link
               key={s.id}
@@ -179,8 +181,12 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
                   : "bg-dojo-darker border-dojo-border/50 opacity-70"
               }`}
             >
-              <div className="w-11 h-11 bg-dojo-border rounded-full flex items-center justify-center text-sm font-bold text-dojo-gold shrink-0">
-                {s.fullName.split(" ").slice(0, 2).map(w => w[0]).join("")}
+              <div className="w-11 h-11 bg-dojo-border rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-dojo-gold shrink-0">
+                {isUrl
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={s.photo!} alt={s.fullName} className="w-full h-full object-cover" />
+                  : s.fullName.split(" ").slice(0, 2).map(w => w[0]).join("")
+                }
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-dojo-white truncate">{s.fullName}</p>
@@ -248,12 +254,17 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
               const belt    = s.beltHistory[0]?.beltColor;
               const payment = s.payments[0];
               const age     = calculateAge(s.birthDate);
+              const isUrl   = s.photo?.startsWith("http");
               return (
                 <tr key={s.id} className={`border-b border-dojo-border/50 transition-colors ${s.active ? "hover:bg-dojo-border/20" : "opacity-60 hover:opacity-80"}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-dojo-border rounded-full flex items-center justify-center text-xs font-bold text-dojo-gold shrink-0">
-                        {s.fullName.split(" ").slice(0,2).map(w => w[0]).join("")}
+                      <div className="w-9 h-9 bg-dojo-border rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-dojo-gold shrink-0">
+                        {isUrl
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={s.photo!} alt={s.fullName} className="w-full h-full object-cover" />
+                          : s.fullName.split(" ").slice(0,2).map(w => w[0]).join("")
+                        }
                       </div>
                       <div>
                         <div className="flex items-center gap-2">

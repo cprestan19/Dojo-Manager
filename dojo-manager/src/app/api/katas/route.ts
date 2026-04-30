@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS, getCachedKatas } from "@/lib/queries";
+import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -12,7 +13,8 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { dojoId } = session.user as SessionUser;
-  if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
+  // NOTE: role needed for sysadmin context — check SessionUser type
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const activeOnly = new URL(req.url).searchParams.get("active") === "1";
 
@@ -32,10 +34,11 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { role, dojoId } = session.user as SessionUser;
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (role !== "sysadmin" && role !== "admin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-  if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const body = await req.json();
   const kata = await prisma.kata.create({

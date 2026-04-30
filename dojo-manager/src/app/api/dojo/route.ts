@@ -8,6 +8,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/queries";
+import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -15,14 +16,15 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { role, dojoId } = session.user as SessionUser;
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
 
   // sysadmin puede consultar cualquier dojo vía ?id=
   const targetId = role === "sysadmin"
     ? (new URL(req.url).searchParams.get("id") ?? null)
     : dojoId;
 
-  if (!targetId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
+  if (!targetId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   // ?logo=1 incluye el campo logo (base64 pesado). Por defecto se excluye
   // para que el sidebar y otros consumidores no descarguen cientos de KB innecesariamente.
@@ -50,7 +52,8 @@ export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { role, dojoId } = session.user as SessionUser;
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (role !== "sysadmin" && role !== "admin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
@@ -59,7 +62,7 @@ export async function PUT(req: NextRequest) {
     ? (searchParams.get("id") ?? dojoId)
     : dojoId;
 
-  if (!targetId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
+  if (!targetId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const body = await req.json();
 

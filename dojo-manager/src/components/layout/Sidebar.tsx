@@ -1,7 +1,3 @@
-/**
- * Componente: Sidebar de navegación
- * Desarrollado por Cristhian Paul Prestán — 2025
- */
 "use client";
 import { useState } from "react";
 import Link from "next/link";
@@ -10,29 +6,44 @@ import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useDojo } from "@/lib/hooks/useDojo";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { NAV_KEYS } from "@/lib/permissions";
+import type { NavKey } from "@/lib/permissions";
 import {
   Users, CreditCard, Award, BookOpen,
   BarChart2, Settings, LogOut, Shield, Building2, Clock, ClipboardList, ExternalLink,
-  ChevronDown, Tag, Mail, LayoutDashboard,
+  ChevronDown, Tag, Mail, LayoutDashboard, Video, ShieldCheck,
 } from "lucide-react";
 
-const navItems = [
-  { href: "/dashboard",            label: "Inicio",         icon: LayoutDashboard, roles: ["sysadmin","admin","user"] },
-  { href: "/dashboard/students",   label: "Alumnos",        icon: Users,         roles: ["sysadmin","admin","user"] },
-  { href: "/dashboard/attendance", label: "Asistencia",     icon: ClipboardList, roles: ["sysadmin","admin","user"] },
-  { href: "/dashboard/payments",   label: "Pagos",          icon: CreditCard,    roles: ["sysadmin","admin"] },
-  { href: "/dashboard/belts",      label: "Rangos",         icon: Award,         roles: ["sysadmin","admin","user"] },
-  { href: "/dashboard/reports",    label: "Reportes",       icon: BarChart2,     roles: ["sysadmin","admin"] },
-  { href: "/dashboard/users",      label: "Usuarios",       icon: Shield,        roles: ["sysadmin","admin"] },
-  { href: "/dashboard/dojos",      label: "Dojos",          icon: Building2,     roles: ["sysadmin"] },
+interface NavItem {
+  href:    string;
+  label:   string;
+  icon:    React.ElementType;
+  permKey: NavKey;
+}
+
+const navItems: NavItem[] = [
+  { href: "/dashboard",            label: "Dashboard",     icon: LayoutDashboard, permKey: NAV_KEYS.DASHBOARD  },
+  { href: "/dashboard/students",   label: "Alumnos",    icon: Users,           permKey: NAV_KEYS.STUDENTS   },
+  { href: "/dashboard/attendance", label: "Asistencia", icon: ClipboardList,   permKey: NAV_KEYS.ATTENDANCE },
+  { href: "/dashboard/payments",   label: "Pagos",      icon: CreditCard,      permKey: NAV_KEYS.PAYMENTS   },
+  { href: "/dashboard/belts",      label: "Cintas o Grados",     icon: Award,           permKey: NAV_KEYS.BELTS      },
+  { href: "/dashboard/reports",    label: "Reportes",   icon: BarChart2,       permKey: NAV_KEYS.REPORTS    },
+  { href: "/dashboard/schedules",  label: "Horarios",   icon: Clock,           permKey: NAV_KEYS.SCHEDULES  },
+  { href: "/dashboard/users",      label: "Usuarios",   icon: Shield,          permKey: NAV_KEYS.USERS      },
+  { href: "/dashboard/dojos",      label: "Dojos",      icon: Building2,       permKey: NAV_KEYS.DOJOS      },
 ];
 
-const settingsSubItems = [
-  { href: "/dashboard/settings",        label: "General",              icon: Settings, roles: ["sysadmin","admin"] },
-  { href: "/dashboard/settings/katas",  label: "Creación de Katas",    icon: Tag,      roles: ["sysadmin","admin"] },
-  { href: "/dashboard/settings/email",  label: "Parámetros de Correo", icon: Mail,     roles: ["sysadmin","admin"] },
-  { href: "/dashboard/katas",           label: "Catálogo de Katas",    icon: BookOpen, roles: ["sysadmin","admin","user"] },
+const settingsSubItems: NavItem[] = [
+  { href: "/dashboard/settings",        label: "General",           icon: Settings,    permKey: NAV_KEYS.SETTINGS_GENERAL },
+  { href: "/dashboard/settings/katas",  label: "Katas",             icon: Tag,         permKey: NAV_KEYS.SETTINGS_KATAS   },
+  { href: "/dashboard/settings/videos", label: "Videos de Katas",   icon: Video,       permKey: NAV_KEYS.SETTINGS_VIDEOS  },
+  { href: "/dashboard/settings/email",  label: "Correo / Notificaciones", icon: Mail,        permKey: NAV_KEYS.SETTINGS_EMAIL   },
+  { href: "/dashboard/settings/roles",  label: "Roles y Accesos",   icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES   },
+  { href: "/dashboard/katas",           label: "Catálogo de Katas", icon: BookOpen,    permKey: NAV_KEYS.KATAS_CATALOG    },
 ];
+
+const SETTINGS_PATHS = ["/dashboard/settings", "/dashboard/katas"];
 
 function LogoImg() {
   return (
@@ -51,21 +62,27 @@ function LogoImg() {
 }
 
 export function Sidebar() {
-  const pathname = usePathname();
+  const pathname          = usePathname();
   const { data: session } = useSession();
   const role  = (session?.user as { role?: string })?.role ?? "user";
   const dojo  = useDojo();
+  const perms = usePermissions();
 
-  const [settingsOpen, setSettingsOpen] = useState(() =>
-    pathname.startsWith("/dashboard/settings") || pathname === "/dashboard/katas"
-  );
+  const inSettings = SETTINGS_PATHS.some(p => pathname.startsWith(p));
+  const [settingsOpen, setSettingsOpen] = useState(() => inSettings);
 
-  const visible        = navItems.filter(i => i.roles.includes(role));
-  const visibleSettings = settingsSubItems.filter(i => i.roles.includes(role));
+  const visible         = navItems.filter(i => perms.has(i.permKey));
+  const visibleSettings = settingsSubItems.filter(i => perms.has(i.permKey));
+
+  const roleLabel =
+    role === "sysadmin" ? "Super Admin" :
+    role === "admin"    ? "Administrador" :
+    role === "user"     ? "Usuario" :
+    role;
 
   return (
     <aside className="w-64 min-h-screen bg-dojo-dark border-r border-dojo-border flex flex-col">
-      {/* App branding — logo + nombre */}
+      {/* App branding */}
       <div className="px-4 py-4 border-b border-dojo-border">
         <div className="flex items-center gap-3">
           <LogoImg />
@@ -84,18 +101,19 @@ export function Sidebar() {
       </div>
 
       {/* Navegación */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {visible.map(item => {
           const Icon   = item.icon;
           const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
           return (
             <Link
-              key={item.href} href={item.href}
+              key={item.href}
+              href={item.href}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
                 active
                   ? "bg-dojo-red text-white"
-                  : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white"
+                  : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
               )}
             >
               <Icon size={18} />
@@ -111,9 +129,9 @@ export function Sidebar() {
               onClick={() => setSettingsOpen(o => !o)}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
-                pathname.startsWith("/dashboard/settings") || pathname === "/dashboard/katas"
+                inSettings
                   ? "text-white bg-dojo-border/60"
-                  : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white"
+                  : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
               )}
             >
               <Settings size={18} />
@@ -128,15 +146,16 @@ export function Sidebar() {
               <div className="mt-1 ml-4 pl-3 border-l border-dojo-border space-y-1">
                 {visibleSettings.map(sub => {
                   const Icon   = sub.icon;
-                  const active = pathname === sub.href;
+                  const active = pathname === sub.href || (sub.href !== "/dashboard/settings" && pathname.startsWith(sub.href));
                   return (
                     <Link
-                      key={sub.href} href={sub.href}
+                      key={sub.href}
+                      href={sub.href}
                       className={cn(
                         "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 text-sm",
                         active
                           ? "bg-dojo-red text-white font-medium"
-                          : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white"
+                          : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
                       )}
                     >
                       <Icon size={15} />
@@ -150,7 +169,7 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* Scanner QR acceso rápido */}
+      {/* Scanner QR */}
       <div className="px-4 pb-3">
         <a
           href="/scanner"
@@ -166,14 +185,17 @@ export function Sidebar() {
       {/* Info del usuario */}
       <div className="p-4 border-t border-dojo-border">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 bg-dojo-border rounded-full flex items-center justify-center text-xs font-bold text-dojo-gold flex-shrink-0">
-            {session?.user?.name?.[0]?.toUpperCase() ?? "?"}
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-dojo-border flex items-center justify-center text-xs font-bold text-dojo-gold flex-shrink-0">
+            {session?.user?.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={session.user.image} alt="" className="w-full h-full object-cover" />
+            ) : (
+              session?.user?.name?.[0]?.toUpperCase() ?? "?"
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-dojo-white truncate">{session?.user?.name}</p>
-            <p className="text-xs text-dojo-muted capitalize">
-              {role === "sysadmin" ? "Super Admin" : role}
-            </p>
+            <p className="text-xs text-dojo-muted capitalize">{roleLabel}</p>
           </div>
         </div>
         <button

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { User, CreditCard, Clock, ClipboardList, LogOut } from "lucide-react";
+import { User, CreditCard, Clock, ClipboardList, LogOut, Video } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 import Image from "next/image";
 
@@ -21,6 +21,7 @@ const tabs = [
   { href: "/portal/payments",   label: "Pagos",       icon: CreditCard    },
   { href: "/portal/schedules",  label: "Horarios",    icon: Clock         },
   { href: "/portal/attendance", label: "Asistencia",  icon: ClipboardList },
+  { href: "/portal/videos",     label: "Videos",      icon: Video         },
 ];
 
 export default function PortalNav({ student }: Props) {

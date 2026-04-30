@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Building2, Plus, Users, GraduationCap, Globe, CheckCircle, XCircle, Copy, KeyRound, Eye, EyeOff, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Building2, Plus, Users, GraduationCap, Globe, CheckCircle, XCircle, Copy, KeyRound, LogIn, Lock, Eye, EyeOff } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 
 interface Dojo {
@@ -14,6 +15,7 @@ interface CreatedAdmin { email: string; tempPassword: string; loginUrl: string; 
 const defaultForm = { name: "", slug: "", adminPassword: "", showPass: false };
 
 export default function DojosPage() {
+  const router = useRouter();
   const [dojos,        setDojos]        = useState<Dojo[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [modal,        setModal]        = useState(false);
@@ -21,6 +23,19 @@ export default function DojosPage() {
   const [form,         setForm]         = useState(defaultForm);
   const [error,        setError]        = useState("");
   const [createdAdmin, setCreatedAdmin] = useState<CreatedAdmin | null>(null);
+  const [entering,     setEntering]     = useState<string | null>(null);
+
+  async function enterDojo(dojo: Dojo) {
+    setEntering(dojo.id);
+    await fetch("/api/sysadmin/set-dojo", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ dojoId: dojo.id }),
+    });
+    setEntering(null);
+    router.push("/dashboard");
+    router.refresh();
+  }
 
   async function load() {
     setLoading(true);
@@ -150,15 +165,24 @@ export default function DojosPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-dojo-muted border-t border-dojo-border pt-3">
-                <Globe size={12} />
-                <a
-                  href={`/login?dojo=${dojo.slug}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="hover:text-dojo-gold transition-colors truncate"
+              <div className="flex items-center justify-between gap-2 border-t border-dojo-border pt-3">
+                <div className="flex items-center gap-2 text-xs text-dojo-muted min-w-0">
+                  <Globe size={12} className="shrink-0" />
+                  <a href={`/login?dojo=${dojo.slug}`} target="_blank" rel="noopener noreferrer"
+                    className="hover:text-dojo-gold transition-colors truncate">
+                    /login?dojo={dojo.slug}
+                  </a>
+                </div>
+                <button
+                  onClick={() => enterDojo(dojo)}
+                  disabled={entering === dojo.id}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold shrink-0 transition-colors"
+                  style={{ background: "rgba(229,57,53,0.15)", color: "#E53935", border: "1px solid rgba(229,57,53,0.3)" }}
+                  title="Entrar al dojo para mantenimiento"
                 >
-                  /login?dojo={dojo.slug}
-                </a>
+                  <LogIn size={13} />
+                  {entering === dojo.id ? "Entrando..." : "Entrar"}
+                </button>
               </div>
             </div>
           ))}

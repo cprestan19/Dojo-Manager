@@ -284,6 +284,80 @@ export async function sendStudentWelcome({
   await t.sendMail({ from: fromAddress(dojo), to, subject, html });
 }
 
+export async function sendUserWelcome({
+  to, name, loginEmail, tempPassword, roleLabel, dojo,
+}: {
+  to:           string;
+  name:         string;
+  loginEmail:   string;
+  tempPassword: string;
+  roleLabel:    string;
+  dojo?:        DojoMeta;
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://dojomasteronline.com";
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
+      ${dojoHeader(dojo)}
+      <div style="padding:32px 24px;">
+        <h2 style="color:#F0F0F0;margin:0 0 8px;font-size:20px;">¡Bienvenido/a, ${name}!</h2>
+        <p style="color:#C8D0DA;font-size:13px;margin:0 0 20px;">
+          Se ha creado tu cuenta de acceso al sistema de gestión${dojo ? ` de <strong>${dojo.name}</strong>` : ""}.
+          A continuación encontrarás tus credenciales de ingreso.
+        </p>
+
+        <div style="background:#16213E;border:1px solid #2A3550;border-radius:8px;padding:20px;margin-bottom:20px;">
+          <p style="margin:0 0 14px;color:#8892A4;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Datos de acceso</p>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="padding:8px 0;color:#8892A4;font-size:13px;">Portal</td>
+              <td style="padding:8px 0;text-align:right;">
+                <a href="${appUrl}/login" style="color:#E74C3C;font-size:13px;">${appUrl}/login</a>
+              </td>
+            </tr>
+            <tr style="border-top:1px solid #2A3550;">
+              <td style="padding:8px 0;color:#8892A4;font-size:13px;">Correo electrónico</td>
+              <td style="padding:8px 0;font-family:monospace;font-size:13px;text-align:right;color:#F0F0F0;">${loginEmail}</td>
+            </tr>
+            <tr style="border-top:1px solid #2A3550;">
+              <td style="padding:8px 0;color:#8892A4;font-size:13px;">Contraseña temporal</td>
+              <td style="padding:8px 0;text-align:right;">
+                <span style="font-family:monospace;font-size:18px;font-weight:bold;color:#F39C12;background:#2A2000;padding:4px 12px;border-radius:6px;">${tempPassword}</span>
+              </td>
+            </tr>
+            <tr style="border-top:1px solid #2A3550;">
+              <td style="padding:8px 0;color:#8892A4;font-size:13px;">Rol asignado</td>
+              <td style="padding:8px 0;text-align:right;">
+                <span style="background:#1E3A5F;color:#60A5FA;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:bold;">${roleLabel}</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="background:#1C1A0A;border:1px solid #5C4A00;border-radius:8px;padding:16px;margin-bottom:20px;">
+          <p style="margin:0;color:#FCD34D;font-size:13px;font-weight:bold;">⚠️ Importante — Primer inicio de sesión</p>
+          <p style="margin:8px 0 0;color:#C8D0DA;font-size:13px;">
+            Al ingresar por primera vez, el sistema te pedirá que <strong>cambies esta contraseña temporal</strong>
+            por una de tu elección. Guarda esta información en un lugar seguro hasta entonces.
+          </p>
+        </div>
+
+        <p style="color:#8892A4;font-size:11px;text-align:center;margin:0;">
+          Si no esperabas este correo, contáctanos de inmediato.<br/>
+          No compartas estas credenciales con nadie.
+        </p>
+      </div>
+      ${emailFooter(dojo)}
+    </div>`;
+
+  const subject = dojo
+    ? `🔑 Acceso creado — ${dojo.name}`
+    : "🔑 Tu acceso a DojoManager";
+
+  const t = await createTransporter();
+  await t.sendMail({ from: fromAddress(dojo), to, subject, html });
+}
+
 export async function sendPasswordReset({
   to, name, resetUrl, dojo,
 }: {

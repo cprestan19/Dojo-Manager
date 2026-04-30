@@ -9,7 +9,9 @@ const nextConfig = {
   },
 
   images: {
-    remotePatterns: [],
+    remotePatterns: [
+      { protocol: "https", hostname: "res.cloudinary.com" },
+    ],
     dangerouslyAllowSVG: true,
   },
 
@@ -21,6 +23,7 @@ const nextConfig = {
     "@prisma/client",
     "@prisma/adapter-pg",
     "html5-qrcode",
+    "cloudinary",
   ],
 
   // Security headers

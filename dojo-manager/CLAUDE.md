@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 @AGENTS.md
 
 # DojoManager — Guía de arquitectura y reglas de desarrollo
@@ -6,7 +10,30 @@
 - **Next.js 15** (App Router) · **TypeScript** · **Tailwind CSS 3** · **Prisma 7** · **PostgreSQL**
 - **NextAuth 4** (JWT strategy, Credentials provider)
 - **@prisma/adapter-pg** — driver adapter para conexión directa a Postgres (requerido por Prisma 7)
+- **Cloudinary** — almacenamiento de imágenes (fotos de alumnos) y videos (videos por cinta)
 - Variables de entorno en `.env.local` (nunca commitear)
+
+---
+
+## Comandos
+
+```bash
+npm run dev            # Servidor de desarrollo
+npm run build          # Build de producción (TypeScript y ESLint ignorados — ver next.config.js)
+npm run lint           # ESLint (ignorado en build)
+npm run db:push        # Sincronizar schema con la BD (usa prisma.config.ts → .env.local)
+npm run db:generate    # Regenerar cliente Prisma — reiniciar dev server después
+npm run db:studio      # GUI de base de datos (Prisma Studio)
+npm run db:migrate     # Nueva migración versionada
+```
+
+> **Importante tras `db:generate`**: reiniciar el servidor dev para limpiar el cliente Prisma cacheado en `globalThis`.
+
+Seed inicial (solo una vez, con dev server corriendo):
+```bash
+curl -X POST http://localhost:3000/api/seed
+# Credenciales: admin@dojomanager.com / Admin123!  (rol: sysadmin)
+```
 
 ---
 
@@ -32,6 +59,7 @@ Dojo  ──┬── User[]
 | sysadmin | Global — gestiona todos los dojos | `null` |
 | admin | Su dojo — gestiona usuarios y contenido | requerido |
 | user | Su dojo — solo lectura/operaciones básicas | requerido |
+| student | Solo portal alumno (`/portal`) | requerido |
 
 ### Aislamiento de datos
 - **Todas las APIs** filtran por `dojoId` extraído de `session.user.dojoId` (JWT)
@@ -79,6 +107,7 @@ host, port, user, password (cifrado AES-256), secure, fromName
 ```
 - La contraseña se cifra con `encrypt()` de `src/lib/crypto.ts` antes de guardar
 - Se descifra con `decrypt()` al usar — NUNCA retornar al cliente en texto plano
+- Las vars de entorno `EMAIL_HOST/PORT/USER/PASS/FROM` son fallback si no hay config en BD
 
 ### Kata
 - `description` usa valores fijos: `"Kata de Cinta"` | `"Kata de Competencias"` | `null`
@@ -103,8 +132,12 @@ negra → negra-1-dan → negra-2-dan → negra-3-dan
 ---
 
 ## Rutas de la aplicación
+
+### Dashboard (roles: sysadmin / admin / user)
 ```
 /login                               → Login (acepta ?dojo=slug, muestra bg image si configurada)
+/forgot-password                     → Solicitud de recuperación de contraseña
+/reset-password                      → Reseteo de contraseña con token
 /dashboard                           → Inicio/métricas         [Server Component]
 /dashboard/change-password           → Cambio obligatorio de contraseña
 /dashboard/students                  → Alumnos [Server+Client] filtros: búsqueda, activo/inactivo, cinta
@@ -124,13 +157,28 @@ negra → negra-1-dan → negra-2-dan → negra-3-dan
 /dashboard/settings/email            → Parámetros de correo SMTP (admin + sysadmin)
 /scanner                             → Scanner QR con cámara html5-qrcode (mobile-first)
 ```
+
+### Portal alumno (rol: student)
+```
+/portal                              → Inicio del alumno (perfil, cinta actual)
+/portal/change-password              → Cambio obligatorio de contraseña
+/portal/payments                     → Historial de pagos propios
+/portal/attendance                   → Historial de asistencia propia
+/portal/schedules                    → Horarios asignados
+/portal/videos                       → Videos de katas — solo cintas obtenidas
+```
+- El middleware redirige `role === "student"` desde `/dashboard` → `/portal`
+- `PortalNav.tsx` en `src/app/portal/` maneja la navegación
+
 **Cada ruta del dashboard tiene `loading.tsx`** con skeleton.
 
 ### Sidebar / MobileNav — navegación
 - **Configuración** es grupo expandible con sub-ítems:
   - General → `/dashboard/settings`
   - Creación de Katas → `/dashboard/settings/katas` (admin/sysadmin)
+  - Videos por Cinta → `/dashboard/settings/videos` (admin/sysadmin)
   - Parámetros de Correo → `/dashboard/settings/email` (admin/sysadmin)
+  - Roles y Accesos → `/dashboard/settings/roles` (admin/sysadmin)
   - Catálogo de Katas → `/dashboard/katas` (todos los roles)
 - Se auto-expande cuando `pathname.startsWith("/dashboard/settings") || pathname === "/dashboard/katas"`
 - **MobileNav**: muestra 6 ítems simplificados + botón ← cuando no es `/dashboard`
@@ -139,6 +187,18 @@ negra → negra-1-dan → negra-2-dan → negra-3-dan
 
 ## APIs
 ```
+POST /api/upload                      → Sube imagen o video a Cloudinary. FormData: file + type(image|video).
+                                        Solo admin/sysadmin. Devuelve { url, publicId }.
+GET/POST /api/roles                   → Lista roles del dojo (system + custom) con sus permisos. POST crea rol personalizado.
+PUT/DELETE /api/roles/[id]            → Actualiza permisos / elimina rol personalizado (falla si hay usuarios con ese rol)
+POST /api/roles/system                → Crea o actualiza override de rol de sistema (admin/user) con permisos custom
+GET /api/roles/current                → Devuelve { permissions: NavKey[] } del usuario actual. Usado por usePermissions hook.
+GET/POST /api/users                   → Lista usuarios. POST crea usuario con photo opcional.
+PUT/DELETE /api/users/[id]            → Edita usuario (name,email,role,photo,active,password). DELETE falla si es el último sysadmin.
+GET/POST /api/belt-videos             → CRUD videos por cinta. GET acepta ?beltColor=
+PUT/DELETE /api/belt-videos/[id]      → Actualiza/elimina video (también borra de Cloudinary en DELETE)
+GET /api/portal/belt-videos           → Solo para role=student. Devuelve { videos, earnedBelts }
+                                        filtrado por cintas obtenidas en BeltHistory del alumno
 POST /api/seed
 GET/PUT  /api/dojo                    → Config del dojo. GET excluye logo/loginBgImage por defecto.
                                         Usar ?logo=1 para incluirlos. PUT invalida caché dojo.
@@ -220,7 +280,28 @@ Responde `429 Too Many Requests` con `Retry-After`.
 15. **Attendance / KataCompetition**: sin `dojoId` directo — filtrar por `student: { dojoId }`
 16. **Kata.description**: valores controlados — `"Kata de Cinta"` | `"Kata de Competencias"` | `null`
 17. **mustChangePassword**: activo al crear admin. Limpiado en `PUT /api/auth/change-password` → `signOut`
-18. **Middleware**: protege `/dashboard/*` + rate limiting en scan/attendance/login
+18. **Middleware**: protege `/dashboard/*` y `/portal/*` + rate limiting en scan/attendance/login
+
+### Usuarios — gestión
+28. **`User.photo`**: URL Cloudinary (o `null`). Se muestra en la tabla de usuarios y en el avatar del Sidebar/MobileNav via `session.user.image`.
+29. **Cambiar contraseña via admin**: `PUT /api/users/[id]` con `{ password, mustChangePassword: true }` → fuerza cambio en próximo login.
+30. **Eliminar usuario**: bloqueado si es el último sysadmin. Verificar con `count({ where: { role: "sysadmin" } })`.
+
+### Sistema de Roles y Permisos (RBAC)
+31. **`DojoRolePermission`**: tabla de permisos por dojo. `roleName` coincide con `User.role`. Roles del sistema (admin/user) tienen `isSystem=true`.
+32. **Roles de sistema**: `sysadmin` (hardcoded total), `admin` (todos los keys del dojo), `user` (básico personalizable).
+33. **Roles personalizados**: creados por admin, heredan permisos de `user` al crearse. No pueden usar nombres reservados (sysadmin/admin/user/student).
+34. **`permissions` JSON**: array de `NavKey[]` — claves definidas en `src/lib/permissions.ts`. Solo controlan visibilidad de navegación, no acceso a APIs.
+35. **`usePermissions` hook**: llama `GET /api/roles/current` y retorna `Set<NavKey>`. Usado por Sidebar y MobileNav para filtrar ítems visibles.
+36. **Override de sistema**: la primera vez que admin guarda permisos para un rol de sistema, se crea el registro vía `POST /api/roles/system` (upsert). Actualizaciones posteriores via `PUT /api/roles/[id]`.
+37. **Asignar rol personalizado**: `User.role` es un string libre — al crear/editar usuario se listan los roles disponibles del dojo (incluyendo custom).
+
+### Cloudinary — imágenes y videos
+38. **`POST /api/upload`**: solo admin/sysadmin. `FormData` con `file` + `type` (image|video). Devuelve `{ url, publicId }`.
+29. **Fotos de alumnos**: URL Cloudinary guardada en `Student.photo`. Backward compat: si empieza con `data:` es base64 antigua — se renderiza igual con `<img>`.
+30. **Videos**: modelo `BeltVideo` con `videoUrl` y `publicId`. El `publicId` se usa para borrar en Cloudinary al DELETE.
+31. **`token.picture`**: se setea en auth.ts jwt() con `student.photo` → mapea a `session.user.image` automáticamente.
+32. **Acceso a videos del portal**: `GET /api/portal/belt-videos` filtra por `beltHistory` del alumno — solo cintas ya obtenidas.
 
 ### Rendimiento
 19. **Nunca fetch en `useEffect` para carga inicial** si la página puede ser Server Component
@@ -326,6 +407,8 @@ kata_competitions: (studentId), (date)
 | `student_schedules` | join Student ↔ Schedule |
 | `audit_logs` | `action`, `userId`, `dojoId`, `ip`, `userAgent`, `details` |
 | `email_settings` | `host`, `port`, `user`, `password`(**cifrado AES-256**), `secure`, `fromName` |
+| `belt_videos` | `dojoId`, `beltColor`, `title`, `description`, `videoUrl`, `publicId`(Cloudinary), `order`, `active` |
+| `dojo_role_permissions` | `dojoId`, `roleName`, `roleLabel`, `roleColor`, `isSystem`, `permissions`(Json→NavKey[]) |
 
 ---
 
@@ -349,6 +432,13 @@ src/
 │   │   │   └── email/page.tsx      ← SMTP: host, port, user, pass, security(radio), test
 │   │   ├── katas/page.tsx          ← Solo lectura con overflow-x-auto
 │   │   └── [ruta]/loading.tsx      ← Skeleton en todas las rutas
+│   ├── portal/
+│   │   ├── layout.tsx              ← PortalNav
+│   │   ├── page.tsx                ← Perfil del alumno
+│   │   ├── change-password/
+│   │   ├── payments/               ← Historial de pagos propios
+│   │   ├── attendance/             ← Historial de asistencia propia
+│   │   └── schedules/              ← Horarios asignados
 │   ├── scanner/page.tsx            ← html5-qrcode, entrada manual, overlays resultado
 │   └── api/
 │       ├── dojo/route.ts           ← revalidateTag(dojo) en PUT
@@ -374,11 +464,14 @@ src/
 │       └── StudentForm.tsx         ← fullName único, condition, bloodType, insuranceNumber
 └── lib/
     ├── prisma.ts
-    ├── auth.ts
+    ├── auth.ts                     ← incluye token.picture = student.photo para avatar en JWT
     ├── email.ts                    ← createTransporter() descifra password; fromAddress() usa dojo.email
     ├── crypto.ts                   ← encrypt/decrypt AES-256-CBC con ENCRYPTION_KEY
+    ├── cloudinary.ts               ← uploadBuffer(), deleteResource() — usa CLOUDINARY_* env vars
+    ├── permissions.ts              ← NAV_KEYS, DEFAULT_PERMISSIONS, ALL_DOJO_KEYS, resolvePermissions()
     ├── queries.ts                  ← getCachedKatas(), getCachedDojoMeta(), CACHE_TAGS
     ├── audit.ts
     ├── utils.ts                    ← BELT_COLORS (16 cintas)
-    └── hooks/useDojo.ts            ← deps: [userId, role] strings
+    ├── hooks/useDojo.ts            ← deps: [userId, role] strings
+    └── hooks/usePermissions.ts     ← fetch /api/roles/current → Set<NavKey>; default fallback inmediato
 ```

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/queries";
+import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -13,10 +14,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { role, dojoId } = session.user as SessionUser;
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (role !== "sysadmin" && role !== "admin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-  if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const body = await req.json();
   const kata = await prisma.kata.update({
@@ -33,15 +35,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
   return NextResponse.json(kata);
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE( req: NextRequest, { params }: Params) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { role, dojoId } = session.user as SessionUser;
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (role !== "sysadmin" && role !== "admin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-  if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   await prisma.kata.delete({ where: { id, dojoId } });
   revalidateTag(CACHE_TAGS.katas(dojoId));

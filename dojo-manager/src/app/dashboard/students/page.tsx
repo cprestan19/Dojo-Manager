@@ -15,7 +15,7 @@ export default async function StudentsPage() {
     where: { dojoId, active: true },
     select: {
       id: true, fullName: true, firstName: true, lastName: true,
-      birthDate: true, gender: true, nationality: true, active: true,
+      birthDate: true, gender: true, nationality: true, active: true, photo: true,
       beltHistory: {
         orderBy: { changeDate: "desc" },
         take: 1,

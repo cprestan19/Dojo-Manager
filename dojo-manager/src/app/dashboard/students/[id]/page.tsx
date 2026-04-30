@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Edit, Award, CreditCard, Phone,
   Heart, Calendar, Plus, Shield, Trophy, Fingerprint, Trash2, Pencil, Star,
-  ClipboardList, LogIn, LogOut, UserX, UserCheck, KeyRound,
+  ClipboardList, LogIn, LogOut, UserX, UserCheck, KeyRound, PlayCircle, Video,
 } from "lucide-react";
 import { StudentQR } from "@/components/students/StudentQR";
 import { BeltBadge } from "@/components/ui/BeltBadge";
@@ -422,6 +422,64 @@ function AddPaymentModal({ studentId, monthlyAmount, onClose, onSaved }: {
   );
 }
 
+// ── Belt Video Modal ──────────────────────────────────────
+interface BeltVideo { id: string; title: string; description: string | null; videoUrl: string; order: number; }
+
+function BeltVideoModal({ beltColor, beltLabel, onClose }: {
+  beltColor: string; beltLabel: string; onClose: () => void;
+}) {
+  const [videos,  setVideos]  = useState<BeltVideo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [playing, setPlaying] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/belt-videos?beltColor=${encodeURIComponent(beltColor)}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: BeltVideo[]) => setVideos(data.filter(v => v)))
+      .finally(() => setLoading(false));
+  }, [beltColor]);
+
+  return (
+    <Modal open onClose={onClose} title={`Videos — Cinta ${beltLabel}`} size="lg">
+      {loading ? (
+        <div className="py-12 text-center text-dojo-muted">Cargando videos...</div>
+      ) : videos.length === 0 ? (
+        <div className="py-12 text-center">
+          <Video size={40} className="mx-auto mb-3 opacity-30 text-dojo-muted" />
+          <p className="text-dojo-muted text-sm">No hay videos cargados para la cinta {beltLabel}.</p>
+          <p className="text-dojo-muted text-xs mt-1">Agrega videos en Configuración → Videos por Cinta.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {videos.map(v => (
+            <div key={v.id} className="card p-0 overflow-hidden">
+              <div className="px-4 py-3 border-b border-dojo-border/40">
+                <p className="font-semibold text-dojo-white text-sm">{v.title}</p>
+                {v.description && <p className="text-xs text-dojo-muted mt-0.5">{v.description}</p>}
+              </div>
+              <div className="bg-black">
+                {playing === v.id ? (
+                  <video src={v.videoUrl} controls autoPlay className="w-full max-h-72" onEnded={() => setPlaying(null)} />
+                ) : (
+                  <button
+                    onClick={() => setPlaying(v.id)}
+                    className="w-full h-32 flex flex-col items-center justify-center gap-2 text-dojo-muted hover:text-dojo-white transition-colors group"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-dojo-red/20 group-hover:bg-dojo-red/40 flex items-center justify-center transition-colors">
+                      <PlayCircle size={26} className="text-dojo-red" />
+                    </div>
+                    <p className="text-xs">Reproducir</p>
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────
 export default function StudentDetailPage() {
   const { id }   = useParams<{ id: string }>();
@@ -430,6 +488,7 @@ export default function StudentDetailPage() {
   const [loading,      setLoading]    = useState(true);
   const [beltModal,       setBeltModal]       = useState(false);
   const [editBelt,        setEditBelt]        = useState<BeltEntry | null>(null);
+  const [videoModal,      setVideoModal]      = useState<{ beltColor: string; label: string } | null>(null);
   const [deletingBelt,    setDeletingBelt]    = useState<string | null>(null);
   const [kataCompModal,   setKataCompModal]   = useState(false);
   const [editKataComp,    setEditKataComp]    = useState<KataComp | null>(null);
@@ -781,10 +840,11 @@ export default function StudentDetailPage() {
             ) : (
               <div className="space-y-3">
                 {student.beltHistory.map((entry) => {
-                  const isCurrent = entry.id === currentBelt?.id;
+                  const isCurrent  = entry.id === currentBelt?.id;
+                  const beltLabel  = BELT_COLORS.find(b => b.value === entry.beltColor)?.label ?? entry.beltColor;
                   return (
-                    <div key={entry.id} className={`flex items-start gap-4 p-3 rounded-lg border ${isCurrent ? "border-dojo-red/40 bg-dojo-red/5" : "border-dojo-border bg-dojo-dark"}`}>
-                      <div className="mt-0.5"><BeltBadge beltColor={entry.beltColor} /></div>
+                    <div key={entry.id} className={`flex items-start gap-3 p-3 rounded-lg border ${isCurrent ? "border-dojo-red/40 bg-dojo-red/5" : "border-dojo-border bg-dojo-dark"}`}>
+                      <div className="mt-0.5 shrink-0"><BeltBadge beltColor={entry.beltColor} /></div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           {entry.kata && <p className="text-sm font-semibold text-dojo-white">{entry.kata.name}</p>}
@@ -795,6 +855,14 @@ export default function StudentDetailPage() {
                       </div>
                       <div className="text-xs text-dojo-muted shrink-0">{formatDate(entry.changeDate)}</div>
                       <div className="flex items-center gap-1 shrink-0">
+                        {/* Ver video de esta cinta */}
+                        <button
+                          onClick={() => setVideoModal({ beltColor: entry.beltColor, label: beltLabel })}
+                          className="p-1.5 text-dojo-muted hover:text-dojo-red transition-colors rounded"
+                          title={`Ver videos — Cinta ${beltLabel}`}
+                        >
+                          <PlayCircle size={14} />
+                        </button>
                         <button
                           onClick={() => setEditBelt(entry)}
                           className="p-1.5 text-dojo-muted hover:text-dojo-white transition-colors rounded"
@@ -1016,6 +1084,15 @@ export default function StudentDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Video Modal — belt-specific */}
+      {videoModal && (
+        <BeltVideoModal
+          beltColor={videoModal.beltColor}
+          beltLabel={videoModal.label}
+          onClose={() => setVideoModal(null)}
+        />
+      )}
 
       {/* Modals */}
       <Modal open={beltModal} onClose={() => setBeltModal(false)} title="Registrar Cambio de Cinta" size="md">

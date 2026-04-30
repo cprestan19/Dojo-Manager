@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { formatDate, getBeltInfo } from "@/lib/utils";
-import { Award, CreditCard, Calendar, Fingerprint } from "lucide-react";
+import { Award, CreditCard, Calendar, Fingerprint, PlayCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -93,19 +93,26 @@ export default async function PortalProfilePage() {
 
       {student.beltHistory.length > 0 && (
         <div className="card">
-          <p className="section-title flex items-center gap-2 mb-3"><Award size={13}/>Historial de Cintas</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="section-title flex items-center gap-2 mb-0"><Award size={13}/>Historial de Cintas</p>
+            <Link href="/portal/videos"
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              style={{ background: "rgba(229,57,53,0.12)", color: "#E53935" }}>
+              <PlayCircle size={13} /> Ver Videos
+            </Link>
+          </div>
           <div className="space-y-2">
             {student.beltHistory.map((b, i) => {
               const bi = getBeltInfo(b.beltColor);
               return (
                 <div key={b.id} className="flex items-center gap-3">
                   <span className="w-3 h-3 rounded-full shrink-0 border border-white/20" style={{ backgroundColor: bi?.hex }} />
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm text-dojo-white">{bi?.label ?? b.beltColor}</p>
-                    {b.kata && <p className="text-xs text-dojo-muted">{b.kata.name}</p>}
+                    {b.kata && <p className="text-xs text-dojo-muted truncate">{b.kata.name}</p>}
                   </div>
-                  <p className="text-xs text-dojo-muted">{formatDate(b.changeDate)}</p>
-                  {i === 0 && <span className="badge-blue text-xs">Actual</span>}
+                  <p className="text-xs text-dojo-muted shrink-0">{formatDate(b.changeDate)}</p>
+                  {i === 0 && <span className="badge-blue text-xs shrink-0">Actual</span>}
                 </div>
               );
             })}

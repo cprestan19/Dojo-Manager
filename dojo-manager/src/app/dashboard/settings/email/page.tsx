@@ -74,17 +74,22 @@ export default function EmailSettingsPage() {
   }
 
   async function handleSave() {
-    setSaving(true); setSaved(false); setSaveErr("");
+    setSaveErr("");
+    if (cfg.host && !cfg.user.trim()) {
+      setSaveErr("El campo 'Correo electrónico (FROM)' es obligatorio.");
+      return;
+    }
+    setSaving(true); setSaved(false);
     const r = await fetch("/api/admin/email-settings", {
       method:  "PUT",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({
-        host:     cfg.host,
+        host:     cfg.host.trim(),
         port:     cfg.port,
-        user:     cfg.user,
+        user:     cfg.user.trim(),
         password: cfg.password,
         secure:   secureFromType(cfg.securityType),
-        fromName: cfg.fromName,
+        fromName: cfg.fromName.trim() || "DojoManager",
       }),
     });
     const d = await r.json();
@@ -138,15 +143,20 @@ export default function EmailSettingsPage() {
         </h2>
 
         <div className="space-y-1.5">
-          <label className="form-label">Correo electrónico (FROM)</label>
+          <label className="form-label">
+            Correo electrónico (FROM) <span className="text-dojo-red">*</span>
+          </label>
           <input
             type="email"
             value={cfg.user}
             onChange={e => setCfg(p => ({ ...p, user: e.target.value }))}
-            className="form-input"
+            className={`form-input ${cfg.host && !cfg.user.trim() ? "border-red-600 focus:ring-red-500/40" : ""}`}
             placeholder="correo@midojo.com"
             style={{ fontSize: "16px" }}
           />
+          {cfg.host && !cfg.user.trim() && (
+            <p className="text-xs text-red-400">Este campo es obligatorio cuando se configura un servidor SMTP.</p>
+          )}
           <p className="text-xs text-dojo-muted">
             Este correo aparecerá como remitente en todos los mensajes enviados.
           </p>

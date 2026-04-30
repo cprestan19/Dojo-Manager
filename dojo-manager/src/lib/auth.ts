@@ -23,7 +23,11 @@ export const authOptions: NextAuthOptions = {
 
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+        const user = await prisma.user.findUnique({
+          where:   { email: credentials.email },
+          include: { student: { select: { photo: true } } },
+          // user.photo for admin/user roles; student.photo for student role
+        });
 
         if (!user) {
           await logAudit({ action: "LOGIN_FAILED", userEmail: credentials.email, ip, userAgent, details: "Usuario no encontrado" });
@@ -50,6 +54,7 @@ export const authOptions: NextAuthOptions = {
           dojoId:             user.dojoId,
           studentId:          user.studentId ?? null,
           mustChangePassword: user.mustChangePassword,
+          photoUrl:           user.photo ?? user.student?.photo ?? null,
         };
       },
     }),
@@ -58,12 +63,15 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        const u = user as { role?: string; dojoId?: string | null; studentId?: string | null; mustChangePassword?: boolean };
+        const u = user as { role?: string; dojoId?: string | null; studentId?: string | null; mustChangePassword?: boolean; photoUrl?: string | null };
         token.id                 = user.id;
         token.role               = u.role      ?? "user";
         token.dojoId             = u.dojoId    ?? null;
         token.studentId          = u.studentId ?? null;
         token.mustChangePassword = u.mustChangePassword ?? false;
+        // Only store URL-based photos in JWT — base64 strings exceed the 4 KB cookie limit
+        const raw = u.photoUrl ?? null;
+        token.picture = raw?.startsWith("http") ? raw : null;
       }
       return token;
     },
@@ -77,6 +85,7 @@ export const authOptions: NextAuthOptions = {
         u.dojoId             = token.dojoId    as string | null;
         u.studentId          = token.studentId as string | null;
         u.mustChangePassword = token.mustChangePassword as boolean;
+        session.user.image   = (token.picture  as string | null) ?? null;
       }
       return session;
     },

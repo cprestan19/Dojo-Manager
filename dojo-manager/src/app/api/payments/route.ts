@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPaymentReminder } from "@/lib/email";
 import { formatDate } from "@/lib/utils";
+import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -12,7 +13,8 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { dojoId } = session.user as SessionUser;
-  if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
+  // NOTE: role needed for sysadmin context — check SessionUser type
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const studentId = searchParams.get("studentId");
@@ -40,7 +42,8 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { dojoId } = session.user as SessionUser;
-  if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
+  // NOTE: role needed for sysadmin context — check SessionUser type
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const body = await req.json();
 
@@ -71,7 +74,8 @@ export async function PUT(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { dojoId } = session.user as SessionUser;
-  if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
+  // NOTE: role needed for sysadmin context — check SessionUser type
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const body = await req.json();
   const { id, ...data } = body;
@@ -93,6 +97,7 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { dojoId } = session.user as SessionUser;
+  // NOTE: role needed for sysadmin context — check SessionUser type
 
   const dojoInfo = dojoId ? await prisma.dojo.findUnique({
     where: { id: dojoId },
