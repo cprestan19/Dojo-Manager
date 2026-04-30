@@ -28,7 +28,10 @@ export async function GET( req: NextRequest, { params }: Params) {
       beltHistory: {
         orderBy: { changeDate: "desc" },
         take: 50,
-        include: { kata: true },
+        select: {
+          id: true, beltColor: true, changeDate: true, isRanking: true, notes: true,
+          kata: { select: { id: true, name: true, beltColor: true } },
+        },
       },
       kataCompetitions: {
         orderBy: { date: "desc" },
@@ -85,25 +88,21 @@ export async function PUT(req: NextRequest, { params }: Params) {
     });
 
     if (body.inscription) {
+      const ins = body.inscription;
+      const inscriptionData = {
+        inscriptionDate:   new Date(ins.inscriptionDate),
+        annualPaymentDate: ins.annualPaymentDate ? new Date(ins.annualPaymentDate) : null,
+        annualAmount:      Number(ins.annualAmount)   || 0,
+        monthlyAmount:     Number(ins.monthlyAmount)  || 0,
+        discountAmount:    Number(ins.discountAmount) || 0,
+        discountNote:      ins.discountNote ?? null,
+        paymentPeriod:     ins.paymentPeriod   ?? "monthly",
+        biweeklyAmount:    Number(ins.biweeklyAmount) || 0,
+      };
       await prisma.inscription.upsert({
         where:  { studentId: id },
-        create: {
-          studentId:         id,
-          inscriptionDate:   new Date(body.inscription.inscriptionDate),
-          annualPaymentDate: body.inscription.annualPaymentDate ? new Date(body.inscription.annualPaymentDate) : null,
-          annualAmount:      Number(body.inscription.annualAmount)  || 0,
-          monthlyAmount:     Number(body.inscription.monthlyAmount) || 0,
-          discountAmount:    Number(body.inscription.discountAmount) || 0,
-          discountNote:      body.inscription.discountNote ?? null,
-        },
-        update: {
-          inscriptionDate:   new Date(body.inscription.inscriptionDate),
-          annualPaymentDate: body.inscription.annualPaymentDate ? new Date(body.inscription.annualPaymentDate) : null,
-          annualAmount:      Number(body.inscription.annualAmount)  || 0,
-          monthlyAmount:     Number(body.inscription.monthlyAmount) || 0,
-          discountAmount:    Number(body.inscription.discountAmount) || 0,
-          discountNote:      body.inscription.discountNote ?? null,
-        },
+        create: { studentId: id, ...inscriptionData },
+        update: inscriptionData,
       });
     }
 

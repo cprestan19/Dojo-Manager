@@ -9,12 +9,14 @@ import {
 import { cn, calculateAge, BELT_COLORS, GENDERS, NATIONALITIES } from "@/lib/utils";
 
 interface InscriptionData {
-  inscriptionDate: string;
+  inscriptionDate:  string;
   annualPaymentDate: string;
-  annualAmount: string;
-  monthlyAmount: string;
-  discountAmount: string;
-  discountNote: string;
+  annualAmount:     string;
+  monthlyAmount:    string;
+  discountAmount:   string;
+  discountNote:     string;
+  paymentPeriod:    string;   // "monthly" | "biweekly"
+  biweeklyAmount:   string;
 }
 
 interface FormData {
@@ -102,10 +104,12 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
         annualPaymentDate: defaultValues?.inscription?.annualPaymentDate
           ? new Date(defaultValues.inscription.annualPaymentDate).toISOString().split("T")[0]
           : "",
-        annualAmount:  String(defaultValues?.inscription?.annualAmount  ?? ""),
-        monthlyAmount: String(defaultValues?.inscription?.monthlyAmount ?? ""),
-        discountAmount: String(defaultValues?.inscription?.discountAmount ?? "0"),
-        discountNote:  defaultValues?.inscription?.discountNote ?? "",
+        annualAmount:    String(defaultValues?.inscription?.annualAmount    ?? ""),
+        monthlyAmount:   String(defaultValues?.inscription?.monthlyAmount   ?? ""),
+        discountAmount:  String(defaultValues?.inscription?.discountAmount  ?? "0"),
+        discountNote:    defaultValues?.inscription?.discountNote            ?? "",
+        paymentPeriod:  (defaultValues?.inscription as { paymentPeriod?: string } | undefined)?.paymentPeriod ?? "monthly",
+        biweeklyAmount: String((defaultValues?.inscription as { biweeklyAmount?: number } | undefined)?.biweeklyAmount ?? ""),
       },
     },
   });
@@ -119,8 +123,10 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
 
   const birthDate          = watch("birthDate");
   const hasInsurance       = watch("hasPrivateInsurance");
-  const discountAmount     = watch("inscription.discountAmount");
-  const hasDiscount        = discountAmount && Number(discountAmount) !== 0;
+  const discountAmount  = watch("inscription.discountAmount");
+  const paymentPeriod   = watch("inscription.paymentPeriod");
+  const isBiweekly      = paymentPeriod === "biweekly";
+  const hasDiscount     = discountAmount && Number(discountAmount) !== 0;
 
   useEffect(() => {
     if (birthDate) setAge(calculateAge(birthDate));
@@ -375,8 +381,13 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Nombre de la Aseguradora</label>
-                  <input {...register("insuranceName")} className="form-input"
-                    placeholder="Ej. ASSA, Mapfre, Panamá Seguros..." />
+                  <select {...register("insuranceName")} className="form-input">
+                    <option value="">— Seleccionar aseguradora —</option>
+                    {["MAPFRE","PALIG","SURA","FEDPA","ANCON","ACERTA","IS",
+                      "ASSA SEGUROS","ALIADO SEGUROS","BLUE CROSS"].map(a => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="form-label">Número de Seguro</label>
@@ -461,8 +472,8 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
         </div>
       </Section>
 
-      {/* ── INSCRIPCIÓN Y MENSUALIDADES ── */}
-      <Section title="Inscripción y Mensualidades" icon={CreditCard}>
+      {/* ── INSCRIPCIÓN Y PAGOS ── */}
+      <Section title="Inscripción y Pagos" icon={CreditCard}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="form-label">Fecha de Inscripción</label>
@@ -480,22 +491,73 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
                 className="form-input pl-7" placeholder="0.00" />
             </div>
           </div>
-          <div>
-            <label className="form-label">Mensualidad Base (USD)</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
-              <input type="number" step="0.01" {...register("inscription.monthlyAmount")}
-                className="form-input pl-7" placeholder="0.00" />
+
+          {/* ── Período de pago ── */}
+          <div className="md:col-span-2">
+            <label className="form-label">Período de Pago</label>
+            <div className="flex gap-3">
+              {[
+                { value: "monthly",   label: "Mensual",    desc: "1 pago al mes (día 1)"          },
+                { value: "biweekly",  label: "Quincenal",  desc: "2 pagos al mes (día 1 y día 15)" },
+              ].map(opt => (
+                <label
+                  key={opt.value}
+                  className={cn(
+                    "flex items-start gap-3 flex-1 p-3 rounded-lg border cursor-pointer transition-colors",
+                    paymentPeriod === opt.value
+                      ? "border-dojo-red bg-dojo-red/10"
+                      : "border-dojo-border bg-dojo-dark hover:border-dojo-border/80",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    value={opt.value}
+                    {...register("inscription.paymentPeriod")}
+                    className="mt-0.5 accent-dojo-red"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-dojo-white">{opt.label}</p>
+                    <p className="text-xs text-dojo-muted">{opt.desc}</p>
+                  </div>
+                </label>
+              ))}
             </div>
           </div>
 
-          {/* Discount/increase line */}
+          {/* ── Monto según período ── */}
+          {!isBiweekly ? (
+            <div>
+              <label className="form-label">Mensualidad Base (USD)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
+                <input type="number" step="0.01" {...register("inscription.monthlyAmount")}
+                  className="form-input pl-7" placeholder="0.00" />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="form-label">Quincena Base (USD)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
+                <input type="number" step="0.01" {...register("inscription.biweeklyAmount")}
+                  className="form-input pl-7" placeholder="0.00" />
+              </div>
+              <p className="text-xs text-dojo-muted mt-1">
+                Se generarán 2 cobros por mes: el día 1 y el día 15.
+              </p>
+            </div>
+          )}
+
+          {/* Ajuste (aplica al monto del período activo) */}
           <div className="md:col-span-2">
             <div className="bg-dojo-dark rounded-lg border border-dojo-border p-4">
-              <label className="form-label">Ajuste de Mensualidad</label>
+              <label className="form-label">
+                Ajuste de {isBiweekly ? "Quincena" : "Mensualidad"}
+              </label>
               <p className="text-xs text-dojo-muted mb-3">
-                Ingrese un monto negativo para aplicar <span className="text-green-400">descuento</span>,
-                o positivo para un <span className="text-yellow-400">aumento</span>. Deje en 0 si no aplica.
+                Monto negativo = <span className="text-green-400">descuento</span> ·
+                Monto positivo = <span className="text-yellow-400">aumento</span>.
+                Deje en 0 si no aplica.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -505,15 +567,17 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
                     <input type="number" step="0.01" {...register("inscription.discountAmount")}
                       className={cn("form-input pl-7",
                         hasDiscount && Number(discountAmount) < 0 && "border-green-700",
-                        hasDiscount && Number(discountAmount) > 0 && "border-yellow-700"
+                        hasDiscount && Number(discountAmount) > 0 && "border-yellow-700",
                       )}
                       placeholder="Ej. -10.00 o +5.00" />
                   </div>
                   {hasDiscount && (
                     <p className={cn("text-xs mt-1 font-semibold",
-                      Number(discountAmount) < 0 ? "text-green-400" : "text-yellow-400"
+                      Number(discountAmount) < 0 ? "text-green-400" : "text-yellow-400",
                     )}>
-                      {Number(discountAmount) < 0 ? `▼ Descuento de $${Math.abs(Number(discountAmount)).toFixed(2)}` : `▲ Aumento de $${Number(discountAmount).toFixed(2)}`}
+                      {Number(discountAmount) < 0
+                        ? `▼ Descuento de $${Math.abs(Number(discountAmount)).toFixed(2)}`
+                        : `▲ Aumento de $${Number(discountAmount).toFixed(2)}`}
                     </p>
                   )}
                 </div>

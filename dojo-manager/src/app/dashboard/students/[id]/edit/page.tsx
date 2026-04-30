@@ -48,6 +48,8 @@ export default async function EditStudentPage({ params }: { params: Promise<{ id
       monthlyAmount:     String(student.inscription.monthlyAmount),
       discountAmount:    String(student.inscription.discountAmount),
       discountNote:      student.inscription.discountNote ?? "",
+      paymentPeriod:     student.inscription.paymentPeriod  ?? "monthly",
+      biweeklyAmount:    String(student.inscription.biweeklyAmount ?? 0),
     } : undefined,
   };
 

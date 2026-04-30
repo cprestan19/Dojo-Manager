@@ -240,7 +240,7 @@ function GenerateModal({
           <div className="flex items-start gap-3 p-3 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
             <CalendarPlus size={16} className="text-yellow-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-yellow-300 text-sm font-medium">Generar mensualidades de {monthName}</p>
+              <p className="text-yellow-300 text-sm font-medium">Generar pagos de {monthName}</p>
               <p className="text-yellow-200/70 text-xs mt-1">
                 Se creará un pago pendiente para cada alumno activo que tenga mensualidad configurada y no tenga registro del mes actual.
               </p>
@@ -448,6 +448,7 @@ export default function PaymentsPage() {
         <select value={typeFilter} onChange={e => setType(e.target.value)} className="form-input w-36">
           <option value="all">Todos los tipos</option>
           <option value="monthly">Mensualidades</option>
+          <option value="biweekly">Quincenales</option>
           <option value="annual">Anualidades</option>
         </select>
       </div>
@@ -466,7 +467,7 @@ export default function PaymentsPage() {
                 <div className="min-w-0">
                   <p className="font-semibold text-dojo-white truncate">{p.student.fullName}</p>
                   <p className="text-xs text-dojo-muted mt-0.5">
-                    {p.type === "monthly" ? "Mensualidad" : "Anualidad"} · Vence {formatDate(p.dueDate)}
+                    {p.type === "monthly" ? "Mensualidad" : p.type === "biweekly" ? "Quincenal" : "Anualidad"} · Vence {formatDate(p.dueDate)}
                   </p>
                 </div>
                 <span className={`${st.className} shrink-0`}>{st.label}</span>
@@ -535,7 +536,7 @@ export default function PaymentsPage() {
                     {p.student.fullName}
                   </td>
                   <td className="px-4 py-3 text-dojo-muted capitalize">
-                    {p.type === "monthly" ? "Mensualidad" : "Anualidad"}
+                    {p.type === "monthly" ? "Mensualidad" : p.type === "biweekly" ? "Quincenal" : "Anualidad"}
                   </td>
                   <td className="px-4 py-3 text-dojo-gold font-bold">{formatCurrency(p.amount)}</td>
                   <td className="px-4 py-3 text-dojo-muted">{formatDate(p.dueDate)}</td>
@@ -609,7 +610,7 @@ export default function PaymentsPage() {
       </Modal>
 
       {/* Modal generar mensualidades */}
-      <Modal open={showGenerate} onClose={() => setShowGenerate(false)} title="Generar Mensualidades" size="sm">
+      <Modal open={showGenerate} onClose={() => setShowGenerate(false)} title="Generar Pagos del Período" size="sm">
         <GenerateModal
           onClose={() => setShowGenerate(false)}
           onConfirm={generateMonthly}

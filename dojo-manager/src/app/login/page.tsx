@@ -55,29 +55,30 @@ function LoginForm() {
   }
 
   return (
-    <div
-      className="min-h-[100dvh] flex items-center justify-center bg-dojo-darker relative overflow-hidden"
-      style={bgImage ? {
-        backgroundImage:      `url(${bgImage})`,
-        backgroundSize:       "cover",
-        backgroundPosition:   "center",
-        backgroundAttachment: "fixed",
-      } : {}}
-    >
-      {bgImage && <div className="absolute inset-0 bg-black/50 z-0" />}
+    <div className="min-h-[100dvh] flex items-center justify-center bg-dojo-darker relative overflow-hidden">
 
-      {!bgImage && (
+      {/* ── Fondo de imagen: SOLO en mobile (< lg) ────────────────
+           Si bgImage es null (deshabilitado) este bloque no se renderiza.
+           En pantallas lg+ siempre se muestra el fondo estándar.         */}
+      {bgImage && (
         <>
-          <div className="absolute inset-0 opacity-5 z-0">
-            <div className="absolute inset-0" style={{
-              backgroundImage: "repeating-linear-gradient(45deg, #C0392B 0, #C0392B 1px, transparent 0, transparent 50%)",
-              backgroundSize: "40px 40px",
-            }} />
-          </div>
-          <div className="absolute top-0 right-0 w-96 h-96 bg-dojo-red/10 rounded-full blur-3xl z-0" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-dojo-gold/5 rounded-full blur-3xl z-0" />
+          <div
+            className="absolute inset-0 z-0 block lg:hidden"
+            style={{ backgroundImage: `url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+          />
+          <div className="absolute inset-0 bg-black/55 z-0 block lg:hidden" />
         </>
       )}
+
+      {/* ── Fondo decorativo desktop (siempre en lg+) ─────────── */}
+      <div className="absolute inset-0 opacity-5 z-0 hidden lg:block">
+        <div className="absolute inset-0" style={{
+          backgroundImage: "repeating-linear-gradient(45deg, #C0392B 0, #C0392B 1px, transparent 0, transparent 50%)",
+          backgroundSize: "40px 40px",
+        }} />
+      </div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-dojo-red/10 rounded-full blur-3xl z-0 hidden lg:block" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-dojo-gold/5 rounded-full blur-3xl z-0 hidden lg:block" />
 
       <div className="relative z-10 w-full max-w-sm mx-auto px-4 py-8">
         {/* Logo / Branding */}

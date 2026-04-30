@@ -21,48 +21,120 @@ export async function POST(req: NextRequest) {
   const targetDate = body.month ? new Date(body.month) : new Date();
   const year       = targetDate.getFullYear();
   const month      = targetDate.getMonth();
+
+  // Date range for existence checks
   const monthStart = new Date(year, month, 1);
   const monthEnd   = new Date(year, month + 1, 0, 23, 59, 59);
+  const midMonth   = new Date(year, month, 15);  // 15th for biweekly second payment
 
+  // Single query — fetch all active students with their inscription period + amounts
   const students = await prisma.student.findMany({
-    where:   { dojoId, active: true },
-    include: { inscription: true },
+    where:  { dojoId, active: true },
+    select: {
+      id: true,
+      inscription: {
+        select: {
+          paymentPeriod:  true,
+          monthlyAmount:  true,
+          biweeklyAmount: true,
+          discountAmount: true,
+        },
+      },
+    },
   });
 
-  const eligible = students.filter(
-    s => s.inscription && s.inscription.monthlyAmount > 0
+  // ── MONTHLY (unchanged logic) ──────────────────────────────────────────────
+  // Includes students whose paymentPeriod is "monthly" or unset (default).
+  // discountAmount is an adjustment (+/-) applied on top of the base amount.
+  const monthlyEligible = students.filter(
+    s => s.inscription
+      && (s.inscription.paymentPeriod === "monthly" || !s.inscription.paymentPeriod)
+      && s.inscription.monthlyAmount > 0,
   );
 
-  if (eligible.length === 0) {
-    return NextResponse.json({ created: 0, skipped: students.length });
-  }
+  const existingMonthly = monthlyEligible.length > 0
+    ? await prisma.payment.findMany({
+        where: {
+          studentId: { in: monthlyEligible.map(s => s.id) },
+          type:      "monthly",
+          dueDate:   { gte: monthStart, lte: monthEnd },
+        },
+        select: { studentId: true },
+      })
+    : [];
+  const alreadyMonthly = new Set(existingMonthly.map(p => p.studentId));
 
-  // 1 query para detectar todos los pagos existentes del mes — evita N+1
-  const existingPayments = await prisma.payment.findMany({
-    where: {
-      studentId: { in: eligible.map(s => s.id) },
-      type:      "monthly",
-      dueDate:   { gte: monthStart, lte: monthEnd },
-    },
-    select: { studentId: true },
-  });
-  const alreadyPaid = new Set(existingPayments.map(p => p.studentId));
-
-  const toCreate = eligible
-    .filter(s => !alreadyPaid.has(s.id))
+  const toCreateMonthly = monthlyEligible
+    .filter(s => !alreadyMonthly.has(s.id))
     .map(s => ({
       studentId: s.id,
       type:      "monthly",
       amount:    Math.max(0, s.inscription!.monthlyAmount + s.inscription!.discountAmount),
       dueDate:   monthStart,
-      status:    "pending",
+      status:    "pending" as const,
     }));
 
-  // 1 query para crear todos en lote — en vez de N creates seriales
-  if (toCreate.length > 0) {
-    await prisma.payment.createMany({ data: toCreate, skipDuplicates: true });
+  // ── BIWEEKLY (new — generates TWO payments per month: 1st and 15th) ────────
+  // Uses the same discountAmount adjustment as monthly.
+  // Late-payment rules (toleranceDays, interestPct, reminderSent) apply
+  // identically because they operate on Payment.status + Payment.dueDate,
+  // not on Payment.type.
+  const biweeklyEligible = students.filter(
+    s => s.inscription
+      && s.inscription.paymentPeriod === "biweekly"
+      && s.inscription.biweeklyAmount > 0,
+  );
+
+  let toCreateBiweekly: {
+    studentId: string; type: string; amount: number; dueDate: Date; status: string;
+  }[] = [];
+
+  if (biweeklyEligible.length > 0) {
+    const existingBiweekly = await prisma.payment.findMany({
+      where: {
+        studentId: { in: biweeklyEligible.map(s => s.id) },
+        type:      "biweekly",
+        dueDate:   { gte: monthStart, lte: monthEnd },
+      },
+      select: { studentId: true, dueDate: true },
+    });
+
+    // Track which (studentId, dueDate-day) combos already exist
+    const existingSet = new Set(
+      existingBiweekly.map(p => `${p.studentId}:${new Date(p.dueDate).getDate()}`),
+    );
+
+    for (const s of biweeklyEligible) {
+      const amount = Math.max(0, s.inscription!.biweeklyAmount + s.inscription!.discountAmount);
+
+      // 1st of month payment
+      if (!existingSet.has(`${s.id}:1`)) {
+        toCreateBiweekly.push({
+          studentId: s.id, type: "biweekly",
+          amount, dueDate: monthStart, status: "pending",
+        });
+      }
+      // 15th of month payment
+      if (!existingSet.has(`${s.id}:15`)) {
+        toCreateBiweekly.push({
+          studentId: s.id, type: "biweekly",
+          amount, dueDate: midMonth, status: "pending",
+        });
+      }
+    }
   }
 
-  const skipped = students.length - toCreate.length;
-  return NextResponse.json({ created: toCreate.length, skipped });
+  // ── Batch create both sets ────────────────────────────────────────────────
+  const allToCreate = [...toCreateMonthly, ...toCreateBiweekly];
+
+  if (allToCreate.length > 0) {
+    await prisma.payment.createMany({ data: allToCreate, skipDuplicates: true });
+  }
+
+  return NextResponse.json({
+    created:          allToCreate.length,
+    createdMonthly:   toCreateMonthly.length,
+    createdBiweekly:  toCreateBiweekly.length,
+    skipped:          students.length - allToCreate.length,
+  });
 }

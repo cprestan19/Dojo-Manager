@@ -31,7 +31,11 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
   const student = await prisma.student.findUnique({
     where:   { id, ...(dojoId ? { dojoId } : {}) },
-    include: { portalUser: true },
+    select: {
+      id: true, fullName: true, dojoId: true,
+      motherEmail: true, fatherEmail: true,
+      portalUser: { select: { id: true, active: true, email: true } },
+    },
   });
   if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
   if (!student.motherEmail && !student.fatherEmail)
@@ -102,7 +106,11 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const student = await prisma.student.findUnique({
     where:   { id, ...(dojoId ? { dojoId } : {}) },
-    include: { portalUser: true },
+    select: {
+      id: true, fullName: true, dojoId: true,
+      motherEmail: true, fatherEmail: true,
+      portalUser: { select: { id: true, active: true, email: true } },
+    },
   });
   if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
   if (!student.portalUser) return NextResponse.json({ error: "Sin acceso activo" }, { status: 400 });

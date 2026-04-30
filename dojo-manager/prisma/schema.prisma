@@ -62,6 +62,8 @@ model User {
 
   @@index([email])
   @@index([dojoId])
+  @@index([dojoId, active])      // filter active users within a dojo
+  @@index([dojoId, role])        // count/filter by role within a dojo (last-sysadmin checks)
   @@map("users")
 }
 
@@ -126,10 +128,15 @@ model Inscription {
   inscriptionDate   DateTime
   annualPaymentDate DateTime?
 
-  annualAmount   Float @default(0)
-  monthlyAmount  Float @default(0)
-  discountAmount Float @default(0)
+  annualAmount   Float  @default(0)
+  monthlyAmount  Float  @default(0)
+  discountAmount Float  @default(0)
   discountNote   String?
+
+  // Pago quincenal (cada 15 días — 1° y 15 de cada mes)
+  // paymentPeriod defaults to "monthly" so existing students are unaffected.
+  paymentPeriod  String @default("monthly") @map("payment_period")  // monthly | biweekly
+  biweeklyAmount Float  @default(0)          @map("biweekly_amount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -179,6 +186,7 @@ model Kata {
   @@unique([name, dojoId])
   @@index([dojoId])
   @@index([beltColor])
+  @@index([dojoId, active])      // GET /api/katas?active=1 filtered by dojo
   @@map("katas")
 }
 
@@ -215,6 +223,7 @@ model Schedule {
   attendances      Attendance[]
   studentSchedules StudentSchedule[]
   @@index([dojoId])
+  @@index([dojoId, active])      // filter active schedules within a dojo
   @@map("schedules")
 }
 
@@ -232,6 +241,7 @@ model Attendance {
   createdAt   DateTime  @default(now())
   @@index([studentId, markedAt])
   @@index([scheduleId, markedAt])
+  @@index([studentId, type, markedAt])  // duplicate-entry check: WHERE studentId=? AND type=? AND markedAt >= ?
   @@map("attendances")
 }
 
@@ -247,6 +257,7 @@ model StudentSchedule {
   @@index([studentId])
   @@index([scheduleId])
   @@index([assignedAt])
+  @@index([studentId, removedAt])  // active assignments: WHERE studentId=? AND removedAt IS NULL
   @@map("student_schedules")
 }
 
