@@ -42,7 +42,7 @@ export default function PortalNav({ student }: Props) {
           </div>
           <div>
             <p className="text-sm font-semibold text-dojo-white leading-tight">{student.fullName}</p>
-            <p className="text-xs text-dojo-muted leading-tight">{student.dojo?.name ?? "DojoManager"}</p>
+            <p className="text-xs text-dojo-muted leading-tight">{student.dojo?.name ?? "Dojo Master"}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

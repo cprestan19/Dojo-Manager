@@ -135,9 +135,9 @@ export function MobileNav() {
           </button>
         ) : (
           <div className="flex items-center gap-2 shrink-0">
-            <Image src="/logo.png" alt="Dojo Manager" width={22} height={22} className="rounded object-contain"
+            <Image src="/logo.png" alt="Dojo Master" width={22} height={22} className="rounded object-contain"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-            <span className="font-display text-dojo-gold text-sm font-bold tracking-widest">DOJO MANAGER</span>
+            <span className="font-display text-dojo-gold text-sm font-bold tracking-widest">DOJO MASTER</span>
           </div>
         )}
         <p className="font-display text-dojo-white text-sm font-semibold truncate flex-1 text-center">{title}</p>
@@ -159,7 +159,7 @@ export function MobileNav() {
           <div className="flex items-center gap-2">
             <Image src="/logo.png" alt="" width={28} height={28} className="rounded-lg object-contain"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-            <span className="font-display text-dojo-white text-sm font-bold tracking-widest">DOJO MANAGER</span>
+            <span className="font-display text-dojo-white text-sm font-bold tracking-widest">DOJO MASTER</span>
           </div>
           <button onClick={close} className="p-2 rounded-lg hover:bg-dojo-border transition-colors">
             <X size={18} className="text-dojo-muted" />

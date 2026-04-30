@@ -252,7 +252,7 @@ export default function ScannerPage() {
     <header className="h-14 flex items-center justify-between px-4 bg-dojo-dark border-b border-dojo-border shrink-0">
       <div className="flex items-center gap-2">
         <Sword size={18} className="text-dojo-red" />
-        <span className="font-display text-dojo-white text-sm font-bold tracking-widest">DOJO MANAGER</span>
+        <span className="font-display text-dojo-white text-sm font-bold tracking-widest">DOJO MASTER</span>
       </div>
       <span className="text-xs text-dojo-muted font-mono">{nowTime()}</span>
     </header>

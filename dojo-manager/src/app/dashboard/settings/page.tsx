@@ -222,7 +222,7 @@ export default function SettingsPage() {
                     }
                   </div>
                   <p className="font-display text-dojo-white font-bold tracking-widest text-sm">{name.toUpperCase() || "NOMBRE DOJO"}</p>
-                  <p className="font-display text-dojo-gold tracking-widest text-xs">DOJO MANAGER</p>
+                  <p className="font-display text-dojo-gold tracking-widest text-xs">DOJO MASTER</p>
                   {slogan && <p className="text-dojo-muted text-xs italic">{slogan}</p>}
                 </div>
               </div>

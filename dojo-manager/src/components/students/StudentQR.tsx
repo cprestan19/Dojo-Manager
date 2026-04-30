@@ -18,7 +18,7 @@ interface StudentQRProps {
 
 function buildQRText(p: StudentQRProps): string {
   const lines: string[] = [
-    `DOJO MANAGER`,
+    `DOJO MASTER`,
     `Dojo: ${p.dojoName}`,
     `ID Alumno: #${p.studentCode ?? "—"}`,
     `Nombre: ${p.fullName}`,

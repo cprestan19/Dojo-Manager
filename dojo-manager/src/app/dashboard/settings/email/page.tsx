@@ -35,7 +35,7 @@ export default function EmailSettingsPage() {
 
   const [cfg,      setCfg]      = useState<Cfg>({
     host: "", port: 587, user: "", password: "",
-    securityType: "starttls", fromName: "DojoManager",
+    securityType: "starttls", fromName: "Dojo Master",
   });
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
@@ -61,7 +61,7 @@ export default function EmailSettingsPage() {
             user:         d.user        ?? "",
             password:     d.password    ?? "",
             securityType: secType,
-            fromName:     d.fromName    ?? "DojoManager",
+            fromName:     d.fromName    ?? "Dojo Master",
           });
         }
       })
@@ -89,7 +89,7 @@ export default function EmailSettingsPage() {
         user:     cfg.user.trim(),
         password: cfg.password,
         secure:   secureFromType(cfg.securityType),
-        fromName: cfg.fromName.trim() || "DojoManager",
+        fromName: cfg.fromName.trim() || "Dojo Master",
       }),
     });
     const d = await r.json();

@@ -40,11 +40,11 @@ export async function POST(req: NextRequest) {
     await t.sendMail({
       from:    `"${cfg!.fromName}" <${cfg!.user}>`,
       to,
-      subject: "✅ Prueba de conexión — DojoManager",
+      subject: "✅ Prueba de conexión — Dojo Master",
       html: `
         <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
           <div style="background:#C0392B;padding:20px 24px;text-align:center;">
-            <h1 style="margin:0;font-size:20px;color:white;font-family:serif;letter-spacing:2px;">DOJO MANAGER</h1>
+            <h1 style="margin:0;font-size:20px;color:white;font-family:serif;letter-spacing:2px;">DOJO MASTER</h1>
           </div>
           <div style="padding:28px 24px;">
             <h2 style="color:#4ADE80;margin:0 0 12px;">✅ Conexión SMTP exitosa</h2>

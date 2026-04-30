@@ -16,6 +16,6 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     loginBgImage: dojo?.loginBgImage ?? null,
-    dojoName:     dojo?.name         ?? "DojoManager",
+    dojoName:     dojo?.name         ?? "Dojo Master",
   });
 }

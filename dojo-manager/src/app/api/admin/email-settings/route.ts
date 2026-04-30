@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   const cfg = await prisma.emailSettings.findUnique({ where: { id: "singleton" } });
   if (!cfg) return NextResponse.json({
     id: "singleton", host: "", port: 587, user: "",
-    password: "", secure: false, fromName: "DojoManager",
+    password: "", secure: false, fromName: "Dojo Master",
   });
 
   return NextResponse.json({ ...cfg, password: cfg.password ? "••••••••" : "" });
@@ -61,7 +61,7 @@ export async function PUT(req: NextRequest) {
       port:     Number(body.port ?? 587),
       user,
       secure:   Boolean(body.secure ?? false),
-      fromName: String(body.fromName ?? "DojoManager").trim() || "DojoManager",
+      fromName: String(body.fromName ?? "Dojo Master").trim() || "Dojo Master",
       password: storedPassword,
     },
     update: {
@@ -69,7 +69,7 @@ export async function PUT(req: NextRequest) {
       port:     Number(body.port ?? 587),
       user,
       secure:   Boolean(body.secure ?? false),
-      fromName: String(body.fromName ?? "DojoManager").trim() || "DojoManager",
+      fromName: String(body.fromName ?? "Dojo Master").trim() || "Dojo Master",
       password: storedPassword,
     },
   });

@@ -14,8 +14,8 @@ export async function POST() {
     // 2. Crear usuario sysadmin (sin dojo — acceso global)
     const hashed = await bcrypt.hash("Admin123!", 12);
     await prisma.user.upsert({
-      where:  { email: "admin@dojomanager.com" },
-      create: { name: "Administrador", email: "admin@dojomanager.com", password: hashed, role: "sysadmin", dojoId: null },
+      where:  { email: "admin@dojomaster.com" },
+      create: { name: "Administrador", email: "admin@dojomaster.com", password: hashed, role: "sysadmin", dojoId: null },
       update: {},
     });
 
@@ -61,7 +61,7 @@ export async function POST() {
       ok: true,
       message: "Setup completado.",
       logins: {
-        sysadmin: "admin@dojomanager.com / Admin123!  (acceso global)",
+        sysadmin: "admin@dojomaster.com / Admin123!  (acceso global)",
         admin:    `admin@dojo-principal.com / Admin123!  (dojo: ${dojo.name})`,
         loginUrl: `/login?dojo=dojo-principal`,
       },

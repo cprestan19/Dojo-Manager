@@ -49,7 +49,7 @@ function LogoImg() {
     <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-dojo-red flex items-center justify-center shadow shadow-dojo-red/30">
       <Image
         src="/logo.png"
-        alt="Dojo Manager"
+        alt="Dojo Master"
         width={40}
         height={40}
         className="w-full h-full object-contain"
@@ -87,7 +87,7 @@ export function Sidebar() {
           <LogoImg />
           <div className="min-w-0">
             <p className="font-display text-dojo-white font-bold text-sm tracking-widest leading-tight">
-              DOJO MANAGER
+              DOJO MASTER
             </p>
             <p className="font-display text-dojo-gold text-[10px] tracking-wider leading-tight mt-0.5 truncate">
               {dojo?.name ?? (role === "sysadmin" ? "Sistema Global" : "Cargando...")}

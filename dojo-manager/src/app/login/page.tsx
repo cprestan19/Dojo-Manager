@@ -2,7 +2,7 @@
 import { Suspense, useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Sword, Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import Image from "next/image";
 
 interface DojoInfo { name: string; logo: string | null; slug: string }
@@ -82,21 +82,25 @@ function LoginForm() {
       <div className="relative z-10 w-full max-w-sm mx-auto px-4 py-8">
         {/* Logo / Branding */}
         <div className="text-center mb-10">
+          {/* Logo: dojo custom > app default */}
           <div className="w-20 h-20 bg-dojo-red rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-dojo-red/30 overflow-hidden">
-            {dojo?.logo ? (
-              <Image src={dojo.logo} alt={dojo.name} width={80} height={80} className="object-contain w-full h-full" />
-            ) : (
-              <Sword size={36} className="text-white" />
-            )}
+            <Image
+              src={dojo?.logo && dojo.logo.startsWith("http") ? dojo.logo : "/logo.png"}
+              alt={dojo?.name ?? "Dojo Master"}
+              width={80}
+              height={80}
+              className="object-contain w-full h-full"
+              unoptimized
+            />
           </div>
           {dojo ? (
             <>
               <h1 className="font-display text-xl font-bold text-dojo-white tracking-tight">{dojo.name}</h1>
-              <p className="font-display text-dojo-gold tracking-widest text-[10px] font-semibold uppercase mt-1">Dojo Manager</p>
+              <p className="font-display text-dojo-gold tracking-widest text-[10px] font-semibold uppercase mt-1">Dojo Master</p>
             </>
           ) : (
             <>
-              <h1 className="font-display text-xl font-bold text-dojo-white tracking-tight">Dojo Manager</h1>
+              <h1 className="font-display text-xl font-bold text-dojo-white tracking-tight">Dojo Master</h1>
               <p className="font-display text-dojo-gold tracking-widest text-[10px] font-semibold uppercase mt-1">Sistema de Karate</p>
             </>
           )}
@@ -164,7 +168,7 @@ function LoginForm() {
         </div>
 
         <p className="font-body text-center text-dojo-muted text-xs mt-6">
-          © {new Date().getFullYear()} Dojo Manager · Todos los derechos reservados
+          © {new Date().getFullYear()} Dojo Master · Todos los derechos reservados
         </p>
       </div>
     </div>

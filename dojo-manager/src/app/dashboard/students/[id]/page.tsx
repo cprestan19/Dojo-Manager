@@ -726,7 +726,7 @@ export default function StudentDetailPage() {
             motherPhone={student.motherPhone}
             fatherName={student.fatherName}
             fatherPhone={student.fatherPhone}
-            dojoName={student.dojo?.name ?? "Dojo Manager"}
+            dojoName={student.dojo?.name ?? "Dojo Master"}
             dojoPhone={student.dojo?.phone ?? null}
           />
 

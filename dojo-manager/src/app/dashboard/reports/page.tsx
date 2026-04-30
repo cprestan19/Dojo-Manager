@@ -84,7 +84,7 @@ export default function ReportsPage() {
           </div>
           <div className="text-right flex-shrink-0">
             <p className="text-dojo-muted text-xs uppercase tracking-wider">Reportes</p>
-            <p className="text-dojo-white font-display text-sm tracking-widest">DOJO MANAGER</p>
+            <p className="text-dojo-white font-display text-sm tracking-widest">DOJO MASTER</p>
           </div>
         </div>
       )}

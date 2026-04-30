@@ -130,9 +130,11 @@ export default function DojosPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-dojo-red rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {dojo.logo
+                    {/* custom logo → app logo → initial */}
+                    {dojo.logo && dojo.logo.startsWith("http")
                       ? <img src={dojo.logo} alt={dojo.name} className="w-full h-full object-contain" />
-                      : <span className="text-white text-xl font-display font-bold">{dojo.name[0]}</span>
+                      : <img src="/logo.png" alt="Dojo Master" className="w-full h-full object-contain p-1"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     }
                   </div>
                   <div>

@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "@/components/layout/Providers";
 
 export const metadata: Metadata = {
-  title: "DojoManager – Sistema de Administración de Karate",
+  title: "Dojo Master – Sistema de Administración de Karate",
   description: "Gestión integral de alumnos, pagos y rangos para dojos de karate",
 };
 

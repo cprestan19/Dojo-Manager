@@ -29,7 +29,7 @@ async function createTransporter() {
 
 function fromAddress(dojo?: DojoMeta) {
   if (dojo?.email) return `"${dojo.name}" <${dojo.email}>`;
-  return process.env.EMAIL_FROM ?? "DojoManager <noreply@dojomanager.com>";
+  return process.env.EMAIL_FROM ?? "Dojo Master <noreply@dojomaster.com>";
 }
 
 interface DojoMeta {
@@ -45,7 +45,7 @@ function dojoHeader(dojo?: DojoMeta) {
   if (!dojo) {
     return `
       <div style="background:#C0392B;padding:24px;text-align:center;">
-        <h1 style="margin:0;font-size:22px;color:white;font-family:serif;letter-spacing:4px;">DOJO MANAGER</h1>
+        <h1 style="margin:0;font-size:22px;color:white;font-family:serif;letter-spacing:4px;">DOJO MASTER</h1>
         <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:13px;">Sistema de Administración de Karate</p>
       </div>`;
   }
@@ -68,12 +68,12 @@ function dojoHeader(dojo?: DojoMeta) {
 function emailFooter(dojo?: DojoMeta) {
   const dojoLine = dojo
     ? `${dojo.name}${dojo.ownerName ? " · " + dojo.ownerName : ""}${dojo.phone ? " · " + dojo.phone : ""}`
-    : "DojoManager";
+    : "Dojo Master";
   return `
     <div style="padding:20px 24px;background:#0F0F1A;border-top:1px solid #2A3550;">
       <p style="color:#8892A4;font-size:11px;margin:0;text-align:center;">
         ${dojoLine}<br/>
-        <span style="font-size:10px;">Mensaje automático · No responda a este correo · Desarrollado por DojoManager</span>
+        <span style="font-size:10px;">Mensaje automático · No responda a este correo · Desarrollado por Dojo Master</span>
       </p>
     </div>`;
 }
@@ -146,7 +146,7 @@ export async function sendPaymentReminder({
 
   const subject = dojo
     ? `📋 Recordatorio de pago – ${studentName} – ${dojo.name}`
-    : `📋 Recordatorio de pago – ${studentName} – DojoManager`;
+    : `📋 Recordatorio de pago – ${studentName} – Dojo Master`;
 
   const t = await createTransporter();
   await t.sendMail({ from: fromAddress(dojo), to, subject, html });
@@ -279,7 +279,7 @@ export async function sendStudentWelcome({
       ${emailFooter(dojo)}
     </div>`;
 
-  const subject = dojo ? `🎓 Acceso al Portal — ${dojo.name}` : `🎓 Acceso al Portal — DojoManager`;
+  const subject = dojo ? `🎓 Acceso al Portal — ${dojo.name}` : `🎓 Acceso al Portal — Dojo Master`;
   const t = await createTransporter();
   await t.sendMail({ from: fromAddress(dojo), to, subject, html });
 }
@@ -352,7 +352,7 @@ export async function sendUserWelcome({
 
   const subject = dojo
     ? `🔑 Acceso creado — ${dojo.name}`
-    : "🔑 Tu acceso a DojoManager";
+    : "🔑 Tu acceso a Dojo Master";
 
   const t = await createTransporter();
   await t.sendMail({ from: fromAddress(dojo), to, subject, html });
@@ -388,7 +388,7 @@ export async function sendPasswordReset({
       ${emailFooter(dojo)}
     </div>`;
 
-  const subject = "🔐 Restablecer contraseña — DojoManager";
+  const subject = "🔐 Restablecer contraseña — Dojo Master";
   const t = await createTransporter();
   await t.sendMail({ from: fromAddress(dojo), to, subject, html });
 }
