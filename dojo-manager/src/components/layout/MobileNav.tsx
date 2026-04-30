@@ -193,7 +193,7 @@ export function MobileNav() {
               <Link key={item.href} href={item.href} onClick={close}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
-                  active ? "bg-dojo-red text-white" : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
+                  active ? "bg-[#1e3a5c] text-white" : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
                 )}
               >
                 <Icon size={18} />
@@ -227,7 +227,7 @@ export function MobileNav() {
                       <Link key={sub.href} href={sub.href} onClick={close}
                         className={cn(
                           "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm",
-                          active ? "bg-dojo-red text-white font-medium" : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
+                          active ? "bg-[#1e3a5c] text-white font-medium" : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
                         )}
                       >
                         <Icon size={15} />

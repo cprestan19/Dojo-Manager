@@ -118,9 +118,9 @@ function StatCard({ label, value, sub, icon: Icon, accent, pulse, onClick, href 
   const clickable = !!onClick || !!href;
   const inner = (
     <div
-      className={`relative rounded-2xl p-3 sm:p-5 flex flex-col gap-2 sm:gap-3 shadow-lg shadow-black/30 transition-all duration-200 select-none min-w-0
-        ${clickable ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]" : ""}`}
-      style={{ background: "#132F4C", border: `1px solid ${accent}30` }}
+      className={`card relative p-3 sm:p-5 flex flex-col gap-2 sm:gap-3 transition-all duration-200 select-none min-w-0
+        ${clickable ? "cursor-pointer hover:-translate-y-0.5 active:scale-[0.98]" : ""}`}
+      style={{ border: `1px solid ${accent}30` }}
       onClick={onClick}
     >
       {/* Accent line top */}

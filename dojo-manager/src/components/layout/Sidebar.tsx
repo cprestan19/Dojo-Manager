@@ -112,7 +112,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
                 active
-                  ? "bg-dojo-red text-white"
+                  ? "bg-[#1e3a5c] text-white"
                   : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
               )}
             >
@@ -154,7 +154,7 @@ export function Sidebar() {
                       className={cn(
                         "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 text-sm",
                         active
-                          ? "bg-dojo-red text-white font-medium"
+                          ? "bg-[#1e3a5c] text-white font-medium"
                           : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
                       )}
                     >

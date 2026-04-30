@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { Users, Award, Building2, UserCheck } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import Link from "next/link";
 
 export default async function DashboardPage() {
@@ -175,43 +176,50 @@ export default async function DashboardPage() {
         upcomingPayments={upcomingPayments}
       />
 
-      {/* Recent students */}
-      <div className="card p-5">
-        <p className="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: "#7A97B0" }}>
-          <Users size={13} style={{ color: "#E53935" }} /> Alumnos Recientes
-        </p>
-        <div className="space-y-1">
-          {recentStudents.length === 0 && (
-            <p className="text-sm text-center py-6" style={{ color: "#7A97B0" }}>No hay alumnos registrados aún.</p>
-          )}
-          {recentStudents.map((s, idx) => {
-            const belt     = s.beltHistory[0]?.beltColor ?? "sin cinta";
-            const age      = Math.floor((Date.now() - new Date(s.birthDate).getTime()) / (365.25 * 86_400_000));
-            const initials = s.fullName.split(" ").slice(0, 2).map(w => w[0]).join("");
-            const isUrl    = s.photo?.startsWith("http");
-            return (
-              <div key={s.id} className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors"
-                style={{ borderBottom: idx < recentStudents.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center text-xs font-bold"
-                    style={{ background: "rgba(229,57,53,0.12)", color: "#E53935" }}>
-                    {isUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={s.photo!} alt={s.fullName} className="w-full h-full object-cover" />
-                    ) : initials}
+      {/* Chart + Recent students — side by side on lg */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Attendance chart */}
+        <AttendanceChart />
+
+        {/* Recent students */}
+        <div className="card p-5">
+          <p className="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2" style={{ color: "#7A97B0" }}>
+            <Users size={13} style={{ color: "#E53935" }} /> Alumnos Recientes
+          </p>
+          <div className="space-y-1">
+            {recentStudents.length === 0 && (
+              <p className="text-sm text-center py-6" style={{ color: "#7A97B0" }}>No hay alumnos registrados aún.</p>
+            )}
+            {recentStudents.map((s, idx) => {
+              const belt     = s.beltHistory[0]?.beltColor ?? "sin cinta";
+              const age      = Math.floor((Date.now() - new Date(s.birthDate).getTime()) / (365.25 * 86_400_000));
+              const initials = s.fullName.split(" ").slice(0, 2).map(w => w[0]).join("");
+              const isUrl    = s.photo?.startsWith("http");
+              return (
+                <div key={s.id} className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors"
+                  style={{ borderBottom: idx < recentStudents.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center text-xs font-bold"
+                      style={{ background: "rgba(229,57,53,0.12)", color: "#E53935" }}>
+                      {isUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={s.photo!} alt={s.fullName} className="w-full h-full object-cover" />
+                      ) : initials}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">{s.fullName}</p>
+                      <p className="text-xs" style={{ color: "#7A97B0" }}>{age} años</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{s.fullName}</p>
-                    <p className="text-xs" style={{ color: "#7A97B0" }}>{age} años</p>
-                  </div>
+                  <span className="text-xs capitalize px-2.5 py-1 rounded-full"
+                    style={{ background: "rgba(255,255,255,0.06)", color: "#7A97B0" }}>
+                    {belt}
+                  </span>
                 </div>
-                <span className="text-xs capitalize px-2.5 py-1 rounded-full"
-                  style={{ background: "rgba(255,255,255,0.06)", color: "#7A97B0" }}>
-                  {belt}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
