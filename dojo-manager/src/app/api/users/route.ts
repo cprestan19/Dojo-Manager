@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { sendUserWelcome } from "@/lib/email";
+import { CreateUserSchema, validationError } from "@/lib/validation";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -33,7 +34,11 @@ export async function GET() {
       },
       orderBy: [{ name: "asc" }],
     });
-    return NextResponse.json(users);
+    const sanitized = users.map(u => ({
+      ...u,
+      photo: u.photo?.startsWith("http") ? u.photo : null,
+    }));
+    return NextResponse.json(sanitized);
   } catch (err) {
     console.error("GET /api/users error:", err);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
@@ -49,23 +54,12 @@ export async function POST(req: NextRequest) {
     if (role !== "sysadmin" && role !== "admin")
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-    let body: Record<string, unknown>;
-    try {
-      body = await req.json();
-    } catch {
-      return NextResponse.json({ error: "Cuerpo de solicitud inválido" }, { status: 400 });
-    }
+    const rawBody = await req.json().catch(() => null);
+    if (!rawBody) return NextResponse.json({ error: "Cuerpo de solicitud inválido" }, { status: 400 });
 
-    const name     = String(body.name     ?? "").trim();
-    const email    = String(body.email    ?? "").trim().toLowerCase();
-    const password = String(body.password ?? "");
-    const userRole = String(body.role     ?? "user");
-
-    if (!name)          return NextResponse.json({ error: "El nombre es requerido" },                         { status: 400 });
-    if (!email)         return NextResponse.json({ error: "El correo electrónico es requerido" },             { status: 400 });
-    if (!password)      return NextResponse.json({ error: "La contraseña es requerida" },                     { status: 400 });
-    if (password.length < 8)
-                        return NextResponse.json({ error: "La contraseña debe tener al menos 8 caracteres" }, { status: 400 });
+    const parsed = CreateUserSchema.safeParse(rawBody);
+    if (!parsed.success) return validationError(parsed.error);
+    const { name, email, password, role: userRole, photo, dojoId: bodyDojoId } = parsed.data;
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return NextResponse.json({ error: "El correo ya está registrado por otro usuario" }, { status: 409 });
@@ -75,9 +69,8 @@ export async function POST(req: NextRequest) {
     // - sysadmin    → body.dojoId if provided, else sx-dojo cookie context, else null (global)
     let targetDojoId: string | null;
     if (role === "sysadmin") {
-      const bodyDojo = typeof body.dojoId === "string" ? body.dojoId : null;
-      const ctxDojo  = req.cookies.get("sx-dojo")?.value ?? null;
-      targetDojoId   = bodyDojo ?? ctxDojo ?? null;
+      const ctxDojo = req.cookies.get("sx-dojo")?.value ?? null;
+      targetDojoId  = bodyDojoId ?? ctxDojo ?? null;
     } else {
       targetDojoId = sessionDojoId ?? null;
     }
@@ -91,7 +84,7 @@ export async function POST(req: NextRequest) {
         password:           hashed,
         role:               userRole,
         dojoId:             targetDojoId,
-        photo:              typeof body.photo === "string" ? body.photo : null,
+        photo:              photo ?? null,
         mustChangePassword: true,
       },
       select: {

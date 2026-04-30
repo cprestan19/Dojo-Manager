@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { UpdateUserSchema, validationError } from "@/lib/validation";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null; id?: string };
@@ -24,13 +25,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (role === "admin" && target.dojoId !== dojoId)
       return NextResponse.json({ error: "Sin permisos sobre este usuario" }, { status: 403 });
 
-    // Read body ONCE
-    let body: Record<string, unknown>;
-    try {
-      body = await req.json();
-    } catch {
-      return NextResponse.json({ error: "Cuerpo de solicitud inválido" }, { status: 400 });
-    }
+    const rawBody = await req.json().catch(() => null);
+    if (!rawBody) return NextResponse.json({ error: "Cuerpo de solicitud inválido" }, { status: 400 });
+
+    const parsed = UpdateUserSchema.safeParse(rawBody);
+    if (!parsed.success) return validationError(parsed.error);
+    const body = parsed.data;
 
     // Prevent removing the last sysadmin
     if (target.role === "sysadmin") {
@@ -40,22 +40,18 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     const data: Record<string, unknown> = {};
-    if (body.name  !== undefined) data.name  = String(body.name).trim();
+    if (body.name  !== undefined) data.name  = body.name;
     if (body.email !== undefined) {
-      const newEmail = String(body.email).trim().toLowerCase();
-      const existing = await prisma.user.findFirst({ where: { email: newEmail, NOT: { id } } });
+      const existing = await prisma.user.findFirst({ where: { email: body.email, NOT: { id } } });
       if (existing) return NextResponse.json({ error: "Email ya registrado por otro usuario" }, { status: 409 });
-      data.email = newEmail;
+      data.email = body.email;
     }
-    if (body.role   !== undefined) data.role   = body.role;
-    if (body.active !== undefined) data.active = body.active;
-    if (body.photo  !== undefined) data.photo  = body.photo ?? null;
+    if (body.role               !== undefined) data.role               = body.role;
+    if (body.active             !== undefined) data.active             = body.active;
+    if (body.photo              !== undefined) data.photo              = body.photo ?? null;
     if (body.mustChangePassword !== undefined) data.mustChangePassword = body.mustChangePassword;
     if (body.password) {
-      const pwd = String(body.password);
-      if (pwd.length < 8)
-        return NextResponse.json({ error: "La contraseña debe tener al menos 8 caracteres" }, { status: 400 });
-      data.password = await bcrypt.hash(pwd, 12);
+      data.password = await bcrypt.hash(body.password, 12);
     }
 
     const updated = await prisma.user.update({

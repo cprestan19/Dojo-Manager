@@ -2,18 +2,21 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Building2, LogOut, Loader2 } from "lucide-react";
+import { useAppContext } from "@/lib/context/AppContext";
 
 interface Props {
   dojoName: string;
 }
 
 export function DojoBanner({ dojoName }: Props) {
-  const router   = useRouter();
-  const [busy, setBusy] = useState(false);
+  const router        = useRouter();
+  const { refreshPerms } = useAppContext();
+  const [busy, setBusy]  = useState(false);
 
   async function exit() {
     setBusy(true);
     await fetch("/api/sysadmin/exit-dojo", { method: "POST" });
+    refreshPerms(); // update sidebar nav items immediately
     router.push("/dashboard");
     router.refresh();
   }

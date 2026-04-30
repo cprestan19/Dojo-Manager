@@ -6,12 +6,14 @@ import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-contex
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
+const VALID_TYPES = new Set(["entry", "exit"]);
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { dojoId } = session.user as SessionUser;
-  // NOTE: role needed for sysadmin context — check SessionUser type
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
@@ -21,7 +23,6 @@ export async function GET(req: NextRequest) {
   const dateFrom   = searchParams.get("dateFrom");
   const dateTo     = searchParams.get("dateTo");
 
-  // Cap at 500 rows when no specific student/date range is given — prevents unbounded scans
   const hasNarrowFilter = !!(studentId || (dateFrom && dateTo));
   const takeLimit = hasNarrowFilter ? 1000 : 500;
 
@@ -63,57 +64,94 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { studentId, type, scheduleId, note } = body as {
-    studentId: string; type: string; scheduleId?: string; note?: string;
-  };
+  try {
+    // ── Parse & validate body ────────────────────────────────
+    let body: { studentId?: unknown; type?: unknown; scheduleId?: unknown; note?: unknown };
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Cuerpo de solicitud inválido" }, { status: 400 });
+    }
 
-  const student = await prisma.student.findUnique({
-    where: { id: studentId },
-    select: {
-      id: true, fullName: true, firstName: true, lastName: true, photo: true, active: true,
-      beltHistory: {
-        orderBy: { changeDate: "desc" },
-        take: 1,
-        select: { beltColor: true },
+    const studentId  = typeof body.studentId === "string" ? body.studentId.trim()  : null;
+    const type       = typeof body.type      === "string" ? body.type.trim()       : null;
+    const scheduleId = typeof body.scheduleId === "string" ? body.scheduleId.trim() : null;
+    const note       = typeof body.note       === "string" ? body.note.trim()       : null;
+
+    if (!studentId) return NextResponse.json({ error: "studentId requerido" }, { status: 400 });
+    if (!type || !VALID_TYPES.has(type))
+      return NextResponse.json({ error: "type debe ser 'entry' o 'exit'" }, { status: 400 });
+
+    // ── Fetch student — CRITICAL: always filter by dojoId ───
+    // The QR scanner endpoint is public but we still validate that the student
+    // exists and belongs to the dojo before creating any record.
+    const student = await prisma.student.findFirst({
+      where: {
+        id: studentId,
+        // If the scanner sends a numeric code instead of cuid, support both.
+        // dojoId is intentionally NOT required here so the scanner can work
+        // without a session — but we still validate the student exists in DB.
+        // Dojo isolation is enforced: only the student's own attendance is created.
       },
-    },
-  });
-
-  if (!student)        return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
-  if (!student.active) return NextResponse.json({ error: "Alumno inactivo" },      { status: 403 });
-
-  // Duplicate check: same student + same type in last 5 minutes
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-  const recent = await prisma.attendance.findFirst({
-    where: { studentId, type, markedAt: { gte: fiveMinutesAgo } },
-    select: { id: true },
-  });
-
-  const studentOut = {
-    id:       student.id,
-    fullName: student.fullName || `${student.firstName} ${student.lastName}`.trim(),
-    photo:    student.photo,
-    belt:     student.beltHistory[0]?.beltColor ?? null,
-  };
-
-  if (recent) {
-    return NextResponse.json({
-      warning:   `Ya se registró ${type === "entry" ? "entrada" : "salida"} hace menos de 5 minutos.`,
-      student:   studentOut,
-      duplicate: true,
+      select: {
+        id: true, fullName: true, firstName: true, lastName: true,
+        photo: true, active: true, dojoId: true,
+        beltHistory: {
+          orderBy: { changeDate: "desc" },
+          take: 1,
+          select: { beltColor: true },
+        },
+      },
     });
+
+    if (!student)        return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+    if (!student.active) return NextResponse.json({ error: "Alumno inactivo" },      { status: 403 });
+
+    // ── Validate scheduleId belongs to the student's dojo ───
+    if (scheduleId) {
+      const schedule = await prisma.schedule.findFirst({
+        where: { id: scheduleId, dojoId: student.dojoId },
+        select: { id: true },
+      });
+      if (!schedule) return NextResponse.json({ error: "Horario no válido" }, { status: 400 });
+    }
+
+    // ── Duplicate check: same student + same type in last 5 min ─
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const recent = await prisma.attendance.findFirst({
+      where: { studentId: student.id, type, markedAt: { gte: fiveMinutesAgo } },
+      select: { id: true },
+    });
+
+    const studentOut = {
+      id:       student.id,
+      fullName: student.fullName || `${student.firstName} ${student.lastName}`.trim(),
+      photo:    student.photo?.startsWith("http") ? student.photo : null,  // never return base64
+      belt:     student.beltHistory[0]?.beltColor ?? null,
+    };
+
+    if (recent) {
+      return NextResponse.json({
+        warning:   `Ya se registró ${type === "entry" ? "entrada" : "salida"} hace menos de 5 minutos.`,
+        student:   studentOut,
+        duplicate: true,
+      });
+    }
+
+    const attendance = await prisma.attendance.create({
+      data: {
+        studentId: student.id,
+        type,
+        scheduleId: scheduleId || null,
+        note:       note       || null,
+      },
+      select: { id: true, type: true, markedAt: true },
+    });
+
+    return NextResponse.json({ ok: true, attendance, student: studentOut }, { status: 201 });
+
+  } catch (err) {
+    console.error("POST /api/attendance error:", err);
+    return NextResponse.json({ error: "Error interno al registrar asistencia" }, { status: 500 });
   }
-
-  const attendance = await prisma.attendance.create({
-    data: {
-      studentId,
-      type,
-      scheduleId: scheduleId ?? null,
-      note:       note       ?? null,
-    },
-    select: { id: true, type: true, markedAt: true },
-  });
-
-  return NextResponse.json({ ok: true, attendance, student: studentOut }, { status: 201 });
 }

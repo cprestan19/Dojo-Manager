@@ -10,7 +10,7 @@ import { NAV_KEYS } from "@/lib/permissions";
 import type { NavKey } from "@/lib/permissions";
 import {
   Menu, X, Users, CreditCard, Award, BookOpen,
-  BarChart2, Settings, LogOut, Shield, Building2, Clock,
+  BarChart2, Settings, LogOut, Shield, Building2,
   ClipboardList, QrCode, ChevronDown, Tag, Video, ShieldCheck,
   ChevronLeft, Home, UserPlus, Mail, LayoutDashboard,
 } from "lucide-react";
@@ -43,7 +43,6 @@ const drawerItems: NavItem[] = [
   { href: "/dashboard/payments",   label: "Pagos",      icon: CreditCard,      permKey: NAV_KEYS.PAYMENTS   },
   { href: "/dashboard/belts",      label: "Cintas o Grados",     icon: Award,           permKey: NAV_KEYS.BELTS      },
   { href: "/dashboard/reports",    label: "Reportes",   icon: BarChart2,       permKey: NAV_KEYS.REPORTS    },
-  { href: "/dashboard/schedules",  label: "Horarios",   icon: Clock,           permKey: NAV_KEYS.SCHEDULES  },
   { href: "/dashboard/users",      label: "Usuarios",   icon: Shield,          permKey: NAV_KEYS.USERS      },
   { href: "/dashboard/dojos",      label: "Dojos",      icon: Building2,       permKey: NAV_KEYS.DOJOS      },
 ];

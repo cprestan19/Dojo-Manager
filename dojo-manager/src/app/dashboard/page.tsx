@@ -140,10 +140,14 @@ export default async function DashboardPage() {
       include: { student: { select: { id: true, fullName: true, motherEmail: true, fatherEmail: true } } },
       orderBy: { dueDate: "asc" }, take: 100,
     }),
+    // N+1 fix: two queries instead of 1+N (one subquery per student).
+    // Step 1 fetches absent student IDs; step 2 fetches their last attendance
+    // in a single IN query. Combined in-memory below.
     prisma.student.findMany({
-      where: { ...baseStudentWhere, active: true, attendances: { none: { markedAt: { gte: absenceCutoff }, type: "entry" } } },
-      select: { id: true, fullName: true, attendances: { where: { type: "entry" }, orderBy: { markedAt: "desc" }, take: 1, select: { markedAt: true } } },
-      orderBy: { fullName: "asc" }, take: 100,
+      where:   { ...baseStudentWhere, active: true, attendances: { none: { markedAt: { gte: absenceCutoff }, type: "entry" } } },
+      select:  { id: true, fullName: true },
+      orderBy: { fullName: "asc" },
+      take:    100,
     }),
     prisma.payment.findMany({
       where: { ...basePaymentWhere, status: "pending", dueDate: { gte: now, lte: upcomingCutoff } },
@@ -152,9 +156,29 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const lateStudents     = lateStudentsRaw.map(p => ({ id: p.id, amount: p.amount, dueDate: p.dueDate.toISOString(), status: p.status, student: p.student }));
-  const absentStudents   = absentStudentsRaw.map(s => ({ id: s.id, fullName: s.fullName, lastSeen: s.attendances[0]?.markedAt.toISOString() ?? null }));
-  const upcomingPayments = upcomingPaymentsRaw.map(p => ({ id: p.id, amount: p.amount, dueDate: p.dueDate.toISOString(), student: p.student }));
+  const lateStudents = lateStudentsRaw.map(p => ({
+    id: p.id, amount: p.amount, dueDate: p.dueDate.toISOString(), status: p.status, student: p.student,
+  }));
+
+  // N+1 fix: fetch last attendance for absent students in a single IN query
+  const absentIds = absentStudentsRaw.map(s => s.id);
+  const lastAttendances = absentIds.length > 0
+    ? await prisma.attendance.findMany({
+        where:   { studentId: { in: absentIds }, type: "entry" },
+        orderBy: { markedAt: "desc" },
+        distinct: ["studentId"],
+        select:  { studentId: true, markedAt: true },
+      })
+    : [];
+  const lastSeenMap = new Map(lastAttendances.map(a => [a.studentId, a.markedAt]));
+  const absentStudents = absentStudentsRaw.map(s => ({
+    id: s.id, fullName: s.fullName,
+    lastSeen: lastSeenMap.get(s.id)?.toISOString() ?? null,
+  }));
+
+  const upcomingPayments = upcomingPaymentsRaw.map(p => ({
+    id: p.id, amount: p.amount, dueDate: p.dueDate.toISOString(), student: p.student,
+  }));
   const alertCount       = latePayments + absentStudents.length + upcomingPayments.length;
 
   return (

@@ -23,53 +23,66 @@ function getClientIp(req: NextRequest): string {
   );
 }
 
-/** Clears all next-auth cookies on a response — used to break stale/oversized session loops */
 function clearAuthCookies(req: NextRequest, res: NextResponse): void {
   req.cookies.getAll()
     .filter(c => c.name.startsWith("next-auth.") || c.name.startsWith("__Secure-next-auth."))
     .forEach(c => res.cookies.delete(c.name));
 }
 
-/** Read the JWT; handles both single-cookie and chunked-cookie sessions */
 async function readToken(req: NextRequest) {
   const secret = process.env.NEXTAUTH_SECRET;
-  // In development (HTTP) the cookie is NOT marked Secure
   const secureCookie =
     process.env.NODE_ENV === "production" &&
     (process.env.NEXTAUTH_URL ?? "").startsWith("https");
-
   return getToken({ req, secret, secureCookie });
+}
+
+function tooManyRequests(retryAfter = "60") {
+  return NextResponse.json(
+    { error: "Demasiadas solicitudes. Espera un momento." },
+    { status: 429, headers: { "Retry-After": retryAfter } },
+  );
 }
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const ip           = getClientIp(req);
 
-  // ── Rate limit: scanner QR ───────────────────────────────────
+  // ── Rate limits — public / unauthenticated endpoints ─────────
+  // Scanner QR: generous limit for legitimate fast scans
   if (pathname.startsWith("/api/scan")) {
-    if (!rateLimit(`scan:${ip}`, 60, 60_000))
-      return NextResponse.json(
-        { error: "Demasiadas solicitudes. Espera un momento." },
-        { status: 429, headers: { "Retry-After": "60" } },
-      );
+    if (!rateLimit(`scan:${ip}`, 60, 60_000)) return tooManyRequests("60");
   }
 
-  // ── Rate limit: asistencia ───────────────────────────────────
+  // Attendance POST: public, high-traffic during class entry/exit
   if (pathname === "/api/attendance" && req.method === "POST") {
-    if (!rateLimit(`attendance:${ip}`, 120, 60_000))
-      return NextResponse.json(
-        { error: "Demasiadas solicitudes. Espera un momento." },
-        { status: 429, headers: { "Retry-After": "60" } },
-      );
+    if (!rateLimit(`attendance:${ip}`, 120, 60_000)) return tooManyRequests("60");
   }
 
-  // ── Rate limit: login brute-force ────────────────────────────
+  // Login brute-force protection
   if (pathname.startsWith("/api/auth/callback/credentials") && req.method === "POST") {
-    if (!rateLimit(`login:${ip}`, 10, 15 * 60_000))
-      return NextResponse.json(
-        { error: "Demasiados intentos de inicio de sesión. Espera 15 minutos." },
-        { status: 429, headers: { "Retry-After": "900" } },
-      );
+    if (!rateLimit(`login:${ip}`, 10, 15 * 60_000)) return tooManyRequests("900");
+  }
+
+  // ── Rate limits — authenticated data endpoints ────────────────
+  // Students list: prevent enumeration / scraping
+  if (pathname === "/api/students" || pathname.startsWith("/api/students/")) {
+    if (!rateLimit(`students:${ip}`, 100, 60_000)) return tooManyRequests("60");
+  }
+
+  // Payments: financial data — stricter limit
+  if (pathname === "/api/payments" || pathname.startsWith("/api/payments/")) {
+    if (!rateLimit(`payments:${ip}`, 60, 60_000)) return tooManyRequests("60");
+  }
+
+  // Users: prevent enumeration attacks
+  if (pathname === "/api/users" || pathname.startsWith("/api/users/")) {
+    if (!rateLimit(`users:${ip}`, 30, 60_000)) return tooManyRequests("60");
+  }
+
+  // File uploads: prevent Cloudinary quota exhaustion
+  if (pathname === "/api/upload" && req.method === "POST") {
+    if (!rateLimit(`upload:${ip}`, 10, 60_000)) return tooManyRequests("60");
   }
 
   // ── Protect /portal ──────────────────────────────────────────
@@ -94,7 +107,6 @@ export async function middleware(req: NextRequest) {
     const isChangePwd = pathname === "/dashboard/change-password";
 
     if (!token) {
-      // Clear potentially stale/oversized session cookies so the next login starts fresh
       const res = NextResponse.redirect(new URL("/login", req.url));
       clearAuthCookies(req, res);
       return res;
@@ -114,9 +126,18 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/portal/:path*",
+    // Public API endpoints with rate limits
     "/api/scan",
     "/api/scan/:path*",
     "/api/attendance",
     "/api/auth/callback/credentials",
+    // Authenticated data endpoints with rate limits
+    "/api/students",
+    "/api/students/:path*",
+    "/api/payments",
+    "/api/payments/:path*",
+    "/api/users",
+    "/api/users/:path*",
+    "/api/upload",
   ],
 };

@@ -118,51 +118,47 @@ function StatCard({ label, value, sub, icon: Icon, accent, pulse, onClick, href 
   const clickable = !!onClick || !!href;
   const inner = (
     <div
-      className={`card relative p-3 sm:p-5 flex flex-col gap-2 sm:gap-3 transition-all duration-200 select-none min-w-0
+      className={`card flex items-center gap-3 p-3 sm:p-4 transition-all duration-200 select-none min-w-0
         ${clickable ? "cursor-pointer hover:-translate-y-0.5 active:scale-[0.98]" : ""}`}
-      style={{ border: `1px solid ${accent}30` }}
+      style={{ border: `1px solid ${accent}25` }}
       onClick={onClick}
     >
-      {/* Accent line top */}
-      <div className="absolute top-0 left-4 right-4 h-[2px] rounded-b-full"
-        style={{ background: `linear-gradient(90deg, ${accent}80, ${accent}20)` }} />
-
-      {/* Icon + pulse/chevron row */}
-      <div className="flex items-center justify-between gap-1">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: accent + "18" }}>
-            <Icon size={14} style={{ color: accent }} />
-          </div>
-          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide truncate"
-            style={{ color: accent }}>
-            {label}
-          </span>
-        </div>
-        {pulse && (
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
-              style={{ background: accent }} />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5"
-              style={{ background: accent }} />
-          </span>
-        )}
-        {clickable && !pulse && (
-          <ChevronRight size={13} className="shrink-0" style={{ color: accent + "80" }} />
-        )}
+      {/* Icon — círculo sólido, tamaño moderado */}
+      <div
+        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+        style={{ background: accent, boxShadow: `0 3px 10px ${accent}45` }}
+      >
+        <Icon size={17} color="white" strokeWidth={2.2} />
       </div>
 
-      {/* Value */}
-      <div className="min-w-0">
-        <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-none truncate">{value}</p>
-        <p className="text-[10px] sm:text-xs mt-1 truncate" style={{ color: "#7A97B0" }}>{sub}</p>
-      </div>
-
-      {clickable && (
-        <p className="text-[10px] sm:text-xs font-medium hidden sm:block" style={{ color: accent + "90" }}>
-          Ver detalle →
+      {/* Text stack — el valor es el protagonista, nunca se corta */}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        {/* Etiqueta */}
+        <p className="text-[10px] font-semibold uppercase tracking-widest truncate leading-none"
+          style={{ color: "#8892A4" }}>
+          {label}
         </p>
-      )}
+        {/* Valor: wraps si es necesario, nunca ellipsis */}
+        <p className="text-base sm:text-lg font-bold text-white leading-snug mt-0.5 break-words">
+          {value}
+        </p>
+        {/* Sub-texto secundario */}
+        <p className="text-[10px] leading-tight mt-0.5 truncate" style={{ color: "#8892A4" }}>
+          {sub}
+        </p>
+      </div>
+
+      {/* Indicador derecho */}
+      {pulse ? (
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+            style={{ background: accent }} />
+          <span className="relative inline-flex rounded-full h-2 w-2"
+            style={{ background: accent }} />
+        </span>
+      ) : clickable ? (
+        <ChevronRight size={14} className="shrink-0 opacity-40" style={{ color: accent }} />
+      ) : null}
     </div>
   );
   if (href) return <Link href={href}>{inner}</Link>;
@@ -249,7 +245,7 @@ export function DashboardStats({
   return (
     <>
       {/* ── Grid de cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-4">
         {cards.map(card => <StatCard key={card.label} {...card} />)}
       </div>
 

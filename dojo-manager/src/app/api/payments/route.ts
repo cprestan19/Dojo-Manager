@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { sendPaymentReminder } from "@/lib/email";
 import { formatDate } from "@/lib/utils";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { CreatePaymentSchema, UpdatePaymentSchema, validationError } from "@/lib/validation";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -45,7 +46,12 @@ export async function POST(req: NextRequest) {
   // NOTE: role needed for sysadmin context — check SessionUser type
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
-  const body = await req.json();
+  const raw = await req.json().catch(() => null);
+  if (!raw) return NextResponse.json({ error: "Cuerpo de solicitud inválido" }, { status: 400 });
+
+  const parsed = CreatePaymentSchema.safeParse(raw);
+  if (!parsed.success) return validationError(parsed.error);
+  const body = parsed.data;
 
   // Verify student belongs to this dojo
   const student = await prisma.student.findUnique({ where: { id: body.studentId, dojoId } });
@@ -55,10 +61,10 @@ export async function POST(req: NextRequest) {
     data: {
       studentId: body.studentId,
       type:      body.type,
-      amount:    Number(body.amount),
+      amount:    body.amount,
       dueDate:   new Date(body.dueDate),
       paidDate:  body.paidDate ? new Date(body.paidDate) : null,
-      status:    body.status ?? "pending",
+      status:    body.status,
       note:      body.note ?? null,
     },
     include: {
@@ -77,15 +83,20 @@ export async function PUT(req: NextRequest) {
   // NOTE: role needed for sysadmin context — check SessionUser type
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
-  const body = await req.json();
-  const { id, ...data } = body;
+  const raw = await req.json().catch(() => null);
+  if (!raw) return NextResponse.json({ error: "Cuerpo de solicitud inválido" }, { status: 400 });
+
+  const parsed = UpdatePaymentSchema.safeParse(raw);
+  if (!parsed.success) return validationError(parsed.error);
+  const { id, ...data } = parsed.data;
 
   const payment = await prisma.payment.update({
     where: { id, student: { dojoId } },
     data: {
-      status:   data.status,
-      paidDate: data.paidDate ? new Date(data.paidDate) : null,
-      note:     data.note ?? null,
+      ...(data.status   !== undefined ? { status: data.status } : {}),
+      ...(data.paidDate !== undefined ? { paidDate: data.paidDate ? new Date(data.paidDate) : null } : {}),
+      ...(data.amount   !== undefined ? { amount: data.amount } : {}),
+      ...(data.note     !== undefined ? { note: data.note ?? null } : {}),
     },
   });
 
