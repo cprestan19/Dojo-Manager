@@ -4,7 +4,7 @@
  */
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail } from "lucide-react";
+import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import type { DojoInfo } from "@/lib/hooks/useDojo";
@@ -26,10 +26,12 @@ export default function SettingsPage() {
   const [phone,   setPhone]   = useState("");
   const [slogan,  setSlogan]  = useState("");
   const [email,   setEmail]   = useState("");
-  const [logo,    setLogo]    = useState<string | null>(null);
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [logo,          setLogo]          = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError,     setLogoError]     = useState("");
+  const [saving,        setSaving]        = useState(false);
+  const [saved,         setSaved]         = useState(false);
+  const [loading,       setLoading]       = useState(true);
 
   // Parámetros de recordatorios
   const [toleranceDays,        setToleranceDays]        = useState(5);
@@ -79,13 +81,26 @@ export default function SettingsPage() {
       });
   }, [role, selectedId]);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert("El archivo supera 2MB"); return; }
-    const reader = new FileReader();
-    reader.onloadend = () => setLogo(reader.result as string);
-    reader.readAsDataURL(file);
+    if (file.size > 2 * 1024 * 1024) { alert("El archivo supera 2 MB"); return; }
+    setLogoError(""); setLogoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file",    file);
+      fd.append("type",    "image");
+      fd.append("purpose", "dojo-logo");
+      const res  = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok) setLogo(data.url);
+      else        setLogoError(data.error ?? "Error al subir el logo");
+    } catch {
+      setLogoError("Error de conexión al subir el logo");
+    } finally {
+      setLogoUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   async function handleSave() {
@@ -198,15 +213,23 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2 flex-1">
-                  <button onClick={() => fileRef.current?.click()} className="btn-secondary flex items-center gap-2 w-full justify-center">
-                    <Upload size={16} /> Subir imagen (PNG, JPG, SVG)
+                  <button
+                    onClick={() => !logoUploading && fileRef.current?.click()}
+                    disabled={logoUploading}
+                    className="btn-secondary flex items-center gap-2 w-full justify-center disabled:opacity-60"
+                  >
+                    {logoUploading
+                      ? <><Loader2 size={16} className="animate-spin" /> Subiendo a Cloudinary...</>
+                      : <><Upload size={16} /> Subir imagen (PNG, JPG, SVG)</>
+                    }
                   </button>
-                  {logo && (
+                  {logoError && <p className="text-xs text-red-400">{logoError}</p>}
+                  {logo && !logoUploading && (
                     <button onClick={() => setLogo(null)} className="btn-ghost text-red-400 hover:text-red-300 flex items-center gap-2 w-full justify-center text-sm">
                       <Trash2 size={14} /> Eliminar logo
                     </button>
                   )}
-                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                  <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" onChange={handleFileChange} />
                   <p className="text-xs text-dojo-muted">Recomendado: 200×200 px · Máximo 2 MB</p>
                 </div>
               </div>
