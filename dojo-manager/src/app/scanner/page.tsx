@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import {
-  Sword, LogIn, LogOut, QrCode, AlertTriangle, XCircle,
+  LogIn, LogOut, QrCode, AlertTriangle, XCircle,
   Clock, ChevronRight, ArrowLeft, ChevronDown, Search,
 } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
@@ -50,6 +50,7 @@ export default function ScannerPage() {
   const [manualInput,      setManualInput]      = useState("");
   const [manualError,      setManualError]      = useState("");
   const [manualLoading,    setManualLoading]    = useState(false);
+  const [dojoInfo,         setDojoInfo]         = useState<{ name: string; logo: string | null } | null>(null);
 
   const scannerRef      = useRef<ScannerType | null>(null);
   const isProcessingRef = useRef(false);
@@ -57,6 +58,17 @@ export default function ScannerPage() {
   const scheduleRef     = useRef<Schedule | null>(null);
 
   useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  // Fetch dojo branding for the header
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/dojo")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { name?: string; logo?: string | null } | null) => {
+        if (d?.name) setDojoInfo({ name: d.name, logo: d.logo?.startsWith("http") ? d.logo : null });
+      })
+      .catch(() => {});
+  }, [status]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -236,8 +248,8 @@ export default function ScannerPage() {
   if (status === "unauthenticated") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-dojo-darker px-6 text-center">
-        <div className="w-20 h-20 bg-dojo-red/20 border-2 border-dojo-red/40 rounded-3xl flex items-center justify-center">
-          <Sword size={40} className="text-dojo-red" />
+        <div className="w-20 h-20 bg-dojo-red/20 border-2 border-dojo-red/40 rounded-3xl flex items-center justify-center overflow-hidden">
+          <Image src="/logo.png" alt="Dojo Master" width={64} height={64} className="object-contain" />
         </div>
         <div>
           <p className="font-display text-dojo-white text-xl font-bold">Sesión requerida</p>
@@ -250,11 +262,20 @@ export default function ScannerPage() {
 
   const Header = (
     <header className="h-14 flex items-center justify-between px-4 bg-dojo-dark border-b border-dojo-border shrink-0">
-      <div className="flex items-center gap-2">
-        <Sword size={18} className="text-dojo-red" />
-        <span className="font-display text-dojo-white text-sm font-bold tracking-widest">DOJO MASTER</span>
+      <div className="flex items-center gap-2.5">
+        {/* Dojo logo → app logo fallback */}
+        <div className="w-8 h-8 rounded-lg overflow-hidden bg-dojo-red flex items-center justify-center shrink-0">
+          {dojoInfo?.logo
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={dojoInfo.logo} alt={dojoInfo.name} className="w-full h-full object-contain" />
+            : <Image src="/logo.png" alt="Dojo Master" width={32} height={32} className="object-contain" />
+          }
+        </div>
+        <span className="font-display text-dojo-white text-sm font-bold tracking-wide truncate max-w-[180px]">
+          {dojoInfo?.name ?? "DOJO MASTER"}
+        </span>
       </div>
-      <span className="text-xs text-dojo-muted font-mono">{nowTime()}</span>
+      <span className="text-xs text-dojo-muted font-mono shrink-0">{nowTime()}</span>
     </header>
   );
 
