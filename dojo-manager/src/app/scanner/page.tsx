@@ -296,8 +296,8 @@ export default function ScannerPage() {
   }
 
   const Header = (
-    <header className="h-14 flex items-center justify-between px-4 bg-dojo-dark border-b border-dojo-border shrink-0">
-      <div className="flex items-center gap-2.5">
+    <header className="h-14 flex items-center justify-between px-4 bg-dojo-dark border-b border-dojo-border shrink-0 gap-3">
+      <div className="flex items-center gap-2.5 min-w-0">
         {/* Dojo logo → app logo fallback */}
         <div className="w-8 h-8 rounded-lg overflow-hidden bg-dojo-red flex items-center justify-center shrink-0">
           {dojoInfo?.logo
@@ -306,11 +306,22 @@ export default function ScannerPage() {
             : <Image src="/logo.png" alt="Dojo Master" width={32} height={32} className="object-contain" />
           }
         </div>
-        <span className="font-display text-dojo-white text-sm font-bold tracking-wide truncate max-w-[180px]">
+        <span className="font-display text-dojo-white text-sm font-bold tracking-wide truncate max-w-[140px]">
           {dojoInfo?.name ?? "DOJO MASTER"}
         </span>
       </div>
-      <span className="text-xs text-dojo-muted font-mono shrink-0">{nowTime()}</span>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="text-xs text-dojo-muted font-mono">{nowTime()}</span>
+        {/* Back to dashboard — no re-login needed */}
+        <a
+          href="/dashboard"
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-dojo-border text-dojo-muted hover:text-dojo-white hover:border-dojo-border/80 transition-colors"
+          title="Volver al menú principal"
+        >
+          <ArrowLeft size={13} />
+          Menú
+        </a>
+      </div>
     </header>
   );
 
