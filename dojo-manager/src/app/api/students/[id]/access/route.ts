@@ -9,132 +9,153 @@ type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
 
 function generatePassword(): string {
-  const upper  = "ABCDEFGHJKMNPQRSTUVWXYZ";
-  const lower  = "abcdefghjkmnpqrstuvwxyz";
-  const digits = "23456789";
+  const upper   = "ABCDEFGHJKMNPQRSTUVWXYZ";
+  const lower   = "abcdefghjkmnpqrstuvwxyz";
+  const digits  = "23456789";
   const special = "@#$!";
-  const all    = upper + lower + digits + special;
-  const random = (set: string) => set[Math.floor(Math.random() * set.length)];
-  const chars  = [random(upper), random(lower), random(digits), random(special),
+  const all     = upper + lower + digits + special;
+  const random  = (set: string) => set[Math.floor(Math.random() * set.length)];
+  const chars   = [random(upper), random(lower), random(digits), random(special),
     ...Array.from({ length: 8 }, () => random(all))];
   return chars.sort(() => Math.random() - 0.5).join("");
 }
 
 export async function POST(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
-  const { role, dojoId } = session.user as SessionUser;
-  if (role !== "admin" && role !== "sysadmin")
-    return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-
-  const student = await prisma.student.findUnique({
-    where:   { id, ...(dojoId ? { dojoId } : {}) },
-    select: {
-      id: true, fullName: true, dojoId: true,
-      motherEmail: true, fatherEmail: true,
-      portalUser: { select: { id: true, active: true, email: true } },
-    },
-  });
-  if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
-  // Use || so empty strings ("") are treated the same as null/undefined
-  const email = student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
-  if (!email)
-    return NextResponse.json({ error: "El alumno no tiene correo registrado" }, { status: 400 });
-
-  if (student.portalUser?.active) {
-    return NextResponse.json({ error: "El alumno ya tiene acceso activo" }, { status: 400 });
-  }
-
-  const plainPassword = generatePassword();
-  const hashed        = await bcrypt.hash(plainPassword, 12);
-
-  // Upsert by email (unique) so we never hit a duplicate-email constraint.
-  // If a user with this email already exists (e.g. a parent email reused across
-  // siblings), we update it and link it to this student instead of creating a new one.
-  const user = await prisma.user.upsert({
-    where:  { email },
-    create: {
-      email,
-      password:           hashed,
-      name:               student.fullName,
-      role:               "student",
-      dojoId:             student.dojoId,
-      studentId:          id,
-      mustChangePassword: true,
-      active:             true,
-    },
-    update: {
-      password:           hashed,
-      name:               student.fullName,
-      role:               "student",
-      dojoId:             student.dojoId,
-      studentId:          id,
-      mustChangePassword: true,
-      active:             true,
-    },
-  });
-
-  let emailSent   = false;
-  let emailError: string | null = null;
-
   try {
-    const dojoRaw = await prisma.dojo.findUnique({
-      where:  { id: student.dojoId },
-      select: { name: true, email: true, phone: true, logo: true, slogan: true, ownerName: true },
-    });
-    // Strip base64 logos — they exceed email size limits on Gmail/SMTP
-    const dojo = dojoRaw
-      ? { ...dojoRaw, logo: dojoRaw.logo?.startsWith("http") ? dojoRaw.logo : null }
-      : undefined;
-    await sendStudentWelcome({
-      to:            email,
-      studentName:   student.fullName,
-      loginEmail:    email,
-      tempPassword:  plainPassword,
-      dojo,
-    });
-    emailSent = true;
-  } catch (err) {
-    emailError = err instanceof Error ? err.message : String(err);
-    console.error("Welcome email error:", emailError);
-  }
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  return NextResponse.json({
-    ok:           true,
-    email,
-    tempPassword: plainPassword,
-    userId:       user.id,
-    emailSent,
-    emailError,   // null if sent OK, message if failed
-  }, { status: 201 });
+    const { role, dojoId } = session.user as SessionUser;
+    if (role !== "admin" && role !== "sysadmin")
+      return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+
+    const student = await prisma.student.findUnique({
+      where:  { id, ...(dojoId ? { dojoId } : {}) },
+      select: {
+        id: true, fullName: true, dojoId: true,
+        motherEmail: true, fatherEmail: true,
+        portalUser: { select: { id: true, active: true, email: true } },
+      },
+    });
+    if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+
+    // Use || so empty strings are treated as missing
+    const email = student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
+    if (!email)
+      return NextResponse.json({ error: "El alumno no tiene correo registrado" }, { status: 400 });
+
+    if (student.portalUser?.active)
+      return NextResponse.json({ error: "El alumno ya tiene acceso activo" }, { status: 400 });
+
+    const plainPassword = generatePassword();
+    const hashed        = await bcrypt.hash(plainPassword, 12);
+
+    // ── Create / restore portal access ──────────────────────────────
+    // Priority: if the student already has a linked user (even inactive), update it.
+    // This avoids unique-constraint conflicts on studentId or email.
+    if (student.portalUser) {
+      // Student has an existing (inactive) portal user → reactivate & update credentials
+      await prisma.user.update({
+        where: { id: student.portalUser.id },
+        data: {
+          email,
+          password:           hashed,
+          name:               student.fullName,
+          mustChangePassword: true,
+          active:             true,
+        },
+      });
+    } else {
+      // No portal user yet → create one, handling the case where another user
+      // already has this email (e.g. shared parent email) by upserting on email.
+      await prisma.user.upsert({
+        where:  { email },
+        create: {
+          email,
+          password:           hashed,
+          name:               student.fullName,
+          role:               "student",
+          dojoId:             student.dojoId,
+          studentId:          id,
+          mustChangePassword: true,
+          active:             true,
+        },
+        update: {
+          password:           hashed,
+          name:               student.fullName,
+          role:               "student",
+          dojoId:             student.dojoId,
+          studentId:          id,
+          mustChangePassword: true,
+          active:             true,
+        },
+      });
+    }
+
+    // ── Send welcome email ───────────────────────────────────────────
+    let emailSent  = false;
+    let emailError: string | null = null;
+    try {
+      const dojoRaw = await prisma.dojo.findUnique({
+        where:  { id: student.dojoId },
+        select: { name: true, email: true, phone: true, logo: true, slogan: true, ownerName: true },
+      });
+      const dojo = dojoRaw
+        ? { ...dojoRaw, logo: dojoRaw.logo?.startsWith("http") ? dojoRaw.logo : null }
+        : undefined;
+
+      await sendStudentWelcome({
+        to:           email,
+        studentName:  student.fullName,
+        loginEmail:   email,
+        tempPassword: plainPassword,
+        dojo,
+      });
+      emailSent = true;
+    } catch (err) {
+      emailError = err instanceof Error ? err.message : String(err);
+      console.error("[access] Welcome email failed:", emailError);
+    }
+
+    return NextResponse.json({
+      ok: true, email, tempPassword: plainPassword,
+      emailSent, emailError,
+    }, { status: 201 });
+
+  } catch (err) {
+    console.error("[access] POST error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({
+      error: err instanceof Error ? err.message : "Error interno",
+    }, { status: 500 });
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const { id } = await params;
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  try {
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { role, dojoId } = session.user as SessionUser;
-  if (role !== "admin" && role !== "sysadmin")
-    return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+    const { role, dojoId } = session.user as SessionUser;
+    if (role !== "admin" && role !== "sysadmin")
+      return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-  const student = await prisma.student.findUnique({
-    where:   { id, ...(dojoId ? { dojoId } : {}) },
-    select: {
-      id: true, fullName: true, dojoId: true,
-      motherEmail: true, fatherEmail: true,
-      portalUser: { select: { id: true, active: true, email: true } },
-    },
-  });
-  if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
-  if (!student.portalUser) return NextResponse.json({ error: "Sin acceso activo" }, { status: 400 });
+    const student = await prisma.student.findUnique({
+      where:  { id, ...(dojoId ? { dojoId } : {}) },
+      select: { portalUser: { select: { id: true } } },
+    });
+    if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+    if (!student.portalUser) return NextResponse.json({ error: "Sin acceso activo" }, { status: 400 });
 
-  await prisma.user.update({
-    where: { id: student.portalUser.id },
-    data:  { active: false },
-  });
+    await prisma.user.update({
+      where: { id: student.portalUser.id },
+      data:  { active: false },
+    });
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[access] DELETE error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+  }
 }
