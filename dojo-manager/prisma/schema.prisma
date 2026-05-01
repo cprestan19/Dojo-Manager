@@ -105,6 +105,12 @@ model Student {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Absence risk level — updated when attendance is recorded or via batch recalculation.
+  // ACTIVO  : attended within last 3 days
+  // ALERTA  : 3–13 days without attendance  (risk of disengagement)
+  // RIESGO  : 14+ days without attendance  (high dropout risk)
+  attendanceStatus String @default("ACTIVO") @map("attendance_status")
+
   portalUser        User?
   inscription       Inscription?
   payments          Payment[]

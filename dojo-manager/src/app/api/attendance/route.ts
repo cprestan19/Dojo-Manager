@@ -138,15 +138,24 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const attendance = await prisma.attendance.create({
-      data: {
-        studentId: student.id,
-        type,
-        scheduleId: scheduleId || null,
-        note:       note       || null,
-      },
-      select: { id: true, type: true, markedAt: true },
-    });
+    // Create attendance record and reset absence status in one transaction
+    const [attendance] = await prisma.$transaction([
+      prisma.attendance.create({
+        data: {
+          studentId: student.id,
+          type,
+          scheduleId: scheduleId || null,
+          note:       note       || null,
+        },
+        select: { id: true, type: true, markedAt: true },
+      }),
+      // Any attendance (entry or exit) means the student is active → reset to ACTIVO
+      prisma.student.update({
+        where: { id: student.id },
+        data:  { attendanceStatus: "ACTIVO" },
+        select: { id: true },
+      }),
+    ]);
 
     return NextResponse.json({ ok: true, attendance, student: studentOut }, { status: 201 });
 
