@@ -439,15 +439,66 @@ export default function ScannerPage() {
       </div>
 
       <div className="flex-1 flex flex-col relative overflow-y-auto">
-        {/* Camera error banner */}
+        {/* Camera error — show how to enable permissions */}
         {cameraError && (
-          <div className="mx-4 mt-4 flex items-start gap-3 p-4 rounded-xl bg-red-900/30 border border-red-800/50">
-            <XCircle size={18} className="text-red-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-red-300 text-sm font-semibold">Error de cámara</p>
-              <p className="text-red-300/80 text-xs mt-0.5">{cameraError}</p>
-              <p className="text-xs text-dojo-muted mt-2">Usa la entrada manual para marcar la asistencia.</p>
+          <div className="mx-4 mt-4 space-y-3">
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-900/30 border border-red-800/50">
+              <XCircle size={18} className="text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-red-300 text-sm font-semibold">Cámara bloqueada</p>
+                <p className="text-red-300/80 text-xs mt-0.5">{cameraError}</p>
+              </div>
             </div>
+
+            {/* Permission instructions */}
+            <div className="p-4 rounded-xl bg-dojo-dark border border-dojo-border space-y-3">
+              <p className="text-dojo-white text-xs font-semibold uppercase tracking-wider">
+                📋 Cómo activar el permiso de cámara
+              </p>
+
+              {/* Chrome / Android */}
+              <div className="space-y-1">
+                <p className="text-dojo-gold text-xs font-semibold">Chrome (Android)</p>
+                <ol className="text-dojo-muted text-xs space-y-0.5 pl-3 list-decimal">
+                  <li>Toca el ícono 🔒 o ⓘ en la barra de dirección</li>
+                  <li>Selecciona <span className="text-dojo-white">"Permisos del sitio"</span></li>
+                  <li>Activa <span className="text-dojo-white">"Cámara"</span></li>
+                  <li>Recarga la página</li>
+                </ol>
+              </div>
+
+              {/* Safari / iOS */}
+              <div className="space-y-1">
+                <p className="text-dojo-gold text-xs font-semibold">Safari (iPhone / iPad)</p>
+                <ol className="text-dojo-muted text-xs space-y-0.5 pl-3 list-decimal">
+                  <li>Ve a <span className="text-dojo-white">Ajustes → Safari</span></li>
+                  <li>Busca <span className="text-dojo-white">"Cámara"</span></li>
+                  <li>Cambia a <span className="text-dojo-white">"Permitir"</span></li>
+                  <li>Vuelve y recarga la página</li>
+                </ol>
+              </div>
+
+              {/* Firefox */}
+              <div className="space-y-1">
+                <p className="text-dojo-gold text-xs font-semibold">Firefox (Android)</p>
+                <ol className="text-dojo-muted text-xs space-y-0.5 pl-3 list-decimal">
+                  <li>Toca los <span className="text-dojo-white">3 puntos → Configuración del sitio</span></li>
+                  <li>Activa <span className="text-dojo-white">"Cámara"</span></li>
+                  <li>Recarga la página</li>
+                </ol>
+              </div>
+
+              <button
+                onClick={() => window.location.reload()}
+                className="btn-primary w-full justify-center mt-2"
+              >
+                🔄 Recargar página
+              </button>
+            </div>
+
+            <p className="text-xs text-dojo-muted text-center">
+              También puedes usar la entrada manual ↓
+            </p>
           </div>
         )}
         <div id="qr-reader" className="w-full" />
