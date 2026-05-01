@@ -52,45 +52,53 @@ export async function POST(_req: NextRequest, { params }: Params) {
     const hashed        = await bcrypt.hash(plainPassword, 12);
 
     // ── Create / restore portal access ──────────────────────────────
-    // Priority: if the student already has a linked user (even inactive), update it.
-    // This avoids unique-constraint conflicts on studentId or email.
-    if (student.portalUser) {
-      // Student has an existing (inactive) portal user → reactivate & update credentials
-      await prisma.user.update({
-        where: { id: student.portalUser.id },
-        data: {
-          email,
-          password:           hashed,
-          name:               student.fullName,
-          mustChangePassword: true,
-          active:             true,
-        },
+    // Always upsert by email so we handle every case without constraint errors:
+    //
+    // Case 1 — no portal user exists for this email → CREATE
+    // Case 2 — a user with this email exists (linked or not) → UPDATE credentials
+    // Case 3 — student had a different email before → old user stays inactive,
+    //          new email gets a fresh/updated user linked to this student
+    //
+    // After upsert, make sure any previous portal user (different email) is deactivated.
+    const previousUserId = student.portalUser?.id ?? null;
+
+    await prisma.user.upsert({
+      where:  { email },
+      create: {
+        email,
+        password:           hashed,
+        name:               student.fullName,
+        role:               "student",
+        dojoId:             student.dojoId,
+        studentId:          id,
+        mustChangePassword: true,
+        active:             true,
+      },
+      update: {
+        password:           hashed,
+        name:               student.fullName,
+        role:               "student",
+        dojoId:             student.dojoId,
+        studentId:          id,
+        mustChangePassword: true,
+        active:             true,
+      },
+    });
+
+    // Deactivate old portal user if the email changed
+    if (previousUserId) {
+      const stillActive = await prisma.user.findFirst({
+        where: { id: previousUserId, email },
+        select: { id: true },
       });
-    } else {
-      // No portal user yet → create one, handling the case where another user
-      // already has this email (e.g. shared parent email) by upserting on email.
-      await prisma.user.upsert({
-        where:  { email },
-        create: {
-          email,
-          password:           hashed,
-          name:               student.fullName,
-          role:               "student",
-          dojoId:             student.dojoId,
-          studentId:          id,
-          mustChangePassword: true,
-          active:             true,
-        },
-        update: {
-          password:           hashed,
-          name:               student.fullName,
-          role:               "student",
-          dojoId:             student.dojoId,
-          studentId:          id,
-          mustChangePassword: true,
-          active:             true,
-        },
-      });
+      if (!stillActive) {
+        // The previous user had a different email — deactivate it so the student
+        // doesn't end up with two active portal accounts.
+        await prisma.user.update({
+          where: { id: previousUserId },
+          data:  { active: false, studentId: null },
+        }).catch(() => { /* ignore if already deleted */ });
+      }
     }
 
     // ── Send welcome email ───────────────────────────────────────────
