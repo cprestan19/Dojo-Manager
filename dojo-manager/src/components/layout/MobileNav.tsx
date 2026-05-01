@@ -240,6 +240,20 @@ export function MobileNav() {
           )}
         </nav>
 
+        {/* Scanner QR — solo admin / sysadmin */}
+        {(role === "sysadmin" || role === "admin") && (
+          <div className="px-4 pb-2">
+            <a
+              href="/scanner"
+              onClick={close}
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg border border-dojo-red/40 text-dojo-red text-sm font-medium hover:bg-dojo-red/10 transition-colors"
+            >
+              <QrCode size={18} />
+              Abrir Scanner QR
+            </a>
+          </div>
+        )}
+
         <div className="p-4 border-t border-dojo-border shrink-0">
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
