@@ -81,11 +81,11 @@ export function Sidebar() {
             />
           </div>
           <div className="min-w-0">
-            <p className="font-display text-dojo-white font-bold text-sm tracking-widest leading-tight">
-              DOJO MASTER
-            </p>
-            <p className="font-display text-dojo-gold text-[10px] tracking-wider leading-tight mt-0.5 truncate">
+            <p className="font-display text-dojo-white font-bold text-sm tracking-wide leading-tight truncate">
               {dojo?.name ?? (role === "sysadmin" ? "Sistema Global" : "Cargando...")}
+            </p>
+            <p className="font-display text-dojo-gold text-[10px] tracking-widest leading-tight mt-0.5">
+              DOJO MASTER
             </p>
           </div>
         </div>
