@@ -50,8 +50,10 @@ function dojoHeader(dojo?: DojoMeta) {
       </div>`;
   }
 
-  const logoHtml = dojo.logo
-    ? `<img src="${dojo.logo}" alt="${dojo.name}" style="width:56px;height:56px;object-fit:contain;border-radius:10px;background:#fff;" />`
+  // Only embed Cloudinary URLs — never base64 (breaks email size limits on Gmail/SMTP).
+  const logoUrl  = dojo.logo?.startsWith("http") ? dojo.logo : null;
+  const logoHtml = logoUrl
+    ? `<img src="${logoUrl}" alt="${dojo.name}" style="width:56px;height:56px;object-fit:contain;border-radius:10px;background:#fff;" />`
     : `<div style="width:56px;height:56px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:bold;color:#fff;">${dojo.name[0]}</div>`;
 
   return `

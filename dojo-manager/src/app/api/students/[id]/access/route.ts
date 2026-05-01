@@ -80,16 +80,20 @@ export async function POST(_req: NextRequest, { params }: Params) {
   let emailError: string | null = null;
 
   try {
-    const dojo = await prisma.dojo.findUnique({
+    const dojoRaw = await prisma.dojo.findUnique({
       where:  { id: student.dojoId },
       select: { name: true, email: true, phone: true, logo: true, slogan: true, ownerName: true },
     });
+    // Strip base64 logos — they exceed email size limits on Gmail/SMTP
+    const dojo = dojoRaw
+      ? { ...dojoRaw, logo: dojoRaw.logo?.startsWith("http") ? dojoRaw.logo : null }
+      : undefined;
     await sendStudentWelcome({
       to:            email,
       studentName:   student.fullName,
       loginEmail:    email,
       tempPassword:  plainPassword,
-      dojo:          dojo ?? undefined,
+      dojo,
     });
     emailSent = true;
   } catch (err) {
