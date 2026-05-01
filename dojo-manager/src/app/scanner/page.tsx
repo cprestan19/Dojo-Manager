@@ -61,12 +61,16 @@ export default function ScannerPage() {
   useEffect(() => { modeRef.current = mode; }, [mode]);
 
   // Fetch dojo branding for the header
+  // ?logo=1 is safe — API sanitizes base64 and only returns Cloudinary URLs
   useEffect(() => {
     if (status !== "authenticated") return;
-    fetch("/api/dojo")
+    fetch("/api/dojo?logo=1")
       .then(r => r.ok ? r.json() : null)
       .then((d: { name?: string; logo?: string | null } | null) => {
-        if (d?.name) setDojoInfo({ name: d.name, logo: d.logo?.startsWith("http") ? d.logo : null });
+        if (!d?.name) return;
+        // Validate logo is an absolute https URL before rendering (XSS guard)
+        const safeLogo = d.logo && /^https:\/\//i.test(d.logo) ? d.logo : null;
+        setDojoInfo({ name: d.name, logo: safeLogo });
       })
       .catch(() => {});
   }, [status]);
