@@ -54,7 +54,8 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
   // Fetch dojo info ONCE per userId (not per page navigation)
   useEffect(() => {
     if (!userId || role === "sysadmin") return;
-    fetch("/api/dojo")
+    // ?logo=1 includes the logo URL (Cloudinary URL, lightweight since we migrated from base64)
+    fetch("/api/dojo?logo=1")
       .then(r => r.ok ? r.json() : null)
       .then((d: DojoInfo | null) => { if (d) setDojo(d); })
       .catch(() => {});

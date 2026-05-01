@@ -5,7 +5,7 @@ export interface DojoInfo {
   id:        string;
   name:      string;
   slug:      string;
-  logo:      string | null;
+  logo:      string | null;   // Cloudinary URL or null (never base64)
   ownerName: string | null;
   phone:     string | null;
   slogan:    string | null;

@@ -44,22 +44,6 @@ const settingsSubItems: NavItem[] = [
 
 const SETTINGS_PATHS = ["/dashboard/settings", "/dashboard/katas"];
 
-function LogoImg() {
-  return (
-    <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-dojo-red flex items-center justify-center shadow shadow-dojo-red/30">
-      <Image
-        src="/logo.png"
-        alt="Dojo Master"
-        width={40}
-        height={40}
-        className="w-full h-full object-contain"
-        priority
-        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-      />
-    </div>
-  );
-}
-
 export function Sidebar() {
   const pathname          = usePathname();
   const { data: session } = useSession();
@@ -81,10 +65,21 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 min-h-screen bg-dojo-dark border-r border-dojo-border flex flex-col">
-      {/* App branding */}
+      {/* App branding — dojo logo when available, app logo as fallback */}
       <div className="px-4 py-4 border-b border-dojo-border">
         <div className="flex items-center gap-3">
-          <LogoImg />
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-dojo-red flex items-center justify-center shadow shadow-dojo-red/30">
+            <Image
+              src={dojo?.logo && dojo.logo.startsWith("http") ? dojo.logo : "/logo.png"}
+              alt={dojo?.name ?? "Dojo Master"}
+              width={40}
+              height={40}
+              className="w-full h-full object-contain"
+              priority
+              unoptimized
+              onError={(e) => { (e.target as HTMLImageElement).src = "/logo.png"; }}
+            />
+          </div>
           <div className="min-w-0">
             <p className="font-display text-dojo-white font-bold text-sm tracking-widest leading-tight">
               DOJO MASTER

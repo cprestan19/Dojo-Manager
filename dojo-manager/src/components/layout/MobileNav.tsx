@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useDojo } from "@/lib/hooks/useDojo";
 import { NAV_KEYS } from "@/lib/permissions";
 import type { NavKey } from "@/lib/permissions";
 import {
@@ -87,6 +88,7 @@ export function MobileNav() {
   const router            = useRouter();
   const { data: session } = useSession();
   const perms             = usePermissions();
+  const dojo              = useDojo();
 
   const [open,         setOpen]         = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(() =>
@@ -135,8 +137,11 @@ export function MobileNav() {
           </button>
         ) : (
           <div className="flex items-center gap-2 shrink-0">
-            <Image src="/logo.png" alt="Dojo Master" width={22} height={22} className="rounded object-contain"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            <Image
+              src={dojo?.logo && dojo.logo.startsWith("http") ? dojo.logo : "/logo.png"}
+              alt={dojo?.name ?? "Dojo Master"} width={22} height={22}
+              className="rounded object-contain" unoptimized
+              onError={(e) => { (e.target as HTMLImageElement).src = "/logo.png"; }} />
             <span className="font-display text-dojo-gold text-sm font-bold tracking-widest">DOJO MASTER</span>
           </div>
         )}
@@ -157,8 +162,11 @@ export function MobileNav() {
       )}>
         <div className="flex items-center justify-between px-4 h-14 border-b border-dojo-border shrink-0">
           <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="" width={28} height={28} className="rounded-lg object-contain"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            <Image
+              src={dojo?.logo && dojo.logo.startsWith("http") ? dojo.logo : "/logo.png"}
+              alt={dojo?.name ?? "Dojo Master"} width={28} height={28}
+              className="rounded-lg object-contain" unoptimized
+              onError={(e) => { (e.target as HTMLImageElement).src = "/logo.png"; }} />
             <span className="font-display text-dojo-white text-sm font-bold tracking-widest">DOJO MASTER</span>
           </div>
           <button onClick={close} className="p-2 rounded-lg hover:bg-dojo-border transition-colors">
