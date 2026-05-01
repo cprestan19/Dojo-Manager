@@ -238,7 +238,7 @@ export async function sendStudentWelcome({
   tempPassword: string;
   dojo?:        DojoMeta;
 }) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://dojomasteronline.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.dojomasteronline.com";
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
@@ -294,7 +294,7 @@ export async function sendUserWelcome({
   roleLabel:    string;
   dojo?:        DojoMeta;
 }) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://dojomasteronline.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.dojomasteronline.com";
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">

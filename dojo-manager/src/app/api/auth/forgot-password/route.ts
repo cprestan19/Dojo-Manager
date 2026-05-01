@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     data:  { resetToken: token, resetTokenExpiry: expiry },
   });
 
-  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://dojomasteronline.com";
+  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.dojomasteronline.com";
   const resetUrl = `${appUrl}/reset-password?token=${token}`;
 
   try {
