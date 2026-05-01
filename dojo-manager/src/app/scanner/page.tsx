@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 import Image from "next/image";
-import type { Html5QrcodeScanner as ScannerType } from "html5-qrcode";
+import type { Html5Qrcode as Html5QrcodeType } from "html5-qrcode";
 
 interface Schedule {
   id: string; name: string; days: string;
@@ -50,9 +50,10 @@ export default function ScannerPage() {
   const [manualInput,      setManualInput]      = useState("");
   const [manualError,      setManualError]      = useState("");
   const [manualLoading,    setManualLoading]    = useState(false);
-  const [dojoInfo,         setDojoInfo]         = useState<{ name: string; logo: string | null } | null>(null);
+  const [dojoInfo,      setDojoInfo]      = useState<{ name: string; logo: string | null } | null>(null);
+  const [cameraError,   setCameraError]   = useState("");
 
-  const scannerRef      = useRef<ScannerType | null>(null);
+  const scannerRef      = useRef<Html5QrcodeType | null>(null);
   const isProcessingRef = useRef(false);
   const modeRef         = useRef<ScanMode>("entry");
   const scheduleRef     = useRef<Schedule | null>(null);
@@ -129,23 +130,47 @@ export default function ScannerPage() {
     if (view !== "scanning") return;
 
     let cancelled = false;
-    import("html5-qrcode").then(({ Html5QrcodeScanner }) => {
+    setCameraError("");
+
+    import("html5-qrcode").then(({ Html5Qrcode }) => {
       if (cancelled) return;
-      const scanner = new Html5QrcodeScanner(
-        "qr-reader",
-        { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1.0 },
-        false
-      );
-      scanner.render(
+
+      const qr = new Html5Qrcode("qr-reader");
+      scannerRef.current = qr;
+
+      qr.start(
+        { facingMode: "environment" },   // rear camera (cámara trasera)
+        {
+          fps: 10,
+          // Responsive qrbox: 70% of the smaller dimension
+          qrbox: (w: number, h: number) => {
+            const side = Math.floor(Math.min(w, h) * 0.72);
+            return { width: side, height: side };
+          },
+          disableFlip: false,
+        },
         (decoded) => { handleScan(decoded); },
-        () => {}
-      );
-      scannerRef.current = scanner;
+        () => { /* scan failures are normal between frames — ignore */ },
+      ).catch((err: unknown) => {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[scanner] Camera start failed:", msg);
+        setCameraError(
+          msg.toLowerCase().includes("permission")
+            ? "Permisos de cámara denegados. Actívalos en la configuración del navegador."
+            : "No se pudo iniciar la cámara. Verifica que el navegador tenga acceso.",
+        );
+      });
     });
+
     return () => {
       cancelled = true;
-      scannerRef.current?.clear().catch(() => {});
-      scannerRef.current = null;
+      if (scannerRef.current) {
+        scannerRef.current.stop()
+          .then(() => scannerRef.current?.clear())
+          .catch(() => {})
+          .finally(() => { scannerRef.current = null; });
+      }
     };
   }, [view, handleScan]);
 
@@ -374,7 +399,14 @@ export default function ScannerPage() {
 
       <div className="bg-dojo-dark border-b border-dojo-border px-4 py-3 flex items-center gap-3 shrink-0">
         <button
-          onClick={() => { scannerRef.current?.clear().catch(() => {}); setView("scheduleSelection"); }}
+          onClick={() => {
+            const qr = scannerRef.current;
+            if (qr) {
+              qr.stop().then(() => qr.clear()).catch(() => {});
+              scannerRef.current = null;
+            }
+            setView("scheduleSelection");
+          }}
           className="p-1.5 rounded-lg hover:bg-dojo-border transition-colors"
         >
           <ArrowLeft size={18} className="text-dojo-muted" />
@@ -407,6 +439,17 @@ export default function ScannerPage() {
       </div>
 
       <div className="flex-1 flex flex-col relative overflow-y-auto">
+        {/* Camera error banner */}
+        {cameraError && (
+          <div className="mx-4 mt-4 flex items-start gap-3 p-4 rounded-xl bg-red-900/30 border border-red-800/50">
+            <XCircle size={18} className="text-red-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-red-300 text-sm font-semibold">Error de cámara</p>
+              <p className="text-red-300/80 text-xs mt-0.5">{cameraError}</p>
+              <p className="text-xs text-dojo-muted mt-2">Usa la entrada manual para marcar la asistencia.</p>
+            </div>
+          </div>
+        )}
         <div id="qr-reader" className="w-full" />
 
         {!result && (
