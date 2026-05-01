@@ -109,8 +109,9 @@ function LoginForm() {
         </div>
 
         {/* Form — dark translucent card, looks great over mobile background image */}
-        <div className="rounded-2xl p-6 shadow-2xl border border-white/10 backdrop-blur-md"
-          style={{ background: "rgba(15,15,26,0.82)" }}>
+        {/* dojo-card (#16213E) at 93% — matches dashboard cards, visible over bg images */}
+        <div className="rounded-2xl p-6 shadow-2xl backdrop-blur-md"
+          style={{ background: "rgba(22,33,62,0.93)", border: "1px solid rgba(42,53,80,0.80)" }}>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="font-body text-xs font-semibold text-dojo-muted uppercase tracking-wider block mb-1.5">
