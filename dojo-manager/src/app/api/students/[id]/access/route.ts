@@ -60,7 +60,17 @@ export async function POST(_req: NextRequest, { params }: Params) {
     //          new email gets a fresh/updated user linked to this student
     //
     // After upsert, make sure any previous portal user (different email) is deactivated.
-    const previousUserId = student.portalUser?.id ?? null;
+    const previousUser = student.portalUser ?? null;
+
+    // If the student already has a portal user with a DIFFERENT email,
+    // release its studentId first — otherwise the upsert CREATE path
+    // will hit a unique constraint on student_id.
+    if (previousUser && previousUser.email !== email) {
+      await prisma.user.update({
+        where: { id: previousUser.id },
+        data:  { active: false, studentId: null },
+      });
+    }
 
     await prisma.user.upsert({
       where:  { email },
@@ -84,22 +94,6 @@ export async function POST(_req: NextRequest, { params }: Params) {
         active:             true,
       },
     });
-
-    // Deactivate old portal user if the email changed
-    if (previousUserId) {
-      const stillActive = await prisma.user.findFirst({
-        where: { id: previousUserId, email },
-        select: { id: true },
-      });
-      if (!stillActive) {
-        // The previous user had a different email — deactivate it so the student
-        // doesn't end up with two active portal accounts.
-        await prisma.user.update({
-          where: { id: previousUserId },
-          data:  { active: false, studentId: null },
-        }).catch(() => { /* ignore if already deleted */ });
-      }
-    }
 
     // ── Send welcome email ───────────────────────────────────────────
     let emailSent  = false;
