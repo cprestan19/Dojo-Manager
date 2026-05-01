@@ -497,7 +497,7 @@ export default function StudentDetailPage() {
   const [markingPay,      setMarkingPay]      = useState<string | null>(null);
   const [togglingActive,  setTogglingActive]  = useState(false);
   const [accessLoading,   setAccessLoading]   = useState(false);
-  const [accessResult,    setAccessResult]    = useState<{ email: string; tempPassword: string } | null>(null);
+  const [accessResult,    setAccessResult]    = useState<{ email: string; tempPassword: string; emailSent: boolean; emailError: string | null } | null>(null);
 
   const defaultFrom = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
   const defaultTo   = new Date().toISOString().split("T")[0];
@@ -549,7 +549,7 @@ export default function StudentDetailPage() {
     const r = await fetch(`/api/students/${id}/access`, { method: "POST" });
     const d = await r.json();
     setAccessLoading(false);
-    if (r.ok) { setAccessResult({ email: d.email, tempPassword: d.tempPassword }); fetchStudent(); }
+    if (r.ok) { setAccessResult({ email: d.email, tempPassword: d.tempPassword, emailSent: d.emailSent, emailError: d.emailError }); fetchStudent(); }
     else alert(d.error ?? "Error al crear acceso");
   }
 
@@ -595,18 +595,31 @@ export default function StudentDetailPage() {
   return (
     <div className="max-w-5xl space-y-6">
       {accessResult && (
-        <div className="bg-blue-900/20 border border-blue-700/50 rounded-xl p-4 space-y-3">
+        <div className={`border rounded-xl p-4 space-y-3 ${accessResult.emailSent ? "bg-blue-900/20 border-blue-700/50" : "bg-yellow-900/20 border-yellow-700/50"}`}>
           <div className="flex items-start justify-between">
-            <p className="text-blue-300 font-semibold text-sm flex items-center gap-2">
-              <KeyRound size={15}/> Acceso creado — guarda estas credenciales
+            <p className={`font-semibold text-sm flex items-center gap-2 ${accessResult.emailSent ? "text-blue-300" : "text-yellow-300"}`}>
+              <KeyRound size={15}/>
+              {accessResult.emailSent ? "Acceso creado — correo enviado" : "Acceso creado — correo NO enviado"}
             </p>
-            <button onClick={() => setAccessResult(null)} className="text-blue-400 hover:text-blue-200 text-xs">✕</button>
+            <button onClick={() => setAccessResult(null)} className="text-dojo-muted hover:text-dojo-white text-xs">✕</button>
           </div>
           <div className="bg-dojo-dark rounded-lg p-3 space-y-1.5 font-mono text-sm">
             <div className="flex justify-between"><span className="text-dojo-muted">Correo:</span><span className="text-dojo-white">{accessResult.email}</span></div>
             <div className="flex justify-between"><span className="text-dojo-muted">Contraseña temporal:</span><span className="text-dojo-gold font-bold">{accessResult.tempPassword}</span></div>
           </div>
-          <p className="text-xs text-blue-300/70">Se envió también por correo al alumno. Deberá cambiar la contraseña al primer ingreso.</p>
+          {accessResult.emailSent ? (
+            <p className="text-xs text-blue-300/70">El correo fue enviado al alumno. Deberá cambiar su contraseña al primer ingreso.</p>
+          ) : (
+            <div className="space-y-1.5">
+              <p className="text-xs text-yellow-300 font-semibold">⚠️ No se pudo enviar el correo. Comparte las credenciales manualmente.</p>
+              {accessResult.emailError && (
+                <p className="text-xs text-yellow-200/60 break-all font-sans">Error: {accessResult.emailError}</p>
+              )}
+              <p className="text-xs text-yellow-300/70">
+                Revisa la configuración SMTP en <strong>Configuración → Correo</strong>.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

@@ -71,6 +71,9 @@ export async function POST(_req: NextRequest, { params }: Params) {
     },
   });
 
+  let emailSent   = false;
+  let emailError: string | null = null;
+
   try {
     const dojo = await prisma.dojo.findUnique({
       where:  { id: student.dojoId },
@@ -83,15 +86,19 @@ export async function POST(_req: NextRequest, { params }: Params) {
       tempPassword:  plainPassword,
       dojo:          dojo ?? undefined,
     });
+    emailSent = true;
   } catch (err) {
-    console.error("Welcome email error:", err);
+    emailError = err instanceof Error ? err.message : String(err);
+    console.error("Welcome email error:", emailError);
   }
 
   return NextResponse.json({
-    ok:    true,
+    ok:           true,
     email,
     tempPassword: plainPassword,
-    userId: user.id,
+    userId:       user.id,
+    emailSent,
+    emailError,   // null if sent OK, message if failed
   }, { status: 201 });
 }
 
