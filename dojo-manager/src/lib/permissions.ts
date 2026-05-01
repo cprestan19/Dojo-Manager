@@ -45,10 +45,18 @@ export const SYSADMIN_NO_DOJO_PERMS: NavKey[] = [
   NAV_KEYS.SETTINGS_EMAIL,
 ];
 
+// Permisos del admin: puede gestionar su dojo pero NO configurar
+// email SMTP, roles/accesos ni crear/editar katas (solo sysadmin)
+export const ADMIN_KEYS: NavKey[] = ALL_DOJO_KEYS.filter(k =>
+  k !== NAV_KEYS.SETTINGS_EMAIL &&
+  k !== NAV_KEYS.SETTINGS_ROLES &&
+  k !== NAV_KEYS.SETTINGS_KATAS,
+);
+
 // Permisos por defecto cuando no hay registro en DojoRolePermission
 export const DEFAULT_PERMISSIONS: Record<string, NavKey[]> = {
   sysadmin: [...ALL_DOJO_KEYS, NAV_KEYS.DOJOS],
-  admin: ALL_DOJO_KEYS,
+  admin:    ADMIN_KEYS,
   user: [
     NAV_KEYS.DASHBOARD,
     NAV_KEYS.STUDENTS,

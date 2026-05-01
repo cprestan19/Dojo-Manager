@@ -10,7 +10,7 @@ async function guardEmailAdmin(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const { role } = session.user as SessionUser;
-  if (role !== "sysadmin" && role !== "admin")
+  if (role !== "sysadmin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   return null;
 }

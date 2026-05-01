@@ -16,7 +16,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   const { role, dojoId: sessionDojoId } = session.user as SessionUser;
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
-  if (role !== "sysadmin" && role !== "admin")
+  if (role !== "sysadmin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
@@ -42,7 +42,7 @@ export async function DELETE( req: NextRequest, { params }: Params) {
 
   const { role, dojoId: sessionDojoId } = session.user as SessionUser;
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
-  if (role !== "sysadmin" && role !== "admin")
+  if (role !== "sysadmin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 

@@ -39,7 +39,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { role, dojoId } = session.user as SessionUser;
-  if (role !== "sysadmin" && role !== "admin")
+  if (role !== "sysadmin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   if (role !== "sysadmin" && !dojoId)
     return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { role, dojoId } = session.user as SessionUser;
-  if (role !== "sysadmin" && role !== "admin")
+  if (role !== "sysadmin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
 
