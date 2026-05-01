@@ -546,11 +546,27 @@ export default function StudentDetailPage() {
   async function enableAccess() {
     if (!confirm("¿Crear acceso al portal para este alumno? Se le enviará un correo con su contraseña temporal.")) return;
     setAccessLoading(true);
-    const r = await fetch(`/api/students/${id}/access`, { method: "POST" });
-    const d = await r.json();
-    setAccessLoading(false);
-    if (r.ok) { setAccessResult({ email: d.email, tempPassword: d.tempPassword, emailSent: d.emailSent, emailError: d.emailError }); fetchStudent(); }
-    else alert(d.error ?? "Error al crear acceso");
+    try {
+      const r = await fetch(`/api/students/${id}/access`, { method: "POST" });
+      let d: Record<string, unknown> = {};
+      try { d = await r.json(); } catch { /* empty or non-JSON body */ }
+      setAccessLoading(false);
+      if (r.ok) {
+        setAccessResult({
+          email:        String(d.email         ?? ""),
+          tempPassword: String(d.tempPassword  ?? ""),
+          emailSent:    Boolean(d.emailSent),
+          emailError:   d.emailError ? String(d.emailError) : null,
+        });
+        fetchStudent();
+      } else {
+        alert(String(d.error ?? "Error al crear acceso"));
+      }
+    } catch (err) {
+      setAccessLoading(false);
+      alert("Error de conexión al crear el acceso");
+      console.error("enableAccess error:", err);
+    }
   }
 
   async function disableAccess() {
