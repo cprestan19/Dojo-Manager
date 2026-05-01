@@ -95,7 +95,9 @@ export default function ScannerPage() {
       const scanRes  = await fetch(`/api/scan?id=${encodeURIComponent(decodedText)}${scheduleParam}`);
       const scanData = await scanRes.json();
 
-      if (scanData.code === "NOT_ASSIGNED") {
+      if (scanRes.status === 404) {
+        setResult({ type: "error", message: "Este ID no existe" });
+      } else if (scanData.code === "NOT_ASSIGNED") {
         setResult({ type: "not_assigned", student: scanData.student });
       } else if (!scanRes.ok) {
         setResult({ type: "error", message: scanData.error ?? "Error al verificar alumno" });
@@ -194,16 +196,24 @@ export default function ScannerPage() {
             scanRes  = await fetch(`/api/scan?id=${encodeURIComponent(list[0].id)}${scheduleParam}`);
             scanData = await scanRes.json();
           } else {
-            setManualError("Alumno no encontrado");
+            setManualError("Este ID no existe");
             setManualLoading(false);
             isProcessingRef.current = false;
             scannerRef.current?.resume();
             return;
           }
+        } else {
+          setManualError("Este ID no existe");
+          setManualLoading(false);
+          isProcessingRef.current = false;
+          scannerRef.current?.resume();
+          return;
         }
       }
 
-      if (scanData.code === "NOT_ASSIGNED") {
+      if (scanRes.status === 404) {
+        setResult({ type: "error", message: "Este ID no existe" });
+      } else if (scanData.code === "NOT_ASSIGNED") {
         setResult({ type: "not_assigned", student: scanData.student });
       } else if (!scanRes.ok) {
         setResult({ type: "error", message: scanData.error ?? "Error al verificar alumno" });
