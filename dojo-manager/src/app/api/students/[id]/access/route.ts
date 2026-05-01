@@ -38,10 +38,10 @@ export async function POST(_req: NextRequest, { params }: Params) {
     },
   });
   if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
-  if (!student.motherEmail && !student.fatherEmail)
+  // Use || so empty strings ("") are treated the same as null/undefined
+  const email = student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
+  if (!email)
     return NextResponse.json({ error: "El alumno no tiene correo registrado" }, { status: 400 });
-
-  const email = student.motherEmail ?? student.fatherEmail!;
 
   if (student.portalUser?.active) {
     return NextResponse.json({ error: "El alumno ya tiene acceso activo" }, { status: 400 });
