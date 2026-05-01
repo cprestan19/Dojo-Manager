@@ -39,7 +39,7 @@ function nowTime() {
 export default function ScannerPage() {
   const { status } = useSession();
 
-  const [view,             setView]             = useState<"scheduleSelection" | "scanning">("scheduleSelection");
+  const [view,             setView]             = useState<"scheduleSelection" | "cameraReady" | "scanning">("scheduleSelection");
   const [mode,             setMode]             = useState<ScanMode>("entry");
   const [schedules,        setSchedules]        = useState<Schedule[]>([]);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
@@ -273,7 +273,9 @@ export default function ScannerPage() {
     setSelectedSchedule(schedule);
     scheduleRef.current = schedule;
     setResult(null);
-    setView("scanning");
+    setCameraError("");
+    // Go to pre-permission screen first so the user taps intentionally
+    setView("cameraReady");
   }
 
   if (status === "loading") {
@@ -328,6 +330,63 @@ export default function ScannerPage() {
       </div>
     </header>
   );
+
+  // ── Pre-permission screen ────────────────────────────────────────
+  // Shown BEFORE starting the camera so the user taps intentionally.
+  // This gives context to the browser permission dialog and improves
+  // acceptance rate ("why does this site need my camera?").
+  if (view === "cameraReady") {
+    return (
+      <div className="min-h-screen flex flex-col bg-dojo-darker select-none">
+        {Header}
+        <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8 text-center">
+          {/* Camera icon */}
+          <div className="relative">
+            <div className="w-28 h-28 rounded-full bg-dojo-red/15 border-2 border-dojo-red/30 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-dojo-red/20 flex items-center justify-center">
+                <QrCode size={42} className="text-dojo-red" />
+              </div>
+            </div>
+            {/* Pulse ring */}
+            <div className="absolute inset-0 rounded-full border-2 border-dojo-red/20 animate-ping" />
+          </div>
+
+          {/* Text */}
+          <div className="space-y-2">
+            <p className="font-display text-dojo-white text-xl font-bold">
+              {selectedSchedule?.name ?? "Marcación Libre"}
+            </p>
+            <p className="text-dojo-muted text-sm leading-relaxed max-w-xs">
+              Para escanear el código QR del alumno necesitamos acceso a la
+              <span className="text-dojo-white font-medium"> cámara trasera</span> del dispositivo.
+            </p>
+            <p className="text-dojo-muted/60 text-xs">
+              Solo se usará para leer códigos QR — no se graba ni almacena nada.
+            </p>
+          </div>
+
+          {/* Main CTA */}
+          <div className="w-full max-w-xs space-y-3">
+            <button
+              onClick={() => setView("scanning")}
+              className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-display font-bold text-lg tracking-wide transition-all active:scale-95"
+              style={{ background: "#C0392B", color: "#fff", boxShadow: "0 4px 20px rgba(192,57,43,0.4)" }}
+            >
+              <QrCode size={22} />
+              Activar Cámara
+            </button>
+
+            <button
+              onClick={() => setView("scheduleSelection")}
+              className="w-full py-3 rounded-xl text-dojo-muted text-sm hover:text-dojo-white transition-colors"
+            >
+              ← Volver a turnos
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (view === "scheduleSelection") {
     return (
