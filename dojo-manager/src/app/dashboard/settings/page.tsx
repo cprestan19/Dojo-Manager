@@ -7,13 +7,17 @@ import { useState, useEffect, useRef } from "react";
 import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import type { DojoInfo } from "@/lib/hooks/useDojo";
+import { useAppContext } from "@/lib/context/AppContext";
 
 interface DojoOption { id: string; name: string; slug: string }
 
 export default function SettingsPage() {
   const { data: session } = useSession();
   const role = (session?.user as { role?: string })?.role;
+  const router = useRouter();
+  const { refreshDojo } = useAppContext();
 
   // Selector de dojo para sysadmin
   const [dojoList,     setDojoList]     = useState<DojoOption[]>([]);
@@ -118,7 +122,13 @@ export default function SettingsPage() {
         autoRemindersEnabled,
       }),
     });
-    if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 3000); }
+    if (res.ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      // Refresh logo/name in sidebar immediately — no manual reload needed
+      refreshDojo();
+      router.refresh();
+    }
     setSaving(false);
   }
 
@@ -130,7 +140,13 @@ export default function SettingsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ loginBgImage }),
     });
-    if (res.ok) { setBgSaved(true); setTimeout(() => setBgSaved(false), 3000); }
+    if (res.ok) {
+      setBgSaved(true);
+      setTimeout(() => setBgSaved(false), 3000);
+      // Refresh dojo data so login bg reflects new value immediately
+      refreshDojo();
+      router.refresh();
+    }
     setSavingBg(false);
   }
 

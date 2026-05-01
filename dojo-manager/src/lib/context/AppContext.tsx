@@ -23,12 +23,15 @@ interface AppCtx {
   perms:        Set<NavKey>;
   /** Call after entering/exiting a dojo as sysadmin to refresh nav items */
   refreshPerms: () => void;
+  /** Call after saving dojo settings (logo, name…) so the sidebar updates immediately */
+  refreshDojo:  () => void;
 }
 
 const AppContext = createContext<AppCtx>({
   dojo:         null,
   perms:        new Set(DEFAULT_PERMISSIONS.user),
   refreshPerms: () => {},
+  refreshDojo:  () => {},
 });
 
 function getInitialPerms(role: string): Set<NavKey> {
@@ -51,15 +54,16 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
     setPerms(getInitialPerms(role));
   }, [role]);
 
-  // Fetch dojo info ONCE per userId (not per page navigation)
-  useEffect(() => {
+  // Fetch dojo info (extracted so it can be called manually after saves)
+  const fetchDojo = useCallback(() => {
     if (!userId || role === "sysadmin") return;
-    // ?logo=1 includes the logo URL (Cloudinary URL, lightweight since we migrated from base64)
     fetch("/api/dojo?logo=1")
       .then(r => r.ok ? r.json() : null)
       .then((d: DojoInfo | null) => { if (d) setDojo(d); })
       .catch(() => {});
-  }, [userId, role]);
+  }, [userId, role]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { fetchDojo(); }, [fetchDojo]);
 
   // Stable reference: re-created only when userId or role changes
   const fetchPerms = useCallback(async () => {
@@ -78,7 +82,7 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
   useEffect(() => { fetchPerms(); }, [fetchPerms]);
 
   return (
-    <AppContext.Provider value={{ dojo, perms, refreshPerms: fetchPerms }}>
+    <AppContext.Provider value={{ dojo, perms, refreshPerms: fetchPerms, refreshDojo: fetchDojo }}>
       {children}
     </AppContext.Provider>
   );
