@@ -50,24 +50,29 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const plainPassword = generatePassword();
   const hashed        = await bcrypt.hash(plainPassword, 12);
 
+  // Upsert by email (unique) so we never hit a duplicate-email constraint.
+  // If a user with this email already exists (e.g. a parent email reused across
+  // siblings), we update it and link it to this student instead of creating a new one.
   const user = await prisma.user.upsert({
-    where:  { studentId: id },
+    where:  { email },
     create: {
       email,
-      password:          hashed,
-      name:              student.fullName,
-      role:              "student",
-      dojoId:            student.dojoId,
-      studentId:         id,
+      password:           hashed,
+      name:               student.fullName,
+      role:               "student",
+      dojoId:             student.dojoId,
+      studentId:          id,
       mustChangePassword: true,
-      active:            true,
+      active:             true,
     },
     update: {
-      email,
-      password:          hashed,
-      name:              student.fullName,
+      password:           hashed,
+      name:               student.fullName,
+      role:               "student",
+      dojoId:             student.dojoId,
+      studentId:          id,
       mustChangePassword: true,
-      active:            true,
+      active:             true,
     },
   });
 
