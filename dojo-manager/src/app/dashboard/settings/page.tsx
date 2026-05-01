@@ -37,9 +37,11 @@ export default function SettingsPage() {
   const [toleranceDays,        setToleranceDays]        = useState(5);
   const [interestPct,          setInterestPct]          = useState(10);
   const [autoRemindersEnabled, setAutoRemindersEnabled] = useState(false);
-  const [loginBgImage, setLoginBgImage] = useState<string | null>(null);
-  const [savingBg,     setSavingBg]     = useState(false);
-  const [bgSaved,      setBgSaved]      = useState(false);
+  const [loginBgImage,    setLoginBgImage]    = useState<string | null>(null);
+  const [bgUploading,     setBgUploading]     = useState(false);
+  const [bgError,         setBgError]         = useState("");
+  const [savingBg,        setSavingBg]        = useState(false);
+  const [bgSaved,         setBgSaved]         = useState(false);
   const fileRef   = useRef<HTMLInputElement>(null);
   const bgFileRef = useRef<HTMLInputElement>(null);
 
@@ -132,13 +134,26 @@ export default function SettingsPage() {
     setSavingBg(false);
   }
 
-  function handleBgFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleBgFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) { alert("El archivo supera 3MB"); return; }
-    const reader = new FileReader();
-    reader.onloadend = () => setLoginBgImage(reader.result as string);
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) { alert("El archivo supera 5 MB"); return; }
+    setBgError(""); setBgUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file",    file);
+      fd.append("type",    "image");
+      fd.append("purpose", "login-bg");
+      const res  = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok) setLoginBgImage(data.url);
+      else        setBgError(data.error ?? "Error al subir la imagen");
+    } catch {
+      setBgError("Error de conexión al subir la imagen");
+    } finally {
+      setBgUploading(false);
+      if (bgFileRef.current) bgFileRef.current.value = "";
+    }
   }
 
   if (loading) {
@@ -415,10 +430,18 @@ export default function SettingsPage() {
                   )}
                 </div>
                 <div className="flex-1 space-y-2">
-                  <button onClick={() => bgFileRef.current?.click()} className="btn-secondary flex items-center gap-2 w-full justify-center">
-                    <Upload size={16} /> Subir imagen (JPG, PNG, WEBP)
+                  <button
+                    onClick={() => !bgUploading && bgFileRef.current?.click()}
+                    disabled={bgUploading}
+                    className="btn-secondary flex items-center gap-2 w-full justify-center disabled:opacity-60"
+                  >
+                    {bgUploading
+                      ? <><Loader2 size={16} className="animate-spin" /> Subiendo a Cloudinary...</>
+                      : <><Upload size={16} /> Subir imagen (JPG, PNG, WEBP)</>
+                    }
                   </button>
-                  {loginBgImage && (
+                  {bgError && <p className="text-xs text-red-400">{bgError}</p>}
+                  {loginBgImage && !bgUploading && (
                     <button
                       onClick={() => setLoginBgImage(null)}
                       className="btn-ghost text-red-400 hover:text-red-300 flex items-center gap-2 w-full justify-center text-sm"
@@ -426,8 +449,8 @@ export default function SettingsPage() {
                       <Trash2 size={14} /> Eliminar imagen
                     </button>
                   )}
-                  <input ref={bgFileRef} type="file" accept="image/*" className="hidden" onChange={handleBgFileChange} />
-                  <p className="text-xs text-dojo-muted">Recomendado: 800×1400 px · Máximo 3 MB</p>
+                  <input ref={bgFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleBgFileChange} />
+                  <p className="text-xs text-dojo-muted">Recomendado: 800×1400 px · Máximo 5 MB</p>
                   <button
                     onClick={handleSaveBg}
                     disabled={savingBg}

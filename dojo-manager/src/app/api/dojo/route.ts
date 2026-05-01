@@ -45,7 +45,12 @@ export async function GET(req: NextRequest) {
   });
   if (!dojo) return NextResponse.json({ error: "Dojo no encontrado" }, { status: 404 });
 
-  return NextResponse.json(dojo);
+  // Sanitize: never return base64 images — only Cloudinary URLs
+  return NextResponse.json({
+    ...dojo,
+    logo:         dojo.logo         ? (dojo.logo.startsWith("http")         ? dojo.logo         : null) : null,
+    loginBgImage: dojo.loginBgImage ? (dojo.loginBgImage.startsWith("http") ? dojo.loginBgImage : null) : null,
+  });
 }
 
 export async function PUT(req: NextRequest) {

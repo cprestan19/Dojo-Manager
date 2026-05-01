@@ -14,8 +14,10 @@ export async function GET(req: NextRequest) {
         select: { loginBgImage: true, name: true },
       });
 
+  // Only return Cloudinary URLs — never legacy base64 (would bloat the login page)
+  const bg = dojo?.loginBgImage;
   return NextResponse.json({
-    loginBgImage: dojo?.loginBgImage ?? null,
-    dojoName:     dojo?.name         ?? "Dojo Master",
+    loginBgImage: bg?.startsWith("http") ? bg : null,
+    dojoName:     dojo?.name ?? "Dojo Master",
   });
 }

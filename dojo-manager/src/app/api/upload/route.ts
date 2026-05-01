@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
   const subfolder = purpose === "student-photo" ? "students"
     : purpose === "belt-video"                  ? "belt-videos"
     : purpose === "dojo-logo"                   ? "logos"
+    : purpose === "login-bg"                    ? "login-backgrounds"
     :                                             "users";
   const folder = `dojo-manager/${scope}/${subfolder}`;
 
