@@ -6,30 +6,64 @@ import nodemailer from "nodemailer";
 import prisma from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 
-async function createTransporter() {
+interface TransporterResult {
+  transporter: ReturnType<typeof nodemailer.createTransport>;
+  /** The authenticated SMTP user email — must be used as the From address on Gmail */
+  smtpUser: string;
+  fromName: string;
+}
+
+async function createTransporter(): Promise<TransporterResult> {
   try {
     const cfg = await prisma.emailSettings.findUnique({ where: { id: "singleton" } });
     if (cfg?.host && cfg?.user && cfg?.password) {
-      const plainPassword = decrypt(cfg.password);
-      return nodemailer.createTransport({
+      let plainPassword: string;
+      try {
+        plainPassword = decrypt(cfg.password);
+      } catch (decryptErr) {
+        console.error("[email] Failed to decrypt SMTP password — check ENCRYPTION_KEY:", decryptErr);
+        throw decryptErr; // re-throw so we don't silently use wrong credentials
+      }
+      const transporter = nodemailer.createTransport({
         host:   cfg.host,
         port:   cfg.port,
         secure: cfg.secure,
         auth:   { user: cfg.user, pass: plainPassword },
       });
+      return { transporter, smtpUser: cfg.user, fromName: cfg.fromName || "Dojo Master" };
     }
-  } catch { /* fall through to env vars */ }
-  return nodemailer.createTransport({
-    host:   process.env.EMAIL_HOST,
-    port:   Number(process.env.EMAIL_PORT) || 587,
-    secure: false,
-    auth:   { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-  });
+  } catch (err) {
+    // Only log if it's not the decrypt error (already logged above)
+    if (!(err instanceof Error && err.message.includes("decrypt"))) {
+      console.error("[email] Could not load SMTP config from DB:", err);
+    }
+  }
+
+  // Fallback to environment variables
+  const envUser = process.env.EMAIL_USER ?? "";
+  return {
+    transporter: nodemailer.createTransport({
+      host:   process.env.EMAIL_HOST,
+      port:   Number(process.env.EMAIL_PORT) || 587,
+      secure: false,
+      auth:   { user: envUser, pass: process.env.EMAIL_PASS },
+    }),
+    smtpUser: envUser,
+    fromName: "Dojo Master",
+  };
 }
 
-function fromAddress(dojo?: DojoMeta) {
-  if (dojo?.email) return `"${dojo.name}" <${dojo.email}>`;
-  return process.env.EMAIL_FROM ?? "Dojo Master <noreply@dojomaster.com>";
+/**
+ * Build the From address.
+ * Gmail SMTP requires the From email to match the authenticated SMTP user.
+ * We always use smtpUser as the actual email address; the display name comes
+ * from the dojo name (if available) or the configured fromName.
+ */
+function fromAddress(smtpUser: string, fromName: string, dojo?: DojoMeta): string {
+  const displayName = dojo?.name ?? fromName;
+  // Use dojo.email as the envelope only if it's the same domain as smtpUser
+  // (to avoid Gmail rejecting mismatched From addresses)
+  return `"${displayName}" <${smtpUser}>`;
 }
 
 interface DojoMeta {
@@ -150,8 +184,8 @@ export async function sendPaymentReminder({
     ? `📋 Recordatorio de pago – ${studentName} – ${dojo.name}`
     : `📋 Recordatorio de pago – ${studentName} – Dojo Master`;
 
-  const t = await createTransporter();
-  await t.sendMail({ from: fromAddress(dojo), to, subject, html });
+  const { transporter: t, smtpUser, fromName } = await createTransporter();
+  await t.sendMail({ from: fromAddress(smtpUser, fromName, dojo), to, subject, html });
 }
 
 export async function sendPaymentReceipt({
@@ -227,8 +261,8 @@ export async function sendPaymentReceipt({
     ? `📄 Recibo de pago – ${studentName} – ${dojo.name}`
     : `📄 Recibo de pago – ${studentName}`;
 
-  const t = await createTransporter();
-  await t.sendMail({ from: fromAddress(dojo), to, subject, html });
+  const { transporter: t, smtpUser, fromName } = await createTransporter();
+  await t.sendMail({ from: fromAddress(smtpUser, fromName, dojo), to, subject, html });
 }
 
 export async function sendStudentWelcome({
@@ -282,8 +316,8 @@ export async function sendStudentWelcome({
     </div>`;
 
   const subject = dojo ? `🎓 Acceso al Portal — ${dojo.name}` : `🎓 Acceso al Portal — Dojo Master`;
-  const t = await createTransporter();
-  await t.sendMail({ from: fromAddress(dojo), to, subject, html });
+  const { transporter: t, smtpUser, fromName } = await createTransporter();
+  await t.sendMail({ from: fromAddress(smtpUser, fromName, dojo), to, subject, html });
 }
 
 export async function sendUserWelcome({
@@ -356,8 +390,8 @@ export async function sendUserWelcome({
     ? `🔑 Acceso creado — ${dojo.name}`
     : "🔑 Tu acceso a Dojo Master";
 
-  const t = await createTransporter();
-  await t.sendMail({ from: fromAddress(dojo), to, subject, html });
+  const { transporter: t, smtpUser, fromName } = await createTransporter();
+  await t.sendMail({ from: fromAddress(smtpUser, fromName, dojo), to, subject, html });
 }
 
 export async function sendPasswordReset({
@@ -391,6 +425,6 @@ export async function sendPasswordReset({
     </div>`;
 
   const subject = "🔐 Restablecer contraseña — Dojo Master";
-  const t = await createTransporter();
-  await t.sendMail({ from: fromAddress(dojo), to, subject, html });
+  const { transporter: t, smtpUser, fromName } = await createTransporter();
+  await t.sendMail({ from: fromAddress(smtpUser, fromName, dojo), to, subject, html });
 }
