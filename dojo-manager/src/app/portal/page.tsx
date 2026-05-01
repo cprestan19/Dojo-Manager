@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { StudentQR } from "@/components/students/StudentQR";
 
 export default async function PortalProfilePage() {
   const session   = await getServerSession(authOptions);
@@ -24,6 +25,7 @@ export default async function PortalProfilePage() {
       motherName: true, motherPhone: true,
       fatherName: true, fatherPhone: true,
       address: true,
+      dojo: { select: { name: true, phone: true } },
       inscription: {
         select: {
           inscriptionDate: true, monthlyAmount: true,
@@ -96,6 +98,20 @@ export default async function PortalProfilePage() {
           )}
         </div>
       </div>
+
+      {/* ── QR de identificación ── */}
+      <StudentQR
+        studentCode={student.studentCode}
+        fullName={student.fullName}
+        cedula={student.cedula}
+        address={student.address}
+        motherName={student.motherName}
+        motherPhone={student.motherPhone}
+        fatherName={student.fatherName}
+        fatherPhone={student.fatherPhone}
+        dojoName={student.dojo?.name ?? "Dojo Master"}
+        dojoPhone={student.dojo?.phone ?? null}
+      />
 
       {/* ── Pagos pendientes ── */}
       {student.payments.length > 0 && (
