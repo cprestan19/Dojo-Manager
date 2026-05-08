@@ -8,7 +8,7 @@ import { calculateAge, formatDate, BELT_COLORS } from "@/lib/utils";
 interface BeltEntry {
   id: string; beltColor: string; changeDate: string; isRanking: boolean; notes: string | null;
   kata: { name: string } | null;
-  student: { id?: string; firstName: string; lastName: string; birthDate: string };
+  student: { id?: string; fullName: string; firstName: string; lastName: string; birthDate: string };
 }
 
 export default function BeltsPage() {
@@ -67,6 +67,7 @@ export default function BeltsPage() {
       {loading && <div className="text-center py-20 text-dojo-muted">Cargando...</div>}
       {!loading && (
         <div className="card p-0 overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-dojo-border">
@@ -84,7 +85,7 @@ export default function BeltsPage() {
                   <td className="px-5 py-3">
                     <Link href={`/dashboard/students/${entry.student.id}`}
                       className="font-semibold text-dojo-white hover:text-dojo-red transition-colors">
-                      {entry.student.firstName} {entry.student.lastName}
+                      {entry.student.fullName}
                     </Link>
                   </td>
                   <td className="px-5 py-3"><BeltBadge beltColor={entry.beltColor}/></td>
@@ -101,6 +102,7 @@ export default function BeltsPage() {
               ))}
             </tbody>
           </table>
+          </div>{/* overflow-x-auto */}
         </div>
       )}
     </div>

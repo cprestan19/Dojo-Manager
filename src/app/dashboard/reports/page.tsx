@@ -1,20 +1,27 @@
+/**
+ * Página: Reportes del Dojo
+ * Desarrollado por Cristhian Paul Prestán — 2025
+ */
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { BarChart2, Award, Users, CreditCard, Trophy } from "lucide-react";
+import { BarChart2, Award, Users, CreditCard, Trophy, Phone, User } from "lucide-react";
+import Image from "next/image";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { calculateAge, formatDate, formatCurrency } from "@/lib/utils";
+import { useDojo } from "@/lib/hooks/useDojo";
 
 type Tab = "belt" | "age" | "payments" | "ranking";
 
 interface StudentSnap {
-  id: string; firstName: string; lastName: string; birthDate: string;
+  id: string; fullName: string; firstName: string; lastName: string; birthDate: string;
   beltHistory?: { beltColor: string; changeDate: string }[];
 }
 
 interface RankingEntry {
   id: string; beltColor: string; changeDate: string;
-  student: { firstName: string; lastName: string; birthDate: string };
+  student: { fullName: string; firstName: string; lastName: string; birthDate: string };
   kata: { name: string } | null;
+  kataNames: string[];
 }
 
 interface PaymentSummary {
@@ -35,6 +42,7 @@ export default function ReportsPage() {
   const [tab,     setTab]     = useState<Tab>("belt");
   const [data,    setData]    = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
+  const dojo = useDojo();
 
   const fetch_ = useCallback(async () => {
     setLoading(true); setData(null);
@@ -54,6 +62,34 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6 max-w-5xl">
+      {/* Encabezado del dojo */}
+      {dojo && (
+        <div className="card flex items-center gap-5 py-4 print:shadow-none">
+          <div className="w-16 h-16 bg-dojo-red rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow shadow-dojo-red/30">
+            {dojo.logo
+              ? <Image src={dojo.logo} alt={dojo.name} width={64} height={64} className="object-contain w-full h-full" />
+              : <span className="text-white text-2xl font-display font-bold">{dojo.name[0]}</span>
+            }
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-display text-dojo-white font-bold text-xl tracking-wide">{dojo.name}</p>
+            {dojo.slogan    && <p className="text-dojo-gold text-sm italic">{dojo.slogan}</p>}
+            <div className="flex flex-wrap gap-4 mt-1">
+              {dojo.ownerName && (
+                <span className="flex items-center gap-1 text-dojo-muted text-xs"><User size={11}/>{dojo.ownerName}</span>
+              )}
+              {dojo.phone && (
+                <span className="flex items-center gap-1 text-dojo-muted text-xs"><Phone size={11}/>{dojo.phone}</span>
+              )}
+            </div>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-dojo-muted text-xs uppercase tracking-wider">Reportes</p>
+            <p className="text-dojo-white font-display text-sm tracking-widest">DOJO MASTER</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div>
         <h1 className="font-display text-2xl font-bold text-dojo-white tracking-wide flex items-center gap-3">
@@ -69,7 +105,7 @@ export default function ReportsPage() {
           return (
             <button
               key={t.key}
-              onClick={() => setTab(t.key)}
+              onClick={() => { setData(null); setLoading(true); setTab(t.key); }}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-all border-b-2 -mb-px ${
                 tab === t.key
                   ? "border-dojo-red text-dojo-white"
@@ -85,7 +121,7 @@ export default function ReportsPage() {
       {loading && <div className="text-center py-20 text-dojo-muted">Cargando reporte...</div>}
 
       {/* Belt Report */}
-      {!loading && tab === "belt" && data && (() => {
+      {!loading && tab === "belt" && data != null && (() => {
         const grouped = data as Record<string, StudentSnap[]>;
         const entries = Object.entries(grouped).sort((a, b) => b[1].length - a[1].length);
         const total   = entries.reduce((s, [, v]) => s + v.length, 0);
@@ -109,7 +145,7 @@ export default function ReportsPage() {
                 <div className="divide-y divide-dojo-border/30">
                   {students.map(s => (
                     <div key={s.id} className="flex items-center justify-between px-5 py-2.5 hover:bg-dojo-border/10">
-                      <span className="text-sm text-dojo-white">{s.firstName} {s.lastName}</span>
+                      <span className="text-sm text-dojo-white">{s.fullName}</span>
                       <span className="text-xs text-dojo-muted">{calculateAge(s.birthDate)} años</span>
                     </div>
                   ))}
@@ -121,7 +157,7 @@ export default function ReportsPage() {
       })()}
 
       {/* Age Report */}
-      {!loading && tab === "age" && data && (() => {
+      {!loading && tab === "age" && data != null && (() => {
         const grouped = data as Record<string, StudentSnap[]>;
         const total   = Object.values(grouped).reduce((s, v) => s + v.length, 0);
         return (
@@ -143,7 +179,7 @@ export default function ReportsPage() {
                   <div className="flex flex-wrap gap-2 px-5 py-3">
                     {students.map(s => (
                       <span key={s.id} className="text-xs bg-dojo-border px-2 py-1 rounded-full text-dojo-white">
-                        {s.firstName} {s.lastName} ({calculateAge(s.birthDate)} a.)
+                        {s.fullName} ({calculateAge(s.birthDate)} a.)
                       </span>
                     ))}
                   </div>
@@ -155,7 +191,7 @@ export default function ReportsPage() {
       })()}
 
       {/* Payment Report */}
-      {!loading && tab === "payments" && data && (() => {
+      {!loading && tab === "payments" && data != null && (() => {
         const d = data as PaymentSummary;
         return (
           <div className="space-y-4">
@@ -179,12 +215,13 @@ export default function ReportsPage() {
       })()}
 
       {/* Ranking Report */}
-      {!loading && tab === "ranking" && data && (() => {
+      {!loading && tab === "ranking" && data != null && (() => {
         const rankings = data as RankingEntry[];
         if (rankings.length === 0)
           return <p className="text-center py-16 text-dojo-muted">No hay cambios de cinta por ranking registrados.</p>;
         return (
           <div className="card p-0 overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-dojo-border">
@@ -198,16 +235,21 @@ export default function ReportsPage() {
                   <tr key={r.id} className="border-b border-dojo-border/40 hover:bg-dojo-border/10">
                     <td className="px-5 py-3 font-semibold text-dojo-white flex items-center gap-2">
                       <Trophy size={14} className="text-dojo-gold shrink-0"/>
-                      {r.student.firstName} {r.student.lastName}
+                      {r.student.fullName}
                     </td>
                     <td className="px-5 py-3"><BeltBadge beltColor={r.beltColor}/></td>
-                    <td className="px-5 py-3 text-dojo-muted">{r.kata?.name ?? "—"}</td>
+                    <td className="px-5 py-3 text-dojo-muted">
+                      {r.kataNames.length > 0
+                        ? r.kataNames.map((n, i) => <span key={i} className="block">{n}</span>)
+                        : "—"}
+                    </td>
                     <td className="px-5 py-3 text-dojo-muted">{formatDate(r.changeDate)}</td>
                     <td className="px-5 py-3 text-dojo-muted">{calculateAge(r.student.birthDate)} años</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>{/* overflow-x-auto */}
           </div>
         );
       })()}

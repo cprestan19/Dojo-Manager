@@ -3,41 +3,134 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { sendUserWelcome } from "@/lib/email";
+import { CreateUserSchema, validationError } from "@/lib/validation";
+import { logAudit } from "@/lib/audit";
+
+type SessionUser = { role?: string; dojoId?: string | null; id?: string; email?: string };
+
+const ROLE_LABELS: Record<string, string> = {
+  sysadmin: "Super Administrador",
+  admin:    "Administrador",
+  user:     "Usuario",
+};
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const role = (session.user as { role?: string }).role;
-  if (role !== "sysadmin" && role !== "admin")
-    return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+    const { role, dojoId } = session.user as SessionUser;
+    if (role !== "sysadmin" && role !== "admin")
+      return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-  const users = await prisma.user.findMany({
-    select: { id: true, name: true, email: true, role: true, active: true, createdAt: true },
-    orderBy: { name: "asc" },
-  });
-  return NextResponse.json(users);
+    const users = await prisma.user.findMany({
+      where: role === "sysadmin"
+        ? { role: { not: "student" } }
+        : { dojoId: dojoId ?? undefined, role: { not: "student" } },
+      select: {
+        id: true, name: true, email: true, role: true, active: true,
+        photo: true, dojoId: true, createdAt: true,
+        dojo: { select: { name: true, slug: true } },
+      },
+      orderBy: [{ name: "asc" }],
+    });
+    const sanitized = users.map(u => ({
+      ...u,
+      photo: u.photo?.startsWith("http") ? u.photo : null,
+    }));
+    return NextResponse.json(sanitized);
+  } catch (err) {
+    console.error("GET /api/users error:", err);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const role = (session.user as { role?: string }).role;
-  if (role !== "sysadmin" && role !== "admin")
-    return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+    const { role, dojoId: sessionDojoId, id: sessionUserId, email: sessionEmail } = session.user as SessionUser;
+    if (role !== "sysadmin" && role !== "admin")
+      return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-  const body = await req.json();
+    const rawBody = await req.json().catch(() => null);
+    if (!rawBody) return NextResponse.json({ error: "Cuerpo de solicitud inválido" }, { status: 400 });
 
-  const existing = await prisma.user.findUnique({ where: { email: body.email } });
-  if (existing) return NextResponse.json({ error: "Email ya registrado" }, { status: 409 });
+    const parsed = CreateUserSchema.safeParse(rawBody);
+    if (!parsed.success) return validationError(parsed.error);
+    const { name, email, password, role: userRole, photo, dojoId: bodyDojoId } = parsed.data;
 
-  const hashed = await bcrypt.hash(body.password, 12);
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) return NextResponse.json({ error: "El correo ya está registrado por otro usuario" }, { status: 409 });
 
-  const user = await prisma.user.create({
-    data: { name: body.name, email: body.email, password: hashed, role: body.role ?? "user" },
-    select: { id: true, name: true, email: true, role: true, active: true, createdAt: true },
-  });
+    // Determine target dojo:
+    // - admin       → their own dojo (immutable from session)
+    // - sysadmin    → body.dojoId if provided, else sx-dojo cookie context, else null (global)
+    let targetDojoId: string | null;
+    if (role === "sysadmin") {
+      const ctxDojo = req.cookies.get("sx-dojo")?.value ?? null;
+      targetDojoId  = bodyDojoId ?? ctxDojo ?? null;
+    } else {
+      targetDojoId = sessionDojoId ?? null;
+    }
 
-  return NextResponse.json(user, { status: 201 });
+    const hashed = await bcrypt.hash(password, 12);
+
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password:           hashed,
+        role:               userRole,
+        dojoId:             targetDojoId,
+        photo:              photo ?? null,
+        mustChangePassword: true,
+      },
+      select: {
+        id: true, name: true, email: true, role: true,
+        active: true, photo: true, dojoId: true, createdAt: true,
+        dojo: { select: { name: true, slug: true } },
+      },
+    });
+
+    // Fetch dojo branding for welcome email (exclude large base64 logo)
+    const dojo = targetDojoId
+      ? await prisma.dojo.findUnique({
+          where:  { id: targetDojoId },
+          select: { name: true, email: true, phone: true, slogan: true, ownerName: true },
+        })
+      : null;
+
+    await logAudit({
+      action:    "USER_CREATED",
+      userId:    sessionUserId,
+      userEmail: sessionEmail,
+      dojoId:    targetDojoId,
+      details:   JSON.stringify({
+        newUserId:    newUser.id,
+        newUserEmail: newUser.email,
+        newUserName:  newUser.name,
+        newUserRole:  newUser.role,
+        createdBy:    sessionEmail,
+      }),
+    });
+
+    // Fire-and-forget — never blocks response
+    sendUserWelcome({
+      to:           newUser.email,
+      name:         newUser.name,
+      loginEmail:   newUser.email,
+      tempPassword: password,
+      roleLabel:    ROLE_LABELS[newUser.role] ?? newUser.role,
+      dojo:         dojo ?? undefined,
+    }).catch(err => console.error("[email] sendUserWelcome failed:", err));
+
+    return NextResponse.json(newUser, { status: 201 });
+  } catch (err) {
+    console.error("POST /api/users error:", err);
+    const message = err instanceof Error ? err.message : "Error interno al crear el usuario";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

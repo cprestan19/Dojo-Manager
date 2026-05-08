@@ -4,44 +4,50 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import {
   User, Heart, Phone, CreditCard, Award,
-  Camera, ChevronDown, ChevronUp, Save, ArrowLeft, Calendar
+  Camera, ChevronDown, ChevronUp, Save, ArrowLeft, Calendar, Loader2
 } from "lucide-react";
 import { cn, calculateAge, BELT_COLORS, GENDERS, NATIONALITIES } from "@/lib/utils";
-import Image from "next/image";
 
 interface InscriptionData {
-  inscriptionDate: string;
+  inscriptionDate:  string;
   annualPaymentDate: string;
-  annualAmount: string;
-  monthlyAmount: string;
-  discountAmount: string;
-  discountNote: string;
+  annualAmount:     string;
+  monthlyAmount:    string;
+  discountAmount:   string;
+  discountNote:     string;
+  paymentPeriod:    string;   // "monthly" | "biweekly"
+  biweeklyAmount:   string;
 }
 
 interface FormData {
-  firstName: string;
-  lastName: string;
+  fullName: string;
+  cedula: string;
+  fepakaId: string;
+  ryoBukaiId: string;
   birthDate: string;
   gender: string;
   nationality: string;
-  allergy1: string;
-  allergy2: string;
+  condition: string;
+  bloodType: string;
   hasPrivateInsurance: boolean;
   insuranceName: string;
+  insuranceNumber: string;
   motherName: string;
   motherPhone: string;
   motherEmail: string;
   fatherName: string;
   fatherPhone: string;
   fatherEmail: string;
-  auxContactName: string;
-  auxContactPhone: string;
   address: string;
   inscription: InscriptionData;
 }
 
 interface StudentFormProps {
-  defaultValues?: Partial<FormData> & { id?: string; photo?: string | null };
+  defaultValues?: Partial<FormData> & {
+    id?: string; photo?: string | null; studentCode?: number | null;
+    fepakaId?: string | null; ryoBukaiId?: string | null;
+    fullName?: string;
+  };
   isEdit?: boolean;
 }
 
@@ -70,25 +76,26 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
   const router = useRouter();
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     defaultValues: {
-      firstName: defaultValues?.firstName ?? "",
-      lastName:  defaultValues?.lastName  ?? "",
+      fullName:   defaultValues?.fullName   ?? "",
+      cedula:     defaultValues?.cedula     ?? "",
+      fepakaId:   defaultValues?.fepakaId   ?? "",
+      ryoBukaiId: defaultValues?.ryoBukaiId ?? "",
       birthDate: defaultValues?.birthDate
         ? new Date(defaultValues.birthDate).toISOString().split("T")[0]
         : "",
       gender:      defaultValues?.gender      ?? "M",
       nationality: defaultValues?.nationality ?? "Panameña",
-      allergy1:    defaultValues?.allergy1    ?? "",
-      allergy2:    defaultValues?.allergy2    ?? "",
+      condition:   defaultValues?.condition   ?? "",
+      bloodType:   defaultValues?.bloodType   ?? "",
       hasPrivateInsurance: defaultValues?.hasPrivateInsurance ?? false,
-      insuranceName: defaultValues?.insuranceName ?? "",
-      motherName:    defaultValues?.motherName  ?? "",
-      motherPhone:   defaultValues?.motherPhone ?? "",
-      motherEmail:   defaultValues?.motherEmail ?? "",
-      fatherName:    defaultValues?.fatherName  ?? "",
-      fatherPhone:   defaultValues?.fatherPhone ?? "",
-      fatherEmail:   defaultValues?.fatherEmail ?? "",
-      auxContactName:  defaultValues?.auxContactName  ?? "",
-      auxContactPhone: defaultValues?.auxContactPhone ?? "",
+      insuranceName:   defaultValues?.insuranceName   ?? "",
+      insuranceNumber: defaultValues?.insuranceNumber ?? "",
+      motherName:  defaultValues?.motherName  ?? "",
+      motherPhone: defaultValues?.motherPhone ?? "",
+      motherEmail: defaultValues?.motherEmail ?? "",
+      fatherName:  defaultValues?.fatherName  ?? "",
+      fatherPhone: defaultValues?.fatherPhone ?? "",
+      fatherEmail: defaultValues?.fatherEmail ?? "",
       address: defaultValues?.address ?? "",
       inscription: {
         inscriptionDate:  defaultValues?.inscription?.inscriptionDate
@@ -97,40 +104,65 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
         annualPaymentDate: defaultValues?.inscription?.annualPaymentDate
           ? new Date(defaultValues.inscription.annualPaymentDate).toISOString().split("T")[0]
           : "",
-        annualAmount:  String(defaultValues?.inscription?.annualAmount  ?? ""),
-        monthlyAmount: String(defaultValues?.inscription?.monthlyAmount ?? ""),
-        discountAmount: String(defaultValues?.inscription?.discountAmount ?? "0"),
-        discountNote:  defaultValues?.inscription?.discountNote ?? "",
+        annualAmount:    String(defaultValues?.inscription?.annualAmount    ?? ""),
+        monthlyAmount:   String(defaultValues?.inscription?.monthlyAmount   ?? ""),
+        discountAmount:  String(defaultValues?.inscription?.discountAmount  ?? "0"),
+        discountNote:    defaultValues?.inscription?.discountNote            ?? "",
+        paymentPeriod:  (defaultValues?.inscription as { paymentPeriod?: string } | undefined)?.paymentPeriod ?? "monthly",
+        biweeklyAmount: String((defaultValues?.inscription as { biweeklyAmount?: number } | undefined)?.biweeklyAmount ?? ""),
       },
     },
   });
 
-  const [photo, setPhoto]       = useState<string | null>(defaultValues?.photo ?? null);
-  const [age,   setAge]         = useState<number | null>(null);
-  const [error, setError]       = useState("");
+  const [photo,          setPhoto]         = useState<string | null>(defaultValues?.photo ?? null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError,     setPhotoError]     = useState("");
+  const [age,            setAge]            = useState<number | null>(null);
+  const [error,          setError]          = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const birthDate          = watch("birthDate");
   const hasInsurance       = watch("hasPrivateInsurance");
-  const discountAmount     = watch("inscription.discountAmount");
-  const hasDiscount        = discountAmount && Number(discountAmount) !== 0;
+  const discountAmount  = watch("inscription.discountAmount");
+  const paymentPeriod   = watch("inscription.paymentPeriod");
+  const isBiweekly      = paymentPeriod === "biweekly";
+  const hasDiscount     = discountAmount && Number(discountAmount) !== 0;
 
   useEffect(() => {
     if (birthDate) setAge(calculateAge(birthDate));
     else           setAge(null);
   }, [birthDate]);
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setPhoto(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    setPhotoError("");
+    setPhotoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "image");
+      fd.append("purpose", "student-photo");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al subir imagen");
+      setPhoto(data.url);
+    } catch (err: unknown) {
+      setPhotoError(err instanceof Error ? err.message : "Error al subir imagen");
+    } finally {
+      setPhotoUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   async function onSubmit(data: FormData) {
     setError("");
-    const payload = { ...data, photo };
+    const trimmed   = data.fullName.trim();
+    const parts     = trimmed.split(/\s+/);
+    const firstName = parts[0] ?? "";
+    const lastName  = parts.slice(1).join(" ");
+    const { fullName: _, ...rest } = data;
+    const payload = { ...rest, fullName: trimmed, firstName, lastName, photo };
 
     const url    = isEdit ? `/api/students/${defaultValues?.id}` : "/api/students";
     const method = isEdit ? "PUT" : "POST";
@@ -141,14 +173,16 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
       body: JSON.stringify(payload),
     });
 
+    const text = await res.text();
+    let body: Record<string, unknown> = {};
+    try { body = text ? JSON.parse(text) : {}; } catch { /* non-JSON response */ }
+
     if (!res.ok) {
-      const err = await res.json();
-      setError(err.error ?? "Error al guardar el alumno");
+      setError((body.error as string) ?? `Error ${res.status} al guardar el alumno`);
       return;
     }
 
-    const student = await res.json();
-    router.push(`/dashboard/students/${student.id}`);
+    router.push(`/dashboard/students/${(body as { id: string }).id}`);
   }
 
   return (
@@ -180,23 +214,35 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
           {/* Photo upload */}
           <div className="flex flex-col items-center gap-3">
             <div
-              onClick={() => fileRef.current?.click()}
-              className="w-32 h-32 rounded-2xl bg-dojo-border border-2 border-dashed border-dojo-border hover:border-dojo-red cursor-pointer flex items-center justify-center overflow-hidden transition-colors relative group"
+              onClick={() => !photoUploading && fileRef.current?.click()}
+              className={cn(
+                "w-44 h-44 rounded-2xl bg-dojo-border border-2 border-dashed border-dojo-border transition-colors relative group overflow-hidden",
+                photoUploading ? "cursor-wait opacity-70" : "hover:border-dojo-red cursor-pointer",
+              )}
             >
-              {photo ? (
-                <Image src={photo} alt="foto" fill className="object-cover" />
+              {photoUploading ? (
+                <div className="flex flex-col items-center justify-center h-full text-dojo-muted">
+                  <Loader2 size={28} className="animate-spin mb-1" />
+                  <p className="text-xs">Subiendo...</p>
+                </div>
+              ) : photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photo} alt="foto" className="w-full h-full object-cover" />
               ) : (
-                <div className="text-center text-dojo-muted">
-                  <Camera size={28} className="mx-auto mb-1" />
+                <div className="flex flex-col items-center justify-center h-full text-dojo-muted">
+                  <Camera size={28} className="mb-1" />
                   <p className="text-xs">Foto</p>
                 </div>
               )}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Camera size={20} className="text-white" />
-              </div>
+              {!photoUploading && (
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera size={20} className="text-white" />
+                </div>
+              )}
             </div>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-            {photo && (
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoChange} />
+            {photoError && <p className="text-xs text-red-400 text-center">{photoError}</p>}
+            {photo && !photoUploading && (
               <button type="button" onClick={() => setPhoto(null)} className="text-xs text-dojo-muted hover:text-red-400 transition-colors">
                 Quitar foto
               </button>
@@ -205,17 +251,19 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
 
           {/* Fields */}
           <div className="md:col-span-2 grid grid-cols-2 gap-4">
-            <div>
-              <label className="form-label">Nombre *</label>
-              <input {...register("firstName", { required: true })}
-                className={cn("form-input", errors.firstName && "border-red-600")}
-                placeholder="Ej. Carlos" />
-            </div>
-            <div>
-              <label className="form-label">Apellido *</label>
-              <input {...register("lastName", { required: true })}
-                className={cn("form-input", errors.lastName && "border-red-600")}
-                placeholder="Ej. Rodríguez" />
+            <div className="col-span-2">
+              <label className="form-label">Nombre Completo *</label>
+              <input
+                {...register("fullName", {
+                  required: "El nombre es obligatorio",
+                  validate: v => v.trim().length >= 2 || "Ingrese al menos nombre y apellido",
+                })}
+                className={cn("form-input", errors.fullName && "border-red-600")}
+                placeholder="Ej. Carlos Rodríguez"
+              />
+              {errors.fullName && (
+                <p className="text-xs text-red-400 mt-1">{errors.fullName.message}</p>
+              )}
             </div>
             <div>
               <label className="form-label flex items-center gap-1">
@@ -228,31 +276,94 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
               )}
             </div>
             <div>
+              <label className="form-label">Cédula / Pasaporte</label>
+              <input {...register("cedula")} className="form-input" placeholder="Ej. 8-123-4567" />
+            </div>
+            <div>
               <label className="form-label">Género *</label>
               <select {...register("gender")} className="form-input">
                 {GENDERS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
               </select>
             </div>
-            <div className="col-span-2">
+            <div>
               <label className="form-label">Nacionalidad *</label>
               <select {...register("nationality")} className="form-input">
                 {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
+
+            {/* Código Fepaka */}
+            <div>
+              <label className="form-label">Código Fepaka</label>
+              {(() => {
+                const { onChange: rhfOnChange, ...fepakaRest } = register("fepakaId", {
+                  maxLength: { value: 15, message: "Máximo 15 caracteres" },
+                });
+                return (
+                  <input
+                    {...fepakaRest}
+                    onChange={e => {
+                      e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15);
+                      rhfOnChange(e);
+                    }}
+                    className={cn("form-input font-mono", errors.fepakaId && "border-red-600")}
+                    placeholder="Ej. FEP001"
+                    maxLength={15}
+                  />
+                );
+              })()}
+              {errors.fepakaId && <p className="text-xs text-red-400 mt-1">{errors.fepakaId.message}</p>}
+            </div>
+
+            {/* Pasaporte Ryo Bukai */}
+            <div>
+              <label className="form-label">Pasaporte Ryo Bukai</label>
+              {(() => {
+                const { onChange: rhfOnChange, ...ryoRest } = register("ryoBukaiId", {
+                  maxLength: { value: 15, message: "Máximo 15 caracteres" },
+                });
+                return (
+                  <input
+                    {...ryoRest}
+                    onChange={e => {
+                      e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15);
+                      rhfOnChange(e);
+                    }}
+                    className={cn("form-input font-mono", errors.ryoBukaiId && "border-red-600")}
+                    placeholder="Ej. RYO001"
+                    maxLength={15}
+                  />
+                );
+              })()}
+              {errors.ryoBukaiId && <p className="text-xs text-red-400 mt-1">{errors.ryoBukaiId.message}</p>}
+            </div>
+
+            {isEdit && defaultValues?.studentCode && (
+              <div className="col-span-2 flex items-center gap-2 text-xs text-dojo-muted bg-dojo-darker rounded-lg px-3 py-2">
+                <span className="font-mono text-dojo-gold font-bold">ID #{defaultValues.studentCode}</span>
+                <span>— código generado automáticamente</span>
+              </div>
+            )}
           </div>
         </div>
       </Section>
 
       {/* ── SALUD ── */}
-      <Section title="Alergias / Enfermedades" icon={Heart}>
+      <Section title="Salud" icon={Heart}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="form-label">Alergia / Enfermedad 1</label>
-            <input {...register("allergy1")} className="form-input" placeholder="Ej. Asma leve" />
+            <label className="form-label">Condición</label>
+            <input {...register("condition")} className="form-input"
+              placeholder="Ej. Asma leve, hipertensión..." />
           </div>
           <div>
-            <label className="form-label">Alergia / Enfermedad 2</label>
-            <input {...register("allergy2")} className="form-input" placeholder="Ej. Alergia al polvo" />
+            <label className="form-label">Tipo de Sangre</label>
+            <select {...register("bloodType")} className="form-input">
+              <option value="">— Desconocido —</option>
+              {["O+","O-","A+","A-","B+","B-","AB+","AB-"].map(bt => (
+                <option key={bt} value={bt}>{bt}</option>
+              ))}
+            </select>
           </div>
           <div className="md:col-span-2">
             <div className="flex items-center gap-3 p-3 bg-dojo-dark rounded-lg border border-dojo-border">
@@ -267,10 +378,40 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
               </label>
             </div>
             {hasInsurance && (
-              <div className="mt-3">
-                <label className="form-label">Nombre de la Aseguradora</label>
-                <input {...register("insuranceName")} className="form-input"
-                  placeholder="Ej. ASSA, Mapfre, Panamá Seguros..." />
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="form-label">Nombre de la Aseguradora</label>
+                  <select {...register("insuranceName")} className="form-input">
+                    <option value="">— Seleccionar aseguradora —</option>
+                    {["MAPFRE","PALIG","SURA","FEDPA","ANCON","ACERTA","IS",
+                      "ASSA SEGUROS","ALIADO SEGUROS","BLUE CROSS"].map(a => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Número de Seguro</label>
+                  {(() => {
+                    const { onChange: rhfOnChange, ...insRest } = register("insuranceNumber", {
+                      maxLength: { value: 25, message: "Máximo 25 caracteres" },
+                    });
+                    return (
+                      <input
+                        {...insRest}
+                        onChange={e => {
+                          e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9\-]/g, "").slice(0, 25);
+                          rhfOnChange(e);
+                        }}
+                        className={cn("form-input font-mono", errors.insuranceNumber && "border-red-600")}
+                        placeholder="Ej. 123456789"
+                        maxLength={25}
+                      />
+                    );
+                  })()}
+                  {errors.insuranceNumber && (
+                    <p className="text-xs text-red-400 mt-1">{errors.insuranceNumber.message}</p>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -322,23 +463,6 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
             </div>
           </div>
 
-          {/* Auxiliar */}
-          <div>
-            <p className="text-xs font-bold text-dojo-muted uppercase tracking-widest mb-3 flex items-center gap-2">
-              <span className="w-4 h-px bg-dojo-border inline-block" /> Contacto Auxiliar de Emergencia
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="form-label">Nombre</label>
-                <input {...register("auxContactName")} className="form-input" placeholder="Nombre del contacto" />
-              </div>
-              <div>
-                <label className="form-label">Número de contacto</label>
-                <input {...register("auxContactPhone")} className="form-input" placeholder="+507 6000-0000" />
-              </div>
-            </div>
-          </div>
-
           {/* Dirección */}
           <div>
             <label className="form-label">Dirección de Vivienda</label>
@@ -348,8 +472,8 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
         </div>
       </Section>
 
-      {/* ── INSCRIPCIÓN Y MENSUALIDADES ── */}
-      <Section title="Inscripción y Mensualidades" icon={CreditCard}>
+      {/* ── INSCRIPCIÓN Y PAGOS ── */}
+      <Section title="Inscripción y Pagos" icon={CreditCard}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="form-label">Fecha de Inscripción</label>
@@ -367,22 +491,73 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
                 className="form-input pl-7" placeholder="0.00" />
             </div>
           </div>
-          <div>
-            <label className="form-label">Mensualidad Base (USD)</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
-              <input type="number" step="0.01" {...register("inscription.monthlyAmount")}
-                className="form-input pl-7" placeholder="0.00" />
+
+          {/* ── Período de pago ── */}
+          <div className="md:col-span-2">
+            <label className="form-label">Período de Pago</label>
+            <div className="flex gap-3">
+              {[
+                { value: "monthly",   label: "Mensual",    desc: "1 pago al mes (día 1)"          },
+                { value: "biweekly",  label: "Quincenal",  desc: "2 pagos al mes (día 1 y día 15)" },
+              ].map(opt => (
+                <label
+                  key={opt.value}
+                  className={cn(
+                    "flex items-start gap-3 flex-1 p-3 rounded-lg border cursor-pointer transition-colors",
+                    paymentPeriod === opt.value
+                      ? "border-dojo-red bg-dojo-red/10"
+                      : "border-dojo-border bg-dojo-dark hover:border-dojo-border/80",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    value={opt.value}
+                    {...register("inscription.paymentPeriod")}
+                    className="mt-0.5 accent-dojo-red"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-dojo-white">{opt.label}</p>
+                    <p className="text-xs text-dojo-muted">{opt.desc}</p>
+                  </div>
+                </label>
+              ))}
             </div>
           </div>
 
-          {/* Discount/increase line */}
+          {/* ── Monto según período ── */}
+          {!isBiweekly ? (
+            <div>
+              <label className="form-label">Mensualidad Base (USD)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
+                <input type="number" step="0.01" {...register("inscription.monthlyAmount")}
+                  className="form-input pl-7" placeholder="0.00" />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="form-label">Quincena Base (USD)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
+                <input type="number" step="0.01" {...register("inscription.biweeklyAmount")}
+                  className="form-input pl-7" placeholder="0.00" />
+              </div>
+              <p className="text-xs text-dojo-muted mt-1">
+                Se generarán 2 cobros por mes: el día 1 y el día 15.
+              </p>
+            </div>
+          )}
+
+          {/* Ajuste (aplica al monto del período activo) */}
           <div className="md:col-span-2">
             <div className="bg-dojo-dark rounded-lg border border-dojo-border p-4">
-              <label className="form-label">Ajuste de Mensualidad</label>
+              <label className="form-label">
+                Ajuste de {isBiweekly ? "Quincena" : "Mensualidad"}
+              </label>
               <p className="text-xs text-dojo-muted mb-3">
-                Ingrese un monto negativo para aplicar <span className="text-green-400">descuento</span>,
-                o positivo para un <span className="text-yellow-400">aumento</span>. Deje en 0 si no aplica.
+                Monto negativo = <span className="text-green-400">descuento</span> ·
+                Monto positivo = <span className="text-yellow-400">aumento</span>.
+                Deje en 0 si no aplica.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -392,15 +567,17 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
                     <input type="number" step="0.01" {...register("inscription.discountAmount")}
                       className={cn("form-input pl-7",
                         hasDiscount && Number(discountAmount) < 0 && "border-green-700",
-                        hasDiscount && Number(discountAmount) > 0 && "border-yellow-700"
+                        hasDiscount && Number(discountAmount) > 0 && "border-yellow-700",
                       )}
                       placeholder="Ej. -10.00 o +5.00" />
                   </div>
                   {hasDiscount && (
                     <p className={cn("text-xs mt-1 font-semibold",
-                      Number(discountAmount) < 0 ? "text-green-400" : "text-yellow-400"
+                      Number(discountAmount) < 0 ? "text-green-400" : "text-yellow-400",
                     )}>
-                      {Number(discountAmount) < 0 ? `▼ Descuento de $${Math.abs(Number(discountAmount)).toFixed(2)}` : `▲ Aumento de $${Number(discountAmount).toFixed(2)}`}
+                      {Number(discountAmount) < 0
+                        ? `▼ Descuento de $${Math.abs(Number(discountAmount)).toFixed(2)}`
+                        : `▲ Aumento de $${Number(discountAmount).toFixed(2)}`}
                     </p>
                   )}
                 </div>

@@ -1,4 +1,5 @@
-
+// Schema: DojoManager — SaaS de gestión de dojos de karate
+// Desarrollado por Cristhian Paul Prestán — 2025
 
 generator client {
   provider = "prisma-client-js"
@@ -6,67 +7,191 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
+
+model Dojo {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logo      String?  @db.Text
+  ownerName String?
+  phone     String?
+  slogan    String?
+  email     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Parámetros de recordatorios de pago
+  reminderToleranceDays Int     @default(5)
+  lateInterestPct       Float   @default(10.0)
+  autoRemindersEnabled  Boolean @default(false)
+  loginBgImage  String? @db.Text @map("login_bg_image")
+  instagramUrl  String? @map("instagram_url")   // e.g. https://instagram.com/dojo_natsuki
+
+  users           User[]
+  students        Student[]
+  katas           Kata[]
+  schedules       Schedule[]
+  beltVideos      BeltVideo[]
+  rolePermissions DojoRolePermission[]
+  dojoPage        DojoPage?
+  freeTrials      FreeTrialRequest[]
+  tournaments     Tournament[]
+
+  @@map("dojos")
+}
+
+// ── Public website content for each dojo ────────────────────
+model DojoPage {
+  id        String  @id @default(cuid())
+  dojoId    String  @unique @map("dojo_id")
+  dojo      Dojo    @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+
+  published   Boolean @default(false)
+
+  // Hero section
+  heroTitle    String? @map("hero_title")
+  heroSubtitle String? @map("hero_subtitle")
+
+  // About section
+  aboutText  String? @db.Text @map("about_text")
+  aboutImage String? @map("about_image")         // Cloudinary URL
+
+  // Theme
+  primaryColor String @default("#C0392B") @map("primary_color")
+
+  // Free trial section visibility
+  showFreeTrial Boolean @default(true) @map("show_free_trial")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("dojo_pages")
+}
+
+// ── Free trial / scholarship requests ───────────────────────
+model FreeTrialRequest {
+  id     String @id @default(cuid())
+  dojoId String @map("dojo_id")
+  dojo   Dojo   @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+
+  // Child info
+  childName  String @map("child_name")
+  childAge   Int    @map("child_age")
+
+  // Parent / guardian
+  parentName  String  @map("parent_name")
+  parentPhone String  @map("parent_phone")
+  parentEmail String? @map("parent_email")
+  message     String? @db.Text
+
+  // Status flow: pending → contacted → scheduled → enrolled | cancelled
+  status String @default("pending")
+
+  // Assigned schedule (set by admin after review)
+  scheduleId String?   @map("schedule_id")
+  schedule   Schedule? @relation(fields: [scheduleId], references: [id])
+
+  read     Boolean  @default(false)  // admin has seen it
+  notes    String?  @db.Text         // admin internal notes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dojoId])
+  @@index([dojoId, status])
+  @@index([dojoId, read])
+  @@map("free_trial_requests")
+}
+
 
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
   name      String
-  role      String   @default("user")   // sysadmin, admin, user
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role               String   @default("user")   // sysadmin, admin, user, student
+  active             Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  photo     String?  @db.Text
+
+  dojoId    String?  @map("dojo_id")
+  dojo      Dojo?    @relation(fields: [dojoId], references: [id])
+
+  studentId String?  @unique @map("student_id")
+  student   Student? @relation(fields: [studentId], references: [id])
+
+  resetToken       String?   @map("reset_token")
+  resetTokenExpiry DateTime? @map("reset_token_expiry")
 
   @@index([email])
+  @@index([dojoId])
+  @@index([dojoId, active])      // filter active users within a dojo
+  @@index([dojoId, role])        // count/filter by role within a dojo (last-sysadmin checks)
   @@map("users")
 }
 
 model Student {
-  id        String   @id @default(cuid())
+  id          String   @id @default(cuid())
+  studentCode Int?     @unique
 
-  // Datos personales
+  dojoId    String   @map("dojo_id")
+  dojo      Dojo     @relation(fields: [dojoId], references: [id])
+
+  fullName   String   @default("") @map("full_name")
   firstName  String
   lastName   String
-  photo      String?  @db.Text   // base64 o URL
+  cedula       String?
+  fepakaId     String?  @map("fepaka_id")
+  ryoBukaiId   String?  @map("ryo_bukai_id")
+  photo        String?  @db.Text
   birthDate  DateTime
-  gender     String               // M, F
+  gender     String
   nationality String
 
-  // Salud
-  allergy1            String?
-  allergy2            String?
+  condition           String?
+  bloodType           String?  @map("blood_type")
   hasPrivateInsurance Boolean  @default(false)
   insuranceName       String?
+  insuranceNumber     String?  @map("insurance_number")
 
-  // Contacto — Madre
   motherName  String?
   motherPhone String?
   motherEmail String?
 
-  // Contacto — Padre
   fatherName  String?
   fatherPhone String?
   fatherEmail String?
 
-  // Contacto auxiliar
-  auxContactName  String?
-  auxContactPhone String?
-
-  // Domicilio
   address String? @db.Text
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  inscription Inscription?
-  payments    Payment[]
-  beltHistory BeltHistory[]
+  // Absence risk level — updated when attendance is recorded or via batch recalculation.
+  // ACTIVO  : attended within last 3 days
+  // ALERTA  : 3–13 days without attendance  (risk of disengagement)
+  // RIESGO  : 14+ days without attendance  (high dropout risk)
+  attendanceStatus String @default("ACTIVO") @map("attendance_status")
 
-  @@index([active])
-  @@index([lastName, firstName])
+  portalUser                User?
+  inscription               Inscription?
+  payments                  Payment[]
+  beltHistory               BeltHistory[]
+  attendances               Attendance[]
+  studentSchedules          StudentSchedule[]
+  kataCompetitions          KataCompetition[]
+  tournamentParticipations  TournamentParticipant[]
+
+  @@index([dojoId, active])
+  @@index([dojoId, lastName, firstName])
+  @@index([dojoId, fullName])
+  @@index([dojoId, active, fullName])
   @@map("students")
 }
 
@@ -78,10 +203,15 @@ model Inscription {
   inscriptionDate   DateTime
   annualPaymentDate DateTime?
 
-  annualAmount   Float @default(0)   // Costo inscripción / anualidad
-  monthlyAmount  Float @default(0)   // Mensualidad base
-  discountAmount Float @default(0)   // Negativo = descuento, Positivo = aumento
+  annualAmount   Float  @default(0)
+  monthlyAmount  Float  @default(0)
+  discountAmount Float  @default(0)
   discountNote   String?
+
+  // Pago quincenal (cada 15 días — 1° y 15 de cada mes)
+  // paymentPeriod defaults to "monthly" so existing students are unaffected.
+  paymentPeriod  String @default("monthly") @map("payment_period")  // monthly | biweekly
+  biweeklyAmount Float  @default(0)          @map("biweekly_amount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -94,35 +224,44 @@ model Payment {
   studentId String
   student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  type     String    // monthly, annual
+  type     String
   amount   Float
   dueDate  DateTime
   paidDate DateTime?
 
-  status       String  @default("pending")  // pending, paid, late
+  status       String  @default("pending")
   note         String?
   reminderSent Boolean @default(false)
 
   createdAt DateTime @default(now())
 
+  @@unique([studentId, type, dueDate])
   @@index([studentId])
-  @@index([status])
-  @@index([dueDate])
+  @@index([studentId, status, dueDate])
+  @@index([status, dueDate])
+  @@index([reminderSent, status, dueDate])
   @@map("payments")
 }
 
 model Kata {
   id          String  @id @default(cuid())
-  name        String  @unique
+  name        String
   beltColor   String
   order       Int     @default(0)
   description String?
   active      Boolean @default(true)
   createdAt   DateTime @default(now())
 
-  beltHistory BeltHistory[]
+  dojoId      String   @map("dojo_id")
+  dojo        Dojo     @relation(fields: [dojoId], references: [id])
 
+  beltHistory      BeltHistory[]
+  kataCompetitions KataCompetition[]
+
+  @@unique([name, dojoId])
+  @@index([dojoId])
   @@index([beltColor])
+  @@index([dojoId, active])      // GET /api/katas?active=1 filtered by dojo
   @@map("katas")
 }
 
@@ -135,12 +274,273 @@ model BeltHistory {
   changeDate DateTime
   kataId     String?
   kata       Kata?    @relation(fields: [kataId], references: [id])
+  kataIds    Json?    @map("kata_ids")   // array de hasta 5 IDs para cintas roja–negra-3-dan
   isRanking  Boolean  @default(false)
   notes      String?
 
   createdAt DateTime @default(now())
 
-  @@index([studentId])
-  @@index([beltColor])
+  @@index([studentId, changeDate])
   @@map("belt_history")
+}
+
+model Schedule {
+  id          String   @id @default(cuid())
+  dojoId      String   @map("dojo_id")
+  dojo        Dojo     @relation(fields: [dojoId], references: [id])
+  name        String
+  days        String
+  startTime   String
+  endTime     String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  attendances      Attendance[]
+  studentSchedules StudentSchedule[]
+  freeTrials       FreeTrialRequest[]
+  @@index([dojoId])
+  @@index([dojoId, active])
+  @@map("schedules")
+}
+
+model Attendance {
+  id          String    @id @default(cuid())
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  scheduleId  String?
+  schedule    Schedule? @relation(fields: [scheduleId], references: [id])
+  type        String
+  markedAt    DateTime  @default(now())
+  note        String?
+  corrected   Boolean   @default(false)
+  correctedBy String?
+  createdAt   DateTime  @default(now())
+  @@index([studentId, markedAt])
+  @@index([scheduleId, markedAt])
+  @@index([studentId, type, markedAt])  // duplicate-entry check: WHERE studentId=? AND type=? AND markedAt >= ?
+  @@map("attendances")
+}
+
+model StudentSchedule {
+  id         String    @id @default(cuid())
+  studentId  String
+  student    Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  scheduleId String
+  schedule   Schedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  assignedAt DateTime  @default(now())
+  removedAt  DateTime?
+
+  @@index([studentId])
+  @@index([scheduleId])
+  @@index([assignedAt])
+  @@index([studentId, removedAt])  // active assignments: WHERE studentId=? AND removedAt IS NULL
+  @@map("student_schedules")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  userId    String?
+  userEmail String?
+  dojoId    String?
+  dojoSlug  String?
+  ip        String?
+  userAgent String?  @db.Text
+  details   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model EmailSettings {
+  id        String   @id @default("singleton")
+  host      String   @default("")
+  port      Int      @default(587)
+  user      String   @default("")
+  password  String   @default("")
+  secure    Boolean  @default(false)
+  fromName  String   @default("DojoManager")
+  updatedAt DateTime @updatedAt
+  @@map("email_settings")
+}
+
+model DojoRolePermission {
+  id          String   @id @default(cuid())
+  dojoId      String   @map("dojo_id")
+  dojo        Dojo     @relation(fields: [dojoId], references: [id])
+  roleName    String   @map("role_name")
+  roleLabel   String   @map("role_label")
+  roleColor   String   @default("blue") @map("role_color")
+  isSystem    Boolean  @default(false)  @map("is_system")
+  permissions Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([dojoId, roleName])
+  @@index([dojoId])
+  @@map("dojo_role_permissions")
+}
+
+model BeltVideo {
+  id          String   @id @default(cuid())
+  dojoId      String   @map("dojo_id")
+  dojo        Dojo     @relation(fields: [dojoId], references: [id])
+  beltColor   String   @map("belt_color")
+  title       String
+  description String?  @db.Text
+  videoUrl    String   @map("video_url")
+  publicId    String   @map("public_id")
+  order       Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([dojoId])
+  @@index([dojoId, beltColor])
+  @@map("belt_videos")
+}
+
+model KataCompetition {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  kataId     String?
+  kata       Kata?    @relation(fields: [kataId], references: [id])
+  date       DateTime
+  tournament String?
+  result     String?
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([studentId])
+  @@index([date])
+  @@map("kata_competitions")
+}
+
+model Tournament {
+  id           String    @id @default(cuid())
+  dojoId       String    @map("dojo_id")
+  dojo         Dojo      @relation(fields: [dojoId], references: [id])
+  name         String
+  date         DateTime
+  location     String
+  organization String
+  leader1      String
+  leader2      String?
+  leader3      String?
+  tatami       Int?
+  scheduledAt  DateTime? @map("scheduled_at")
+
+  description  String?   @db.Text
+  format       String?   @db.Text @map("tournament_format")
+  arbitrage    String?   @db.Text
+  requirements String?   @db.Text
+  contact      String?   @db.Text
+  flyerImage   String?   @db.Text @map("flyer_image")
+  // draft | ready | active | completed | confirmed
+  status       String    @default("draft")
+  bracketLocked Boolean  @default(false) @map("bracket_locked")
+  archivedAt   DateTime? @map("archived_at")   // null = activo, fecha = inactivo/historial
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  participants TournamentParticipant[]
+  matches      TournamentMatch[]
+  referees     TournamentReferee[]
+  brackets     TournamentBracket[]
+
+  @@index([dojoId])
+  @@index([dojoId, status])
+  @@map("tournaments")
+}
+
+model TournamentBracket {
+  id           String     @id @default(cuid())
+  tournamentId String     @map("tournament_id")
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  name         String
+  type         String    @default("kumite") @map("bracket_type")   // "kumite" | "kata"
+  gender       String?   @map("gender")                             // "M" | "F" | null
+  order        Int        @default(0)
+  bracketLocked       Boolean   @default(false) @map("bracket_locked")
+  // draft | ready | active | completed
+  status              String    @default("draft")
+  bracketScheduledAt  DateTime? @map("bracket_scheduled_at")
+  bracketTatami       Int?      @map("bracket_tatami")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  participants TournamentParticipant[]
+  matches      TournamentMatch[]
+
+  @@index([tournamentId])
+  @@map("tournament_brackets")
+}
+
+model TournamentParticipant {
+  id           String     @id @default(cuid())
+  tournamentId String     @map("tournament_id")
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  studentId    String     @map("student_id")
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  bracketId    String?    @map("bracket_id")
+  bracket      TournamentBracket? @relation(fields: [bracketId], references: [id], onDelete: SetNull)
+  seed         Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  @@unique([tournamentId, studentId])
+  @@index([tournamentId])
+  @@index([bracketId])
+  @@index([bracketId, tournamentId])
+  @@map("tournament_participants")
+}
+
+model TournamentMatch {
+  id             String     @id @default(cuid())
+  tournamentId   String     @map("tournament_id")
+  tournament     Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  bracketId      String?    @map("bracket_id")
+  bracket        TournamentBracket? @relation(fields: [bracketId], references: [id], onDelete: SetNull)
+  round          Int
+  matchNumber    Int        @map("match_number")
+  participant1Id String?    @map("participant1_id")
+  participant2Id String?    @map("participant2_id")
+  score1         Int?       @map("score1")
+  score2         Int?       @map("score2")
+  winnerId       String?    @map("winner_id")
+  isBye          Boolean    @default(false) @map("is_bye")
+
+  // Unicidad: no pueden existir dos matches con mismo round+matchNumber en el mismo bracket
+  @@unique([bracketId, round, matchNumber])
+  @@index([tournamentId, round])
+  @@index([bracketId])
+  @@index([tournamentId, bracketId, round, matchNumber])
+  @@index([tournamentId, round, matchNumber])
+  @@map("tournament_matches")
+}
+
+model TournamentEmailLog {
+  id           String   @id @default(cuid())
+  tournamentId String   @map("tournament_id")
+  studentId    String?  @map("student_id")
+  email        String
+  status       String   // sent | failed
+  error        String?
+  sentAt       DateTime @default(now())
+
+  @@index([tournamentId])
+  @@map("tournament_email_logs")
+}
+
+model TournamentReferee {
+  id           String     @id @default(cuid())
+  tournamentId String     @map("tournament_id")
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  name         String
+  order        Int        @default(0)
+
+  @@index([tournamentId])
+  @@map("tournament_referees")
 }

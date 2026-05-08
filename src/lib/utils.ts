@@ -24,16 +24,19 @@ export function formatCurrency(amount: number): string {
 }
 
 export const BELT_COLORS = [
-  { value: "blanca",          label: "Blanca",          hex: "#FFFFFF", textColor: "#000" },
-  { value: "amarilla",        label: "Amarilla",         hex: "#FFD700", textColor: "#000" },
+  { value: "blanca",           label: "Blanca",            hex: "#FFFFFF", textColor: "#000" },
+  { value: "blanca-celeste",  label: "Blanca Celeste",   hex: "#87CEEB", textColor: "#000" },
+  { value: "blanco-amarillo", label: "Blanco Amarillo",  hex: "#FFE566", textColor: "#000" },
+  { value: "amarilla",        label: "Amarilla",          hex: "#FFD700", textColor: "#000" },
   { value: "naranja",         label: "Naranja",          hex: "#FF8C00", textColor: "#FFF" },
   { value: "verde",           label: "Verde",            hex: "#228B22", textColor: "#FFF" },
   { value: "azul",            label: "Azul",             hex: "#1E3A8A", textColor: "#FFF" },
   { value: "morada",          label: "Morada",           hex: "#6B21A8", textColor: "#FFF" },
-  { value: "café",            label: "Café",             hex: "#7B4F2E", textColor: "#FFF" },
-  { value: "café-1-raya",     label: "Café 1 Raya",      hex: "#7B4F2E", textColor: "#FFF" },
-  { value: "café-2-rayas",    label: "Café 2 Rayas",     hex: "#7B4F2E", textColor: "#FFF" },
-  { value: "café-3-rayas",    label: "Café 3 Rayas",     hex: "#7B4F2E", textColor: "#FFF" },
+  { value: "roja",            label: "Roja",             hex: "#CC0000", textColor: "#FFF" },
+  { value: "café",            label: "Marrón",           hex: "#7B4F2E", textColor: "#FFF" },
+  { value: "café-1-raya",     label: "Marrón 1 Kiu",     hex: "#7B4F2E", textColor: "#FFF" },
+  { value: "café-2-rayas",    label: "Marrón 2 Kiu",     hex: "#7B4F2E", textColor: "#FFF" },
+  { value: "café-3-rayas",    label: "Marrón 3 Kiu",     hex: "#7B4F2E", textColor: "#FFF" },
   { value: "negra",           label: "Negra",            hex: "#1A1A1A", textColor: "#FFD700" },
   { value: "negra-1-dan",     label: "Negra 1er Dan",    hex: "#1A1A1A", textColor: "#FFD700" },
   { value: "negra-2-dan",     label: "Negra 2do Dan",    hex: "#1A1A1A", textColor: "#FFD700" },
@@ -54,6 +57,13 @@ export const NATIONALITIES = [
   "Hondureña", "Salvadoreña", "Nicaragüense", "Mexicana", "Cubana",
   "Dominicana", "Estadounidense", "Española", "Italiana", "Otra",
 ];
+
+// Cintas que permiten registrar hasta 5 katas por cambio de cinta
+export const MULTI_KATA_BELTS = new Set([
+  "roja",
+  "café", "café-1-raya", "café-2-rayas", "café-3-rayas",
+  "negra", "negra-1-dan", "negra-2-dan", "negra-3-dan",
+]);
 
 export const PAYMENT_STATUS_LABELS: Record<string, { label: string; className: string }> = {
   pending: { label: "Pendiente", className: "badge-yellow" },

@@ -1,0 +1,105 @@
+/* ── Estilos exclusivos de impresión para brackets de torneos ────────────── */
+
+@media print {
+  /* ── Página landscape, márgenes mínimos ─────────────────────────────── */
+  @page { size: landscape; margin: 8mm; }
+
+  /* ── Ocultar toda la UI ──────────────────────────────────────────────── */
+  nav, header, aside, footer,
+  button, input, select, textarea,
+  .print-hide,
+  [data-sidebar], [data-topbar] { display: none !important; }
+
+  body { background: white !important; color: #111 !important; }
+
+  /* ── Una hoja por bracket ────────────────────────────────────────────── */
+  .bracket-page         { page-break-after: always; padding: 0; }
+  .bracket-page:last-child { page-break-after: auto; }
+
+  /* ── Mantener colores AKA/AO al imprimir ─────────────────────────────── */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust:         exact !important;
+    color-adjust:               exact !important;
+  }
+
+  /* ── Header de página de bracket ─────────────────────────────────────── */
+  .bracket-print-header {
+    display:         flex !important;
+    justify-content: space-between;
+    align-items:     flex-start;
+    border-bottom:   2px solid #CC0000;
+    padding-bottom:  6mm;
+    margin-bottom:   6mm;
+  }
+  .bracket-print-header h2 {
+    font-size:   18px;
+    font-weight: 800;
+    margin:      0 0 2px;
+    color:       #111;
+  }
+  .bracket-print-header p  { font-size: 11px; color: #555; margin: 2px 0; }
+  .bracket-print-header .meta {
+    text-align:  right;
+    font-size:   11px;
+    color:       #444;
+    line-height: 1.6;
+  }
+
+  /* ── Wrapper del bracket ─────────────────────────────────────────────── */
+  .bracket-wrapper { overflow: visible !important; }
+
+  /* Brackets con ≥16 participantes: reducir escala para que quepan en 1 hoja */
+  .bracket-large  .bracket-scale-target { transform: scale(0.75); transform-origin: top left; }
+  .bracket-medium .bracket-scale-target { transform: scale(0.85); transform-origin: top left; }
+
+  /* ── Cards de competidores ───────────────────────────────────────────── */
+  .bracket-match-box {
+    border:        1.5px solid #444 !important;
+    border-radius: 4px   !important;
+    box-shadow:    none  !important;
+  }
+  .bracket-player   { opacity: 1 !important; }
+  .bracket-name     { color: #fff !important; font-size: 10px !important; }
+  .bracket-score    { color: #fff !important; }
+  .bracket-color-label { color: rgba(255,255,255,0.85) !important; font-size: 8px !important; }
+
+  /* Líneas conectoras */
+  svg path { stroke: #777 !important; }
+
+  /* ── Labels de rondas ────────────────────────────────────────────────── */
+  .bracket-round-label {
+    color:       #333 !important;
+    font-size:   10px !important;
+    font-weight: 700  !important;
+  }
+
+  /* ── Línea de firma del árbitro ──────────────────────────────────────── */
+  .bracket-signature-line {
+    display:    flex  !important;
+    gap:        20mm;
+    margin-top: 10mm;
+  }
+  .bracket-signature-line span {
+    flex:        1;
+    border-top:  1px solid #333;
+    padding-top: 3mm;
+    font-size:   9px;
+    color:       #555;
+  }
+
+  /* ── Estado del bracket en footer ───────────────────────────────────── */
+  .bracket-print-footer {
+    display:         flex !important;
+    justify-content: space-between;
+    align-items:     center;
+    border-top:      1px solid #ccc;
+    margin-top:      6mm;
+    padding-top:     3mm;
+    font-size:       9px;
+    color:           #666;
+  }
+
+  /* ── Font mínimo legible ─────────────────────────────────────────────── */
+  * { font-size: max(9px, inherit); }
+}

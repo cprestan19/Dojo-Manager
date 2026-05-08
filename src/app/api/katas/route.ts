@@ -2,12 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS, getCachedKatas } from "@/lib/queries";
+import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 
-export async function GET() {
+type SessionUser = { role?: string; dojoId?: string | null };
+
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+  const { dojoId } = session.user as SessionUser;
+  // NOTE: role needed for sysadmin context — check SessionUser type
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
+
+  const activeOnly = new URL(req.url).searchParams.get("active") === "1";
+
+  if (activeOnly) {
+    const katas = await getCachedKatas(dojoId);
+    return NextResponse.json(katas);
+  }
+
   const katas = await prisma.kata.findMany({
+    where:   { dojoId },
     orderBy: [{ order: "asc" }, { name: "asc" }],
   });
   return NextResponse.json(katas);
@@ -17,18 +34,51 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const role = (session.user as { role?: string }).role;
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (role !== "sysadmin" && role !== "admin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const body = await req.json();
-  const kata = await prisma.kata.create({
-    data: {
-      name:        body.name,
-      beltColor:   body.beltColor,
-      order:       Number(body.order) || 0,
-      description: body.description ?? null,
-    },
-  });
-  return NextResponse.json(kata, { status: 201 });
+
+  // Creación en lote (cintas avanzadas: hasta 5 katas a la vez)
+  if (Array.isArray(body.katas)) {
+    const data = (body.katas as { name: string; beltColor: string; order: number; description: string | null }[])
+      .filter(k => k.name?.trim())
+      .map(k => ({
+        dojoId,
+        name:        k.name.trim(),
+        beltColor:   k.beltColor,
+        order:       Number(k.order) || 0,
+        description: k.description ?? null,
+      }));
+
+    if (data.length === 0)
+      return NextResponse.json({ error: "No hay katas válidos para crear" }, { status: 400 });
+
+    await prisma.kata.createMany({ data, skipDuplicates: true });
+    revalidateTag(CACHE_TAGS.katas(dojoId));
+    return NextResponse.json({ created: data.length }, { status: 201 });
+  }
+
+  // Creación individual (comportamiento original)
+  try {
+    const kata = await prisma.kata.create({
+      data: {
+        dojoId,
+        name:        body.name,
+        beltColor:   body.beltColor,
+        order:       Number(body.order) || 0,
+        description: body.description ?? null,
+      },
+    });
+    revalidateTag(CACHE_TAGS.katas(dojoId));
+    return NextResponse.json(kata, { status: 201 });
+  } catch (err: unknown) {
+    const code = (err as { code?: string })?.code;
+    if (code === "P2002")
+      return NextResponse.json({ error: "Ya existe un kata con ese nombre en este dojo." }, { status: 409 });
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
 }

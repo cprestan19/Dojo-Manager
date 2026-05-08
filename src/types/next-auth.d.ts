@@ -3,6 +3,10 @@ import "next-auth";
 declare module "next-auth" {
   interface User {
     role?: string;
+    dojoId?: string | null;
+    studentId?: string | null;
+    mustChangePassword?: boolean;
+    photoUrl?: string | null;
   }
   interface Session {
     user: {
@@ -11,6 +15,9 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
       role?: string;
+      dojoId?: string | null;
+      studentId?: string | null;
+      mustChangePassword?: boolean;
     };
   }
 }
@@ -19,5 +26,8 @@ declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
     role?: string;
+    dojoId?: string | null;
+    studentId?: string | null;
+    mustChangePassword?: boolean;
   }
 }
