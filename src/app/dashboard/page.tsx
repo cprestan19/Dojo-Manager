@@ -135,7 +135,7 @@ export default async function DashboardPage() {
       where: baseStudentWhere, take: 6, orderBy: { createdAt: "desc" },
       select: {
         id: true, fullName: true, birthDate: true,
-        // photo excluido — puede ser base64 MB; el avatar muestra iniciales si no hay URL
+        photo: true,  // URL Cloudinary — string corto, seguro en lista
         beltHistory: { orderBy: { changeDate: "desc" }, take: 1, select: { beltColor: true } },
       },
     }),
@@ -223,13 +223,18 @@ export default async function DashboardPage() {
               const belt     = s.beltHistory[0]?.beltColor ?? "sin cinta";
               const age      = Math.floor((Date.now() - new Date(s.birthDate).getTime()) / (365.25 * 86_400_000));
               const initials = s.fullName.split(" ").slice(0, 2).map(w => w[0]).join("");
+              const photoUrl = s.photo?.startsWith("http") ? s.photo : null;
               return (
                 <div key={s.id} className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors"
                   style={{ borderBottom: idx < recentStudents.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center text-xs font-bold"
                       style={{ background: "rgba(229,57,53,0.12)", color: "#E53935" }}>
-                      {initials}
+                      {photoUrl
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={photoUrl} alt={s.fullName} className="w-full h-full object-cover" />
+                        : initials
+                      }
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-white">{s.fullName}</p>
