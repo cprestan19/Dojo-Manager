@@ -1,6 +1,3 @@
-// Cachear el dashboard 60 segundos — los métricas no necesitan ser en tiempo real
-export const revalidate = 60;
-
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { cookies } from "next/headers";
