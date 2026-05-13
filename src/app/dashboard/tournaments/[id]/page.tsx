@@ -704,7 +704,8 @@ export default function TournamentDetailPage() {
         <TabButton active={tab === "config"} onClick={() => setTab("config")}>
           <Settings size={15} /> Configuración
         </TabButton>
-        {canEdit && (
+        {/* Tabs Pro — solo sysadmin (Torneo Pro) */}
+        {isSysadmin && (
           <>
             <TabButton active={tab === "registrations"} onClick={() => setTab("registrations")}>
               <Users size={15} /> Inscripciones
