@@ -17,6 +17,7 @@ export const NAV_KEYS = {
   SETTINGS_EMAIL:  "settings.email",
   SETTINGS_ROLES:  "settings.roles",
   KATAS_CATALOG:   "katas",
+  EVENTS:          "events",
 } as const;
 
 export type NavKey = typeof NAV_KEYS[keyof typeof NAV_KEYS];
@@ -37,6 +38,7 @@ export const ALL_DOJO_KEYS: NavKey[] = [
   NAV_KEYS.SETTINGS_VIDEOS,
   NAV_KEYS.SETTINGS_EMAIL,
   NAV_KEYS.SETTINGS_ROLES,
+  NAV_KEYS.EVENTS,
 ];
 
 // Permisos del sysadmin SIN dojo activo — solo gestión global de la plataforma
@@ -88,6 +90,7 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "settings.email":   "Correo SMTP",
   "settings.roles":   "Roles y Accesos",
   "katas":            "Catálogo Katas",
+  "events":           "Eventos",
 };
 
 export const ROLE_COLORS = [
