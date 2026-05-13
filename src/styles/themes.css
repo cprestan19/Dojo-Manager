@@ -1,129 +1,92 @@
 /* ─────────────────────────────────────────────────────────────
    SISTEMA DE THEMES — DojoManager SaaS
-   Uso: <html data-theme="dark-saas">
+   Usa canales RGB (sin #) para que Tailwind soporte opacidad:
+   bg-dojo-card/40 → background: rgb(var(--c-card) / 0.4)
    ───────────────────────────────────────────────────────────── */
 
-/* ── Fallback / default (dark-saas es el default) ────────────── */
-:root {
-  --bg:             #0B0F14;
-  --sidebar:        #111827;
-  --card:           #1A2233;
-  --card-hover:     #1F2A3C;
-  --border:         #2A3447;
-  --border-subtle:  #1E2A3A;
-  --text-primary:   #E5E7EB;
-  --text-secondary: #9CA3AF;
-  --text-muted:     #6B7280;
-  --primary:        #3B82F6;
-  --primary-hover:  #2563EB;
-  --primary-subtle: rgba(59,130,246,0.12);
-  --success:        #10B981;
-  --success-subtle: rgba(16,185,129,0.12);
-  --warning:        #F59E0B;
-  --warning-subtle: rgba(245,158,11,0.12);
-  --danger:         #EF4444;
-  --danger-subtle:  rgba(239,68,68,0.12);
-  --gold:           #F59E0B;
-  --overlay:        rgba(0,0,0,0.6);
-  --shadow:         0 4px 24px rgba(0,0,0,0.4);
-  --shadow-sm:      0 2px 8px rgba(0,0,0,0.25);
-  --radius:         0.75rem;
-  --radius-sm:      0.5rem;
-  --radius-lg:      1rem;
-  --font-display:   'Cinzel', serif;
-  --font-body:      'Nunito', sans-serif;
-  --transition:     150ms ease;
-}
-
 /* ══════════════════════════════════════════════════════════════
-   THEME 1 — dark-saas (Fintech / Analytics Premium)
+   THEME 1 — dark-saas (default / Fintech Premium)
    ══════════════════════════════════════════════════════════════ */
+:root,
 [data-theme="dark-saas"] {
+  --c-bg:      11 15 20;       /* #0B0F14 */
+  --c-sidebar: 17 24 39;       /* #111827 */
+  --c-card:    26 34 51;       /* #1A2233 */
+  --c-border:  42 52 71;       /* #2A3447 */
+  --c-text-1:  229 231 235;    /* #E5E7EB */
+  --c-text-2:  156 163 175;    /* #9CA3AF */
+  --c-primary: 192 57 43;      /* #C0392B (dojo-red original) */
+  --c-success: 16 185 129;     /* #10B981 */
+  --c-warning: 245 158 11;     /* #F59E0B */
+  --c-danger:  239 68 68;      /* #EF4444 */
+
+  /* Variables semánticas (para componentes t-*) */
   --bg:             #0B0F14;
   --sidebar:        #111827;
   --card:           #1A2233;
-  --card-hover:     #1F2A3C;
   --border:         #2A3447;
-  --border-subtle:  #1E2A3A;
   --text-primary:   #E5E7EB;
   --text-secondary: #9CA3AF;
-  --text-muted:     #6B7280;
-  --primary:        #3B82F6;
-  --primary-hover:  #2563EB;
-  --primary-subtle: rgba(59,130,246,0.12);
-  --success:        #10B981;
-  --success-subtle: rgba(16,185,129,0.12);
-  --warning:        #F59E0B;
-  --warning-subtle: rgba(245,158,11,0.12);
-  --danger:         #EF4444;
-  --danger-subtle:  rgba(239,68,68,0.12);
-  --overlay:        rgba(0,0,0,0.65);
+  --primary:        #C0392B;
+  --primary-subtle: rgba(192,57,43,0.12);
+  --primary-hover:  #A93226;
   --shadow:         0 4px 24px rgba(0,0,0,0.5);
   --shadow-sm:      0 2px 8px rgba(0,0,0,0.3);
 }
 
 /* ══════════════════════════════════════════════════════════════
-   THEME 2 — soft-neutral (Notion / Stripe Minimal)
+   THEME 2 — soft-neutral (Light Minimal / Notion / Stripe)
    ══════════════════════════════════════════════════════════════ */
 [data-theme="soft-neutral"] {
+  --c-bg:      249 250 251;   /* #F9FAFB */
+  --c-sidebar: 255 255 255;   /* #FFFFFF */
+  --c-card:    255 255 255;   /* #FFFFFF */
+  --c-border:  229 231 235;   /* #E5E7EB */
+  --c-text-1:  17 24 39;      /* #111827 */
+  --c-text-2:  107 114 128;   /* #6B7280 */
+  --c-primary: 79 70 229;     /* #4F46E5 */
+  --c-success: 5 150 105;     /* #059669 */
+  --c-warning: 217 119 6;     /* #D97706 */
+  --c-danger:  220 38 38;     /* #DC2626 */
+
   --bg:             #F9FAFB;
   --sidebar:        #FFFFFF;
   --card:           #FFFFFF;
-  --card-hover:     #F3F4F6;
   --border:         #E5E7EB;
-  --border-subtle:  #F3F4F6;
   --text-primary:   #111827;
   --text-secondary: #6B7280;
-  --text-muted:     #9CA3AF;
   --primary:        #4F46E5;
-  --primary-hover:  #4338CA;
   --primary-subtle: rgba(79,70,229,0.08);
-  --success:        #059669;
-  --success-subtle: rgba(5,150,105,0.08);
-  --warning:        #D97706;
-  --warning-subtle: rgba(217,119,6,0.08);
-  --danger:         #DC2626;
-  --danger-subtle:  rgba(220,38,38,0.08);
-  --overlay:        rgba(0,0,0,0.4);
+  --primary-hover:  #4338CA;
   --shadow:         0 4px 16px rgba(0,0,0,0.08);
   --shadow-sm:      0 1px 4px rgba(0,0,0,0.06);
 }
 
 /* ══════════════════════════════════════════════════════════════
    THEME 3 — executive-red (Deportivo Ejecutivo)
-   El rojo SOLO como acento — nunca saturar toda la UI
+   Sidebar oscuro, fondo blanco, rojo SOLO como acento
    ══════════════════════════════════════════════════════════════ */
 [data-theme="executive-red"] {
+  --c-bg:      248 250 252;   /* #F8FAFC */
+  --c-sidebar: 15 23 42;      /* #0F172A — sidebar oscuro */
+  --c-card:    255 255 255;   /* #FFFFFF */
+  --c-border:  226 232 240;   /* #E2E8F0 */
+  --c-text-1:  17 24 39;      /* #111827 */
+  --c-text-2:  71 85 105;     /* #475569 */
+  --c-primary: 220 38 38;     /* #DC2626 — rojo SOLO en acento */
+  --c-success: 22 163 74;     /* #16A34A */
+  --c-warning: 202 138 4;     /* #CA8A04 */
+  --c-danger:  220 38 38;     /* #DC2626 */
+
   --bg:             #F8FAFC;
   --sidebar:        #0F172A;
   --card:           #FFFFFF;
-  --card-hover:     #F8FAFC;
   --border:         #E2E8F0;
-  --border-subtle:  #F1F5F9;
   --text-primary:   #111827;
   --text-secondary: #475569;
-  --text-muted:     #94A3B8;
   --primary:        #DC2626;
-  --primary-hover:  #B91C1C;
   --primary-subtle: rgba(220,38,38,0.08);
-  --success:        #16A34A;
-  --success-subtle: rgba(22,163,74,0.08);
-  --warning:        #CA8A04;
-  --warning-subtle: rgba(202,138,4,0.08);
-  --danger:         #DC2626;
-  --danger-subtle:  rgba(220,38,38,0.08);
-  --overlay:        rgba(15,23,42,0.5);
+  --primary-hover:  #B91C1C;
   --shadow:         0 4px 20px rgba(15,23,42,0.12);
   --shadow-sm:      0 1px 6px rgba(15,23,42,0.08);
-  /* sidebar es oscuro aunque el fondo sea blanco */
-  --sidebar-text:   #F1F5F9;
-  --sidebar-muted:  #94A3B8;
-}
-
-/* ── Texto del sidebar varía por theme ───────────────────────── */
-:root,
-[data-theme="dark-saas"],
-[data-theme="soft-neutral"] {
-  --sidebar-text:   var(--text-primary);
-  --sidebar-muted:  var(--text-muted);
 }
