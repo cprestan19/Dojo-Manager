@@ -163,10 +163,10 @@ export async function DELETE(
   const existing = await prisma.tournament.findFirst({ where: { id, dojoId } });
   if (!existing) return NextResponse.json({ error: "Torneo no encontrado" }, { status: 404 });
 
-  // Admin solo puede eliminar borradores; sysadmin puede eliminar cualquier estado
-  if (user.role !== "sysadmin" && existing.status !== "draft") {
+  // Admin puede eliminar cualquier torneo excepto los confirmados; sysadmin puede eliminar todo
+  if (user.role !== "sysadmin" && existing.status === "confirmed") {
     return NextResponse.json(
-      { error: "Solo se pueden eliminar torneos en estado Borrador. Contacta al Sysadmin para eliminar torneos activos." },
+      { error: "No se puede eliminar un torneo ya confirmado. Contacta al Sysadmin." },
       { status: 400 },
     );
   }

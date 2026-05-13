@@ -663,8 +663,8 @@ export default function TournamentDetailPage() {
           </button>
         )}
 
-        {/* Eliminar torneo — admin: solo draft · sysadmin: siempre */}
-        {(isSysadmin || tournament.status === "draft") && (
+        {/* Eliminar torneo — admin: cualquier estado excepto confirmado · sysadmin: siempre */}
+        {(isSysadmin || tournament.status !== "confirmed") && canEdit && (
           <button
             onClick={async () => {
               if (!confirm(`¿Eliminar el torneo "${tournament.name}"? Esta acción no se puede deshacer.`)) return;
@@ -677,15 +677,11 @@ export default function TournamentDetailPage() {
                 showToast((d as { error?: string }).error ?? "No se pudo eliminar", "error");
               }
             }}
-            title="Eliminar torneo"
-            className={[
-              "mt-1 p-2 rounded-lg transition-colors flex-shrink-0",
-              isSysadmin
-                ? "text-red-400 hover:bg-red-400/10 hover:text-red-300"
-                : "text-dojo-muted hover:bg-dojo-border hover:text-red-400",
-            ].join(" ")}
+            className="mt-1 flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors flex-shrink-0
+                       text-red-400 hover:bg-red-400/10 border border-red-400/30 hover:border-red-400/60 text-sm font-medium"
           >
-            <Trash2 size={18} />
+            <Trash2 size={15} />
+            Eliminar
           </button>
         )}
       </div>
