@@ -207,7 +207,7 @@ export function MobileNav() {
               <Link key={item.href} href={item.href} onClick={close}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
-                  active ? "bg-dojo-red text-white" : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+                  active ? "bg-dojo-nav-active text-white" : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
                 )}
               >
                 <Icon size={18} />
@@ -246,7 +246,7 @@ export function MobileNav() {
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
                   pathname.startsWith("/dashboard/settings") && !pathname.startsWith("/dashboard/settings/katas")
-                    ? "bg-dojo-red text-white"
+                    ? "bg-dojo-nav-active text-white"
                     : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
                 )}
               >
@@ -263,7 +263,7 @@ export function MobileNav() {
                       <Link key={sub.href} href={sub.href} onClick={close}
                         className={cn(
                           "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm",
-                          active ? "bg-dojo-red text-white font-medium" : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+                          active ? "bg-dojo-nav-active text-white font-medium" : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
                         )}
                       >
                         <Icon size={15} />

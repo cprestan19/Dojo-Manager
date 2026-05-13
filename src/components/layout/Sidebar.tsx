@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -67,7 +67,7 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 min-h-screen bg-dojo-dark border-r border-dojo-border flex flex-col">
-      {/* App branding — dojo logo when available, app logo as fallback */}
+      {/* App branding â€” dojo logo when available, app logo as fallback */}
       <div className="px-4 py-4 border-b border-dojo-border">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-dojo-red flex items-center justify-center shadow shadow-dojo-red/30">
@@ -96,7 +96,7 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Navegación */}
+      {/* NavegaciÃ³n */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {visible.map(item => {
           const Icon   = item.icon;
@@ -108,7 +108,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
                 active
-                  ? "bg-dojo-red text-white"
+                  ? "bg-dojo-nav-active text-white"
                   : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
               )}
             >
@@ -118,7 +118,7 @@ export function Sidebar() {
           );
         })}
 
-        {/* Torneo Pro — visible para todos, funcional solo para sysadmin */}
+        {/* Torneo Pro â€” visible para todos, funcional solo para sysadmin */}
         {(isSysadmin || role === "admin") && (
           isSysadmin ? (
             <Link
@@ -126,7 +126,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium relative",
                 pathname.startsWith("/dashboard/tournaments-pro")
-                  ? "bg-dojo-red text-white"
+                  ? "bg-dojo-nav-active text-white"
                   : "text-dojo-gold hover:bg-dojo-gold/10 hover:text-dojo-gold",
               )}
             >
@@ -161,7 +161,7 @@ export function Sidebar() {
                   </div>
                   <div>
                     <p className="font-display font-bold text-dojo-sidebar-text text-lg">Torneo Pro</p>
-                    <p className="text-[10px] text-dojo-gold font-bold uppercase tracking-widest">Módulo Premium</p>
+                    <p className="text-[10px] text-dojo-gold font-bold uppercase tracking-widest">MÃ³dulo Premium</p>
                   </div>
                 </div>
                 <button onClick={() => setShowProPopup(false)} className="text-dojo-sidebar-muted hover:text-dojo-sidebar-text transition-colors">
@@ -170,17 +170,17 @@ export function Sidebar() {
               </div>
 
               <p className="text-sm text-dojo-sidebar-muted leading-relaxed">
-                El módulo <span className="text-dojo-sidebar-text font-semibold">Torneo Pro</span> incluye funcionalidades de nivel federativo:
+                El mÃ³dulo <span className="text-dojo-sidebar-text font-semibold">Torneo Pro</span> incluye funcionalidades de nivel federativo:
               </p>
               <ul className="space-y-1.5">
                 {[
-                  "🎌 Tatamis con asignación de jueces",
-                  "📋 Programa oficial del torneo",
-                  "🔴 Transmisión en vivo por YouTube",
-                  "📺 Overlay para OBS/Streamlabs",
-                  "🌐 Página pública para espectadores",
-                  "📝 Inscripciones de competidores externos",
-                  "🔒 Bloqueo oficial de llaves post-inscripción",
+                  "ðŸŽŒ Tatamis con asignaciÃ³n de jueces",
+                  "ðŸ“‹ Programa oficial del torneo",
+                  "ðŸ”´ TransmisiÃ³n en vivo por YouTube",
+                  "ðŸ“º Overlay para OBS/Streamlabs",
+                  "ðŸŒ PÃ¡gina pÃºblica para espectadores",
+                  "ðŸ“ Inscripciones de competidores externos",
+                  "ðŸ”’ Bloqueo oficial de llaves post-inscripciÃ³n",
                 ].map(f => (
                   <li key={f} className="text-xs text-dojo-sidebar-muted flex items-start gap-2">
                     <span>{f}</span>
@@ -190,10 +190,10 @@ export function Sidebar() {
 
               <div className="bg-dojo-gold/10 border border-dojo-gold/20 rounded-xl p-3">
                 <p className="text-xs text-dojo-gold font-semibold flex items-center gap-2">
-                  <PhoneCall size={13} /> Para activar este módulo:
+                  <PhoneCall size={13} /> Para activar este mÃ³dulo:
                 </p>
                 <p className="text-xs text-dojo-sidebar-muted mt-1">
-                  Contacta al equipo de ventas de <span className="text-dojo-sidebar-text font-semibold">Dojo Master</span> para solicitar la activación en tu cuenta.
+                  Contacta al equipo de ventas de <span className="text-dojo-sidebar-text font-semibold">Dojo Master</span> para solicitar la activaciÃ³n en tu cuenta.
                 </p>
               </div>
 
@@ -207,7 +207,7 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Configuración — grupo expandible */}
+        {/* ConfiguraciÃ³n â€” grupo expandible */}
         {visibleSettings.length > 0 && (
           <div>
             <button
@@ -215,12 +215,12 @@ export function Sidebar() {
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
                 inSettings
-                  ? "bg-dojo-red text-white"
+                  ? "bg-dojo-nav-active text-white"
                   : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
               )}
             >
               <Settings size={18} />
-              <span className="flex-1 text-left">Configuración</span>
+              <span className="flex-1 text-left">ConfiguraciÃ³n</span>
               <ChevronDown
                 size={14}
                 className={cn("transition-transform duration-200", settingsOpen && "rotate-180")}
@@ -239,7 +239,7 @@ export function Sidebar() {
                       className={cn(
                         "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 text-sm",
                         active
-                          ? "bg-dojo-red text-white font-medium"
+                          ? "bg-dojo-nav-active text-white font-medium"
                           : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
                       )}
                     >
@@ -254,7 +254,7 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* Scanner QR — solo admin/sysadmin */}
+      {/* Scanner QR â€” solo admin/sysadmin */}
       {(role === "sysadmin" || role === "admin") && (
         <div className="px-4 pb-3">
           <a
@@ -289,9 +289,10 @@ export function Sidebar() {
           onClick={() => signOut({ callbackUrl: "/login" })}
           className="w-full btn-ghost text-sm justify-start"
         >
-          <LogOut size={16} /> Cerrar Sesión
+          <LogOut size={16} /> Cerrar SesiÃ³n
         </button>
       </div>
     </aside>
   );
 }
+

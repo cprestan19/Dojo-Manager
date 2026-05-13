@@ -12,7 +12,8 @@
   --c-bg:           11 15 20;       /* #0B0F14 */
   --c-sidebar:      17 24 39;       /* #111827 */
   --c-sidebar-text: 229 231 235;    /* sidebar is dark → text light */
-  --c-sidebar-muted:156 163 175;
+  --c-sidebar-muted:209 213 219;    /* gray-300 — letras blancas visibles */
+  --c-nav-active:   55 65 81;       /* gray-700 — resalte gris, sin rojo */
   --c-card:         26 34 51;       /* #1A2233 */
   --c-border:       42 52 71;       /* #2A3447 */
   --c-text-1:       229 231 235;    /* #E5E7EB */
@@ -44,6 +45,7 @@
   --c-sidebar:      255 255 255;   /* #FFFFFF */
   --c-sidebar-text: 17 24 39;      /* sidebar is white → text dark */
   --c-sidebar-muted:107 114 128;
+  --c-nav-active:   79 70 229;     /* indigo/primario */
   --c-card:         255 255 255;   /* #FFFFFF */
   --c-border:       229 231 235;   /* #E5E7EB */
   --c-text-1:       17 24 39;      /* #111827 */
@@ -74,7 +76,8 @@
   --c-bg:           248 250 252;   /* #F8FAFC */
   --c-sidebar:      17 17 17;      /* #111111 — negro para sidebar/header */
   --c-sidebar-text: 229 231 235;   /* sidebar es oscuro → texto CLARO */
-  --c-sidebar-muted:156 163 175;   /* gris medio */
+  --c-sidebar-muted:209 213 219;   /* gray-300 — letras blancas visibles */
+  --c-nav-active:   220 38 38;     /* rojo primario */
   --c-card:         255 255 255;   /* #FFFFFF */
   --c-border:       229 231 235;   /* #E5E7EB — gris claro para contenido */
   --c-text-1:       17 24 39;      /* #111111 */
