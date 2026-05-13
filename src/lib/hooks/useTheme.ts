@@ -9,31 +9,32 @@ export const THEMES: Array<{ id: ThemeId; label: string; preview: string }> = [
   { id: "executive-red",  label: "Ejecutivo",     preview: "#0F172A" },
 ];
 
-const STORAGE_KEY = "dojo-theme";
 const DEFAULT_THEME: ThemeId = "dark-saas";
 
 function applyTheme(theme: ThemeId) {
   if (typeof document === "undefined") return;
-  document.documentElement.setAttribute("data-theme", theme);
+  // El SSR pone data-theme en #dojo-shell — actualizamos ese mismo elemento.
+  // Si no existe (todavía montando), caemos al documentElement.
+  const el = document.getElementById("dojo-shell") ?? document.documentElement;
+  el.setAttribute("data-theme", theme);
 }
 
 export function useTheme() {
+  // Estado inicial: sincroniza con el data-theme que puso el SSR en #dojo-shell.
+  // No usamos localStorage — la DB es la fuente de verdad (el SSR ya leyó de allí).
   const [theme, setThemeState] = useState<ThemeId>(DEFAULT_THEME);
 
-  // Aplicar theme en el primer render (desde localStorage o default)
   useEffect(() => {
-    const saved = (localStorage.getItem(STORAGE_KEY) as ThemeId) ?? DEFAULT_THEME;
-    setThemeState(saved);
-    applyTheme(saved);
+    const el = document.getElementById("dojo-shell");
+    const ssrTheme = (el?.getAttribute("data-theme") as ThemeId) ?? DEFAULT_THEME;
+    setThemeState(ssrTheme);
   }, []);
 
   const setTheme = useCallback((newTheme: ThemeId) => {
     setThemeState(newTheme);
     applyTheme(newTheme);
-    localStorage.setItem(STORAGE_KEY, newTheme);
 
-    // Sincronizar con el servidor (persistencia por dojo en DB)
-    // Fire-and-forget — no bloquea la UI
+    // Persistir en DB (fuente de verdad para SSR)
     fetch("/api/dojo/theme", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

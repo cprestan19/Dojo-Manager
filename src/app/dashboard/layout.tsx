@@ -46,7 +46,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // data-theme aplicado en el wrapper del dashboard — aísla el theme por dojo
     // sin afectar el resto de la app (login, portal, páginas públicas)
     <DashboardShell theme={theme}>
-      <div className="flex min-h-screen" data-theme={theme}>
+      <div id="dojo-shell" className="flex min-h-screen" data-theme={theme}>
         <div className="hidden lg:block">
           <Sidebar />
         </div>
