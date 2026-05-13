@@ -47,68 +47,54 @@ export async function PUT(
       return NextResponse.json({ error: "studentIds debe ser un arreglo" }, { status: 400 });
     }
 
-    // Check for conflicts: are any of these students already in ANOTHER bracket of the same tournament?
+    // Conflicto solo si el alumno ya está en OTRO bracket del MISMO tipo
+    // (Kumite y Kata son independientes — un alumno puede estar en ambos)
     if (studentIds.length > 0) {
-      // Get tournament participants for the given studentIds
-      const existingParticipants = await prisma.tournamentParticipant.findMany({
-        where: {
-          tournamentId: id,
-          studentId: { in: studentIds },
-          bracketId: { not: null },
-          NOT: { bracketId },
-        },
-        include: {
-          student: { select: { fullName: true } },
-        },
+      const sameBracketType = await prisma.tournamentBracket.findMany({
+        where: { tournamentId: id, type: bracket.type, id: { not: bracketId } },
+        select: { id: true, name: true },
       });
+      const sameTypeIds = sameBracketType.map(b => b.id);
 
-      if (existingParticipants.length > 0) {
-        const conflicts = existingParticipants.map((p) => p.student.fullName);
-        return NextResponse.json(
-          {
-            error: `${conflicts.length} alumno(s) ya están asignados a otro bracket de este torneo`,
-            conflicts,
+      if (sameTypeIds.length > 0) {
+        const conflicting = await prisma.tournamentParticipant.findMany({
+          where: {
+            bracketId:  { in: sameTypeIds },
+            studentId:  { in: studentIds },
           },
-          { status: 409 },
-        );
+          include: { student: { select: { fullName: true } } },
+        });
+
+        if (conflicting.length > 0) {
+          const conflicts = conflicting.map(p => p.student.fullName);
+          return NextResponse.json(
+            {
+              error: `${conflicts.length} alumno(s) ya están en otro bracket de ${bracket.type === "kumite" ? "Kumite" : "Kata"}`,
+              conflicts,
+            },
+            { status: 409 },
+          );
+        }
       }
     }
 
     // Unlink current participants from this bracket (set bracketId = null)
     // Then link the new ones (create if not exist, update bracketId if they are already tournament participants)
     await prisma.$transaction(async (tx) => {
-      // Unlink existing bracket participants
-      await tx.tournamentParticipant.updateMany({
-        where: { tournamentId: id, bracketId },
-        data: { bracketId: null },
+      // Eliminar participantes actuales de ESTE bracket
+      await tx.tournamentParticipant.deleteMany({
+        where: { bracketId },
       });
 
-      // Also delete matches for this bracket since participants changed
+      // Eliminar matches de este bracket
       await tx.tournamentMatch.deleteMany({ where: { tournamentId: id, bracketId } });
 
+      // Crear nuevos participantes para este bracket (uno por alumno)
       if (studentIds.length > 0) {
-        // Batch: find which students already have a participant record in this tournament
-        const existing = await tx.tournamentParticipant.findMany({
-          where: { tournamentId: id, studentId: { in: studentIds } },
-          select: { studentId: true },
+        await tx.tournamentParticipant.createMany({
+          data: studentIds.map(studentId => ({ tournamentId: id, studentId, bracketId, seed: 0 })),
+          skipDuplicates: true,
         });
-        const existingSet = new Set(existing.map(p => p.studentId));
-        const newIds = studentIds.filter(sid => !existingSet.has(sid));
-
-        // Update existing participants to point to this bracket (1 query)
-        if (existingSet.size > 0) {
-          await tx.tournamentParticipant.updateMany({
-            where: { tournamentId: id, studentId: { in: [...existingSet] } },
-            data:  { bracketId },
-          });
-        }
-        // Create new participants in batch (1 query)
-        if (newIds.length > 0) {
-          await tx.tournamentParticipant.createMany({
-            data: newIds.map(studentId => ({ tournamentId: id, studentId, bracketId, seed: 0 })),
-            skipDuplicates: true,
-          });
-        }
       }
 
       // Reset bracket status to draft since participants changed

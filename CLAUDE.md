@@ -498,3 +498,19 @@ src/
     ├── hooks/useDojo.ts            ← deps: [userId, role] strings
     └── hooks/usePermissions.ts     ← fetch /api/roles/current → Set<NavKey>; default fallback inmediato
 ```
+
+---
+
+## ⚠️ REGLA DE DESPLIEGUE — Leer antes de hacer push
+
+**NUNCA ejecutar `git push` sin autorización explícita del usuario.**
+
+Vercel está conectado a la rama `main` y despliega automáticamente al detectar cualquier push.
+El usuario necesita probar los cambios localmente antes de enviarlos a producción.
+
+**Flujo obligatorio:**
+1. Hacer los cambios y commits localmente
+2. Preguntar al usuario: *"¿Autorizo el push a GitHub? Eso activará el deploy en Vercel."*
+3. Esperar confirmación explícita antes de ejecutar `git push`
+
+Esto aplica para cualquier push, incluyendo commits vacíos de "trigger deploy".

@@ -512,8 +512,9 @@ model TournamentParticipant {
   seed         Int        @default(0)
   createdAt    DateTime   @default(now())
 
-  @@unique([tournamentId, studentId])
+  @@unique([bracketId, studentId])
   @@index([tournamentId])
+  @@index([studentId])
   @@index([bracketId])
   @@index([bracketId, tournamentId])
   @@map("tournament_participants")

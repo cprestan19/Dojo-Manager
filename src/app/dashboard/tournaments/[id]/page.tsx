@@ -164,7 +164,9 @@ export default function TournamentDetailPage() {
   const [showNewBracketModal, setShowNewBracketModal] = useState(false);
   const [newBracketName,   setNewBracketName]   = useState("");
   const [newBracketGender, setNewBracketGender] = useState<"M" | "F" | null>(null);
-  const [newBracketType,   setNewBracketType]   = useState<"kumite" | "kata">("kumite");
+  const [newBracketType,       setNewBracketType]       = useState<"kumite" | "kata">("kumite");
+  const [importFromBracketId,  setImportFromBracketId]  = useState<string>("");
+  const [importingParticipants,setImportingParticipants]= useState(false);
   const [creatingBracket, setCreatingBracket] = useState(false);
   const [deletingBracketId, setDeletingBracketId] = useState<string | null>(null);
 
@@ -377,6 +379,32 @@ export default function TournamentDetailPage() {
     setShowNewBracketModal(false);
     setNewBracketName("");
     setNewBracketGender(null);
+    setImportFromBracketId("");
+  }
+
+  async function handleImportParticipants(bracketId: string) {
+    if (!importFromBracketId) return;
+    setImportingParticipants(true);
+    try {
+      const res = await fetch(
+        `/api/tournaments/${id}/brackets/${bracketId}/import-from`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceBracketId: importFromBracketId }),
+        },
+      );
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast(`${(d as { imported?: number }).imported ?? 0} participantes importados desde Kumite`);
+        setImportFromBracketId("");
+        await loadBracketMatches(bracketId);
+      } else {
+        showToast((d as { error?: string }).error ?? "Error al importar", "error");
+      }
+    } finally {
+      setImportingParticipants(false);
+    }
   }
 
   async function handleCreateBracket() {
@@ -391,10 +419,17 @@ export default function TournamentDetailPage() {
       if (res.ok) {
         const newBracket: BracketInfo = await res.json();
         setBrackets(prev => [...prev, newBracket]);
+        const sourceId = importFromBracketId; // capturar antes de cerrar
         closeNewBracketModal();
         setSelectedBracketId(newBracket.id);
         setTab(newBracketType);
         showToast("Bracket creado exitosamente");
+        // Si eligió importar participantes, hacerlo inmediatamente
+        if (sourceId) {
+          setImportFromBracketId(sourceId);
+          await handleImportParticipants(newBracket.id);
+          setBracketSubTab("participants");
+        }
       }
     } finally {
       setCreatingBracket(false);
@@ -607,13 +642,23 @@ export default function TournamentDetailPage() {
         .sort((a, b) => a.seed - b.seed)
     : [];
 
-  // Students already in OTHER brackets of this tournament (by studentId)
+  // Conflicto solo si el alumno está en OTRO bracket del MISMO tipo
+  // (Kumite y Kata son independientes — un alumno puede estar en ambos)
   const studentIdToOtherBracketId: Record<string, string> = {};
   for (const p of tournament.participants) {
-    if (p.bracketId && p.bracketId !== selectedBracketId) {
+    if (!p.bracketId || p.bracketId === selectedBracketId) continue;
+    const otherBracket = brackets.find(b => b.id === p.bracketId);
+    const thisBracket  = brackets.find(b => b.id === selectedBracketId);
+    // Solo es conflicto si son del mismo tipo
+    if (otherBracket && thisBracket && otherBracket.type === thisBracket.type) {
       studentIdToOtherBracketId[p.studentId] = p.bracketId;
     }
   }
+
+  // Brackets de Kumite disponibles para importar a Kata (y viceversa)
+  const importableBrackets = tab === "kata"
+    ? brackets.filter(b => b.type === "kumite" && b._count.participants > 0)
+    : brackets.filter(b => b.type === "kata"  && b._count.participants > 0);
 
   // bracketEditLocked = true SOLO cuando el torneo completo está confirmado
   // (no cuando solo el bracket individual está confirmado)
@@ -1295,13 +1340,41 @@ export default function TournamentDetailPage() {
                           participante{bracketSelectedIds.size !== 1 ? "s" : ""} seleccionado
                           {bracketSelectedIds.size !== 1 ? "s" : ""}
                         </p>
-                        <button
-                          onClick={handleSaveBracketParticipants}
-                          className="btn-primary"
-                          disabled={savingBracketParticipants}
-                        >
-                          {savingBracketParticipants ? "Guardando..." : "Guardar Selección"}
-                        </button>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* Importar desde el otro tipo directamente */}
+                          {importableBrackets.length > 0 && (
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={importFromBracketId}
+                                onChange={e => setImportFromBracketId(e.target.value)}
+                                className="form-input text-xs py-1.5"
+                              >
+                                <option value="">Importar desde {tab === "kata" ? "Kumite" : "Kata"}...</option>
+                                {importableBrackets.map(b => (
+                                  <option key={b.id} value={b.id}>
+                                    {b.name} ({b._count.participants})
+                                  </option>
+                                ))}
+                              </select>
+                              {importFromBracketId && (
+                                <button
+                                  onClick={() => selectedBracketId && handleImportParticipants(selectedBracketId)}
+                                  disabled={importingParticipants}
+                                  className="btn-secondary text-xs py-1.5 whitespace-nowrap"
+                                >
+                                  {importingParticipants ? "Importando..." : "✓ Importar"}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          <button
+                            onClick={handleSaveBracketParticipants}
+                            className="btn-primary"
+                            disabled={savingBracketParticipants}
+                          >
+                            {savingBracketParticipants ? "Guardando..." : "Guardar Selección"}
+                          </button>
+                        </div>
                       </div>
 
                       {/* Student list */}
@@ -1784,6 +1857,32 @@ export default function TournamentDetailPage() {
                 <p className="text-xs text-dojo-muted mt-1">Opcional — puedes dejarlo sin especificar</p>
               )}
             </div>
+
+            {/* Importar desde bracket del otro tipo */}
+            {importableBrackets.length > 0 && (
+              <div>
+                <label className="form-label flex items-center gap-1.5">
+                  {tab === "kata" ? "⚔️" : "🥋"} Importar participantes de {tab === "kata" ? "Kumite" : "Kata"}
+                </label>
+                <select
+                  value={importFromBracketId}
+                  onChange={e => setImportFromBracketId(e.target.value)}
+                  className="form-input"
+                >
+                  <option value="">— No importar —</option>
+                  {importableBrackets.map(b => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b._count.participants} participante{b._count.participants !== 1 ? "s" : ""})
+                    </option>
+                  ))}
+                </select>
+                {importFromBracketId && (
+                  <p className="text-xs text-dojo-gold mt-1">
+                    ✓ Se copiarán los participantes al crear el bracket
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-3 justify-end pt-1">
               <button onClick={closeNewBracketModal} className="btn-secondary" disabled={creatingBracket}>
