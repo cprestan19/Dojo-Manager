@@ -293,6 +293,21 @@ export default function TournamentDetailPage() {
     });
   }, [selectedBracketId, syncBracketFromState]);
 
+  // Clear selected bracket when switching between kumite/kata tabs
+  // so Kumite brackets never appear inside the Kata tab and vice versa
+  useEffect(() => {
+    if (tab !== "kumite" && tab !== "kata") return;
+    setTournament(prev => {
+      if (!prev) return prev;
+      const selected = prev.brackets?.find((b: BracketInfo) => b.id === selectedBracketId);
+      if (selected && selected.type !== tab) {
+        setSelectedBracketId(null);
+        setBracketMatches([]);
+      }
+      return prev;
+    });
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -599,6 +614,12 @@ export default function TournamentDetailPage() {
       studentIdToOtherBracketId[p.studentId] = p.bracketId;
     }
   }
+
+  // bracketEditLocked = true SOLO cuando el torneo completo está confirmado
+  // (no cuando solo el bracket individual está confirmado)
+  // Esto permite al admin editar brackets que ya confirmó individualmente
+  const bracketEditLocked =
+    tournament.bracketLocked === true && tournament.status === "confirmed" && !isSysadmin;
 
   // Filtered students for bracket participant management
   const filteredStudents = allStudents.filter((s) => {
@@ -1166,8 +1187,8 @@ export default function TournamentDetailPage() {
               {/* ── Sub-tab: Participants ───────────────────────────── */}
               {bracketSubTab === "participants" && (
                 <div className="space-y-4">
-                  {selectedBracket?.bracketLocked ? (
-                    // Read-only: show confirmed participants
+                  {bracketEditLocked ? (
+                    // Read-only: show confirmed participants (solo cuando torneo está confirmado)
                     <div className="card space-y-3">
                       <h3 className="font-semibold text-dojo-white">
                         Participantes confirmados ({bracketSelectedIds.size})
@@ -1420,7 +1441,7 @@ export default function TournamentDetailPage() {
                     <div className="space-y-4">
                       {/* Actions row */}
                       <div className="flex items-center gap-3 flex-wrap print-hide">
-                        {!selectedBracket?.bracketLocked && (
+                        {!bracketEditLocked && (
                           <>
                             {tab === "kata" ? (
                               <button
@@ -1472,7 +1493,7 @@ export default function TournamentDetailPage() {
                           participants={kataParticipants}
                           bracketName={selectedBracket?.name ?? ""}
                           tournamentName={tournament.name}
-                          locked={selectedBracket?.bracketLocked ?? false}
+                          locked={bracketEditLocked}
                         />
                       ) : (
                         /* ── KUMITE: Bracket visual ── */
@@ -1498,7 +1519,7 @@ export default function TournamentDetailPage() {
                                   ? handleSaveMatch
                                   : undefined
                               }
-                              locked={selectedBracket?.bracketLocked ?? false}
+                              locked={bracketEditLocked}
                               saving={savingWinner}
                               showMedals={selectedBracket?.status === "completed"}
                             />
