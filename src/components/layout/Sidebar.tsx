@@ -13,6 +13,7 @@ import {
   Users, CreditCard, Award, BookOpen,
   BarChart2, Settings, LogOut, Shield, Building2, ClipboardList, ExternalLink,
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
+  Crown, Lock, X, PhoneCall,
 } from "lucide-react";
 
 interface NavItem {
@@ -51,7 +52,9 @@ export function Sidebar() {
   const perms = usePermissions();
 
   const inSettings = pathname.startsWith("/dashboard/settings") && !pathname.startsWith("/dashboard/settings/katas");
-  const [settingsOpen, setSettingsOpen] = useState(() => inSettings);
+  const [settingsOpen,   setSettingsOpen]   = useState(() => inSettings);
+  const [showProPopup,   setShowProPopup]   = useState(false);
+  const isSysadmin = role === "sysadmin";
 
   const visible         = navItems.filter(i => perms.has(i.permKey));
   const visibleSettings = settingsSubItems.filter(i => perms.has(i.permKey));
@@ -114,6 +117,95 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Torneo Pro — visible para todos, funcional solo para sysadmin */}
+        {(isSysadmin || role === "admin") && (
+          isSysadmin ? (
+            <Link
+              href="/dashboard/tournaments"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium relative",
+                pathname.startsWith("/dashboard/tournaments-pro")
+                  ? "bg-[#1e3a5c] text-white"
+                  : "text-dojo-gold hover:bg-dojo-gold/10 hover:text-dojo-gold",
+              )}
+            >
+              <Crown size={18} />
+              <span className="flex-1">Torneo Pro</span>
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-dojo-gold text-black tracking-wider">PRO</span>
+            </Link>
+          ) : (
+            <button
+              onClick={() => setShowProPopup(true)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium
+                         text-dojo-muted/60 hover:bg-dojo-border/40 cursor-pointer group"
+            >
+              <div className="relative">
+                <Crown size={18} />
+                <Lock size={9} className="absolute -bottom-0.5 -right-1 text-dojo-muted/50" />
+              </div>
+              <span className="flex-1 text-left">Torneo Pro</span>
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-dojo-border text-dojo-muted/60 tracking-wider">PRO</span>
+            </button>
+          )
+        )}
+
+        {/* Modal popup Torneo Pro */}
+        {showProPopup && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="bg-dojo-dark border border-dojo-gold/30 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-dojo-gold/10 flex items-center justify-center">
+                    <Crown size={22} className="text-dojo-gold" />
+                  </div>
+                  <div>
+                    <p className="font-display font-bold text-dojo-white text-lg">Torneo Pro</p>
+                    <p className="text-[10px] text-dojo-gold font-bold uppercase tracking-widest">Módulo Premium</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowProPopup(false)} className="text-dojo-muted hover:text-dojo-white transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <p className="text-sm text-dojo-muted leading-relaxed">
+                El módulo <span className="text-dojo-white font-semibold">Torneo Pro</span> incluye funcionalidades de nivel federativo:
+              </p>
+              <ul className="space-y-1.5">
+                {[
+                  "🎌 Tatamis con asignación de jueces",
+                  "📋 Programa oficial del torneo",
+                  "🔴 Transmisión en vivo por YouTube",
+                  "📺 Overlay para OBS/Streamlabs",
+                  "🌐 Página pública para espectadores",
+                  "📝 Inscripciones de competidores externos",
+                  "🔒 Bloqueo oficial de llaves post-inscripción",
+                ].map(f => (
+                  <li key={f} className="text-xs text-dojo-muted flex items-start gap-2">
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="bg-dojo-gold/10 border border-dojo-gold/20 rounded-xl p-3">
+                <p className="text-xs text-dojo-gold font-semibold flex items-center gap-2">
+                  <PhoneCall size={13} /> Para activar este módulo:
+                </p>
+                <p className="text-xs text-dojo-muted mt-1">
+                  Contacta al equipo de ventas de <span className="text-dojo-white font-semibold">Dojo Master</span> para solicitar la activación en tu cuenta.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowProPopup(false)}
+                className="btn-secondary w-full text-sm"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Configuración — grupo expandible */}
         {visibleSettings.length > 0 && (
