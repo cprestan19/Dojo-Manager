@@ -1,0 +1,158 @@
+/* ─────────────────────────────────────────────────────────────
+   COMPONENTES TEMÁTICOS — usan SOLO var(--*)
+   Importar después de themes.css
+   ───────────────────────────────────────────────────────────── */
+
+/* ── Body / Layout base ─────────────────────────────────────── */
+body {
+  background-color: var(--bg);
+  color:            var(--text-primary);
+  font-family:      var(--font-body);
+  transition:       background-color var(--transition), color var(--transition);
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────── */
+.t-sidebar {
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  color:        var(--sidebar-text);
+}
+
+.t-sidebar-item {
+  color:         var(--sidebar-muted);
+  border-radius: var(--radius-sm);
+  transition:    background var(--transition), color var(--transition);
+}
+.t-sidebar-item:hover {
+  background: var(--primary-subtle);
+  color:      var(--text-primary);
+}
+.t-sidebar-item.active {
+  background: var(--primary-subtle);
+  color:      var(--primary);
+  font-weight: 600;
+}
+
+/* ── Card ────────────────────────────────────────────────────── */
+.t-card {
+  background:    var(--card);
+  border:        1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow:    var(--shadow-sm);
+  color:         var(--text-primary);
+  transition:    background var(--transition), border-color var(--transition),
+                 box-shadow var(--transition);
+}
+.t-card:hover {
+  background:   var(--card-hover);
+  box-shadow:   var(--shadow);
+}
+
+/* ── KPI Card ────────────────────────────────────────────────── */
+.t-kpi {
+  background:    var(--card);
+  border:        1px solid var(--border);
+  border-radius: var(--radius);
+  padding:       1.25rem;
+}
+.t-kpi-value {
+  color:       var(--text-primary);
+  font-size:   1.875rem;
+  font-weight: 700;
+}
+.t-kpi-label {
+  color:     var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.t-kpi-accent {
+  color: var(--primary);
+}
+
+/* ── Botón primario ──────────────────────────────────────────── */
+.t-btn-primary {
+  background:    var(--primary);
+  color:         #ffffff;
+  border:        none;
+  border-radius: var(--radius-sm);
+  font-weight:   600;
+  transition:    background var(--transition), opacity var(--transition);
+}
+.t-btn-primary:hover  { background: var(--primary-hover); }
+.t-btn-primary:active { opacity: 0.85; }
+
+/* ── Botón secundario ────────────────────────────────────────── */
+.t-btn-secondary {
+  background:    transparent;
+  color:         var(--text-secondary);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-weight:   500;
+  transition:    border-color var(--transition), color var(--transition),
+                 background var(--transition);
+}
+.t-btn-secondary:hover {
+  border-color: var(--primary);
+  color:        var(--primary);
+  background:   var(--primary-subtle);
+}
+
+/* ── Input ───────────────────────────────────────────────────── */
+.t-input {
+  background:    var(--card);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color:         var(--text-primary);
+  transition:    border-color var(--transition), box-shadow var(--transition);
+}
+.t-input:focus {
+  outline:      none;
+  border-color: var(--primary);
+  box-shadow:   0 0 0 3px var(--primary-subtle);
+}
+.t-input::placeholder { color: var(--text-muted); }
+
+/* ── Badge de estado ─────────────────────────────────────────── */
+.t-badge-success {
+  background: var(--success-subtle);
+  color:      var(--success);
+  border:     1px solid var(--success);
+}
+.t-badge-warning {
+  background: var(--warning-subtle);
+  color:      var(--warning);
+  border:     1px solid var(--warning);
+}
+.t-badge-danger {
+  background: var(--danger-subtle);
+  color:      var(--danger);
+  border:     1px solid var(--danger);
+}
+
+/* ── Divider ─────────────────────────────────────────────────── */
+.t-divider { border-top: 1px solid var(--border); }
+
+/* ── Text helpers ────────────────────────────────────────────── */
+.t-text-primary   { color: var(--text-primary);   }
+.t-text-secondary { color: var(--text-secondary); }
+.t-text-muted     { color: var(--text-muted);     }
+.t-text-accent    { color: var(--primary);         }
+
+/* ── Overlay / Modal backdrop ────────────────────────────────── */
+.t-overlay {
+  background: var(--overlay);
+  backdrop-filter: blur(4px);
+}
+
+/* ── Theme switcher button ───────────────────────────────────── */
+.t-theme-btn {
+  width:         2.5rem;
+  height:        2.5rem;
+  border-radius: 50%;
+  border:        2px solid var(--border);
+  cursor:        pointer;
+  transition:    border-color var(--transition), transform var(--transition);
+}
+.t-theme-btn:hover   { transform: scale(1.1); }
+.t-theme-btn.active  { border-color: var(--primary); }
