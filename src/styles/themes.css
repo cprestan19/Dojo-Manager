@@ -9,16 +9,18 @@
    ══════════════════════════════════════════════════════════════ */
 :root,
 [data-theme="dark-saas"] {
-  --c-bg:      11 15 20;       /* #0B0F14 */
-  --c-sidebar: 17 24 39;       /* #111827 */
-  --c-card:    26 34 51;       /* #1A2233 */
-  --c-border:  42 52 71;       /* #2A3447 */
-  --c-text-1:  229 231 235;    /* #E5E7EB */
-  --c-text-2:  156 163 175;    /* #9CA3AF */
-  --c-primary: 192 57 43;      /* #C0392B (dojo-red original) */
-  --c-success: 16 185 129;     /* #10B981 */
-  --c-warning: 245 158 11;     /* #F59E0B */
-  --c-danger:  239 68 68;      /* #EF4444 */
+  --c-bg:           11 15 20;       /* #0B0F14 */
+  --c-sidebar:      17 24 39;       /* #111827 */
+  --c-sidebar-text: 229 231 235;    /* sidebar is dark → text light */
+  --c-sidebar-muted:156 163 175;
+  --c-card:         26 34 51;       /* #1A2233 */
+  --c-border:       42 52 71;       /* #2A3447 */
+  --c-text-1:       229 231 235;    /* #E5E7EB */
+  --c-text-2:       156 163 175;    /* #9CA3AF */
+  --c-primary:      192 57 43;      /* #C0392B (dojo-red original) */
+  --c-success:      16 185 129;     /* #10B981 */
+  --c-warning:      245 158 11;     /* #F59E0B */
+  --c-danger:       239 68 68;      /* #EF4444 */
 
   /* Variables semánticas (para componentes t-*) */
   --bg:             #0B0F14;
@@ -38,13 +40,15 @@
    THEME 2 — soft-neutral (Light Minimal / Notion / Stripe)
    ══════════════════════════════════════════════════════════════ */
 [data-theme="soft-neutral"] {
-  --c-bg:      249 250 251;   /* #F9FAFB */
-  --c-sidebar: 255 255 255;   /* #FFFFFF */
-  --c-card:    255 255 255;   /* #FFFFFF */
-  --c-border:  229 231 235;   /* #E5E7EB */
-  --c-text-1:  17 24 39;      /* #111827 */
-  --c-text-2:  107 114 128;   /* #6B7280 */
-  --c-primary: 79 70 229;     /* #4F46E5 */
+  --c-bg:           249 250 251;   /* #F9FAFB */
+  --c-sidebar:      255 255 255;   /* #FFFFFF */
+  --c-sidebar-text: 17 24 39;      /* sidebar is white → text dark */
+  --c-sidebar-muted:107 114 128;
+  --c-card:         255 255 255;   /* #FFFFFF */
+  --c-border:       229 231 235;   /* #E5E7EB */
+  --c-text-1:       17 24 39;      /* #111827 */
+  --c-text-2:       107 114 128;   /* #6B7280 */
+  --c-primary:      79 70 229;     /* #4F46E5 */
   --c-success: 5 150 105;     /* #059669 */
   --c-warning: 217 119 6;     /* #D97706 */
   --c-danger:  220 38 38;     /* #DC2626 */
@@ -67,21 +71,23 @@
    Sidebar oscuro, fondo blanco, rojo SOLO como acento
    ══════════════════════════════════════════════════════════════ */
 [data-theme="executive-red"] {
-  --c-bg:      248 250 252;   /* #F8FAFC */
-  --c-sidebar: 15 23 42;      /* #0F172A — sidebar oscuro */
-  --c-card:    255 255 255;   /* #FFFFFF */
-  --c-border:  226 232 240;   /* #E2E8F0 */
-  --c-text-1:  17 24 39;      /* #111827 */
-  --c-text-2:  71 85 105;     /* #475569 */
-  --c-primary: 220 38 38;     /* #DC2626 — rojo SOLO en acento */
-  --c-success: 22 163 74;     /* #16A34A */
-  --c-warning: 202 138 4;     /* #CA8A04 */
-  --c-danger:  220 38 38;     /* #DC2626 */
+  --c-bg:           248 250 252;   /* #F8FAFC */
+  --c-sidebar:      15 23 42;      /* #0F172A — sidebar oscuro */
+  --c-sidebar-text: 229 231 235;   /* sidebar es oscuro → texto CLARO */
+  --c-sidebar-muted:148 163 184;   /* slate-400 */
+  --c-card:         255 255 255;   /* #FFFFFF */
+  --c-border:       100 116 139;   /* #64748B — slate-500 más oscuro y visible */
+  --c-text-1:       17 24 39;      /* #111827 */
+  --c-text-2:       71 85 105;     /* #475569 */
+  --c-primary:      220 38 38;     /* #DC2626 */
+  --c-success:      22 163 74;     /* #16A34A */
+  --c-warning:      202 138 4;     /* #CA8A04 */
+  --c-danger:       220 38 38;     /* #DC2626 */
 
   --bg:             #F8FAFC;
   --sidebar:        #0F172A;
   --card:           #FFFFFF;
-  --border:         #E2E8F0;
+  --border:         #64748B;
   --text-primary:   #111827;
   --text-secondary: #475569;
   --primary:        #DC2626;
@@ -89,4 +95,28 @@
   --primary-hover:  #B91C1C;
   --shadow:         0 4px 20px rgba(15,23,42,0.12);
   --shadow-sm:      0 1px 6px rgba(15,23,42,0.08);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   OVERRIDES — executive-red specific
+   ══════════════════════════════════════════════════════════════ */
+
+/* Texto blanco en contenido principal → negro */
+[data-theme="executive-red"] main .text-white {
+  color: rgb(17 24 39);
+}
+
+/* Bordes de card y datatable: más gruesos */
+[data-theme="executive-red"] .card {
+  border-width: 1.5px;
+}
+[data-theme="executive-red"] table th,
+[data-theme="executive-red"] table td {
+  border-color: rgb(100 116 139 / 0.5);
+}
+
+/* Iconos de tarjetas stat → rojo del tema */
+[data-theme="executive-red"] .stat-icon-circle {
+  background: rgb(var(--c-primary)) !important;
+  box-shadow: 0 3px 10px rgb(var(--c-primary) / 0.4) !important;
 }

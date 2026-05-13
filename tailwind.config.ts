@@ -14,13 +14,15 @@ const config: Config = {
       colors: {
         dojo: {
           // Conectados a CSS variables — cambian con el tema
-          darker:  "rgb(var(--c-bg)      / <alpha-value>)",
-          dark:    "rgb(var(--c-sidebar)  / <alpha-value>)",
-          card:    "rgb(var(--c-card)     / <alpha-value>)",
-          border:  "rgb(var(--c-border)   / <alpha-value>)",
-          white:   "rgb(var(--c-text-1)   / <alpha-value>)",
-          muted:   "rgb(var(--c-text-2)   / <alpha-value>)",
-          red:     "rgb(var(--c-primary)  / <alpha-value>)",
+          darker:        "rgb(var(--c-bg)           / <alpha-value>)",
+          dark:          "rgb(var(--c-sidebar)       / <alpha-value>)",
+          card:          "rgb(var(--c-card)          / <alpha-value>)",
+          border:        "rgb(var(--c-border)        / <alpha-value>)",
+          white:         "rgb(var(--c-text-1)        / <alpha-value>)",
+          muted:         "rgb(var(--c-text-2)        / <alpha-value>)",
+          "sidebar-text":"rgb(var(--c-sidebar-text)  / <alpha-value>)",
+          "sidebar-muted":"rgb(var(--c-sidebar-muted)/ <alpha-value>)",
+          red:           "rgb(var(--c-primary)       / <alpha-value>)",
           success: "rgb(var(--c-success)  / <alpha-value>)",
           warning: "rgb(var(--c-warning)  / <alpha-value>)",
           info:    "rgb(var(--c-primary)  / <alpha-value>)",

@@ -140,7 +140,7 @@ export function MobileNav() {
       <header className="h-14 flex items-center justify-between px-4 bg-dojo-dark border-b border-dojo-border shrink-0 gap-3">
         {backTo ? (
           <button onClick={() => router.push(backTo)} className="p-2 rounded-lg hover:bg-dojo-border transition-colors shrink-0">
-            <ChevronLeft size={22} className="text-dojo-white" />
+            <ChevronLeft size={22} className="text-dojo-sidebar-text" />
           </button>
         ) : (
           <div className="flex items-center gap-2 shrink-0">
@@ -152,9 +152,9 @@ export function MobileNav() {
             <span className="font-display text-dojo-gold text-sm font-bold tracking-widest">DOJO MASTER</span>
           </div>
         )}
-        <p className="font-display text-dojo-white text-sm font-semibold truncate flex-1 text-center">{title}</p>
+        <p className="font-display text-dojo-sidebar-text text-sm font-semibold truncate flex-1 text-center">{title}</p>
         <button onClick={() => setOpen(true)} className="p-2 rounded-lg hover:bg-dojo-border transition-colors shrink-0">
-          <Menu size={20} className="text-dojo-white" />
+          <Menu size={20} className="text-dojo-sidebar-text" />
         </button>
       </header>
 
@@ -174,10 +174,10 @@ export function MobileNav() {
               alt={dojo?.name ?? "Dojo Master"} width={28} height={28}
               className="rounded-lg object-contain" unoptimized
               onError={(e) => { (e.target as HTMLImageElement).src = "/logo.png"; }} />
-            <span className="font-display text-dojo-white text-sm font-bold tracking-widest">DOJO MASTER</span>
+            <span className="font-display text-dojo-sidebar-text text-sm font-bold tracking-widest">DOJO MASTER</span>
           </div>
           <button onClick={close} className="p-2 rounded-lg hover:bg-dojo-border transition-colors">
-            <X size={18} className="text-dojo-muted" />
+            <X size={18} className="text-dojo-sidebar-muted" />
           </button>
         </div>
 
@@ -192,8 +192,8 @@ export function MobileNav() {
               }
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-dojo-white truncate">{name}</p>
-              <p className="text-xs text-dojo-muted">{roleLabel}</p>
+              <p className="text-sm font-semibold text-dojo-sidebar-text truncate">{name}</p>
+              <p className="text-xs text-dojo-sidebar-muted">{roleLabel}</p>
             </div>
           </div>
         </div>
@@ -207,7 +207,7 @@ export function MobileNav() {
               <Link key={item.href} href={item.href} onClick={close}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
-                  active ? "bg-[#1e3a5c] text-white" : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
+                  active ? "bg-dojo-red text-white" : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
                 )}
               >
                 <Icon size={18} />
@@ -246,8 +246,8 @@ export function MobileNav() {
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
                   pathname.startsWith("/dashboard/settings") && !pathname.startsWith("/dashboard/settings/katas")
-                    ? "text-white bg-dojo-border/60"
-                    : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
+                    ? "bg-dojo-red text-white"
+                    : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
                 )}
               >
                 <Settings size={18} />
@@ -263,7 +263,7 @@ export function MobileNav() {
                       <Link key={sub.href} href={sub.href} onClick={close}
                         className={cn(
                           "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm",
-                          active ? "bg-[#1e3a5c] text-white font-medium" : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
+                          active ? "bg-dojo-red text-white font-medium" : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
                         )}
                       >
                         <Icon size={15} />
@@ -294,7 +294,7 @@ export function MobileNav() {
         <div className="p-4 border-t border-dojo-border shrink-0">
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-dojo-muted hover:bg-dojo-border hover:text-dojo-white transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text transition-colors"
           >
             <LogOut size={18} /> Cerrar Sesión
           </button>
@@ -312,16 +312,16 @@ export function MobileNav() {
                 <Crown size={22} className="text-dojo-gold" />
               </div>
               <div>
-                <p className="font-display font-bold text-dojo-white text-lg">Torneo Pro</p>
+                <p className="font-display font-bold text-dojo-sidebar-text text-lg">Torneo Pro</p>
                 <p className="text-[10px] text-dojo-gold font-bold uppercase tracking-widest">Módulo Premium</p>
               </div>
             </div>
-            <button onClick={() => setShowProPopup(false)} className="text-dojo-muted hover:text-dojo-white transition-colors">
+            <button onClick={() => setShowProPopup(false)} className="text-dojo-sidebar-muted hover:text-dojo-sidebar-text transition-colors">
               <span className="text-lg leading-none">✕</span>
             </button>
           </div>
-          <p className="text-sm text-dojo-muted leading-relaxed">
-            El módulo <span className="text-dojo-white font-semibold">Torneo Pro</span> incluye funcionalidades de nivel federativo:
+          <p className="text-sm text-dojo-sidebar-muted leading-relaxed">
+            El módulo <span className="text-dojo-sidebar-text font-semibold">Torneo Pro</span> incluye funcionalidades de nivel federativo:
           </p>
           <ul className="space-y-1.5">
             {["🎌 Tatamis con asignación de jueces","📋 Programa oficial","🔴 Transmisión en vivo YouTube","📺 Overlay para OBS","🌐 Página pública para espectadores","📝 Inscripciones externas","🔒 Bloqueo oficial de llaves"].map(f => (
@@ -333,7 +333,7 @@ export function MobileNav() {
               <PhoneCall size={13} /> Para activar este módulo:
             </p>
             <p className="text-xs text-dojo-muted mt-1">
-              Contacta al equipo de ventas de <span className="text-dojo-white font-semibold">Dojo Master</span> para solicitar la activación.
+              Contacta al equipo de ventas de <span className="text-dojo-sidebar-text font-semibold">Dojo Master</span> para solicitar la activación.
             </p>
           </div>
           <button onClick={() => setShowProPopup(false)} className="btn-secondary w-full text-sm">

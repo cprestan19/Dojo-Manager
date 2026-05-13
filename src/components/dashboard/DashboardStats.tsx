@@ -125,7 +125,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, pulse, onClick, href 
     >
       {/* Icon — círculo sólido, tamaño moderado */}
       <div
-        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+        className="stat-icon-circle w-10 h-10 rounded-full flex items-center justify-center shrink-0"
         style={{ background: accent, boxShadow: `0 3px 10px ${accent}45` }}
       >
         <Icon size={17} color="white" strokeWidth={2.2} />

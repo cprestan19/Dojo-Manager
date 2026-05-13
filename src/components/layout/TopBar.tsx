@@ -33,15 +33,15 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
     <div className="absolute right-0 top-full mt-2 w-80 bg-dojo-dark border border-dojo-border rounded-2xl shadow-2xl z-50 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-dojo-border">
-        <p className="font-semibold text-dojo-white text-sm">Notificaciones</p>
-        <button onClick={onClose} className="text-dojo-muted hover:text-dojo-white transition-colors">
+        <p className="font-semibold text-dojo-sidebar-text text-sm">Notificaciones</p>
+        <button onClick={onClose} className="text-dojo-sidebar-muted hover:text-dojo-sidebar-text transition-colors">
           <X size={15} />
         </button>
       </div>
 
       <div className="overflow-y-auto max-h-[420px]">
         {hasNothing && (
-          <div className="flex flex-col items-center justify-center py-10 text-dojo-muted">
+          <div className="flex flex-col items-center justify-center py-10 text-dojo-sidebar-muted">
             <Bell size={32} className="mb-2 opacity-30" />
             <p className="text-sm">Sin notificaciones pendientes</p>
           </div>
@@ -67,8 +67,8 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
                   {p.studentName.split(" ").slice(0,2).map(w=>w[0]).join("")}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-dojo-white truncate">{p.studentName}</p>
-                  <p className="text-[10px] text-dojo-muted">{fmtCurrency(p.amount)} · +{p.daysLate}d atraso</p>
+                  <p className="text-xs font-semibold text-dojo-sidebar-text truncate">{p.studentName}</p>
+                  <p className="text-[10px] text-dojo-sidebar-muted">{fmtCurrency(p.amount)} · +{p.daysLate}d atraso</p>
                 </div>
               </Link>
             ))}
@@ -98,8 +98,8 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
                   {s.fullName.split(" ").slice(0,2).map(w=>w[0]).join("")}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-dojo-white truncate">{s.fullName}</p>
-                  <p className="text-[10px] text-dojo-muted">
+                  <p className="text-xs font-semibold text-dojo-sidebar-text truncate">{s.fullName}</p>
+                  <p className="text-[10px] text-dojo-sidebar-muted">
                     {s.daysSince !== null ? `${s.daysSince} días sin asistir` : "Sin asistencia registrada"}
                   </p>
                 </div>
@@ -127,8 +127,8 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
                   {s.fullName.split(" ").slice(0,2).map(w=>w[0]).join("")}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-dojo-white truncate">{s.fullName}</p>
-                  <p className="text-[10px] text-dojo-muted">
+                  <p className="text-xs font-semibold text-dojo-sidebar-text truncate">{s.fullName}</p>
+                  <p className="text-[10px] text-dojo-sidebar-muted">
                     {s.daysSince !== null ? `${s.daysSince} días sin asistir` : "Sin asistencia registrada"}
                   </p>
                 </div>
@@ -143,11 +143,11 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
       {/* Footer */}
       <div className="px-4 py-3 border-t border-dojo-border flex gap-2">
         <Link href="/dashboard/payments" onClick={onClose}
-          className="flex-1 text-center text-xs text-dojo-muted hover:text-dojo-white transition-colors py-1.5 rounded-lg hover:bg-dojo-border">
+          className="flex-1 text-center text-xs text-dojo-sidebar-muted hover:text-dojo-sidebar-text transition-colors py-1.5 rounded-lg hover:bg-dojo-border">
           Ver pagos
         </Link>
         <Link href="/dashboard/students" onClick={onClose}
-          className="flex-1 text-center text-xs text-dojo-muted hover:text-dojo-white transition-colors py-1.5 rounded-lg hover:bg-dojo-border">
+          className="flex-1 text-center text-xs text-dojo-sidebar-muted hover:text-dojo-sidebar-text transition-colors py-1.5 rounded-lg hover:bg-dojo-border">
           Ver alumnos
         </Link>
       </div>
@@ -219,7 +219,7 @@ export function TopBar() {
             <button
               onClick={() => { setBellOpen(o => !o); if (!bellOpen) fetchNotifs(); }}
               aria-label={`${totalNotifs} notificaciones`}
-              className="relative p-2 rounded-lg text-dojo-muted hover:bg-dojo-border hover:text-dojo-white transition-colors"
+              className="relative p-2 rounded-lg text-dojo-sidebar-muted hover:bg-dojo-border hover:text-dojo-sidebar-text transition-colors"
             >
               <Bell size={20} />
               {notifsLoaded && totalNotifs > 0 && (
@@ -255,10 +255,10 @@ export function TopBar() {
               }
             </div>
             <div className="text-left hidden xl:block">
-              <p className="text-sm font-semibold text-dojo-white leading-tight truncate max-w-[140px]">{name}</p>
-              <p className="text-[11px] text-dojo-muted leading-tight">{roleLabel}</p>
+              <p className="text-sm font-semibold text-dojo-sidebar-text leading-tight truncate max-w-[140px]">{name}</p>
+              <p className="text-[11px] text-dojo-sidebar-muted leading-tight">{roleLabel}</p>
             </div>
-            <ChevronDown size={14} className={cn("text-dojo-muted transition-transform duration-200", dropdownOpen && "rotate-180")} />
+            <ChevronDown size={14} className={cn("text-dojo-sidebar-muted transition-transform duration-200", dropdownOpen && "rotate-180")} />
           </button>
 
           {dropdownOpen && (
@@ -272,17 +272,17 @@ export function TopBar() {
                   }
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-dojo-white truncate">{name}</p>
-                  <p className="text-xs text-dojo-muted">{roleLabel}</p>
+                  <p className="text-sm font-semibold text-dojo-sidebar-text truncate">{name}</p>
+                  <p className="text-xs text-dojo-sidebar-muted">{roleLabel}</p>
                 </div>
               </div>
               <div className="p-1.5 space-y-0.5">
                 <Link href="/dashboard/change-password" onClick={() => setDropdownOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dojo-muted hover:bg-dojo-border hover:text-dojo-white transition-colors">
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dojo-sidebar-muted hover:bg-dojo-border hover:text-dojo-sidebar-text transition-colors">
                   <KeyRound size={15} /> Cambiar Contraseña
                 </Link>
                 <button onClick={() => signOut({ callbackUrl: "/login" })}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dojo-muted hover:bg-dojo-red/10 hover:text-dojo-red transition-colors">
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-dojo-sidebar-muted hover:bg-dojo-red/10 hover:text-dojo-red transition-colors">
                   <LogOut size={15} /> Cerrar Sesión
                 </button>
               </div>

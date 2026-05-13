@@ -83,7 +83,7 @@ export function Sidebar() {
             />
           </div>
           <div className="min-w-0">
-            <p className="font-display text-dojo-white font-bold text-sm tracking-wide leading-tight truncate">
+            <p className="font-display text-dojo-sidebar-text font-bold text-sm tracking-wide leading-tight truncate">
               {dojo?.name ?? (role === "sysadmin" ? "Sistema Global" : "Cargando...")}
             </p>
             <p className="font-display text-dojo-gold text-[10px] tracking-widest leading-tight mt-0.5">
@@ -92,7 +92,7 @@ export function Sidebar() {
           </div>
         </div>
         {dojo?.slogan && (
-          <p className="text-dojo-muted text-[10px] italic mt-2 truncate">{dojo.slogan}</p>
+          <p className="text-dojo-sidebar-muted text-[10px] italic mt-2 truncate">{dojo.slogan}</p>
         )}
       </div>
 
@@ -108,8 +108,8 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
                 active
-                  ? "bg-[#1e3a5c] text-white"
-                  : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
+                  ? "bg-dojo-red text-white"
+                  : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
               )}
             >
               <Icon size={18} />
@@ -126,7 +126,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium relative",
                 pathname.startsWith("/dashboard/tournaments-pro")
-                  ? "bg-[#1e3a5c] text-white"
+                  ? "bg-dojo-red text-white"
                   : "text-dojo-gold hover:bg-dojo-gold/10 hover:text-dojo-gold",
               )}
             >
@@ -160,17 +160,17 @@ export function Sidebar() {
                     <Crown size={22} className="text-dojo-gold" />
                   </div>
                   <div>
-                    <p className="font-display font-bold text-dojo-white text-lg">Torneo Pro</p>
+                    <p className="font-display font-bold text-dojo-sidebar-text text-lg">Torneo Pro</p>
                     <p className="text-[10px] text-dojo-gold font-bold uppercase tracking-widest">Módulo Premium</p>
                   </div>
                 </div>
-                <button onClick={() => setShowProPopup(false)} className="text-dojo-muted hover:text-dojo-white transition-colors">
+                <button onClick={() => setShowProPopup(false)} className="text-dojo-sidebar-muted hover:text-dojo-sidebar-text transition-colors">
                   <X size={18} />
                 </button>
               </div>
 
-              <p className="text-sm text-dojo-muted leading-relaxed">
-                El módulo <span className="text-dojo-white font-semibold">Torneo Pro</span> incluye funcionalidades de nivel federativo:
+              <p className="text-sm text-dojo-sidebar-muted leading-relaxed">
+                El módulo <span className="text-dojo-sidebar-text font-semibold">Torneo Pro</span> incluye funcionalidades de nivel federativo:
               </p>
               <ul className="space-y-1.5">
                 {[
@@ -182,7 +182,7 @@ export function Sidebar() {
                   "📝 Inscripciones de competidores externos",
                   "🔒 Bloqueo oficial de llaves post-inscripción",
                 ].map(f => (
-                  <li key={f} className="text-xs text-dojo-muted flex items-start gap-2">
+                  <li key={f} className="text-xs text-dojo-sidebar-muted flex items-start gap-2">
                     <span>{f}</span>
                   </li>
                 ))}
@@ -192,8 +192,8 @@ export function Sidebar() {
                 <p className="text-xs text-dojo-gold font-semibold flex items-center gap-2">
                   <PhoneCall size={13} /> Para activar este módulo:
                 </p>
-                <p className="text-xs text-dojo-muted mt-1">
-                  Contacta al equipo de ventas de <span className="text-dojo-white font-semibold">Dojo Master</span> para solicitar la activación en tu cuenta.
+                <p className="text-xs text-dojo-sidebar-muted mt-1">
+                  Contacta al equipo de ventas de <span className="text-dojo-sidebar-text font-semibold">Dojo Master</span> para solicitar la activación en tu cuenta.
                 </p>
               </div>
 
@@ -215,8 +215,8 @@ export function Sidebar() {
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
                 inSettings
-                  ? "text-white bg-dojo-border/60"
-                  : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
+                  ? "bg-dojo-red text-white"
+                  : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
               )}
             >
               <Settings size={18} />
@@ -239,8 +239,8 @@ export function Sidebar() {
                       className={cn(
                         "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 text-sm",
                         active
-                          ? "bg-[#1e3a5c] text-white font-medium"
-                          : "text-dojo-muted hover:bg-dojo-border hover:text-dojo-white",
+                          ? "bg-dojo-red text-white font-medium"
+                          : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
                       )}
                     >
                       <Icon size={15} />
@@ -281,8 +281,8 @@ export function Sidebar() {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-dojo-white truncate">{session?.user?.name}</p>
-            <p className="text-xs text-dojo-muted capitalize">{roleLabel}</p>
+            <p className="text-xs font-semibold text-dojo-sidebar-text truncate">{session?.user?.name}</p>
+            <p className="text-xs text-dojo-sidebar-muted capitalize">{roleLabel}</p>
           </div>
         </div>
         <button
