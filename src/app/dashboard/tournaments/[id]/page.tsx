@@ -13,7 +13,7 @@ import {
   Trophy, Info, GitBranch, Settings, ArrowLeft,
   X, Printer, CheckCircle, RefreshCw, AlertTriangle,
   Plus, Trash2, ChevronRight, Users, ShieldAlert, Unlock, Archive,
-  LockKeyhole, LockOpen, Video, Sliders,
+  LockKeyhole, LockOpen, Video, Sliders, Edit2,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -1116,15 +1116,28 @@ export default function TournamentDetailPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* Ver bracket (solo lectura) */}
                         <button
                           onClick={() => {
                             setSelectedBracketId(b.id);
-                            setBracketSubTab("participants");
+                            setBracketSubTab("bracket");
                           }}
                           className="btn-secondary flex items-center gap-1.5 text-sm"
                         >
-                          <ChevronRight size={14} /> Gestionar
+                          <ChevronRight size={14} /> Ver
                         </button>
+                        {/* Editar participantes — solo si no está confirmado */}
+                        {!b.bracketLocked && !bracketEditLocked && (
+                          <button
+                            onClick={() => {
+                              setSelectedBracketId(b.id);
+                              setBracketSubTab("participants");
+                            }}
+                            className="btn-ghost flex items-center gap-1.5 text-sm text-dojo-muted hover:text-dojo-white"
+                          >
+                            <Edit2 size={13} /> Editar
+                          </button>
+                        )}
                         {/* Reabrir bracket — solo sysadmin, solo cuando está bloqueado */}
                         {isSysadmin && b.bracketLocked && (
                           <button
@@ -1214,7 +1227,8 @@ export default function TournamentDetailPage() {
                       : "border-transparent text-dojo-muted hover:text-dojo-white",
                   )}
                 >
-                  <Users size={14} /> Participantes ({bracketSelectedIds.size})
+                  <Users size={14} />
+                  Competidores ({bracketSelectedIds.size})
                 </button>
                 <button
                   onClick={() => setBracketSubTab("bracket")}
@@ -1232,8 +1246,8 @@ export default function TournamentDetailPage() {
               {/* ── Sub-tab: Participants ───────────────────────────── */}
               {bracketSubTab === "participants" && (
                 <div className="space-y-4">
-                  {bracketEditLocked ? (
-                    // Read-only: show confirmed participants (solo cuando torneo está confirmado)
+                  {(bracketEditLocked || selectedBracket?.bracketLocked) ? (
+                    // Read-only: bracket confirmado o torneo confirmado
                     <div className="card space-y-3">
                       <h3 className="font-semibold text-dojo-white">
                         Participantes confirmados ({bracketSelectedIds.size})
