@@ -998,6 +998,7 @@ export default function StudentDetailPage() {
 
           {/* QR / ID Card */}
           <StudentQR
+            studentId={student.id}
             studentCode={student.studentCode}
             fullName={student.fullName}
             cedula={student.cedula}

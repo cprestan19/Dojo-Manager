@@ -4,6 +4,7 @@ import { QrCode, Download } from "lucide-react";
 import QRCode from "qrcode";
 
 interface StudentQRProps {
+  studentId: string;           // cuid del alumno — para lookup directo en el scanner
   studentCode: number | null;
   fullName: string;
   cedula: string | null;
@@ -23,7 +24,8 @@ function buildQRText(p: StudentQRProps): string {
   const lines: string[] = [
     `DOJO MASTER`,
     `Dojo: ${p.dojoName}`,
-    `ID Alumno: #${p.studentCode ?? "—"}`,
+    `ID:${p.studentId}`,                         // cuid para lookup directo en scanner
+    `COD:#${p.studentCode ?? "0"}`,              // código numérico como respaldo
     `Nombre: ${p.fullName}`,
   ];
   if (p.cedula)      lines.push(`Cédula: ${p.cedula}`);
