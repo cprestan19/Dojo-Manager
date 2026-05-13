@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const student = await prisma.student.findUnique({
     where: { id: resolvedId },
     select: {
-      id: true, fullName: true, firstName: true, lastName: true, photo: true, active: true,
+      id: true, studentCode: true, fullName: true, firstName: true, lastName: true, photo: true, active: true,
       beltHistory: {
         orderBy: { changeDate: "desc" },
         take: 1,
@@ -33,9 +33,10 @@ export async function GET(req: NextRequest) {
   if (!student.active) return NextResponse.json({ error: "Alumno inactivo" },      { status: 403 });
 
   const studentOut = {
-    id:       student.id,
-    fullName: student.fullName || `${student.firstName} ${student.lastName}`.trim(),
-    photo:    student.photo,
+    id:          student.id,
+    studentCode: student.studentCode,
+    fullName:    student.fullName || `${student.firstName} ${student.lastName}`.trim(),
+    photo:       student.photo,
   };
 
   if (scheduleId) {

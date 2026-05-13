@@ -19,7 +19,7 @@ type ResultKind = "success" | "not_assigned" | "duplicate" | "error";
 
 interface ScanResult {
   type:      ResultKind;
-  student?:  { id: string; fullName: string; photo: string | null; belt: string | null };
+  student?:  { id: string; studentCode: number | null; fullName: string; photo: string | null; belt: string | null };
   attendanceType?: ScanMode;
   message?:  string;
 }
@@ -677,7 +677,7 @@ export default function ScannerPage() {
                     {result.student.fullName}
                   </p>
                   <p className="font-mono text-xs text-white/60 tracking-widest mt-1">
-                    ID · {result.student.id.slice(-8).toUpperCase()}
+                    #{result.student.studentCode ?? "—"}
                   </p>
                 </div>
                 {belt && (
