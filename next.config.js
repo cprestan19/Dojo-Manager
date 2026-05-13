@@ -68,8 +68,8 @@ const nextConfig = {
           { key: "X-Content-Type-Options",   value: "nosniff" },
           // Referrer info — only send origin on cross-origin requests
           { key: "Referrer-Policy",          value: "strict-origin-when-cross-origin" },
-          // Disable browser features not used by this app
-          { key: "Permissions-Policy",       value: "camera=(), microphone=(), geolocation=(), payment=()" },
+          // camera=(self) — permite cámara solo al propio dominio (necesario para Scanner QR)
+          { key: "Permissions-Policy",       value: "camera=(self), microphone=(), geolocation=(), payment=()" },
           // HSTS — force HTTPS for 2 years once visited (Vercel handles HTTPS, but explicit is better)
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
           // XSS protection — CSP is the main defense; this is a legacy fallback
