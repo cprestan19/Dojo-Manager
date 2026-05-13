@@ -1495,7 +1495,7 @@ export default function TournamentDetailPage() {
                           <button
                             onClick={handleGenerateKataOrder}
                             className="btn-primary"
-                            disabled={bracketSelectedIds.size < 1 || generatingKataOrder}
+                            disabled={bracketSelectedIds.size < 1 || generatingKataOrder || !!selectedBracket?.bracketLocked}
                           >
                             {generatingKataOrder ? "Generando..." : "🎲 Generar Orden Aleatorio"}
                           </button>
@@ -1503,7 +1503,7 @@ export default function TournamentDetailPage() {
                           <button
                             onClick={handleGenerateBracket}
                             className="btn-primary"
-                            disabled={bracketSelectedIds.size < 2 || generatingBracket}
+                            disabled={bracketSelectedIds.size < 2 || generatingBracket || !!selectedBracket?.bracketLocked}
                           >
                             {generatingBracket ? "Generando..." : "Generar Bracket"}
                           </button>
@@ -1520,7 +1520,7 @@ export default function TournamentDetailPage() {
                               <button
                                 onClick={handleGenerateKataOrder}
                                 className="btn-secondary flex items-center gap-2"
-                                disabled={generatingKataOrder || bracketSelectedIds.size < 1}
+                                disabled={generatingKataOrder || bracketSelectedIds.size < 1 || !!selectedBracket?.bracketLocked}
                               >
                                 <RefreshCw size={15} />
                                 {generatingKataOrder ? "Regenerando..." : "🎲 Regenerar Orden"}
@@ -1529,7 +1529,7 @@ export default function TournamentDetailPage() {
                               <button
                                 onClick={handleGenerateBracket}
                                 className="btn-secondary flex items-center gap-2"
-                                disabled={generatingBracket || bracketSelectedIds.size < 2}
+                                disabled={generatingBracket || bracketSelectedIds.size < 2 || !!selectedBracket?.bracketLocked}
                               >
                                 <RefreshCw size={15} />
                                 {generatingBracket ? "Regenerando..." : "Regenerar Bracket"}
