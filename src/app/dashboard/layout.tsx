@@ -7,24 +7,46 @@ import { MobileNav } from "@/components/layout/MobileNav";
 import { TopBar } from "@/components/layout/TopBar";
 import { DojoBanner } from "@/components/dashboard/DojoBanner";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import prisma from "@/lib/prisma";
+import { getEffectiveDojoId } from "@/lib/sysadmin-context";
+
+type ThemeId = "dark-saas" | "soft-neutral" | "executive-red";
+const VALID: ThemeId[] = ["dark-saas", "soft-neutral", "executive-red"];
+
+async function getDojoTheme(role: string | undefined, sessionDojoId: string | null | undefined, sxDojo: string | undefined): Promise<ThemeId> {
+  try {
+    const dojoId = getEffectiveDojoId(role, sessionDojoId, { cookies: { get: (k: string) => k === "sx-dojo" ? { value: sxDojo } : undefined } } as never);
+    if (!dojoId) return "dark-saas";
+    const dojo = await prisma.dojo.findUnique({
+      where:  { id: dojoId },
+      select: { themeId: true },
+    });
+    const t = dojo?.themeId as ThemeId;
+    return VALID.includes(t) ? t : "dark-saas";
+  } catch {
+    return "dark-saas";
+  }
+}
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const role = (session.user as { role?: string })?.role;
+  const role    = (session.user as { role?: string; dojoId?: string | null })?.role;
+  const dojoId  = (session.user as { dojoId?: string | null })?.dojoId;
 
   const cookieStore = await cookies();
-  const sxDojoName  = role === "sysadmin"
-    ? (cookieStore.get("sx-dojo-name")?.value ?? null)
-    : null;
+  const sxDojoName  = role === "sysadmin" ? (cookieStore.get("sx-dojo-name")?.value ?? null) : null;
+  const sxDojo      = cookieStore.get("sx-dojo")?.value;
+
+  // Leer el theme del dojo desde DB (SSR — sin parpadeo)
+  const theme = await getDojoTheme(role, dojoId, sxDojo);
 
   return (
-    // DashboardShell provides:
-    //  1. AppContextProvider — dojo info + permissions fetched ONCE per session
-    //  2. DashboardErrorBoundary — catches any client-side crash, shows recover UI
-    <DashboardShell>
-      <div className="flex min-h-screen">
+    // data-theme aplicado en el wrapper del dashboard — aísla el theme por dojo
+    // sin afectar el resto de la app (login, portal, páginas públicas)
+    <DashboardShell theme={theme}>
+      <div className="flex min-h-screen" data-theme={theme}>
         <div className="hidden lg:block">
           <Sidebar />
         </div>

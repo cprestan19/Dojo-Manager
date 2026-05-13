@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
 
 /* ─── Types ─────────────────────────────────────────────── */
 interface LateItem { id: string; studentId: string; studentName: string; amount: number; dueDate: string; daysLate: number }
@@ -231,6 +232,11 @@ export function TopBar() {
               <NotificationPanel data={notifs} onClose={() => setBellOpen(false)} />
             )}
           </div>
+        )}
+
+        {/* ── Theme Switcher (admin/sysadmin) ── */}
+        {(role === "admin" || role === "sysadmin") && (
+          <ThemeSwitcher />
         )}
 
         <div className="w-px h-6 bg-dojo-border mx-1" />

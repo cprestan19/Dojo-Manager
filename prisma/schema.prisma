@@ -27,7 +27,8 @@ model Dojo {
   lateInterestPct       Float   @default(10.0)
   autoRemindersEnabled  Boolean @default(false)
   loginBgImage  String? @db.Text @map("login_bg_image")
-  instagramUrl  String? @map("instagram_url")   // e.g. https://instagram.com/dojo_natsuki
+  instagramUrl  String? @map("instagram_url")
+  themeId       String  @default("dark-saas") @map("theme_id")
 
   users           User[]
   students        Student[]
