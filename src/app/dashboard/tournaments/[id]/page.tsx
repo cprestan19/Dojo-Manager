@@ -6,11 +6,13 @@ import { cn, formatDate, calculateAge, BELT_COLORS } from "@/lib/utils";
 import { BracketView, type BracketMatch } from "@/components/tournaments/BracketView";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { useToast, ToastContainer } from "@/components/ui/Toast";
+import { TournamentSettings } from "@/components/tournaments/TournamentSettings";
+import { TournamentStream }   from "@/components/tournaments/TournamentStream";
 import {
   Trophy, Info, GitBranch, Settings, ArrowLeft,
   X, Printer, CheckCircle, RefreshCw, AlertTriangle,
   Plus, Trash2, ChevronRight, Users, ShieldAlert, Unlock, Archive,
-  LockKeyhole, LockOpen,
+  LockKeyhole, LockOpen, Video, Sliders,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -98,7 +100,7 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── Tab component ────────────────────────────────────────────────────────────
 
-type Tab = "info" | "kumite" | "kata" | "config";
+type Tab = "info" | "kumite" | "kata" | "config" | "registrations" | "stream" | "settings_pro";
 
 function TabButton({
   active, onClick, children, disabled,
@@ -702,6 +704,19 @@ export default function TournamentDetailPage() {
         <TabButton active={tab === "config"} onClick={() => setTab("config")}>
           <Settings size={15} /> Configuración
         </TabButton>
+        {canEdit && (
+          <>
+            <TabButton active={tab === "registrations"} onClick={() => setTab("registrations")}>
+              <Users size={15} /> Inscripciones
+            </TabButton>
+            <TabButton active={tab === "stream"} onClick={() => setTab("stream")}>
+              <Video size={15} /> Stream
+            </TabButton>
+            <TabButton active={tab === "settings_pro"} onClick={() => setTab("settings_pro")}>
+              <Sliders size={15} /> Ajustes Pro
+            </TabButton>
+          </>
+        )}
       </div>
 
       {/* ── TAB: INFO ─────────────────────────────────────────────────────── */}
@@ -1600,6 +1615,33 @@ export default function TournamentDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ── TAB: INSCRIPCIONES ──────────────────────────────────────────── */}
+      {tab === "registrations" && (
+        <TournamentSettings
+          tournamentId={id}
+          tournament={tournament as Parameters<typeof TournamentSettings>[0]["tournament"]}
+          onRefresh={loadTournament}
+        />
+      )}
+
+      {/* ── TAB: STREAM ─────────────────────────────────────────────────── */}
+      {tab === "stream" && (
+        <TournamentStream
+          tournamentId={id}
+          publicSlug={(tournament as { publicSlug?: string | null }).publicSlug}
+          onRefresh={loadTournament}
+        />
+      )}
+
+      {/* ── TAB: AJUSTES PRO ────────────────────────────────────────────── */}
+      {tab === "settings_pro" && (
+        <TournamentSettings
+          tournamentId={id}
+          tournament={tournament as Parameters<typeof TournamentSettings>[0]["tournament"]}
+          onRefresh={loadTournament}
+        />
       )}
 
       {/* ── Modal: New Bracket ────────────────────────────────────────────── */}

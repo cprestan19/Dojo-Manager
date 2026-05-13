@@ -38,6 +38,11 @@ model Dojo {
   dojoPage        DojoPage?
   freeTrials      FreeTrialRequest[]
   tournaments     Tournament[]
+  tournamentTatamis       TournamentTatami[]
+  tournamentJudges        TournamentJudge[]
+  tournamentScheduleSlots TournamentScheduleSlot[]
+  tournamentStreams        TournamentStream[]
+  tournamentRegistrations TournamentRegistration[]
 
   @@map("dojos")
 }
@@ -187,6 +192,7 @@ model Student {
   studentSchedules          StudentSchedule[]
   kataCompetitions          KataCompetition[]
   tournamentParticipations  TournamentParticipant[]
+  tournamentRegistrations   TournamentRegistration[]
 
   @@index([dojoId, active])
   @@index([dojoId, lastName, firstName])
@@ -447,6 +453,22 @@ model Tournament {
   archivedAt   DateTime? @map("archived_at")   // null = activo, fecha = inactivo/historial
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  registrationOpenAt  DateTime? @map("registration_open_at")
+  registrationCloseAt DateTime? @map("registration_close_at")
+  venue               String?
+  city                String?
+  country             String?
+  maxParticipants     Int?      @map("max_participants")
+  isPublic            Boolean   @default(false) @map("is_public")
+  publicSlug          String?   @unique @map("public_slug")
+  bracketsLockedAt    DateTime? @map("brackets_locked_at")
+  bracketsLockedBy    String?   @map("brackets_locked_by")
+  organizerName       String?   @map("organizer_name")
+  organizerEmail      String?   @map("organizer_email")
+  organizerPhone      String?   @map("organizer_phone")
+  rules               String?   @db.Text
+
   participants TournamentParticipant[]
   matches      TournamentMatch[]
   referees     TournamentReferee[]
@@ -543,4 +565,105 @@ model TournamentReferee {
 
   @@index([tournamentId])
   @@map("tournament_referees")
+}
+
+model TournamentTatami {
+  id           String   @id @default(cuid())
+  tournamentId String   @map("tournament_id")
+  dojoId       String   @map("dojo_id")
+  dojo         Dojo     @relation(fields: [dojoId], references: [id])
+  name         String
+  order        Int      @default(0)
+  color        String   @default("#C0392B")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  judges       TournamentJudge[]
+  scheduleSlots TournamentScheduleSlot[]
+  @@index([tournamentId])
+  @@index([dojoId])
+  @@map("tournament_tatamis")
+}
+
+model TournamentJudge {
+  id           String            @id @default(cuid())
+  tournamentId String            @map("tournament_id")
+  dojoId       String            @map("dojo_id")
+  dojo         Dojo              @relation(fields: [dojoId], references: [id])
+  tatamiId     String?           @map("tatami_id")
+  tatami       TournamentTatami? @relation(fields: [tatamiId], references: [id])
+  name         String
+  role         String            @default("judge")
+  licenseNo    String?           @map("license_no")
+  nationality  String?
+  active       Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  @@index([tournamentId])
+  @@index([dojoId])
+  @@map("tournament_judges")
+}
+
+model TournamentScheduleSlot {
+  id           String            @id @default(cuid())
+  tournamentId String            @map("tournament_id")
+  dojoId       String            @map("dojo_id")
+  dojo         Dojo              @relation(fields: [dojoId], references: [id])
+  tatamiId     String?           @map("tatami_id")
+  tatami       TournamentTatami? @relation(fields: [tatamiId], references: [id])
+  startTime    String            @map("start_time")
+  endTime      String?           @map("end_time")
+  eventType    String            @map("event_type")
+  title        String
+  description  String?
+  order        Int               @default(0)
+  createdAt    DateTime          @default(now())
+  @@index([tournamentId])
+  @@index([dojoId])
+  @@map("tournament_schedule_slots")
+}
+
+model TournamentStream {
+  id              String    @id @default(cuid())
+  tournamentId    String    @unique @map("tournament_id")
+  dojoId          String    @map("dojo_id")
+  dojo            Dojo      @relation(fields: [dojoId], references: [id])
+  youtubeVideoId  String?   @map("youtube_video_id")
+  youtubeStreamKey String?  @db.Text @map("youtube_stream_key")
+  title           String?
+  description     String?   @db.Text
+  thumbnailUrl    String?   @map("thumbnail_url")
+  status          String    @default("offline")
+  overlayMessage  String?   @map("overlay_message")
+  activeOverlay   String    @default("logo") @map("active_overlay")
+  startedAt       DateTime? @map("started_at")
+  endedAt         DateTime? @map("ended_at")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  @@index([dojoId])
+  @@map("tournament_streams")
+}
+
+model TournamentRegistration {
+  id             String    @id @default(cuid())
+  tournamentId   String    @map("tournament_id")
+  dojoId         String    @map("dojo_id")
+  dojo           Dojo      @relation(fields: [dojoId], references: [id])
+  studentId      String?   @map("student_id")
+  student        Student?  @relation(fields: [studentId], references: [id])
+  guestFirstName String?   @map("guest_first_name")
+  guestLastName  String?   @map("guest_last_name")
+  guestDojo      String?   @map("guest_dojo")
+  guestBelt      String?   @map("guest_belt")
+  guestBirthDate DateTime? @map("guest_birth_date")
+  guestEmail     String?   @map("guest_email")
+  guestPhone     String?   @map("guest_phone")
+  categories     String
+  status         String    @default("pending")
+  approvedAt     DateTime? @map("approved_at")
+  approvedBy     String?   @map("approved_by")
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  @@index([tournamentId])
+  @@index([dojoId])
+  @@map("tournament_registrations")
 }

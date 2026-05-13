@@ -70,3 +70,53 @@ export const PAYMENT_STATUS_LABELS: Record<string, { label: string; className: s
   paid:    { label: "Pagado",    className: "badge-green"  },
   late:    { label: "Atrasado",  className: "badge-red"    },
 };
+
+export const TOURNAMENT_STATUS = {
+  draft:               { label: "Borrador",               color: "#8892A4", bg: "bg-gray-700/30",   text: "text-gray-400",   border: "border-gray-600/50"   },
+  registration_open:   { label: "Inscripciones Abiertas", color: "#27AE60", bg: "bg-green-900/30",  text: "text-green-400",  border: "border-green-700/50"  },
+  registration_closed: { label: "Inscripciones Cerradas", color: "#F39C12", bg: "bg-yellow-900/30", text: "text-yellow-400", border: "border-yellow-700/50" },
+  in_progress:         { label: "En Progreso",            color: "#2980B9", bg: "bg-blue-900/30",   text: "text-blue-400",   border: "border-blue-700/50"   },
+  finished:            { label: "Finalizado",             color: "#8892A4", bg: "bg-gray-700/30",   text: "text-gray-400",   border: "border-gray-600/50"   },
+  cancelled:           { label: "Cancelado",              color: "#C0392B", bg: "bg-red-900/30",    text: "text-red-400",    border: "border-red-700/50"    },
+} as const;
+
+export const JUDGE_ROLES = {
+  chief_judge:  { label: "Juez Principal",     color: "text-yellow-400" },
+  judge:        { label: "Juez",               color: "text-blue-400"   },
+  timekeeper:   { label: "Cronometrador",      color: "text-green-400"  },
+  score_keeper: { label: "Anotador",           color: "text-purple-400" },
+  announcer:    { label: "Locutor/Presentador",color: "text-orange-400" },
+  coordinator:  { label: "Coordinador",        color: "text-teal-400"   },
+} as const;
+
+export const SCHEDULE_EVENT_TYPES = {
+  opening:      { label: "Ceremonia de apertura",  icon: "🎌" },
+  kumite:       { label: "Kumite",                 icon: "🥊" },
+  kata:         { label: "Kata",                   icon: "🥋" },
+  team_kumite:  { label: "Kumite por equipos",     icon: "👥" },
+  team_kata:    { label: "Kata por equipos",       icon: "👥" },
+  break:        { label: "Receso",                 icon: "☕" },
+  awards:       { label: "Premiación",             icon: "🏆" },
+  closing:      { label: "Ceremonia de clausura",  icon: "🎉" },
+  registration: { label: "Registro de atletas",    icon: "📋" },
+  warmup:       { label: "Calentamiento",          icon: "🏃" },
+  weigh_in:     { label: "Pesaje",                 icon: "⚖️"  },
+} as const;
+
+export const STREAM_STATUS = {
+  offline:  { label: "Sin transmisión", color: "text-gray-400"  },
+  live:     { label: "EN VIVO",         color: "text-red-400"   },
+  finished: { label: "Finalizado",      color: "text-green-400" },
+} as const;
+
+export function getTournamentStatusFlow(currentStatus: string): string[] {
+  const flows: Record<string, string[]> = {
+    draft:               ["registration_open", "cancelled"],
+    registration_open:   ["registration_closed", "cancelled"],
+    registration_closed: ["in_progress", "registration_open"],
+    in_progress:         ["finished"],
+    finished:            [],
+    cancelled:           [],
+  };
+  return flows[currentStatus] ?? [];
+}
