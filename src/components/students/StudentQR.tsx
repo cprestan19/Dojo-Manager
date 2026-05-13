@@ -17,19 +17,9 @@ interface StudentQRProps {
 }
 
 function buildQRText(p: StudentQRProps): string {
-  const lines: string[] = [
-    `DOJO MASTER`,
-    `Dojo: ${p.dojoName}`,
-    `ID Alumno: #${p.studentCode ?? "—"}`,
-    `Nombre: ${p.fullName}`,
-  ];
-  if (p.cedula)      lines.push(`Cédula: ${p.cedula}`);
-  if (p.address)     lines.push(`Dirección: ${p.address}`);
-  lines.push("---");
-  if (p.motherName)  lines.push(`Madre: ${p.motherName}${p.motherPhone ? ` | Tel: ${p.motherPhone}` : ""}`);
-  if (p.fatherName)  lines.push(`Padre: ${p.fatherName}${p.fatherPhone ? ` | Tel: ${p.fatherPhone}` : ""}`);
-  if (p.dojoPhone)   lines.push(`Tel. Dojo: ${p.dojoPhone}`);
-  return lines.join("\n");
+  // El scanner espera solo el código numérico del alumno para buscar por studentCode.
+  // El resto de la info (nombre, dojo, etc.) se muestra en la tarjeta impresa, no en el QR.
+  return String(p.studentCode ?? "0");
 }
 
 export function StudentQR(props: StudentQRProps) {

@@ -96,8 +96,17 @@ export default function ScannerPage() {
     const currentSchedule = scheduleRef.current;
     const scheduleParam   = currentSchedule ? `&scheduleId=${currentSchedule.id}` : "";
 
+    // Extraer ID del texto escaneado:
+    // - QRs nuevos: solo el número (ej. "1042")
+    // - QRs legacy: texto multilínea con "ID Alumno: #1042"
+    let resolvedId = decodedText.trim();
+    if (resolvedId.includes("\n") || resolvedId.includes("DOJO MASTER")) {
+      const match = resolvedId.match(/ID Alumno:\s*#?(\d+)/i);
+      if (match) resolvedId = match[1];
+    }
+
     try {
-      const scanRes  = await fetch(`/api/scan?id=${encodeURIComponent(decodedText)}${scheduleParam}`);
+      const scanRes  = await fetch(`/api/scan?id=${encodeURIComponent(resolvedId)}${scheduleParam}`);
       const scanData = await scanRes.json();
 
       if (scanRes.status === 404) {
