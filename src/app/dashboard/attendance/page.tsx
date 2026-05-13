@@ -10,6 +10,7 @@ import { Modal } from "@/components/ui/Modal";
 
 interface AttendanceStudent {
   id: string; fullName: string; firstName: string; lastName: string;
+  photo: string | null;
   beltHistory: { beltColor: string }[];
 }
 interface Schedule { id: string; name: string; }
@@ -57,10 +58,16 @@ function exportCSV(rows: Attendance[]) {
   URL.revokeObjectURL(url);
 }
 
-function Initials({ student }: { student: AttendanceStudent }) {
+function StudentAvatar({ student }: { student: AttendanceStudent }) {
+  const photoUrl = student.photo?.startsWith("http") ? student.photo : null;
+  const initials = student.fullName.split(" ").slice(0,2).map(w => w[0]).join("");
   return (
-    <div className="w-8 h-8 rounded-full bg-dojo-border flex items-center justify-center text-xs font-bold text-dojo-gold flex-shrink-0">
-      {student.fullName.split(" ").slice(0,2).map(w => w[0]).join("")}
+    <div className="w-9 h-9 rounded-full bg-dojo-border flex items-center justify-center text-xs font-bold text-dojo-gold flex-shrink-0 overflow-hidden">
+      {photoUrl
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={photoUrl} alt={student.fullName} className="w-full h-full object-cover" />
+        : initials
+      }
     </div>
   );
 }
@@ -226,9 +233,14 @@ export default function AttendancePage() {
             <div key={a.id} className="card p-3 space-y-2.5">
               {/* Row 1: avatar + name + actions */}
               <div className="flex items-center gap-2.5">
-                <Initials student={a.student} />
+                <StudentAvatar student={a.student} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-dojo-white truncate">{a.student.fullName}</p>
+                  <Link
+                    href={`/dashboard/students/${a.student.id}`}
+                    className="text-sm font-semibold text-dojo-white hover:text-dojo-gold transition-colors truncate block"
+                  >
+                    {a.student.fullName}
+                  </Link>
                   {belt && <BeltBadge beltColor={belt} />}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -288,8 +300,13 @@ export default function AttendancePage() {
                   <tr key={a.id} className="border-b border-dojo-border/40 hover:bg-dojo-border/10 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <Initials student={a.student} />
-                        <span className="font-semibold text-dojo-white whitespace-nowrap">{a.student.fullName}</span>
+                        <StudentAvatar student={a.student} />
+                        <Link
+                          href={`/dashboard/students/${a.student.id}`}
+                          className="font-semibold text-dojo-white hover:text-dojo-gold transition-colors whitespace-nowrap"
+                        >
+                          {a.student.fullName}
+                        </Link>
                       </div>
                     </td>
                     <td className="px-4 py-3">

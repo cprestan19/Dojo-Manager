@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
       student: {
         select: {
           id: true, fullName: true, firstName: true, lastName: true,
+          photo: true,
           beltHistory: {
             orderBy: { changeDate: "desc" },
             take: 1,
