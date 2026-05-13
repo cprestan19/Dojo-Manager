@@ -4,38 +4,14 @@ import { QrCode, Download } from "lucide-react";
 import QRCode from "qrcode";
 
 interface StudentQRProps {
-  studentId: string;           // cuid del alumno — para lookup directo en el scanner
   studentCode: number | null;
   fullName: string;
-  cedula: string | null;
-  bloodType: string | null;
-  address: string | null;
-  motherName: string | null;
-  motherPhone: string | null;
-  fatherName: string | null;
-  fatherPhone: string | null;
-  dojoName: string;
-  dojoPhone: string | null;
 }
 
 function buildQRText(p: StudentQRProps): string {
-  // El QR contiene info de emergencia del alumno Y el código para marcación.
-  // El scanner extrae "ID Alumno: #XXXX" del texto para identificarlo.
-  const lines: string[] = [
-    `DOJO MASTER`,
-    `Dojo: ${p.dojoName}`,
-    `ID:${p.studentId}`,                         // cuid para lookup directo en scanner
-    `COD:#${p.studentCode ?? "0"}`,              // código numérico como respaldo
-    `Nombre: ${p.fullName}`,
-  ];
-  if (p.cedula)      lines.push(`Cédula: ${p.cedula}`);
-  if (p.bloodType)   lines.push(`Tipo de Sangre: ${p.bloodType}`);
-  if (p.address)     lines.push(`Dirección: ${p.address}`);
-  lines.push("---");
-  if (p.motherName)  lines.push(`Madre: ${p.motherName}${p.motherPhone ? ` | Tel: ${p.motherPhone}` : ""}`);
-  if (p.fatherName)  lines.push(`Padre: ${p.fatherName}${p.fatherPhone ? ` | Tel: ${p.fatherPhone}` : ""}`);
-  if (p.dojoPhone)   lines.push(`Tel. Dojo: ${p.dojoPhone}`);
-  return lines.join("\n");
+  // QR contiene solo el código numérico único del alumno.
+  // El scanner lo envía directamente al API sin ningún parsing.
+  return String(p.studentCode ?? "0");
 }
 
 export function StudentQR(props: StudentQRProps) {
@@ -50,10 +26,7 @@ export function StudentQR(props: StudentQRProps) {
       errorCorrectionLevel: "M",
     }).then((url) => { if (!cancelled) setQrUrl(url); });
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.studentCode, props.fullName, props.cedula, props.address,
-      props.motherName, props.motherPhone, props.fatherName, props.fatherPhone,
-      props.dojoName, props.dojoPhone]);
+  }, [props.studentCode]);
 
   function handleDownload() {
     if (!qrUrl) return;
@@ -70,23 +43,16 @@ export function StudentQR(props: StudentQRProps) {
       </p>
 
       <div className="flex flex-col items-center gap-4">
-        {/* Student code badge */}
-        <div className="w-full bg-dojo-darker rounded-lg p-3 text-center border border-dojo-border">
-          <p className="text-xs text-dojo-muted mb-1">ID Único</p>
+        {/* Nombre + ID en la tarjeta */}
+        <div className="w-full bg-dojo-darker rounded-lg p-3 text-center border border-dojo-border space-y-1">
+          <p className="text-sm font-semibold text-dojo-white">{props.fullName}</p>
+          <p className="text-xs text-dojo-muted">ID Único</p>
           <p className="font-display text-2xl font-bold text-dojo-gold tracking-widest">
             #{props.studentCode ?? "—"}
           </p>
         </div>
 
-        {/* Cedula */}
-        {props.cedula && (
-          <div className="w-full bg-dojo-darker rounded-lg p-3 text-center border border-dojo-border">
-            <p className="text-xs text-dojo-muted mb-1">Cédula / Pasaporte</p>
-            <p className="font-mono text-dojo-white font-semibold tracking-wider">{props.cedula}</p>
-          </div>
-        )}
-
-        {/* QR Code */}
+        {/* QR Code — codifica solo el número */}
         <div className="bg-white rounded-xl p-3 shadow-lg">
           {qrUrl ? (
             <img src={qrUrl} alt="QR Code" width={160} height={160} className="block" />
@@ -98,7 +64,7 @@ export function StudentQR(props: StudentQRProps) {
         </div>
 
         <p className="text-xs text-dojo-muted text-center leading-relaxed px-2">
-          Escanea para ver datos del alumno,<br />contactos y dojo.
+          Escanea este código para registrar asistencia.
         </p>
 
         <button

@@ -96,18 +96,9 @@ export default function ScannerPage() {
     const currentSchedule = scheduleRef.current;
     const scheduleParam   = currentSchedule ? `&scheduleId=${currentSchedule.id}` : "";
 
-    // Extraer ID del texto escaneado. Prioridad:
-    // 1. "ID:<cuid>"    — formato nuevo (cuid directo, más confiable)
-    // 2. "COD:#1042"    — código numérico nuevo
-    // 3. "ID Alumno: #1042" — formato legacy
-    // 4. Texto plano numérico o cuid solo
-    let resolvedId = decodedText.trim();
-    const cuidMatch  = resolvedId.match(/\bID:([a-z0-9]{15,})/i);
-    const codMatch   = resolvedId.match(/\bCOD:#?(\d+)/i);
-    const legacyMatch= resolvedId.match(/ID Alumno:\s*#?(\d+)/i);
-    if      (cuidMatch)   resolvedId = cuidMatch[1];
-    else if (codMatch)    resolvedId = codMatch[1];
-    else if (legacyMatch) resolvedId = legacyMatch[1];
+    // El QR contiene solo el número del alumno (ej. "1000").
+    // El API acepta: número puro → busca por studentCode.
+    const resolvedId = decodedText.trim();
 
     try {
       const scanRes  = await fetch(`/api/scan?id=${encodeURIComponent(resolvedId)}${scheduleParam}`);

@@ -998,18 +998,8 @@ export default function StudentDetailPage() {
 
           {/* QR / ID Card */}
           <StudentQR
-            studentId={student.id}
             studentCode={student.studentCode}
             fullName={student.fullName}
-            cedula={student.cedula}
-            bloodType={student.bloodType}
-            address={student.address}
-            motherName={student.motherName}
-            motherPhone={student.motherPhone}
-            fatherName={student.fatherName}
-            fatherPhone={student.fatherPhone}
-            dojoName={student.dojo?.name ?? "Dojo Master"}
-            dojoPhone={student.dojo?.phone ?? null}
           />
 
           {/* Health */}
