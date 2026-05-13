@@ -8,6 +8,7 @@ import { BeltBadge } from "@/components/ui/BeltBadge";
 import { useToast, ToastContainer } from "@/components/ui/Toast";
 import { TournamentSettings } from "@/components/tournaments/TournamentSettings";
 import { TournamentStream }   from "@/components/tournaments/TournamentStream";
+import { KataOrderList }      from "@/components/tournaments/KataOrderList";
 import {
   Trophy, Info, GitBranch, Settings, ArrowLeft,
   X, Printer, CheckCircle, RefreshCw, AlertTriangle,
@@ -179,7 +180,8 @@ export default function TournamentDetailPage() {
   const [filterBelts, setFilterBelts] = useState<Set<string>>(new Set());
 
   // Bracket generation state
-  const [generatingBracket, setGeneratingBracket] = useState(false);
+  const [generatingBracket,   setGeneratingBracket]   = useState(false);
+  const [generatingKataOrder, setGeneratingKataOrder] = useState(false);
   const [confirmingBracket, setConfirmingBracket] = useState(false);
   const [bracketMatches, setBracketMatches] = useState<BracketMatch[]>([]);
   const [loadingBracketMatches, setLoadingBracketMatches] = useState(false);
@@ -458,6 +460,27 @@ export default function TournamentDetailPage() {
     }
   }
 
+  async function handleGenerateKataOrder() {
+    if (!selectedBracketId) return;
+    setGeneratingKataOrder(true);
+    try {
+      const res = await fetch(
+        `/api/tournaments/${id}/brackets/${selectedBracketId}/kata-order`,
+        { method: "POST" },
+      );
+      if (res.ok) {
+        await loadBracketMatches(selectedBracketId);
+        setBracketSubTab("bracket");
+        showToast("Orden de actuación generado aleatoriamente");
+      } else {
+        const d = await res.json().catch(() => ({}));
+        showToast((d as { error?: string }).error ?? "Error al generar el orden", "error");
+      }
+    } finally {
+      setGeneratingKataOrder(false);
+    }
+  }
+
   async function handleConfirmBracket() {
     if (!selectedBracketId) return;
     setConfirmingBracket(true);
@@ -551,6 +574,23 @@ export default function TournamentDetailPage() {
       photo:     p.student.photo ?? null,
     };
   }
+
+  // Kata participants for the selected bracket — sorted by seed
+  const kataParticipants = selectedBracketId
+    ? tournament.participants
+        .filter(p => p.bracketId === selectedBracketId)
+        .map(p => ({
+          id:        p.id,
+          seed:      p.seed ?? 999,
+          studentId: p.studentId,
+          student: {
+            fullName:    p.student.fullName,
+            photo:       p.student.photo ?? null,
+            beltHistory: p.student.beltHistory,
+          },
+        }))
+        .sort((a, b) => a.seed - b.seed)
+    : [];
 
   // Students already in OTHER brackets of this tournament (by studentId)
   const studentIdToOtherBracketId: Record<string, string> = {};
@@ -1357,13 +1397,23 @@ export default function TournamentDetailPage() {
                         >
                           Ir a Participantes
                         </button>
-                        <button
-                          onClick={handleGenerateBracket}
-                          className="btn-primary"
-                          disabled={bracketSelectedIds.size < 2 || generatingBracket}
-                        >
-                          {generatingBracket ? "Generando..." : "Generar Bracket"}
-                        </button>
+                        {tab === "kata" ? (
+                          <button
+                            onClick={handleGenerateKataOrder}
+                            className="btn-primary"
+                            disabled={bracketSelectedIds.size < 1 || generatingKataOrder}
+                          >
+                            {generatingKataOrder ? "Generando..." : "🎲 Generar Orden Aleatorio"}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleGenerateBracket}
+                            className="btn-primary"
+                            disabled={bracketSelectedIds.size < 2 || generatingBracket}
+                          >
+                            {generatingBracket ? "Generando..." : "Generar Bracket"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1372,14 +1422,25 @@ export default function TournamentDetailPage() {
                       <div className="flex items-center gap-3 flex-wrap print-hide">
                         {!selectedBracket?.bracketLocked && (
                           <>
-                            <button
-                              onClick={handleGenerateBracket}
-                              className="btn-secondary flex items-center gap-2"
-                              disabled={generatingBracket || bracketSelectedIds.size < 2}
-                            >
-                              <RefreshCw size={15} />
-                              {generatingBracket ? "Regenerando..." : "Regenerar Bracket"}
-                            </button>
+                            {tab === "kata" ? (
+                              <button
+                                onClick={handleGenerateKataOrder}
+                                className="btn-secondary flex items-center gap-2"
+                                disabled={generatingKataOrder || bracketSelectedIds.size < 1}
+                              >
+                                <RefreshCw size={15} />
+                                {generatingKataOrder ? "Regenerando..." : "🎲 Regenerar Orden"}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={handleGenerateBracket}
+                                className="btn-secondary flex items-center gap-2"
+                                disabled={generatingBracket || bracketSelectedIds.size < 2}
+                              >
+                                <RefreshCw size={15} />
+                                {generatingBracket ? "Regenerando..." : "Regenerar Bracket"}
+                              </button>
+                            )}
                             {selectedBracket?.status === "ready" && (
                               <button
                                 onClick={handleConfirmBracket}
@@ -1405,39 +1466,48 @@ export default function TournamentDetailPage() {
                         </button>
                       </div>
 
-                      {/* Bracket view — bracket-print-area marks the print zone */}
-                      {bracketMatches.length > 0 ? (
-                        <div className="bracket-print-area card p-4">
-                          {/* Print-only header shown only when printing */}
-                          <div className="bracket-print-header hidden">
-                            <h2 style={{ fontWeight: 800, fontSize: 16, marginBottom: 2 }}>
-                              {tournament.name}
-                            </h2>
-                            {selectedBracket && (
-                              <p style={{ fontSize: 12, color: "#555", marginBottom: 8 }}>
-                                {selectedBracket.name} · {formatDate(tournament.date)} · {tournament.location}
-                              </p>
-                            )}
-                          </div>
-                          <BracketView
-                            matches={bracketMatches}
-                            participantsMap={participantsMap}
-                            onSaveMatch={
-                              (selectedBracket?.status === "active" ||
-                               selectedBracket?.status === "completed" ||
-                               tournament.status === "confirmed")
-                                ? handleSaveMatch
-                                : undefined
-                            }
-                            locked={selectedBracket?.bracketLocked ?? false}
-                            saving={savingWinner}
-                            showMedals={selectedBracket?.status === "completed"}
-                          />
-                        </div>
+                      {/* ── KATA: Lista de orden de actuación ── */}
+                      {tab === "kata" ? (
+                        <KataOrderList
+                          participants={kataParticipants}
+                          bracketName={selectedBracket?.name ?? ""}
+                          tournamentName={tournament.name}
+                          locked={selectedBracket?.bracketLocked ?? false}
+                        />
                       ) : (
-                        <div className="card py-10 text-center">
-                          <p className="text-dojo-muted">No hay matches generados aún.</p>
-                        </div>
+                        /* ── KUMITE: Bracket visual ── */
+                        bracketMatches.length > 0 ? (
+                          <div className="bracket-print-area card p-4">
+                            <div className="bracket-print-header hidden">
+                              <h2 style={{ fontWeight: 800, fontSize: 16, marginBottom: 2 }}>
+                                {tournament.name}
+                              </h2>
+                              {selectedBracket && (
+                                <p style={{ fontSize: 12, color: "#555", marginBottom: 8 }}>
+                                  {selectedBracket.name} · {formatDate(tournament.date)} · {tournament.location}
+                                </p>
+                              )}
+                            </div>
+                            <BracketView
+                              matches={bracketMatches}
+                              participantsMap={participantsMap}
+                              onSaveMatch={
+                                (selectedBracket?.status === "active" ||
+                                 selectedBracket?.status === "completed" ||
+                                 tournament.status === "confirmed")
+                                  ? handleSaveMatch
+                                  : undefined
+                              }
+                              locked={selectedBracket?.bracketLocked ?? false}
+                              saving={savingWinner}
+                              showMedals={selectedBracket?.status === "completed"}
+                            />
+                          </div>
+                        ) : (
+                          <div className="card py-10 text-center">
+                            <p className="text-dojo-muted">No hay matches generados aún.</p>
+                          </div>
+                        )
                       )}
                     </div>
                   )}
