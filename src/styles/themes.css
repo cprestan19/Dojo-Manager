@@ -72,51 +72,189 @@
    ══════════════════════════════════════════════════════════════ */
 [data-theme="executive-red"] {
   --c-bg:           248 250 252;   /* #F8FAFC */
-  --c-sidebar:      15 23 42;      /* #0F172A — sidebar oscuro */
+  --c-sidebar:      17 17 17;      /* #111111 — negro para sidebar/header */
   --c-sidebar-text: 229 231 235;   /* sidebar es oscuro → texto CLARO */
-  --c-sidebar-muted:148 163 184;   /* slate-400 */
+  --c-sidebar-muted:156 163 175;   /* gris medio */
   --c-card:         255 255 255;   /* #FFFFFF */
-  --c-border:       100 116 139;   /* #64748B — slate-500 más oscuro y visible */
-  --c-text-1:       17 24 39;      /* #111827 */
-  --c-text-2:       71 85 105;     /* #475569 */
+  --c-border:       229 231 235;   /* #E5E7EB — gris claro para contenido */
+  --c-text-1:       17 24 39;      /* #111111 */
+  --c-text-2:       107 114 128;   /* #6B7280 */
   --c-primary:      220 38 38;     /* #DC2626 */
   --c-success:      22 163 74;     /* #16A34A */
   --c-warning:      202 138 4;     /* #CA8A04 */
   --c-danger:       220 38 38;     /* #DC2626 */
+  /* Color hex del primario para JS (gráficos Recharts) */
+  --c-primary-hex:  #DC2626;
 
   --bg:             #F8FAFC;
-  --sidebar:        #0F172A;
+  --sidebar:        #111111;
   --card:           #FFFFFF;
-  --border:         #64748B;
-  --text-primary:   #111827;
-  --text-secondary: #475569;
+  --border:         #E5E7EB;
+  --text-primary:   #111111;
+  --text-secondary: #6B7280;
   --primary:        #DC2626;
   --primary-subtle: rgba(220,38,38,0.08);
   --primary-hover:  #B91C1C;
-  --shadow:         0 4px 20px rgba(15,23,42,0.12);
-  --shadow-sm:      0 1px 6px rgba(15,23,42,0.08);
+  --shadow:         0 4px 20px rgba(0,0,0,0.12);
+  --shadow-sm:      0 1px 6px rgba(0,0,0,0.08);
+}
+
+:root,
+[data-theme="dark-saas"] {
+  --c-primary-hex: #C0392B;
+}
+[data-theme="soft-neutral"] {
+  --c-primary-hex: #4F46E5;
 }
 
 /* ══════════════════════════════════════════════════════════════
-   OVERRIDES — executive-red specific
+   OVERRIDES — LIGHT THEMES (soft-neutral + executive-red)
+   Corrigen colores hardcodeados que asumen fondo oscuro.
    ══════════════════════════════════════════════════════════════ */
-
-/* Texto blanco en contenido principal → negro */
-[data-theme="executive-red"] main .text-white {
-  color: rgb(17 24 39);
+[data-theme="soft-neutral"],
+[data-theme="executive-red"] {
+  /* Badge semánticos en modo claro */
+  --badge-green-bg:      #DCFCE7;
+  --badge-green-text:    #15803D;
+  --badge-green-border:  #BBF7D0;
+  --badge-red-bg:        #FEE2E2;
+  --badge-red-text:      #DC2626;
+  --badge-red-border:    #FECACA;
+  --badge-yellow-bg:     #FEF9C3;
+  --badge-yellow-text:   #A16207;
+  --badge-yellow-border: #FDE047;
+  --badge-blue-bg:       #DBEAFE;
+  --badge-blue-text:     #1D4ED8;
+  --badge-blue-border:   #BFDBFE;
+  --badge-gold-bg:       #FEF3C7;
+  --badge-gold-text:     #92400E;
+  --badge-gold-border:   #FDE68A;
+  /* Inputs */
+  --form-input-bg:    #FFFFFF;
+  --form-input-border:#D1D5DB;
+  /* Cards */
+  --card-shadow:  0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  /* Filas de tabla */
+  --row-sep:      #E5E7EB;
+  --row-hover:    #F9FAFB;
+  /* Filtros */
+  --filter-bg:    #FFFFFF;
+  --filter-border:#E5E7EB;
 }
 
-/* Bordes de card y datatable: más gruesos */
+/* ── Badges modo claro ──────────────────────────────────────── */
+[data-theme="soft-neutral"] .badge-green,
+[data-theme="executive-red"] .badge-green {
+  background:   var(--badge-green-bg)     !important;
+  color:        var(--badge-green-text)   !important;
+  border-color: var(--badge-green-border) !important;
+}
+[data-theme="soft-neutral"] .badge-red,
+[data-theme="executive-red"] .badge-red {
+  background:   var(--badge-red-bg)     !important;
+  color:        var(--badge-red-text)   !important;
+  border-color: var(--badge-red-border) !important;
+}
+[data-theme="soft-neutral"] .badge-yellow,
+[data-theme="executive-red"] .badge-yellow {
+  background:   var(--badge-yellow-bg)     !important;
+  color:        var(--badge-yellow-text)   !important;
+  border-color: var(--badge-yellow-border) !important;
+}
+[data-theme="soft-neutral"] .badge-blue,
+[data-theme="executive-red"] .badge-blue {
+  background:   var(--badge-blue-bg)     !important;
+  color:        var(--badge-blue-text)   !important;
+  border-color: var(--badge-blue-border) !important;
+}
+[data-theme="soft-neutral"] .badge-gold,
+[data-theme="executive-red"] .badge-gold {
+  background:   var(--badge-gold-bg)     !important;
+  color:        var(--badge-gold-text)   !important;
+  border-color: var(--badge-gold-border) !important;
+}
+
+/* ── Form inputs modo claro ─────────────────────────────────── */
+[data-theme="soft-neutral"] .form-input,
+[data-theme="executive-red"] .form-input {
+  background-color: var(--form-input-bg)     !important;
+  border-color:     var(--form-input-border) !important;
+  color:            rgb(var(--c-text-1))     !important;
+}
+
+/* ── Cards: sombra + borde visible en claro ─────────────────── */
+[data-theme="soft-neutral"] .card,
 [data-theme="executive-red"] .card {
-  border-width: 1.5px;
-}
-[data-theme="executive-red"] table th,
-[data-theme="executive-red"] table td {
-  border-color: rgb(100 116 139 / 0.5);
+  box-shadow: var(--card-shadow);
 }
 
-/* Iconos de tarjetas stat → rojo del tema */
+/* ── Filtros en contenido principal (bg-dojo-dark → superficie) */
+[data-theme="soft-neutral"] main .bg-dojo-dark,
+[data-theme="executive-red"] main .bg-dojo-dark {
+  background-color: var(--filter-bg)     !important;
+  border-color:     var(--filter-border) !important;
+}
+
+/* ── Tabla: separadores entre filas ─────────────────────────── */
+[data-theme="soft-neutral"] tbody tr,
+[data-theme="executive-red"] tbody tr {
+  border-bottom: 1px solid var(--row-sep);
+}
+[data-theme="soft-neutral"] tbody tr:hover,
+[data-theme="executive-red"] tbody tr:hover {
+  background-color: var(--row-hover) !important;
+  transition: background 150ms ease;
+}
+
+/* ── Separadores en listas del dashboard (inline-style override) */
+[data-theme="soft-neutral"] main .card .space-y-1 > div,
+[data-theme="executive-red"] main .card .space-y-1 > div {
+  border-bottom: 1px solid var(--row-sep) !important;
+}
+[data-theme="soft-neutral"] main .card .space-y-1 > div:last-child,
+[data-theme="executive-red"] main .card .space-y-1 > div:last-child {
+  border-bottom: none !important;
+}
+
+/* ── Texto blanco en contenido principal → oscuro ───────────── */
+[data-theme="soft-neutral"] main .text-white,
+[data-theme="executive-red"] main .text-white {
+  color: rgb(var(--c-text-1));
+}
+
+/* ── Bordes sidebar/topbar en executive-red: visibles en negro ─ */
+[data-theme="executive-red"] aside,
+[data-theme="executive-red"] header {
+  border-color: #374151 !important;
+}
+[data-theme="executive-red"] aside .border-dojo-border,
+[data-theme="executive-red"] aside .border-l,
+[data-theme="executive-red"] aside .border-b,
+[data-theme="executive-red"] header .border-b {
+  border-color: #374151 !important;
+}
+
+/* ── Card: borde ligeramente visible en claro ───────────────── */
+[data-theme="executive-red"] .card {
+  border-color: #E5E7EB;
+}
+
+/* ── Iconos de tarjetas stat → rojo del tema ────────────────── */
 [data-theme="executive-red"] .stat-icon-circle {
   background: rgb(var(--c-primary)) !important;
   box-shadow: 0 3px 10px rgb(var(--c-primary) / 0.4) !important;
 }
+
+/* ── Thead fondo: superficie neutra en claro ────────────────── */
+[data-theme="soft-neutral"] thead tr,
+[data-theme="executive-red"] thead tr {
+  background-color: #F9FAFB;
+}
+
+/* ── Scroll bar adaptada al tema claro ──────────────────────── */
+[data-theme="soft-neutral"] ::-webkit-scrollbar-track,
+[data-theme="executive-red"] ::-webkit-scrollbar-track { background: #F3F4F6; }
+[data-theme="soft-neutral"] ::-webkit-scrollbar-thumb,
+[data-theme="executive-red"] ::-webkit-scrollbar-thumb { background: #D1D5DB; }
+[data-theme="soft-neutral"] ::-webkit-scrollbar-thumb:hover,
+[data-theme="executive-red"] ::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-primary)); }

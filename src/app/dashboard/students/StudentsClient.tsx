@@ -269,12 +269,12 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
                 style={{
                   backgroundColor: isActive ? b.hex + "40" : "transparent",
-                  borderColor:     isActive ? b.hex : "#2A3550",
-                  color:           isActive ? (b.hex === "#FFFFFF" ? "#ccc" : b.hex) : "#8892A4",
+                  borderColor:     isActive ? b.hex : "rgb(var(--c-border))",
+                  color:           isActive ? (b.hex === "#FFFFFF" ? "#ccc" : b.hex) : "rgb(var(--c-text-2))",
                 }}
               >
                 <span className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: b.hex, border: "1px solid rgba(255,255,255,0.2)" }} />
+                  style={{ backgroundColor: b.hex, border: `1px solid ${b.hex}60` }} />
                 {b.label}
                 <span className="opacity-60">
                   ({students.filter(s => (s.beltHistory[0]?.beltColor ?? "") === b.value).length})

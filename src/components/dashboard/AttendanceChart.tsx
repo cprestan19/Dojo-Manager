@@ -7,6 +7,20 @@ import {
   TooltipProps,
 } from "recharts";
 
+type ChartColors = { primary: string; grid: string; axis: string; tooltipBg: string; tooltipBorder: string };
+
+function getChartColors(): ChartColors {
+  if (typeof document === "undefined") return darkColors;
+  const el    = document.getElementById("dojo-shell") ?? document.documentElement;
+  const theme = el.getAttribute("data-theme") ?? "dark-saas";
+  const hex   = getComputedStyle(el).getPropertyValue("--c-primary-hex").trim();
+  if (theme === "executive-red" || theme === "soft-neutral") {
+    return { primary: hex || "#DC2626", grid: "rgba(0,0,0,0.06)", axis: "#9CA3AF", tooltipBg: "#1F2937", tooltipBorder: "rgba(0,0,0,0.15)" };
+  }
+  return { ...darkColors, primary: hex || "#C0392B" };
+}
+const darkColors: ChartColors = { primary: "#C0392B", grid: "rgba(255,255,255,0.06)", axis: "#8892A4", tooltipBg: "#1A1A2E", tooltipBorder: "rgba(255,255,255,0.12)" };
+
 interface DayData {
   day:   string;
   pct:   number;
@@ -20,15 +34,15 @@ interface WeekData {
 }
 
 /* ─── Custom Tooltip ─────────────────────────────────────── */
-function CustomTooltip({ active, payload, label }: TooltipProps<number, string> & { payload?: { payload: DayData }[]; label?: string }) {
+function CustomTooltip({ active, payload, label, colors }: TooltipProps<number, string> & { payload?: { payload: DayData }[]; label?: string; colors: ChartColors }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
     <div className="rounded-xl px-4 py-2.5 shadow-xl text-center"
-      style={{ background: "#1A1A2E", border: "1px solid rgba(255,255,255,0.12)" }}>
-      <p className="text-white font-semibold text-sm">{label}</p>
-      <p className="text-2xl font-bold" style={{ color: "#C0392B" }}>{d.pct}%</p>
-      <p className="text-xs" style={{ color: "#8892A4" }}>{d.count} alumnos</p>
+      style={{ background: colors.tooltipBg, border: `1px solid ${colors.tooltipBorder}` }}>
+      <p className="font-semibold text-sm" style={{ color: colors.axis }}>{label}</p>
+      <p className="text-2xl font-bold" style={{ color: colors.primary }}>{d.pct}%</p>
+      <p className="text-xs" style={{ color: colors.axis }}>{d.count} alumnos</p>
     </div>
   );
 }
@@ -38,6 +52,17 @@ export function AttendanceChart() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [data,       setData]       = useState<WeekData | null>(null);
   const [loading,    setLoading]    = useState(true);
+  const [colors,     setColors]     = useState<ChartColors>(darkColors);
+
+  // Sincronizar colores con el tema activo y reaccionar a cambios de tema
+  useEffect(() => {
+    const el = document.getElementById("dojo-shell") ?? document.documentElement;
+    const sync = () => setColors(getChartColors());
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(el, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,20 +116,20 @@ export function AttendanceChart() {
             <AreaChart data={data.days} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
               <defs>
                 <linearGradient id="attendGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor="#C0392B" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#C0392B" stopOpacity={0.02} />
+                  <stop offset="0%"   stopColor={colors.primary} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={colors.primary} stopOpacity={0.02} />
                 </linearGradient>
               </defs>
 
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="rgba(255,255,255,0.06)"
+                stroke={colors.grid}
                 vertical={false}
               />
 
               <XAxis
                 dataKey="day"
-                tick={{ fill: "#8892A4", fontSize: 11 }}
+                tick={{ fill: colors.axis, fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -112,22 +137,22 @@ export function AttendanceChart() {
               <YAxis
                 domain={[0, 100]}
                 tickFormatter={(v: number) => `${v}%`}
-                tick={{ fill: "#8892A4", fontSize: 10 }}
+                tick={{ fill: colors.axis, fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
                 ticks={[0, 25, 50, 75, 100]}
               />
 
-              <Tooltip content={<CustomTooltip />} cursor={{ stroke: "rgba(255,255,255,0.12)", strokeWidth: 1 }} />
+              <Tooltip content={<CustomTooltip colors={colors} />} cursor={{ stroke: colors.grid, strokeWidth: 1 }} />
 
               <Area
                 type="monotone"
                 dataKey="pct"
-                stroke="#C0392B"
+                stroke={colors.primary}
                 strokeWidth={2.5}
                 fill="url(#attendGrad)"
-                dot={{ fill: "#C0392B", r: 3.5, strokeWidth: 0 }}
-                activeDot={{ fill: "#C0392B", r: 5, stroke: "#fff", strokeWidth: 1.5 }}
+                dot={{ fill: colors.primary, r: 3.5, strokeWidth: 0 }}
+                activeDot={{ fill: colors.primary, r: 5, stroke: "#fff", strokeWidth: 1.5 }}
               />
             </AreaChart>
           </ResponsiveContainer>
