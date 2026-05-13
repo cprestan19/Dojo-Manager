@@ -7,6 +7,7 @@ interface StudentQRProps {
   studentCode: number | null;
   fullName: string;
   cedula: string | null;
+  bloodType: string | null;
   address: string | null;
   motherName: string | null;
   motherPhone: string | null;
@@ -26,6 +27,7 @@ function buildQRText(p: StudentQRProps): string {
     `Nombre: ${p.fullName}`,
   ];
   if (p.cedula)      lines.push(`Cédula: ${p.cedula}`);
+  if (p.bloodType)   lines.push(`Tipo de Sangre: ${p.bloodType}`);
   if (p.address)     lines.push(`Dirección: ${p.address}`);
   lines.push("---");
   if (p.motherName)  lines.push(`Madre: ${p.motherName}${p.motherPhone ? ` | Tel: ${p.motherPhone}` : ""}`);

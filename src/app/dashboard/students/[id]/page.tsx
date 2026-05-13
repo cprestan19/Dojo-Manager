@@ -1001,6 +1001,7 @@ export default function StudentDetailPage() {
             studentCode={student.studentCode}
             fullName={student.fullName}
             cedula={student.cedula}
+            bloodType={student.bloodType}
             address={student.address}
             motherName={student.motherName}
             motherPhone={student.motherPhone}
