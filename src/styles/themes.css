@@ -242,6 +242,39 @@
   border-color: #E5E7EB;
 }
 
+/* ── Stats cards de asistencia: temáticas ───────────────────── */
+/* Dark: colores oscuros originales */
+.stat-card-entries {
+  border-color: rgba(16,185,129,0.3);
+  background-color: rgba(16,185,129,0.1);
+}
+.stat-card-entries p { color: #10B981; }
+
+.stat-card-exits {
+  border-color: rgba(239,68,68,0.3);
+  background-color: rgba(239,68,68,0.1);
+}
+.stat-card-exits p { color: #EF4444; }
+
+/* Light themes: semánticos limpios */
+[data-theme="soft-neutral"] .stat-card-entries,
+[data-theme="executive-red"] .stat-card-entries {
+  background-color: #DCFCE7 !important;
+  border-left: 4px solid #16A34A !important;
+  border-color: #BBF7D0 !important;
+}
+[data-theme="soft-neutral"] .stat-card-entries p,
+[data-theme="executive-red"] .stat-card-entries p { color: #15803D !important; }
+
+[data-theme="soft-neutral"] .stat-card-exits,
+[data-theme="executive-red"] .stat-card-exits {
+  background-color: #FEE2E2 !important;
+  border-left: 4px solid #DC2626 !important;
+  border-color: #FECACA !important;
+}
+[data-theme="soft-neutral"] .stat-card-exits p,
+[data-theme="executive-red"] .stat-card-exits p { color: #DC2626 !important; }
+
 /* ── Iconos de tarjetas stat → rojo del tema ────────────────── */
 [data-theme="executive-red"] .stat-icon-circle {
   background: rgb(var(--c-primary)) !important;

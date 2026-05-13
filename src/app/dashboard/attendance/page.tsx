@@ -74,11 +74,11 @@ function StudentAvatar({ student }: { student: AttendanceStudent }) {
 
 function TypeBadge({ type }: { type: string }) {
   return type === "entry" ? (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-900/30 text-green-400 border border-green-800/40">
+    <span className="badge-green inline-flex items-center gap-1">
       <LogIn size={10} /> Entrada
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-900/30 text-red-400 border border-red-800/40">
+    <span className="badge-red inline-flex items-center gap-1">
       <LogOut size={10} /> Salida
     </span>
   );
@@ -175,17 +175,17 @@ export default function AttendancePage() {
 
       {/* ── Stats ── */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="card border border-dojo-border text-center py-3">
+        <div className="card text-center py-3">
           <p className="text-[10px] sm:text-xs text-dojo-muted uppercase tracking-wider">Total</p>
           <p className="text-xl sm:text-3xl font-bold text-dojo-white mt-0.5">{stats.total}</p>
         </div>
-        <div className="card border border-green-800/30 bg-green-900/10 text-center py-3">
-          <p className="text-[10px] sm:text-xs text-green-400 uppercase tracking-wider">Entradas</p>
-          <p className="text-xl sm:text-3xl font-bold text-green-400 mt-0.5">{stats.entries}</p>
+        <div className="card stat-card-entries text-center py-3">
+          <p className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold">Entradas</p>
+          <p className="text-xl sm:text-3xl font-bold mt-0.5">{stats.entries}</p>
         </div>
-        <div className="card border border-red-800/30 bg-red-900/10 text-center py-3">
-          <p className="text-[10px] sm:text-xs text-red-400 uppercase tracking-wider">Salidas</p>
-          <p className="text-xl sm:text-3xl font-bold text-red-400 mt-0.5">{stats.exits}</p>
+        <div className="card stat-card-exits text-center py-3">
+          <p className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold">Salidas</p>
+          <p className="text-xl sm:text-3xl font-bold mt-0.5">{stats.exits}</p>
         </div>
       </div>
 
@@ -259,7 +259,7 @@ export default function AttendancePage() {
                 <span className="text-xs text-dojo-muted">{formatDate(a.markedAt)}</span>
                 <span className="text-xs font-semibold text-dojo-white">{formatTime(a.markedAt)}</span>
                 {a.corrected && (
-                  <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full bg-yellow-900/30 text-yellow-400 border border-yellow-800/40">
+                  <span className="badge-yellow inline-flex items-center gap-0.5">
                     <AlertTriangle size={9} /> Corregida
                   </span>
                 )}
@@ -318,7 +318,7 @@ export default function AttendancePage() {
                     <td className="px-4 py-3 text-dojo-muted max-w-[160px] truncate">{a.note ?? "—"}</td>
                     <td className="px-4 py-3">
                       {a.corrected ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-900/30 text-yellow-400 border border-yellow-800/40">
+                        <span className="badge-yellow inline-flex items-center gap-1">
                           <AlertTriangle size={11} /> Corregida
                         </span>
                       ) : (
