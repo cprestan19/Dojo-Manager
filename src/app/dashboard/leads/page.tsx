@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  Users, Phone, Calendar, CheckCircle, Clock, XCircle,
+  Users, Phone, Calendar, CheckCircle, Clock, XCircle, Check,
   MessageCircle, ChevronDown, Trash2, ExternalLink, Star,
   UserPlus, AlertCircle, FileText,
 } from "lucide-react";
@@ -48,6 +48,7 @@ export default function LeadsPage() {
   const [noteModal,setNoteModal]= useState<Lead | null>(null);
   const [noteText, setNoteText] = useState("");
   const [saving,   setSaving]   = useState(false);
+  const [noteSaved,setNoteSaved]= useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,8 +77,8 @@ export default function LeadsPage() {
       body: JSON.stringify({ notes: noteText }),
     });
     setSaving(false);
-    setNoteModal(null);
-    load();
+    setNoteSaved(true);
+    setTimeout(() => { setNoteSaved(false); setNoteModal(null); load(); }, 1200);
   }
 
   async function deleteLead(id: string) {
@@ -282,10 +283,15 @@ export default function LeadsPage() {
               placeholder="Ej. Llamé el martes, quedaron de venir el jueves..."
               rows={4}
             />
+            {noteSaved && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-900/20 border border-green-700/40 text-green-300 text-sm">
+                <Check size={14} /> Nota guardada correctamente
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <button onClick={() => setNoteModal(null)} className="btn-secondary text-sm">Cancelar</button>
-              <button onClick={saveNote} disabled={saving} className="btn-primary text-sm">
-                {saving ? "Guardando..." : "Guardar nota"}
+              <button onClick={saveNote} disabled={saving || noteSaved} className="btn-primary text-sm">
+                {noteSaved ? <><Check size={14}/> ¡Guardado!</> : saving ? "Guardando..." : "Guardar nota"}
               </button>
             </div>
           </div>

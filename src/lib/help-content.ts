@@ -270,6 +270,47 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
       "Solo visible para Sysadmin.",
     ],
   },
+
+  "/dashboard/leads": {
+    title:       "Prospectos",
+    emoji:       "🎯",
+    description: "CRM de solicitudes de clase de prueba que llegan desde tu página pública.",
+    steps: [
+      "Cuando alguien llena el formulario en tu página pública, aparece aquí automáticamente en estado 'Pendiente'.",
+      "Haz clic en el estado (Pendiente, Contactado, etc.) para cambiar el progreso del prospecto.",
+      "Usa el ícono de WhatsApp para escribirle directamente al padre/madre con un mensaje pre-cargado.",
+      "Agrega notas internas con el ícono 📝 — solo las ve el admin, el prospecto no las ve.",
+      "Cuando el niño se inscribe, haz clic en 'Inscribir' para crear su ficha de alumno con los datos pre-cargados.",
+      "Una vez inscrito, cambia el estado a 'Inscrito' para llevar el seguimiento.",
+    ],
+    tips: [
+      "Las tarjetas superiores muestran cuántos prospectos hay en cada etapa — clic en una para filtrar.",
+      "El módulo marca automáticamente como 'leídos' los prospectos cuando abres la página.",
+      "Puedes eliminar un prospecto si fue un error o ya no aplica.",
+    ],
+  },
+
+  "/dashboard/settings/public-page": {
+    title:       "Página Pública",
+    emoji:       "🌐",
+    description: "Editor de la página web de marketing de tu dojo — visible para cualquier persona en internet.",
+    steps: [
+      "Primero activa la página con el botón 'Publicar'. Mientras esté inactiva, nadie la puede ver.",
+      "Edita el Hero: título llamativo, subtítulo y una foto de fondo impactante del dojo.",
+      "Completa 'Sobre nosotros' con la historia del dojo y una foto del espacio o los atletas.",
+      "Elige el color de acento que identifica tu marca — aplica a botones, títulos y acentos.",
+      "Activa o desactiva secciones: horarios, formulario de clase gratuita, contacto.",
+      "Haz clic en 'Guardar cambios' y luego en 'Ver página' para ver el resultado en vivo.",
+      "Copia el enlace con el ícono de copiar y compártelo en Instagram, WhatsApp, etc.",
+    ],
+    tips: [
+      "Los datos de WhatsApp, email, teléfono e Instagram se toman de Configuración → General.",
+      "Los horarios que aparecen en la página pública son los que creaste en el módulo Horarios.",
+      "Las solicitudes de clase de prueba llegan directo a Prospectos en el dashboard.",
+      "Puedes despublicar la página en cualquier momento sin perder el contenido.",
+    ],
+  },
+
 };
 
 export function getHelpContent(pathname: string): HelpContent | null {

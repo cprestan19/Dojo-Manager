@@ -269,17 +269,26 @@ export default function PublicPageSettings() {
       </div>
 
       {/* Guardar */}
-      <div className="flex items-center gap-3">
-        <button onClick={save} disabled={saving}
-          className="btn-primary">
-          {saving ? "Guardando..." : saved ? <><Check size={16}/> Guardado</> : <><Save size={16}/> Guardar cambios</>}
-        </button>
-        {dojo?.slug && (
-          <a href={`/dojo/${dojo.slug}`} target="_blank" rel="noopener noreferrer"
-            className="btn-secondary text-sm">
-            <ExternalLink size={15}/> Ver página
-          </a>
+      <div className="space-y-3">
+        {/* Banner de éxito */}
+        {saved && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-700/40 bg-green-900/20 text-green-300 text-sm font-semibold animate-pulse-once">
+            <Check size={16} className="text-green-400 shrink-0" />
+            Cambios guardados correctamente — la página pública ya está actualizada.
+          </div>
         )}
+        <div className="flex items-center gap-3">
+          <button onClick={save} disabled={saving}
+            className={`btn-primary transition-all ${saved ? "bg-green-700 hover:bg-green-600" : ""}`}>
+            {saving ? "Guardando..." : saved ? <><Check size={16}/> ¡Guardado!</> : <><Save size={16}/> Guardar cambios</>}
+          </button>
+          {dojo?.slug && (
+            <a href={`/dojo/${dojo.slug}`} target="_blank" rel="noopener noreferrer"
+              className="btn-secondary text-sm">
+              <ExternalLink size={15}/> Ver página
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
