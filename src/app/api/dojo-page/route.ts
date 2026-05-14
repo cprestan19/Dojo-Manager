@@ -32,40 +32,45 @@ export async function PUT(req: NextRequest) {
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
 
-  const page = await prisma.dojoPage.upsert({
-    where:  { dojoId },
-    create: {
-      dojoId,
-      published:     body.published     ?? false,
-      heroTitle:     body.heroTitle     || null,
-      heroSubtitle:  body.heroSubtitle  || null,
-      heroImage:     body.heroImage     || null,
-      aboutText:     body.aboutText     || null,
-      aboutImage:    body.aboutImage    || null,
-      primaryColor:  body.primaryColor  || "#C0392B",
-      showFreeTrial: body.showFreeTrial ?? true,
-      showSchedules: body.showSchedules ?? true,
-      showContact:   body.showContact   ?? true,
-      address:       body.address       || null,
-      galleryImages: Array.isArray(body.galleryImages) ? body.galleryImages : [],
-    },
-    update: {
-      ...(body.published     !== undefined && { published:     body.published }),
-      ...(body.heroTitle     !== undefined && { heroTitle:     body.heroTitle     || null }),
-      ...(body.heroSubtitle  !== undefined && { heroSubtitle:  body.heroSubtitle  || null }),
-      ...(body.heroImage     !== undefined && { heroImage:     body.heroImage     || null }),
-      ...(body.aboutText     !== undefined && { aboutText:     body.aboutText     || null }),
-      ...(body.aboutImage    !== undefined && { aboutImage:    body.aboutImage    || null }),
-      ...(body.primaryColor  !== undefined && { primaryColor:  body.primaryColor  || "#C0392B" }),
-      ...(body.showFreeTrial !== undefined && { showFreeTrial: body.showFreeTrial }),
-      ...(body.showSchedules !== undefined && { showSchedules: body.showSchedules }),
-      ...(body.showContact   !== undefined && { showContact:   body.showContact }),
-      ...(body.address       !== undefined && { address:       body.address       || null }),
-      ...(body.galleryImages !== undefined && { galleryImages: Array.isArray(body.galleryImages) ? body.galleryImages : [] }),
-    },
-  });
-
-  return NextResponse.json(page);
+  try {
+    const page = await prisma.dojoPage.upsert({
+      where:  { dojoId },
+      create: {
+        dojoId,
+        published:     body.published     ?? false,
+        heroTitle:     body.heroTitle     || null,
+        heroSubtitle:  body.heroSubtitle  || null,
+        heroImage:     body.heroImage     || null,
+        aboutText:     body.aboutText     || null,
+        aboutImage:    body.aboutImage    || null,
+        primaryColor:  body.primaryColor  || "#C0392B",
+        showFreeTrial: body.showFreeTrial ?? true,
+        showSchedules: body.showSchedules ?? true,
+        showContact:   body.showContact   ?? true,
+        address:       body.address       || null,
+        galleryImages: Array.isArray(body.galleryImages) ? body.galleryImages : [],
+      },
+      update: {
+        ...(body.published     !== undefined && { published:     body.published }),
+        ...(body.heroTitle     !== undefined && { heroTitle:     body.heroTitle     || null }),
+        ...(body.heroSubtitle  !== undefined && { heroSubtitle:  body.heroSubtitle  || null }),
+        ...(body.heroImage     !== undefined && { heroImage:     body.heroImage     || null }),
+        ...(body.aboutText     !== undefined && { aboutText:     body.aboutText     || null }),
+        ...(body.aboutImage    !== undefined && { aboutImage:    body.aboutImage    || null }),
+        ...(body.primaryColor  !== undefined && { primaryColor:  body.primaryColor  || "#C0392B" }),
+        ...(body.showFreeTrial !== undefined && { showFreeTrial: body.showFreeTrial }),
+        ...(body.showSchedules !== undefined && { showSchedules: body.showSchedules }),
+        ...(body.showContact   !== undefined && { showContact:   body.showContact   }),
+        ...(body.address       !== undefined && { address:       body.address       || null }),
+        ...(body.galleryImages !== undefined && { galleryImages: Array.isArray(body.galleryImages) ? body.galleryImages : [] }),
+      },
+    });
+    return NextResponse.json(page);
+  } catch (err) {
+    console.error("[dojo-page] PUT error:", err);
+    return NextResponse.json({ error: "Error al guardar la página. Reinicia el servidor e intenta de nuevo." }, { status: 500 });
+  }
 }
