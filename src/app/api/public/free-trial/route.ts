@@ -31,10 +31,13 @@ export async function POST(req: NextRequest) {
 
     const dojo = await prisma.dojo.findUnique({
       where:  { slug, active: true },
-      select: { id: true, dojoPage: { select: { published: true, showFreeTrial: true } } },
+      select: { id: true, dojoPage: { select: { showFreeTrial: true } } },
     });
-    if (!dojo?.dojoPage?.published || !dojo.dojoPage.showFreeTrial)
+    if (!dojo)
       return NextResponse.json({ error: "Formulario no disponible" }, { status: 404 });
+    // Si dojoPage no existe aún o showFreeTrial es null, asumimos que está activo por defecto
+    if (dojo.dojoPage && dojo.dojoPage.showFreeTrial === false)
+      return NextResponse.json({ error: "El formulario de clase de prueba no está disponible en este dojo" }, { status: 404 });
 
     // Auto-suggest a schedule based on age:
     // 3–7  → first morning schedule (startTime < "12:00")
