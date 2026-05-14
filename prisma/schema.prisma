@@ -74,6 +74,12 @@ model DojoPage {
   showSchedules  Boolean @default(true)  @map("show_schedules")
   showContact    Boolean @default(true)  @map("show_contact")
 
+  // Ubicación
+  address String? @db.Text  // dirección física del dojo
+
+  // Galería de atletas — array JSON de URLs Cloudinary
+  galleryImages Json?   @map("gallery_images")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

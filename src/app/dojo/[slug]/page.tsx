@@ -66,6 +66,7 @@ export default async function DojoPublicPageRoute({ params, searchParams }: Prop
     aboutText: null, aboutImage: null,
     primaryColor: "#C0392B",
     showFreeTrial: true, showSchedules: true, showContact: true,
+    address: null, galleryImages: null,
     createdAt: new Date(), updatedAt: new Date(),
   };
 

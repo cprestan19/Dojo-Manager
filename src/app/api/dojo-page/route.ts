@@ -48,6 +48,8 @@ export async function PUT(req: NextRequest) {
       showFreeTrial: body.showFreeTrial ?? true,
       showSchedules: body.showSchedules ?? true,
       showContact:   body.showContact   ?? true,
+      address:       body.address       || null,
+      galleryImages: Array.isArray(body.galleryImages) ? body.galleryImages : [],
     },
     update: {
       ...(body.published     !== undefined && { published:     body.published }),
@@ -60,6 +62,8 @@ export async function PUT(req: NextRequest) {
       ...(body.showFreeTrial !== undefined && { showFreeTrial: body.showFreeTrial }),
       ...(body.showSchedules !== undefined && { showSchedules: body.showSchedules }),
       ...(body.showContact   !== undefined && { showContact:   body.showContact }),
+      ...(body.address       !== undefined && { address:       body.address       || null }),
+      ...(body.galleryImages !== undefined && { galleryImages: Array.isArray(body.galleryImages) ? body.galleryImages : [] }),
     },
   });
 

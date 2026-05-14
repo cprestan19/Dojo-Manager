@@ -18,12 +18,15 @@ interface PageData {
   showFreeTrial: boolean;
   showSchedules: boolean;
   showContact:   boolean;
+  address:       string | null;
+  galleryImages: string[];
 }
 
 const DEFAULT: PageData = {
   published: false, heroTitle: null, heroSubtitle: null, heroImage: null,
   aboutText: null, aboutImage: null, primaryColor: "#C0392B",
   showFreeTrial: true, showSchedules: true, showContact: true,
+  address: null, galleryImages: [],
 };
 
 function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -46,19 +49,38 @@ export default function PublicPageSettings() {
   const [saving,     setSaving]     = useState(false);
   const [saved,      setSaved]      = useState(false);
   const [copied,     setCopied]     = useState(false);
-  const [uploading,  setUploading]  = useState<"hero" | "about" | null>(null);
-  const heroRef  = useRef<HTMLInputElement>(null);
-  const aboutRef = useRef<HTMLInputElement>(null);
+  const [uploading,  setUploading]  = useState<"hero" | "about" | "gallery" | null>(null);
+  const heroRef    = useRef<HTMLInputElement>(null);
+  const aboutRef   = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     const r = await fetch("/api/dojo-page");
-    if (r.ok) { const d = await r.json(); if (d) setPage(d); }
+    if (r.ok) {
+      const d = await r.json();
+      if (d) setPage({ ...DEFAULT, ...d, galleryImages: Array.isArray(d.galleryImages) ? d.galleryImages : [] });
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const publicUrl = dojo?.slug ? `${window.location.origin}/dojo/${dojo.slug}` : "";
+
+  async function uploadGalleryImage(file: File) {
+    setUploading("gallery");
+    try {
+      const fd = new FormData();
+      fd.append("file", file); fd.append("type", "image"); fd.append("purpose", "dojo-gallery");
+      const r = await fetch("/api/upload", { method: "POST", body: fd });
+      const j = await r.json();
+      if (r.ok) setPage(p => ({ ...p, galleryImages: [...p.galleryImages, j.url] }));
+    } finally { setUploading(null); }
+  }
+
+  function removeGalleryImage(idx: number) {
+    setPage(p => ({ ...p, galleryImages: p.galleryImages.filter((_, i) => i !== idx) }));
+  }
 
   async function uploadImage(file: File, field: "heroImage" | "aboutImage") {
     setUploading(field === "heroImage" ? "hero" : "about");
@@ -267,6 +289,74 @@ export default function PublicPageSettings() {
         <Toggle value={page.showSchedules}  onChange={v => setPage(p => ({ ...p, showSchedules: v }))}  label="Mostrar horarios de clases" />
         <Toggle value={page.showFreeTrial}  onChange={v => setPage(p => ({ ...p, showFreeTrial: v }))}  label="Mostrar formulario de clase gratuita" />
         <Toggle value={page.showContact}    onChange={v => setPage(p => ({ ...p, showContact: v }))}    label="Mostrar sección de contacto" />
+      </div>
+
+      {/* Ubicación */}
+      <div className="card space-y-3">
+        <p className="text-xs font-bold text-dojo-white uppercase tracking-widest">Ubicación</p>
+        <div>
+          <label className="form-label">Dirección física del dojo</label>
+          <input value={page.address ?? ""}
+            onChange={e => setPage(p => ({ ...p, address: e.target.value || null }))}
+            className="form-input"
+            placeholder="Av. Principal, Local 5, Ciudad de Panamá" />
+          <p className="text-xs text-dojo-muted mt-1">
+            Se muestra un botón "Ver en Google Maps" con esta dirección.
+          </p>
+        </div>
+      </div>
+
+      {/* Galería de atletas */}
+      <div className="card space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-dojo-white uppercase tracking-widest">Galería de Atletas</p>
+          <span className="text-xs text-dojo-muted">{page.galleryImages.length}/12 fotos</span>
+        </div>
+
+        {/* Grid de imágenes subidas */}
+        {page.galleryImages.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {page.galleryImages.map((url, idx) => (
+              <div key={idx} className="relative group rounded-xl overflow-hidden aspect-square">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="w-full h-full object-cover" />
+                <button
+                  onClick={() => removeGalleryImage(idx)}
+                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 flex items-center justify-center
+                             opacity-0 group-hover:opacity-100 transition-opacity text-white hover:bg-red-600">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Botón agregar */}
+        {page.galleryImages.length < 12 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => galleryRef.current?.click()}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-dojo-border hover:border-dojo-red transition-colors text-sm text-dojo-muted hover:text-dojo-red">
+              {uploading === "gallery"
+                ? <div className="w-4 h-4 border-2 border-dojo-red border-t-transparent rounded-full animate-spin" />
+                : <><ImageIcon size={16} /> Agregar fotos de atletas</>
+              }
+            </button>
+            <input
+              ref={galleryRef}
+              type="file" accept="image/*" multiple className="hidden"
+              onChange={e => {
+                const files = Array.from(e.target.files ?? []).slice(0, 12 - page.galleryImages.length);
+                files.forEach(f => uploadGalleryImage(f));
+                e.target.value = "";
+              }}
+            />
+            <p className="text-xs text-dojo-muted mt-1.5">
+              Sube fotos de entrenamientos, competencias o atletas. Máx. 12 imágenes. Se muestran en galería tipo mosaico.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Guardar */}

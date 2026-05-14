@@ -13,6 +13,8 @@ interface DojoPageData {
   heroImage: string | null; aboutText: string | null; aboutImage: string | null;
   primaryColor: string; showFreeTrial: boolean;
   showSchedules: boolean; showContact: boolean;
+  address: string | null;
+  galleryImages: unknown; // Json → cast to string[]
 }
 interface DojoData {
   id: string; name: string; slug: string; slogan: string | null;
@@ -40,6 +42,9 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
   const { dojoPage } = dojo;
   const primary  = dojoPage.primaryColor ?? "#C0392B";
   const whatsapp = dojo.phone?.replace(/\D/g, "");
+  const gallery  = Array.isArray(dojoPage.galleryImages)
+    ? (dojoPage.galleryImages as string[]).filter(Boolean)
+    : [];
 
   const [form,        setForm]        = useState<TrialForm>(EMPTY_FORM);
   const [submitting,  setSubmitting]  = useState(false);
@@ -84,9 +89,13 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-6 text-sm text-white/70">
-            {["Inicio","Nosotros","Horarios","Contacto"].map(item => (
-              <a key={item} href={`#${item.toLowerCase()}`}
-                className="hover:text-white transition-colors">{item}</a>
+            {[["Inicio","inicio"],["Nosotros","nosotros"],["Horarios","horarios"],
+              ...(gallery.length > 0 ? [["Atletas","atletas"]] : []),
+              ...(dojoPage.address   ? [["Ubicación","ubicacion"]] : []),
+              ["Contacto","contacto"]
+            ].map(([label, href]) => (
+              <a key={href} href={`#${href}`}
+                className="hover:text-white transition-colors">{label}</a>
             ))}
             {dojoPage.showFreeTrial && (
               <a href="#prueba"
@@ -104,9 +113,13 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
         </div>
         {navOpen && (
           <div className="md:hidden border-t border-white/10 px-4 py-3 space-y-2 bg-[#0A0A14]/95">
-            {["Inicio","Nosotros","Horarios","Contacto"].map(item => (
-              <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setNavOpen(false)}
-                className="block py-2 text-white/70 hover:text-white">{item}</a>
+            {[["Inicio","inicio"],["Nosotros","nosotros"],["Horarios","horarios"],
+              ...(gallery.length > 0 ? [["Atletas","atletas"]] : []),
+              ...(dojoPage.address   ? [["Ubicación","ubicacion"]] : []),
+              ["Contacto","contacto"]
+            ].map(([label, href]) => (
+              <a key={href} href={`#${href}`} onClick={() => setNavOpen(false)}
+                className="block py-2 text-white/70 hover:text-white">{label}</a>
             ))}
             {dojoPage.showFreeTrial && (
               <a href="#prueba" onClick={() => setNavOpen(false)}
@@ -230,6 +243,81 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
                   {s.description && <p className="text-white/50 text-sm mt-2">{s.description}</p>}
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Galería de atletas ── */}
+      {gallery.length > 0 && (
+        <section id="atletas" className="py-24 px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: primary }}>
+                Galería
+              </p>
+              <h2 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+                Formación de <span style={{ color: primary }}>Atletas</span>
+              </h2>
+              <p className="text-white/50 text-lg max-w-xl mx-auto">
+                Cada entrenamiento forja carácter. Conoce a los atletas que dan vida a nuestro dojo.
+              </p>
+            </div>
+
+            {/* Masonry grid */}
+            <div className="columns-2 md:columns-3 gap-3 space-y-3">
+              {gallery.map((url, i) => (
+                <div key={i}
+                  className="break-inside-avoid rounded-2xl overflow-hidden group relative"
+                  style={{ marginBottom: "12px" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={`Atleta ${i + 1}`}
+                    className="w-full h-auto object-cover block transition-transform duration-500 group-hover:scale-105"
+                  />
+                  {/* Overlay sutil en hover */}
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"
+                    style={{ background: `linear-gradient(to top, ${primary}55 0%, transparent 60%)` }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Ubicación ── */}
+      {dojoPage.address && (
+        <section id="ubicacion" className="py-20 px-6" style={{ background: "rgba(255,255,255,0.02)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="max-w-4xl mx-auto text-center">
+            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: primary }}>
+              Ubicación
+            </p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-8">¿Dónde encontrarnos?</h2>
+
+            <div className="inline-flex items-start gap-3 px-6 py-4 rounded-2xl mb-8 text-left"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <MapPin size={20} className="shrink-0 mt-0.5" style={{ color: primary }} />
+              <p className="text-white/70 text-lg leading-relaxed">{dojoPage.address}</p>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-4">
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dojoPage.address)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2.5 px-6 py-3.5 rounded-2xl font-bold text-white transition-all hover:scale-105"
+                style={{ background: primary, boxShadow: `0 4px 20px ${primary}55` }}>
+                <MapPin size={18} /> Ver en Google Maps
+              </a>
+              {whatsapp && (
+                <a
+                  href={`https://wa.me/${whatsapp}?text=Hola! Quisiera saber cómo llegar al dojo`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 px-6 py-3.5 rounded-2xl font-bold text-white transition-all hover:scale-105"
+                  style={{ background: "#25D366" }}>
+                  <MessageCircle size={18} /> Preguntar por WhatsApp
+                </a>
+              )}
             </div>
           </div>
         </section>
