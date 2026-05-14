@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useDojo } from "@/lib/hooks/useDojo";
 import {
   Globe, Eye, EyeOff, Copy, Check, Save, Image as ImageIcon,
-  ExternalLink, X, Palette, ToggleLeft, ToggleRight,
+  ExternalLink, X, Palette, ToggleLeft, ToggleRight, MapPin,
 } from "lucide-react";
 
 interface PageData {
@@ -48,6 +48,7 @@ export default function PublicPageSettings() {
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(false);
   const [saved,      setSaved]      = useState(false);
+  const [saveError,  setSaveError]  = useState("");
   const [copied,     setCopied]     = useState(false);
   const [uploading,  setUploading]  = useState<"hero" | "about" | "gallery" | null>(null);
   const heroRef    = useRef<HTMLInputElement>(null);
@@ -93,14 +94,25 @@ export default function PublicPageSettings() {
   }
 
   async function save() {
-    setSaving(true); setSaved(false);
-    const r = await fetch("/api/dojo-page", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(page),
-    });
-    if (r.ok) { setSaved(true); setTimeout(() => setSaved(false), 3000); }
-    setSaving(false);
+    setSaving(true); setSaved(false); setSaveError("");
+    try {
+      const r = await fetch("/api/dojo-page", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(page),
+      });
+      if (r.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 4000);
+      } else {
+        const j = await r.json().catch(() => ({}));
+        setSaveError(j.error ?? "Error al guardar. Intenta de nuevo.");
+      }
+    } catch {
+      setSaveError("Error de conexión. Intenta de nuevo.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function togglePublish() {
@@ -363,14 +375,22 @@ export default function PublicPageSettings() {
       <div className="space-y-3">
         {/* Banner de éxito */}
         {saved && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-700/40 bg-green-900/20 text-green-300 text-sm font-semibold animate-pulse-once">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-600/50 bg-green-900/30 text-green-300 text-sm font-semibold">
             <Check size={16} className="text-green-400 shrink-0" />
-            Cambios guardados correctamente — la página pública ya está actualizada.
+            ¡Cambios guardados correctamente! La página pública ya está actualizada.
+          </div>
+        )}
+        {/* Banner de error */}
+        {saveError && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-red-700/40 bg-red-900/20 text-red-300 text-sm">
+            <X size={16} className="text-red-400 shrink-0" />
+            {saveError}
           </div>
         )}
         <div className="flex items-center gap-3">
           <button onClick={save} disabled={saving}
-            className={`btn-primary transition-all ${saved ? "bg-green-700 hover:bg-green-600" : ""}`}>
+            className={`btn-primary transition-all ${saved ? "opacity-90" : ""}`}
+            style={saved ? { background: "#16A34A" } : undefined}>
             {saving ? "Guardando..." : saved ? <><Check size={16}/> ¡Guardado!</> : <><Save size={16}/> Guardar cambios</>}
           </button>
           {dojo?.slug && (
