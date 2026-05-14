@@ -50,7 +50,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const code = (err as { code?: string })?.code;
     if (code === "P2002")
       return NextResponse.json({ error: "Ya existe un kata con ese nombre en este dojo." }, { status: 409 });
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("katas [id] error:", err);
+    return NextResponse.json({ error: "Error interno al procesar la kata" }, { status: 500 });
   }
 }
 
@@ -73,6 +74,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     revalidateTag(CACHE_TAGS.katas(dojoId));
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("katas [id] error:", err);
+    return NextResponse.json({ error: "Error interno al procesar la kata" }, { status: 500 });
   }
 }

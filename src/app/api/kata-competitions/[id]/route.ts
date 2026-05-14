@@ -39,7 +39,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     });
     return NextResponse.json(entry);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("kata-competitions [id] error:", err);
+    return NextResponse.json({ error: "Error interno al procesar la competencia" }, { status: 500 });
   }
 }
 

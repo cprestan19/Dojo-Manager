@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
     const code = (err as { code?: string })?.code;
     if (code === "P2002")
       return NextResponse.json({ error: "Ya existe un kata con ese nombre en este dojo." }, { status: 409 });
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("katas POST error:", err);
+    return NextResponse.json({ error: "Error interno al crear la kata" }, { status: 500 });
   }
 }

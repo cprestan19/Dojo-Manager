@@ -53,7 +53,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     });
     return NextResponse.json(entry);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("belt-history [id] error:", err);
+    return NextResponse.json({ error: "Error al actualizar el historial" }, { status: 500 });
   }
 }
 

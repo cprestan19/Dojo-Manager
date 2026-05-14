@@ -12,8 +12,9 @@ export async function GET( req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { dojoId } = session.user as SessionUser;
-  // NOTE: role needed for sysadmin context — check SessionUser type
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  if (role === "student") return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const student = await prisma.student.findUnique({
@@ -52,8 +53,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { dojoId } = session.user as SessionUser;
-  // NOTE: role needed for sysadmin context — check SessionUser type
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  if (role !== "admin" && role !== "sysadmin")
+    return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   try {
@@ -110,7 +113,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json(student);
   } catch (err) {
     console.error("PUT /api/students/[id] error:", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: "Error al actualizar el alumno" }, { status: 500 });
   }
 }
 

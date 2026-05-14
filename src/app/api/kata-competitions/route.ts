@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(entry, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("kata-competitions POST error:", err);
+    return NextResponse.json({ error: "Error interno al registrar la competencia" }, { status: 500 });
   }
 }
