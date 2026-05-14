@@ -141,8 +141,9 @@ export default function PublicPageSettings() {
             <button onClick={copyUrl} className="shrink-0 text-dojo-muted hover:text-dojo-white transition-colors">
               {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
             </button>
-            <a href={publicUrl} target="_blank" rel="noopener noreferrer"
-              className="shrink-0 text-dojo-muted hover:text-dojo-white transition-colors">
+            <a href={`${publicUrl}?preview=1`} target="_blank" rel="noopener noreferrer"
+              className="shrink-0 text-dojo-muted hover:text-dojo-white transition-colors"
+              title="Ver vista previa">
               <ExternalLink size={14} />
             </a>
           </div>
@@ -283,9 +284,9 @@ export default function PublicPageSettings() {
             {saving ? "Guardando..." : saved ? <><Check size={16}/> ¡Guardado!</> : <><Save size={16}/> Guardar cambios</>}
           </button>
           {dojo?.slug && (
-            <a href={`/dojo/${dojo.slug}`} target="_blank" rel="noopener noreferrer"
+            <a href={`/dojo/${dojo.slug}?preview=1`} target="_blank" rel="noopener noreferrer"
               className="btn-secondary text-sm">
-              <ExternalLink size={15}/> Ver página
+              <ExternalLink size={15}/> Ver vista previa
             </a>
           )}
         </div>
