@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Calendar, Plus, Edit2, Trash2, X, Save, Image as ImageIcon,
-  MapPin, Clock, ChevronRight, CalendarCheck,
+  MapPin, Clock, CalendarCheck, Eye, Smartphone,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 
@@ -16,10 +16,36 @@ interface DojoEvent {
   endDate:     string;
 }
 
+// Forma del objeto que se pasa al preview (puede venir del form o de un evento guardado)
+interface PreviewData {
+  title:       string;
+  description: string;
+  location:    string;
+  imageUrl:    string;
+  startDate:   string; // ISO o datetime-local
+  endDate:     string;
+}
+
 type Tab = "active" | "past";
 
+/* ── Helpers de formato ──────────────────────────────────────── */
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric" });
+}
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+}
+function formatDateRange(start: string, end: string) {
+  const s = new Date(start);
+  const e = new Date(end);
+  if (s.toDateString() === e.toDateString())
+    return s.toLocaleDateString("es-PA", { day: "2-digit", month: "long", year: "numeric" });
+  return `${s.toLocaleDateString("es-PA", { day: "2-digit", month: "short" })} — ${e.toLocaleDateString("es-PA", { day: "2-digit", month: "long", year: "numeric" })}`;
+}
+function toIso(val: string): string {
+  if (!val) return new Date().toISOString();
+  // Si ya es ISO (tiene Z o +) lo usa directo, si no lo parsea
+  return isNaN(Date.parse(val)) ? new Date().toISOString() : new Date(val).toISOString();
 }
 function toDateTimeLocal(iso: string) {
   const d   = new Date(iso);
@@ -29,17 +55,140 @@ function toDateTimeLocal(iso: string) {
 
 const EMPTY_FORM = { title: "", description: "", location: "", imageUrl: "", startDate: "", endDate: "" };
 
+/* ── Vista previa del evento (portal view) ───────────────────── */
+function EventPreviewCard({ data }: { data: PreviewData }) {
+  const start = toIso(data.startDate);
+  const end   = toIso(data.endDate);
+  return (
+    <div className="rounded-xl overflow-hidden bg-dojo-card border border-dojo-border">
+      {data.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={data.imageUrl} alt={data.title} className="w-full object-cover" style={{ maxHeight: "160px" }} />
+      )}
+      <div className="p-3 space-y-2.5">
+        <p className="font-display font-bold text-dojo-white text-sm leading-tight">
+          {data.title || <span className="text-dojo-muted italic">Sin título</span>}
+        </p>
+        <div className="flex flex-wrap gap-2 text-[11px]">
+          <span className="flex items-center gap-1 text-dojo-muted">
+            <Clock size={11} className="text-dojo-red" />
+            {formatDateRange(start, end)}
+          </span>
+          <span className="text-dojo-muted">{formatTime(start)} — {formatTime(end)}</span>
+        </div>
+        {data.location && (
+          <div className="flex items-center gap-1 text-[11px] text-dojo-muted">
+            <MapPin size={11} className="text-dojo-red" />
+            {data.location}
+          </div>
+        )}
+        {data.description && (
+          <p className="text-[11px] text-dojo-muted leading-relaxed border-t border-dojo-border/40 pt-2">
+            {data.description}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Modal de vista previa con frame de teléfono ─────────────── */
+function PreviewModal({ data, onClose }: { data: PreviewData | null; onClose: () => void }) {
+  if (!data) return null;
+  return (
+    <Modal open={!!data} onClose={onClose} title="Vista previa" size="md">
+      <div className="space-y-4">
+        {/* Subtítulo */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-dojo-border/20 border border-dojo-border/40">
+          <Smartphone size={14} className="text-dojo-red shrink-0" />
+          <p className="text-xs text-dojo-muted">
+            Así verán el evento tus alumnos desde el portal
+          </p>
+        </div>
+
+        {/* Frame tipo teléfono */}
+        <div className="mx-auto" style={{ maxWidth: "340px" }}>
+          <div className="rounded-[2rem] border-[3px] border-dojo-border bg-dojo-darker overflow-hidden shadow-xl">
+
+            {/* Barra superior del teléfono */}
+            <div className="h-6 bg-dojo-dark flex items-center justify-center">
+              <div className="w-16 h-1.5 bg-dojo-border/60 rounded-full" />
+            </div>
+
+            {/* Simulación header del portal */}
+            <div className="bg-dojo-dark border-b border-dojo-border px-3 py-2 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded-full bg-dojo-border/60" />
+                <div className="space-y-0.5">
+                  <div className="h-1.5 w-16 bg-dojo-border/60 rounded" />
+                  <div className="h-1 w-10 bg-dojo-border/40 rounded" />
+                </div>
+              </div>
+              <div className="h-1.5 w-8 bg-dojo-border/40 rounded" />
+            </div>
+
+            {/* Simulación tabs del portal */}
+            <div className="bg-dojo-dark border-b border-dojo-border">
+              <div className="flex overflow-x-auto">
+                {["Perfil","Pagos","Horarios","Asist.","Videos","Eventos"].map(t => (
+                  <span key={t}
+                    className={`flex-1 text-center py-2 text-[9px] font-medium whitespace-nowrap px-1 border-b-2 transition-colors ${
+                      t === "Eventos"
+                        ? "border-dojo-red text-dojo-red"
+                        : "border-transparent text-dojo-muted/60"
+                    }`}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Contenido del evento */}
+            <div className="bg-dojo-darker p-3 overflow-auto" style={{ height: "420px" }}>
+              <p className="text-[9px] font-bold text-dojo-muted uppercase tracking-widest mb-2 flex items-center gap-1">
+                <Calendar size={9} /> Próximos eventos
+              </p>
+              <EventPreviewCard data={data} />
+              {/* Card vacía para dar contexto de lista */}
+              <div className="mt-2 rounded-xl border border-dojo-border/30 bg-dojo-card/30 h-12 flex items-center justify-center">
+                <div className="space-y-1 w-full px-3">
+                  <div className="h-2 bg-dojo-border/30 rounded w-3/4" />
+                  <div className="h-1.5 bg-dojo-border/20 rounded w-1/2" />
+                </div>
+              </div>
+            </div>
+
+            {/* Barra inferior del teléfono */}
+            <div className="h-4 bg-dojo-dark flex items-center justify-center">
+              <div className="w-10 h-1 bg-dojo-border/60 rounded-full" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button onClick={onClose} className="btn-secondary text-sm">
+            <X size={15} /> Cerrar
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ── Página principal ────────────────────────────────────────── */
 export default function EventsPage() {
-  const [tab,      setTab]     = useState<Tab>("active");
-  const [events,   setEvents]  = useState<DojoEvent[]>([]);
-  const [loading,  setLoading] = useState(true);
-  const [modal,    setModal]   = useState(false);
-  const [editing,  setEditing] = useState<DojoEvent | null>(null);
-  const [form,     setForm]    = useState(EMPTY_FORM);
-  const [saving,   setSaving]  = useState(false);
-  const [deleting, setDeleting]= useState<string | null>(null);
-  const [error,    setError]   = useState("");
-  const [uploading,setUploading]= useState(false);
+  const [tab,       setTab]      = useState<Tab>("active");
+  const [events,    setEvents]   = useState<DojoEvent[]>([]);
+  const [loading,   setLoading]  = useState(true);
+  const [modal,     setModal]    = useState(false);
+  const [editing,   setEditing]  = useState<DojoEvent | null>(null);
+  const [form,      setForm]     = useState(EMPTY_FORM);
+  const [saving,    setSaving]   = useState(false);
+  const [deleting,  setDeleting] = useState<string | null>(null);
+  const [error,     setError]    = useState("");
+  const [uploading, setUploading]= useState(false);
+  const [preview,   setPreview]  = useState<PreviewData | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -70,6 +219,30 @@ export default function EventsPage() {
     });
     setError("");
     setModal(true);
+  }
+
+  // Vista previa desde la lista de eventos
+  function openPreview(ev: DojoEvent) {
+    setPreview({
+      title:       ev.title,
+      description: ev.description ?? "",
+      location:    ev.location    ?? "",
+      imageUrl:    ev.imageUrl    ?? "",
+      startDate:   ev.startDate,
+      endDate:     ev.endDate,
+    });
+  }
+
+  // Vista previa desde el modal de creación/edición
+  function openFormPreview() {
+    setPreview({
+      title:       form.title       || "Sin título",
+      description: form.description || "",
+      location:    form.location    || "",
+      imageUrl:    form.imageUrl    || "",
+      startDate:   form.startDate   || new Date().toISOString(),
+      endDate:     form.endDate     || new Date().toISOString(),
+    });
   }
 
   async function handleImageUpload(file: File) {
@@ -185,8 +358,7 @@ export default function EventsPage() {
                 {ev.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={ev.imageUrl}
-                    alt={ev.title}
+                    src={ev.imageUrl} alt={ev.title}
                     className="w-28 sm:w-40 h-auto object-cover shrink-0 rounded-l-xl"
                     style={{ minHeight: "100px", maxHeight: "160px" }}
                   />
@@ -225,7 +397,12 @@ export default function EventsPage() {
 
                 {/* Actions */}
                 <div className="flex flex-col items-center justify-center gap-1 px-3 border-l border-dojo-border/40 shrink-0">
-                  <button onClick={() => openEdit(ev)} className="btn-ghost p-2 text-dojo-muted hover:text-dojo-white" title="Editar">
+                  <button onClick={() => openPreview(ev)}
+                    className="btn-ghost p-2 text-dojo-muted hover:text-dojo-red" title="Vista previa">
+                    <Eye size={15} />
+                  </button>
+                  <button onClick={() => openEdit(ev)}
+                    className="btn-ghost p-2 text-dojo-muted hover:text-dojo-white" title="Editar">
                     <Edit2 size={15} />
                   </button>
                   <button onClick={() => handleDelete(ev.id)} disabled={deleting === ev.id}
@@ -319,16 +496,27 @@ export default function EventsPage() {
             <p className="text-red-400 text-sm bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{error}</p>
           )}
 
-          <div className="flex justify-end gap-3 pt-1">
-            <button onClick={() => setModal(false)} className="btn-secondary">
-              <X size={16} /> Cancelar
+          <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
+            {/* Vista previa desde el formulario */}
+            <button type="button" onClick={openFormPreview}
+              className="flex items-center gap-2 text-sm text-dojo-muted hover:text-dojo-red transition-colors">
+              <Eye size={15} /> Vista previa
             </button>
-            <button onClick={save} disabled={saving || uploading} className="btn-primary">
-              <Save size={16} /> {saving ? "Guardando..." : editing ? "Guardar cambios" : "Crear evento"}
-            </button>
+
+            <div className="flex gap-3">
+              <button onClick={() => setModal(false)} className="btn-secondary">
+                <X size={16} /> Cancelar
+              </button>
+              <button onClick={save} disabled={saving || uploading} className="btn-primary">
+                <Save size={16} /> {saving ? "Guardando..." : editing ? "Guardar cambios" : "Crear evento"}
+              </button>
+            </div>
           </div>
         </div>
       </Modal>
+
+      {/* Modal vista previa */}
+      <PreviewModal data={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }
