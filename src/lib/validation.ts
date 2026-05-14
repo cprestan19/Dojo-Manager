@@ -6,7 +6,7 @@ import { z } from "zod";
 import { NextResponse } from "next/server";
 
 // ── Primitives ───────────────────────────────────────────────
-const email   = z.string().email("Email inválido").max(254);
+const email   = z.string().trim().email("Correo electrónico inválido").toLowerCase().max(254);
 const cuid    = z.string().cuid("ID inválido");
 const nonEmpty = (max = 255) => z.string().trim().min(1, "Campo requerido").max(max);
 
@@ -114,6 +114,8 @@ export const CreateBeltVideoSchema = z.object({
 
 // ── Helper: return typed validation error ────────────────────
 export function validationError(error: z.ZodError) {
-  const messages = error.errors.map(e => `${e.path.join(".")}: ${e.message}`).join("; ");
-  return NextResponse.json({ error: messages }, { status: 400 });
+  // Mostrar solo el mensaje, sin el path técnico (ej: "email: ..." → "...")
+  const first = error.errors[0];
+  const message = first?.message ?? "Datos inválidos";
+  return NextResponse.json({ error: message }, { status: 400 });
 }
