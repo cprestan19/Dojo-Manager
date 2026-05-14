@@ -36,10 +36,43 @@ function Reveal({ children, delay = 0, className = "" }: { children: React.React
   );
 }
 
-/* ── Mockup del Dashboard (CSS puro) ────────────────────── */
-function DashboardMockup() {
+/* ── Frame de screenshot con browser bar ─────────────────── */
+function BrowserFrame({ src, alt, url = "app.dojomaster.com", height = 220 }: {
+  src: string; alt: string; url?: string; height?: number;
+}) {
+  const [err, setErr] = useState(false);
   return (
-    <div className="relative w-full max-w-[680px] mx-auto select-none">
+    <div className="rounded-2xl overflow-hidden shadow-2xl"
+      style={{ border: "1.5px solid #2A3447", background: "#111827" }}>
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/5"
+        style={{ background: "#1A2233" }}>
+        {["#EF4444","#F59E0B","#10B981"].map(c =>
+          <div key={c} className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c }} />
+        )}
+        <div className="flex-1 mx-2 rounded px-2 py-0.5 text-[10px] text-white/25"
+          style={{ background: "#0B0F14" }}>{url}</div>
+      </div>
+      {!err
+        ? <img src={src} alt={alt} className="w-full object-cover object-top block"
+            style={{ height }} onError={() => setErr(true)} />
+        : <div className="flex flex-col items-center justify-center gap-2 text-white/20 text-xs"
+            style={{ height, background: "#0B0F14" }}>
+            <Monitor size={24} className="opacity-20" />
+            <span>Agrega {src} en /public/screenshots/</span>
+          </div>
+      }
+    </div>
+  );
+}
+
+/* ── Mockup hero: laptop + teléfono ─────────────────────── */
+function DashboardMockup() {
+  const [heroErr,   setHeroErr]   = useState(false);
+  const [portalErr, setPortalErr] = useState(false);
+
+  return (
+    <div className="relative w-full max-w-[700px] mx-auto select-none">
+
       {/* Laptop frame */}
       <div className="rounded-2xl overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.7)]"
         style={{ border: "2px solid #2A3447", background: "#111827" }}>
@@ -47,93 +80,107 @@ function DashboardMockup() {
         <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/10"
           style={{ background: "#1A2233" }}>
           <div className="flex gap-1.5">
-            {["#EF4444","#F59E0B","#10B981"].map(c => (
+            {["#EF4444","#F59E0B","#10B981"].map(c =>
               <div key={c} className="w-3 h-3 rounded-full" style={{ background: c }} />
-            ))}
+            )}
           </div>
           <div className="flex-1 mx-3 rounded-md px-3 py-1 text-[10px] text-white/30"
             style={{ background: "#0B0F14" }}>
             app.dojomaster.com/dashboard
           </div>
         </div>
-        {/* Dashboard content */}
-        <div className="flex" style={{ height: "340px", background: "#0B0F14" }}>
-          {/* Sidebar */}
-          <div className="w-[130px] shrink-0 flex flex-col gap-1 p-3 border-r border-white/5"
-            style={{ background: "#111827" }}>
-            <div className="flex items-center gap-2 mb-3 px-1">
-              <div className="w-6 h-6 rounded-lg" style={{ background: "#C0392B" }} />
-              <div className="h-2 w-16 rounded" style={{ background: "#E5E7EB20" }} />
-            </div>
-            {[["#C0392B",true],["",false],["",false],["",false],["",false],["",false]].map(([c, active], i) => (
-              <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
-                style={{ background: active ? (c as string)+"22" : "transparent" }}>
-                <div className="w-3 h-3 rounded" style={{ background: active ? c as string : "#374151" }} />
-                <div className="h-1.5 rounded flex-1" style={{ background: active ? "#E5E7EB40" : "#374151" }} />
-              </div>
-            ))}
-          </div>
-          {/* Main */}
-          <div className="flex-1 p-4 overflow-hidden space-y-3">
-            {/* KPI row */}
-            <div className="grid grid-cols-3 gap-2">
-              {[["#10B981","87"],["#3B82F6","$2,340"],["#F59E0B","3"]].map(([color, val], i) => (
-                <div key={i} className="rounded-xl p-3" style={{ background: "#1A2233", border: `1px solid ${color}30` }}>
-                  <div className="w-5 h-5 rounded-lg mb-2" style={{ background: color+"25" }}>
-                    <div className="w-full h-full rounded-lg" style={{ background: color+"60" }} />
-                  </div>
-                  <div className="text-white font-bold text-sm">{val}</div>
-                  <div className="h-1.5 w-12 rounded mt-1" style={{ background: "#374151" }} />
+
+        {/* Contenido: screenshot real o CSS mockup de respaldo */}
+        {!heroErr
+          ? <img src="/screenshots/hero.png" alt="Dashboard Dojo Master"
+              className="w-full object-cover object-top block"
+              style={{ height: "340px" }}
+              onError={() => setHeroErr(true)} />
+          : (
+            /* CSS mockup de respaldo */
+            <div className="flex" style={{ height: "340px", background: "#0B0F14" }}>
+              <div className="w-[130px] shrink-0 flex flex-col gap-1 p-3 border-r border-white/5"
+                style={{ background: "#111827" }}>
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <div className="w-6 h-6 rounded-lg" style={{ background: "#C0392B" }} />
+                  <div className="h-2 w-16 rounded" style={{ background: "#E5E7EB20" }} />
                 </div>
-              ))}
-            </div>
-            {/* Chart */}
-            <div className="rounded-xl p-3" style={{ background: "#1A2233" }}>
-              <div className="h-1.5 w-24 rounded mb-3" style={{ background: "#374151" }} />
-              <div className="flex items-end gap-1 h-14">
-                {[40,65,55,80,70,90,75].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-t" style={{ height: `${h}%`, background: i === 5 ? "#C0392B" : "#C0392B33" }} />
+                {[true,false,false,false,false,false].map((active, i) => (
+                  <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                    style={{ background: active ? "#C0392B22" : "transparent" }}>
+                    <div className="w-3 h-3 rounded" style={{ background: active ? "#C0392B" : "#374151" }} />
+                    <div className="h-1.5 rounded flex-1" style={{ background: active ? "#E5E7EB40" : "#374151" }} />
+                  </div>
                 ))}
               </div>
-            </div>
-            {/* Table rows */}
-            <div className="rounded-xl overflow-hidden" style={{ background: "#1A2233" }}>
-              {[1,2,3].map(i => (
-                <div key={i} className="flex items-center gap-2 px-3 py-2 border-b border-white/5">
-                  <div className="w-6 h-6 rounded-full" style={{ background: "#C0392B33" }} />
-                  <div className="flex-1 space-y-1">
-                    <div className="h-1.5 rounded w-20" style={{ background: "#374151" }} />
-                    <div className="h-1 rounded w-14" style={{ background: "#2A3447" }} />
-                  </div>
-                  <div className="h-4 w-10 rounded-full" style={{ background: "#10B98120" }} />
+              <div className="flex-1 p-4 overflow-hidden space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {[["#10B981","87"],["#3B82F6","$2,340"],["#F59E0B","3"]].map(([color, val], i) => (
+                    <div key={i} className="rounded-xl p-3" style={{ background: "#1A2233", border: `1px solid ${color}30` }}>
+                      <div className="w-5 h-5 rounded-lg mb-2" style={{ background: color+"40" }} />
+                      <div className="text-white font-bold text-sm">{val}</div>
+                      <div className="h-1.5 w-12 rounded mt-1" style={{ background: "#374151" }} />
+                    </div>
+                  ))}
                 </div>
-              ))}
+                <div className="rounded-xl p-3" style={{ background: "#1A2233" }}>
+                  <div className="h-1.5 w-24 rounded mb-3" style={{ background: "#374151" }} />
+                  <div className="flex items-end gap-1 h-14">
+                    {[40,65,55,80,70,90,75].map((h, i) => (
+                      <div key={i} className="flex-1 rounded-t"
+                        style={{ height:`${h}%`, background: i===5?"#C0392B":"#C0392B33" }} />
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-xl overflow-hidden" style={{ background: "#1A2233" }}>
+                  {[1,2,3].map(i => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 border-b border-white/5">
+                      <div className="w-6 h-6 rounded-full shrink-0" style={{ background: "#C0392B33" }} />
+                      <div className="flex-1 space-y-1">
+                        <div className="h-1.5 rounded w-20" style={{ background: "#374151" }} />
+                        <div className="h-1 rounded w-14" style={{ background: "#2A3447" }} />
+                      </div>
+                      <div className="h-4 w-10 rounded-full" style={{ background: "#10B98120" }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          )
+        }
       </div>
+
       {/* Laptop base */}
       <div className="mx-auto h-4 rounded-b-xl" style={{ width: "88%", background: "#1A2233" }} />
       <div className="mx-auto h-2 rounded-b-2xl" style={{ width: "70%", background: "#0F172A" }} />
 
-      {/* Phone floating */}
-      <div className="absolute -right-6 bottom-4 w-[110px] rounded-[22px] overflow-hidden shadow-2xl"
+      {/* Phone flotante — portal del alumno */}
+      <div className="absolute -right-4 md:-right-8 bottom-4 w-[105px] rounded-[22px] overflow-hidden shadow-2xl"
         style={{ border: "2px solid #2A3447", background: "#111827" }}>
-        <div className="h-5 flex items-center justify-center border-b border-white/10" style={{ background: "#1A2233" }}>
+        <div className="h-5 flex items-center justify-center border-b border-white/10"
+          style={{ background: "#1A2233" }}>
           <div className="w-10 h-1.5 rounded-full" style={{ background: "#374151" }} />
         </div>
-        <div className="p-2 space-y-1.5" style={{ background: "#0B0F14", minHeight: "180px" }}>
-          <div className="h-1.5 w-14 rounded mx-auto" style={{ background: "#C0392B" }} />
-          {[1,2,3].map(i => (
-            <div key={i} className="rounded-xl p-2" style={{ background: "#1A2233" }}>
-              <div className="h-1 rounded w-full mb-1" style={{ background: "#374151" }} />
-              <div className="h-1 rounded w-10" style={{ background: "#2A3447" }} />
+        {!portalErr
+          ? <img src="/screenshots/portal.png" alt="Portal alumno"
+              className="w-full object-cover object-top block"
+              style={{ height: "190px" }}
+              onError={() => setPortalErr(true)} />
+          : (
+            <div className="p-2 space-y-1.5" style={{ background: "#0B0F14", height: "190px" }}>
+              <div className="h-1.5 w-14 rounded mx-auto mt-1" style={{ background: "#C0392B" }} />
+              {[1,2,3].map(i => (
+                <div key={i} className="rounded-xl p-2" style={{ background: "#1A2233" }}>
+                  <div className="h-1 rounded w-full mb-1" style={{ background: "#374151" }} />
+                  <div className="h-1 rounded w-10" style={{ background: "#2A3447" }} />
+                </div>
+              ))}
+              <div className="rounded-xl p-2" style={{ background: "#C0392B22", border: "1px solid #C0392B40" }}>
+                <div className="h-1.5 rounded w-12 mx-auto" style={{ background: "#C0392B60" }} />
+              </div>
             </div>
-          ))}
-          <div className="rounded-xl p-2 text-center" style={{ background: "#C0392B22", border: "1px solid #C0392B40" }}>
-            <div className="h-1.5 rounded w-12 mx-auto" style={{ background: "#C0392B60" }} />
-          </div>
-        </div>
+          )
+        }
         <div className="h-4 flex items-center justify-center" style={{ background: "#1A2233" }}>
           <div className="w-6 h-1 rounded-full" style={{ background: "#374151" }} />
         </div>
@@ -149,30 +196,40 @@ const FEATURES = [
     title: "Gestión de Alumnos",
     desc: "Fichas completas con foto, historial de cintas, pagos y asistencia. Busca, filtra y exporta en segundos.",
     stat: "Todo en una pantalla",
+    screenshot: "/screenshots/students.png",
+    url: "app.dojomaster.com/dashboard/students",
   },
   {
     icon: CreditCard, color: "#10B981",
     title: "Cobros y Recordatorios",
     desc: "Genera mensualidades con un clic. Recordatorios automáticos por email. Nunca más perseguir pagos.",
     stat: "Ahorra 5 hrs/semana",
+    screenshot: "/screenshots/payments.png",
+    url: "app.dojomaster.com/dashboard/payments",
   },
   {
     icon: QrCode, color: "#8B5CF6",
     title: "Asistencia con QR",
     desc: "Cada alumno tiene su QR único. El scanner registra la entrada en menos de 1 segundo desde cualquier celular.",
     stat: "Sin papel, sin demoras",
+    screenshot: "/screenshots/scanner.png",
+    url: "app.dojomaster.com/scanner",
   },
   {
     icon: Trophy, color: "#F59E0B",
     title: "Torneos Completos",
     desc: "Crea brackets de Kumite y Kata automáticamente. Registra scores, determina ganadores y genera el podio.",
     stat: "Kumite + Kata",
+    screenshot: "/screenshots/tournaments.png",
+    url: "app.dojomaster.com/dashboard/tournaments",
   },
   {
     icon: Globe, color: "#C0392B",
     title: "Tu Dojo en Internet",
     desc: "Página pública con tu información, horarios, fotos y formulario de clase gratuita. Lista en 5 minutos.",
     stat: "Sin costo adicional",
+    screenshot: "/screenshots/public-page.png",
+    url: "dojomaster.com/dojo/tu-dojo",
   },
 ];
 
@@ -501,31 +558,14 @@ export default function LandingPage() {
                       <h3 className="text-2xl font-black" style={{ fontFamily: "'Cinzel', serif" }}>{f.title}</h3>
                       <p className="text-white/60 text-lg leading-relaxed">{f.desc}</p>
                     </div>
-                    {/* Visual */}
+                    {/* Visual — screenshot real */}
                     <div className="flex-1 w-full">
-                      <div className="rounded-2xl overflow-hidden" style={{ background: "#111827", border: `1px solid ${f.color}25` }}>
-                        {/* Browser bar */}
-                        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/5" style={{ background: "#1A2233" }}>
-                          {["#EF4444","#F59E0B","#10B981"].map(c => <div key={c} className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />)}
-                        </div>
-                        {/* Feature preview */}
-                        <div className="p-5 space-y-2" style={{ minHeight: "160px" }}>
-                          <div className="flex items-center gap-2 mb-4">
-                            <div className="w-6 h-6 rounded-lg" style={{ background: f.color + "30" }} />
-                            <div className="h-2 w-24 rounded" style={{ background: f.color + "40" }} />
-                          </div>
-                          {[80,60,90,45].map((w, j) => (
-                            <div key={j} className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full shrink-0" style={{ background: f.color + "20" }} />
-                              <div className="flex-1 space-y-1">
-                                <div className="h-2 rounded" style={{ width: `${w}%`, background: f.color + "30" }} />
-                                <div className="h-1.5 rounded" style={{ width: `${w * 0.6}%`, background: "#374151" }} />
-                              </div>
-                              <div className="h-5 w-14 rounded-full shrink-0" style={{ background: f.color + "20" }} />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      <BrowserFrame
+                        src={f.screenshot}
+                        alt={f.title}
+                        url={f.url}
+                        height={240}
+                      />
                     </div>
                   </div>
                 </Reveal>
