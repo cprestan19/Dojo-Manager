@@ -63,3 +63,13 @@
   .badge-blue   { @apply badge bg-blue-900/40 text-blue-300 border border-blue-800; }
   .badge-gold   { @apply badge bg-yellow-700/30 text-yellow-400 border border-yellow-700; }
 }
+
+@layer utilities {
+  @keyframes slide-in-right {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
+  }
+  .animate-slide-in-right {
+    animation: slide-in-right 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}

@@ -13,7 +13,7 @@ import {
   Users, CreditCard, Award, BookOpen,
   BarChart2, Settings, LogOut, Shield, Building2, ClipboardList, ExternalLink,
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
-  Crown, Lock, X, PhoneCall, Calendar,
+  Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe,
 } from "lucide-react";
 
 interface NavItem {
@@ -26,6 +26,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/dashboard",                 label: "Dashboard",       icon: LayoutDashboard, permKey: NAV_KEYS.DASHBOARD      },
   { href: "/dashboard/students",        label: "Alumnos",         icon: Users,           permKey: NAV_KEYS.STUDENTS       },
+  { href: "/dashboard/leads",           label: "Prospectos",      icon: UserPlus,        permKey: NAV_KEYS.LEADS          },
   { href: "/dashboard/attendance",      label: "Asistencia",      icon: ClipboardList,   permKey: NAV_KEYS.ATTENDANCE     },
   { href: "/dashboard/payments",        label: "Pagos",           icon: CreditCard,      permKey: NAV_KEYS.PAYMENTS       },
   { href: "/dashboard/belts",           label: "Cintas o Grados", icon: Award,           permKey: NAV_KEYS.BELTS          },
@@ -39,8 +40,9 @@ const navItems: NavItem[] = [
 ];
 
 const settingsSubItems: NavItem[] = [
-  { href: "/dashboard/settings",        label: "General",              icon: Settings,    permKey: NAV_KEYS.SETTINGS_GENERAL },
-  { href: "/dashboard/settings/videos", label: "Videos de Katas",      icon: Video,       permKey: NAV_KEYS.SETTINGS_VIDEOS  },
+  { href: "/dashboard/settings",            label: "General",           icon: Settings,    permKey: NAV_KEYS.SETTINGS_GENERAL },
+  { href: "/dashboard/settings/public-page",label: "Página Pública",    icon: Globe,       permKey: NAV_KEYS.PUBLIC_PAGE      },
+  { href: "/dashboard/settings/videos",     label: "Videos de Katas",   icon: Video,       permKey: NAV_KEYS.SETTINGS_VIDEOS  },
   { href: "/dashboard/settings/email",  label: "Correo / Notificaciones", icon: Mail,     permKey: NAV_KEYS.SETTINGS_EMAIL   },
   { href: "/dashboard/settings/roles",  label: "Roles y Accesos",      icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES   },
 ];

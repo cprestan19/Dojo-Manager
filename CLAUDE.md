@@ -96,12 +96,30 @@ active       Boolean  @default(true)
 ### Dojo
 ```prisma
 email         String?              // FROM address para correos del dojo
-logo          String?  @db.Text    // base64 — excluir por defecto (?logo=1 para incluir)
-loginBgImage  String?  @db.Text    // imagen de fondo del login mobile
+logo          String?  @db.Text    // URL Cloudinary (o null) — excluir por defecto (?logo=1)
+loginBgImage  String?  @db.Text    // URL Cloudinary — imagen de fondo del login mobile
+themeId       String   @default("dark-saas") @map("theme_id") // tema visual del panel
 reminderToleranceDays Int @default(5)
 lateInterestPct       Float @default(10.0)
 autoRemindersEnabled  Boolean @default(false)
 ```
+
+### Event (nuevo)
+```prisma
+model Event {
+  id          String   // CUID
+  dojoId      String   // multi-tenant
+  title       String
+  description String?  @db.Text
+  location    String?
+  imageUrl    String?  @db.Text   // URL Cloudinary
+  startDate   DateTime
+  endDate     DateTime
+  // active si endDate >= now(); past si endDate < now() — sin campo extra
+}
+```
+- Eventos activos: `endDate >= new Date()` — no requiere campo de estado
+- Pasan a historial automáticamente cuando `endDate < now()` en cada query
 
 ### EmailSettings (singleton `id="singleton"`)
 ```prisma
@@ -150,13 +168,18 @@ negra → negra-1-dan → negra-2-dan → negra-3-dan
 /dashboard/belts                     → Historial de rangos (todos los alumnos)
 /dashboard/schedules                 → Horarios de clases (CRUD)
 /dashboard/attendance                → Registro de asistencia
+/dashboard/tournaments               → Torneos Kumite + Kata (brackets, scores, historial)
+/dashboard/events                    → Eventos [Client] CRUD con imagen Cloudinary + vista previa
 /dashboard/katas                     → Catálogo de katas [solo lectura — sub-menú Configuración]
 /dashboard/reports                   → Reportes
 /dashboard/users                     → Usuarios del dojo
 /dashboard/dojos                     → Gestión de dojos (sysadmin)
+/dashboard/audit-log                 → Log de auditoría (sysadmin)
 /dashboard/settings                  → Config general (logo, email dojo, params pago, bg login)
 /dashboard/settings/katas            → Creación y gestión de katas [CRUD]
+/dashboard/settings/videos           → Videos por cinta (CRUD)
 /dashboard/settings/email            → Parámetros de correo SMTP (admin + sysadmin)
+/dashboard/settings/roles            → Roles y accesos (permisos granulares)
 /scanner                             → Scanner QR con cámara html5-qrcode (mobile-first)
 ```
 
@@ -168,6 +191,7 @@ negra → negra-1-dan → negra-2-dan → negra-3-dan
 /portal/attendance                   → Historial de asistencia propia
 /portal/schedules                    → Horarios asignados
 /portal/videos                       → Videos de katas — solo cintas obtenidas
+/portal/events                       → Eventos del dojo [Client] tabs: Próximos / Historial
 ```
 - El middleware redirige `role === "student"` desde `/dashboard` → `/portal`
 - `PortalNav.tsx` en `src/app/portal/` maneja la navegación
@@ -187,6 +211,92 @@ negra → negra-1-dan → negra-2-dan → negra-3-dan
 
 ---
 
+## Sistema de Temas (Theming)
+
+### 3 temas disponibles
+| ID | Nombre | Sidebar | Fondo |
+|---|---|---|---|
+| `dark-saas` | Dark Premium (default) | `#111827` oscuro | `#0B0F14` |
+| `soft-neutral` | Light Minimal | `#FFFFFF` blanco | `#F9FAFB` |
+| `executive-red` | Ejecutivo | `#111111` negro | `#F8FAFC` |
+
+### Variables CSS (en `src/styles/themes.css`)
+- `--c-bg`, `--c-sidebar`, `--c-card`, `--c-border`, `--c-text-1`, `--c-text-2`, `--c-primary`
+- `--c-sidebar-text`, `--c-sidebar-muted` — texto sobre el sidebar (siempre claro en sidebars oscuros)
+- `--c-nav-active` — color del ítem activo del menú (gris en dark-saas, rojo en executive-red)
+- `--c-primary-hex` — color primario en formato hex (para colores de gráficos Recharts en JS)
+
+### Tokens Tailwind (`tailwind.config.ts`)
+`dojo-darker`, `dojo-dark`, `dojo-card`, `dojo-border`, `dojo-white`, `dojo-muted`,
+`dojo-sidebar-text`, `dojo-sidebar-muted`, `dojo-nav-active`, `dojo-red`, `dojo-gold`
+
+Todos usan formato `rgb(var(--c-x) / <alpha-value>)` → soportan modificadores de opacidad (`bg-dojo-card/40`).
+
+### Reglas de uso
+- **En sidebar/topbar/drawer**: usar `text-dojo-sidebar-text` y `text-dojo-sidebar-muted` (siempre legible)
+- **En contenido principal**: usar `text-dojo-white` (se adapta a fondo oscuro o claro según tema)
+- **Ítem activo nav**: `bg-dojo-nav-active text-white` (nunca hardcodear color)
+- **NUNCA** usar `bg-[#1e3a5c]` u otros hex hardcodeados para estados activos
+
+### Cambio de tema
+- Admin guarda tema en DB (`dojo.themeId`) vía `PUT /api/dojo/theme`
+- SSR lee `themeId` desde DB y aplica `data-theme` al `<div id="dojo-shell">`
+- Cliente: `useTheme()` hook lee el `data-theme` actual del DOM y lo actualiza en `#dojo-shell`
+- `ThemeSwitcher` en TopBar (solo admin/sysadmin)
+
+---
+
+## Módulo de Eventos
+
+### Flujo
+- Admin crea/edita eventos en `/dashboard/events` (CRUD + vista previa con frame de teléfono)
+- Alumno ve eventos en `/portal/events` (tabs: Próximos / Historial)
+- Evento activo: `endDate >= now()` — pasa a historial automáticamente sin acción del admin
+
+### API
+```
+GET  /api/events?status=active|past   → admin: lista eventos del dojo
+POST /api/events                      → admin: crear evento
+PUT  /api/events/[id]                 → admin: editar
+DELETE /api/events/[id]               → admin: eliminar
+GET  /api/portal/events?status=active|past → student: eventos de su dojo
+```
+
+### Vista previa admin
+- Botón 👁 en cada card → abre `PreviewModal` con frame de teléfono
+- Botón "Vista previa" en modal de edición → preview con datos del formulario en tiempo real
+- El frame simula: header portal, tabs (Eventos activo), card del evento
+
+---
+
+## Sistema de Ayuda (HelpButton)
+
+### Componentes
+- `src/lib/help-content.ts` — contenido por ruta (título, emoji, descripción, pasos, consejos)
+- `src/components/ui/HelpButton.tsx` — botón `?` flotante (fixed bottom-right), solo aparece si hay contenido para la ruta actual
+- `src/components/ui/HelpDrawer.tsx` — panel deslizante desde la derecha (`animate-slide-in-right`)
+
+### Integración
+- `HelpButton` agregado UNA vez en `dashboard/layout.tsx` — cubre todas las rutas automáticamente
+- Usa `usePathname()` → `getHelpContent(pathname)` para determinar qué mostrar
+- Rutas dinámicas (ej. `/dashboard/students/abc`): busca por prefijo, muestra contenido del módulo padre
+- Cierra con Esc, clic en backdrop, o botón "Cerrar ayuda"
+- Texto siempre en `text-dojo-sidebar-text` (legible en todos los temas, incluyendo executive-red)
+
+### Agregar ayuda a nueva ruta
+```ts
+// src/lib/help-content.ts
+"/dashboard/nueva-ruta": {
+  title: "Nombre del módulo",
+  emoji: "🎯",
+  description: "Qué hace este módulo.",
+  steps: ["Paso 1...", "Paso 2..."],
+  tips: ["Consejo opcional..."],
+}
+```
+
+---
+
 ## APIs
 ```
 POST /api/upload                      → Sube imagen o video a Cloudinary. FormData: file + type(image|video).
@@ -201,6 +311,10 @@ GET/POST /api/belt-videos             → CRUD videos por cinta. GET acepta ?bel
 PUT/DELETE /api/belt-videos/[id]      → Actualiza/elimina video (también borra de Cloudinary en DELETE)
 GET /api/portal/belt-videos           → Solo para role=student. Devuelve { videos, earnedBelts }
                                         filtrado por cintas obtenidas en BeltHistory del alumno
+GET /api/portal/events?status=        → Solo role=student. Eventos del dojo del alumno (active|past)
+GET/POST /api/events                  → admin: lista (active|past) / crear evento
+PUT/DELETE /api/events/[id]           → admin: editar / eliminar evento
+PUT /api/dojo/theme                   → admin/sysadmin: guardar tema { theme: ThemeId }
 POST /api/seed
 GET/PUT  /api/dojo                    → Config del dojo. GET excluye logo/loginBgImage por defecto.
                                         Usar ?logo=1 para incluirlos. PUT invalida caché dojo.
@@ -417,7 +531,7 @@ kata_competitions: (studentId), (date)
 ## Tablas PostgreSQL
 | Tabla | Campos destacados |
 |-------|-------------|
-| `dojos` | `email`, `logo`(base64), `login_bg_image`(base64), params recordatorios |
+| `dojos` | `email`, `logo`(Cloudinary URL), `login_bg_image`(Cloudinary URL), `theme_id`(default: dark-saas), params recordatorios |
 | `users` | `role`, `dojoId`, `mustChangePassword` |
 | `students` | `full_name`, `studentCode`(≥1000), `cedula`, `fepaka_id`, `ryo_bukai_id`, `condition`, `blood_type`, `insurance_number`, `photo`(base64), `active` |
 | `inscriptions` | `annualAmount`, `monthlyAmount`, `discountAmount`, `discountNote` |
@@ -432,6 +546,7 @@ kata_competitions: (studentId), (date)
 | `email_settings` | `host`, `port`, `user`, `password`(**cifrado AES-256**), `secure`, `fromName` |
 | `belt_videos` | `dojoId`, `beltColor`, `title`, `description`, `videoUrl`, `publicId`(Cloudinary), `order`, `active` |
 | `dojo_role_permissions` | `dojoId`, `roleName`, `roleLabel`, `roleColor`, `isSystem`, `permissions`(Json→NavKey[]) |
+| `events` | `dojoId`, `title`, `description`, `location`, `image_url`(Cloudinary URL), `start_date`, `end_date` |
 
 ---
 
@@ -457,11 +572,13 @@ src/
 │   │   └── [ruta]/loading.tsx      ← Skeleton en todas las rutas
 │   ├── portal/
 │   │   ├── layout.tsx              ← PortalNav
+│   │   ├── PortalNav.tsx           ← tabs: Perfil, Pagos, Horarios, Asistencia, Videos, Eventos
 │   │   ├── page.tsx                ← Perfil del alumno
 │   │   ├── change-password/
 │   │   ├── payments/               ← Historial de pagos propios
 │   │   ├── attendance/             ← Historial de asistencia propia
-│   │   └── schedules/              ← Horarios asignados
+│   │   ├── schedules/              ← Horarios asignados
+│   │   └── events/                 ← Eventos del dojo (tabs: Próximos / Historial) [Client]
 │   ├── scanner/page.tsx            ← html5-qrcode, entrada manual, overlays resultado
 │   └── api/
 │       ├── dojo/route.ts           ← revalidateTag(dojo) en PUT
@@ -479,10 +596,16 @@ src/
 │       └── public/login-bg/route.ts ← loginBgImage sin auth
 ├── components/
 │   ├── layout/
-│   │   ├── Sidebar.tsx             ← expandible; incluye /dashboard/katas en settings
-│   │   └── MobileNav.tsx           ← ← botón back, 6 ítems simplificados, settingsSubItems
+│   │   ├── Sidebar.tsx             ← expandible; nav incluye Eventos; usa dojo-nav-active para activo
+│   │   └── MobileNav.tsx           ← botón back; mismos ítems que Sidebar
 │   ├── dashboard/
-│   │   └── DashboardMobileCards.tsx ← tarjetas mobile (block lg:hidden), Alumnos → link
+│   │   ├── DashboardStats.tsx      ← KPI cards con .stat-icon-circle
+│   │   ├── AttendanceChart.tsx     ← Recharts; colores via MutationObserver en #dojo-shell
+│   │   └── DashboardMobileCards.tsx ← tarjetas mobile (block lg:hidden)
+│   ├── ui/
+│   │   ├── HelpButton.tsx          ← botón ? fixed bottom-right; oculto si no hay contenido
+│   │   ├── HelpDrawer.tsx          ← panel lateral; text-dojo-sidebar-text para todos los temas
+│   │   └── Modal.tsx               ← modal reutilizable con size: sm|md|lg
 │   └── students/
 │       └── StudentForm.tsx         ← fullName único, condition, bloodType, insuranceNumber
 └── lib/
@@ -491,12 +614,14 @@ src/
     ├── email.ts                    ← createTransporter() descifra password; fromAddress() usa dojo.email
     ├── crypto.ts                   ← encrypt/decrypt AES-256-CBC con ENCRYPTION_KEY
     ├── cloudinary.ts               ← uploadBuffer(), deleteResource() — usa CLOUDINARY_* env vars
-    ├── permissions.ts              ← NAV_KEYS, DEFAULT_PERMISSIONS, ALL_DOJO_KEYS, resolvePermissions()
+    ├── permissions.ts              ← NAV_KEYS (incl. EVENTS), DEFAULT_PERMISSIONS, ALL_DOJO_KEYS
     ├── queries.ts                  ← getCachedKatas(), getCachedDojoMeta(), CACHE_TAGS
     ├── audit.ts
     ├── utils.ts                    ← BELT_COLORS (16 cintas)
+    ├── help-content.ts             ← HELP_CONTENT[pathname] + getHelpContent(pathname)
     ├── hooks/useDojo.ts            ← deps: [userId, role] strings
-    └── hooks/usePermissions.ts     ← fetch /api/roles/current → Set<NavKey>; default fallback inmediato
+    ├── hooks/usePermissions.ts     ← fetch /api/roles/current → Set<NavKey>
+    └── hooks/useTheme.ts           ← setTheme() actualiza DOM (#dojo-shell) + guarda en DB
 ```
 
 ---

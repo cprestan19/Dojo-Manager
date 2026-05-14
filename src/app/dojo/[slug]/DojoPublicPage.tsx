@@ -10,8 +10,9 @@ import {
 interface Schedule { id: string; name: string; days: string; startTime: string; endTime: string; description: string | null }
 interface DojoPageData {
   published: boolean; heroTitle: string | null; heroSubtitle: string | null;
-  aboutText: string | null; aboutImage: string | null;
+  heroImage: string | null; aboutText: string | null; aboutImage: string | null;
   primaryColor: string; showFreeTrial: boolean;
+  showSchedules: boolean; showContact: boolean;
 }
 interface DojoData {
   id: string; name: string; slug: string; slogan: string | null;
@@ -119,11 +120,20 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
 
       {/* ── Hero ── */}
       <section id="inicio" className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0"
-          style={{ background: `radial-gradient(ellipse at top, ${primary}22 0%, #0A0A14 60%)` }} />
-        <div className="absolute inset-0 opacity-5"
-          style={{ backgroundImage: "repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)", backgroundSize: "30px 30px" }} />
+        {/* Background: imagen si existe, si no gradiente */}
+        {dojoPage.heroImage
+          ? <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={dojoPage.heroImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/65" />
+            </>
+          : <>
+              <div className="absolute inset-0"
+                style={{ background: `radial-gradient(ellipse at top, ${primary}22 0%, #0A0A14 60%)` }} />
+              <div className="absolute inset-0 opacity-5"
+                style={{ backgroundImage: "repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)", backgroundSize: "30px 30px" }} />
+            </>
+        }
 
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
           {dojo.logo && (
@@ -192,7 +202,7 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
       )}
 
       {/* ── Schedules ── */}
-      {dojo.schedules.length > 0 && (
+      {dojoPage.showSchedules !== false && dojo.schedules.length > 0 && (
         <section id="horarios" className="py-24 px-6 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
@@ -357,7 +367,7 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
       )}
 
       {/* ── Contact ── */}
-      <section id="contacto" className="py-24 px-6 bg-white/[0.02] border-t border-white/10">
+      {dojoPage.showContact !== false && <section id="contacto" className="py-24 px-6 bg-white/[0.02] border-t border-white/10">
         <div className="max-w-4xl mx-auto text-center">
           <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: primary }}>Contacto</p>
           <h2 className="text-4xl font-bold mb-4">¿Tienes alguna pregunta?</h2>
@@ -393,7 +403,7 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
             )}
           </div>
         </div>
-      </section>
+      </section>}
 
       {/* ── Footer ── */}
       <footer className="py-8 px-6 border-t border-white/10">

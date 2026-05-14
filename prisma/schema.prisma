@@ -60,16 +60,19 @@ model DojoPage {
   // Hero section
   heroTitle    String? @map("hero_title")
   heroSubtitle String? @map("hero_subtitle")
+  heroImage    String? @map("hero_image") @db.Text  // Cloudinary URL — fondo del hero
 
   // About section
   aboutText  String? @db.Text @map("about_text")
-  aboutImage String? @map("about_image")         // Cloudinary URL
+  aboutImage String? @map("about_image") @db.Text  // Cloudinary URL
 
   // Theme
   primaryColor String @default("#C0392B") @map("primary_color")
 
-  // Free trial section visibility
-  showFreeTrial Boolean @default(true) @map("show_free_trial")
+  // Visibility toggles
+  showFreeTrial  Boolean @default(true)  @map("show_free_trial")
+  showSchedules  Boolean @default(true)  @map("show_schedules")
+  showContact    Boolean @default(true)  @map("show_contact")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

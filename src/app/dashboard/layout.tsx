@@ -7,6 +7,7 @@ import { MobileNav } from "@/components/layout/MobileNav";
 import { TopBar } from "@/components/layout/TopBar";
 import { DojoBanner } from "@/components/dashboard/DojoBanner";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { HelpButton } from "@/components/ui/HelpButton";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId } from "@/lib/sysadmin-context";
 
@@ -57,6 +58,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <main className="flex-1 overflow-auto bg-dojo-darker min-w-0">
             <div className="p-4 lg:p-8 min-w-0 overflow-x-hidden">{children}</div>
           </main>
+          <HelpButton />
         </div>
       </div>
     </DashboardShell>

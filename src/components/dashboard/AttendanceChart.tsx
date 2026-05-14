@@ -116,8 +116,8 @@ export function AttendanceChart() {
             <AreaChart data={data.days} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
               <defs>
                 <linearGradient id="attendGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor={colors.primary} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={colors.primary} stopOpacity={0.02} />
+                  <stop offset="0%"   stopColor={colors.primary} stopOpacity={0.55} />
+                  <stop offset="100%" stopColor={colors.primary} stopOpacity={0.04} />
                 </linearGradient>
               </defs>
 
@@ -149,10 +149,10 @@ export function AttendanceChart() {
                 type="monotone"
                 dataKey="pct"
                 stroke={colors.primary}
-                strokeWidth={2.5}
+                strokeWidth={4}
                 fill="url(#attendGrad)"
-                dot={{ fill: colors.primary, r: 3.5, strokeWidth: 0 }}
-                activeDot={{ fill: colors.primary, r: 5, stroke: "#fff", strokeWidth: 1.5 }}
+                dot={{ fill: colors.primary, r: 4.5, strokeWidth: 2, stroke: "#fff" }}
+                activeDot={{ fill: colors.primary, r: 6.5, stroke: "#fff", strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>

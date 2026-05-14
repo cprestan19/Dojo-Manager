@@ -222,8 +222,9 @@ export default async function DashboardPage() {
               const initials = s.fullName.split(" ").slice(0, 2).map(w => w[0]).join("");
               const photoUrl = s.photo?.startsWith("http") ? s.photo : null;
               return (
-                <div key={s.id} className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors"
-                  style={{ borderBottom: idx < recentStudents.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                <Link key={s.id} href={`/dashboard/students/${s.id}`}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors hover:bg-white/5 cursor-pointer"
+                  style={{ borderBottom: idx < recentStudents.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none" }}>
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center text-xs font-bold"
                       style={{ background: "rgba(229,57,53,0.12)", color: "#E53935" }}>
@@ -242,7 +243,7 @@ export default async function DashboardPage() {
                     style={{ background: "rgba(255,255,255,0.06)", color: "#7A97B0" }}>
                     {belt}
                   </span>
-                </div>
+                </Link>
               );
             })}
           </div>
