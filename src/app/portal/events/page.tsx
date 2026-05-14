@@ -94,8 +94,7 @@ export default function PortalEventsPage() {
                 <img
                   src={ev.imageUrl}
                   alt={ev.title}
-                  className="w-full object-cover"
-                  style={{ maxHeight: "200px" }}
+                  className="w-full h-auto block"
                 />
               )}
 

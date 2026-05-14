@@ -63,7 +63,7 @@ function EventPreviewCard({ data }: { data: PreviewData }) {
     <div className="rounded-xl overflow-hidden bg-dojo-card border border-dojo-border">
       {data.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={data.imageUrl} alt={data.title} className="w-full object-cover" style={{ maxHeight: "160px" }} />
+        <img src={data.imageUrl} alt={data.title} className="w-full h-auto block" />
       )}
       <div className="p-3 space-y-2.5">
         <p className="font-display font-bold text-dojo-white text-sm leading-tight">
@@ -353,35 +353,28 @@ export default function EventsPage() {
         <div className="space-y-3">
           {events.map(ev => (
             <div key={ev.id} className="card p-0 overflow-hidden">
-              <div className="flex gap-0">
-                {/* Imagen */}
-                {ev.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={ev.imageUrl} alt={ev.title}
-                    className="w-28 sm:w-40 h-auto object-cover shrink-0 rounded-l-xl"
-                    style={{ minHeight: "100px", maxHeight: "160px" }}
-                  />
-                ) : (
-                  <div className="w-28 sm:w-40 shrink-0 bg-dojo-border/40 flex items-center justify-center rounded-l-xl"
-                    style={{ minHeight: "100px" }}>
-                    <ImageIcon size={28} className="text-dojo-muted opacity-40" />
-                  </div>
-                )}
+              {/* Imagen a ancho completo, proporción natural */}
+              {ev.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={ev.imageUrl} alt={ev.title} className="w-full h-auto block" />
+              ) : (
+                <div className="w-full bg-dojo-border/20 flex items-center justify-center py-8 border-b border-dojo-border/40">
+                  <ImageIcon size={32} className="text-dojo-muted opacity-30" />
+                </div>
+              )}
 
-                {/* Info */}
-                <div className="flex-1 p-4 flex flex-col justify-between gap-2 min-w-0">
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold text-dojo-white text-base leading-tight">{ev.title}</p>
-                      {tab === "past" && (
-                        <span className="badge-gold text-xs shrink-0">Finalizado</span>
-                      )}
-                    </div>
-                    {ev.description && (
-                      <p className="text-dojo-muted text-sm mt-1 line-clamp-2">{ev.description}</p>
+              {/* Info + acciones */}
+              <div className="flex items-start gap-0">
+                <div className="flex-1 p-4 space-y-2 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-dojo-white text-base leading-tight">{ev.title}</p>
+                    {tab === "past" && (
+                      <span className="badge-gold text-xs shrink-0">Finalizado</span>
                     )}
                   </div>
+                  {ev.description && (
+                    <p className="text-dojo-muted text-sm line-clamp-2">{ev.description}</p>
+                  )}
                   <div className="flex flex-wrap gap-3 text-xs text-dojo-muted">
                     <span className="flex items-center gap-1">
                       <Clock size={12} />
@@ -395,8 +388,8 @@ export default function EventsPage() {
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex flex-col items-center justify-center gap-1 px-3 border-l border-dojo-border/40 shrink-0">
+                {/* Acciones */}
+                <div className="flex flex-col items-center justify-start gap-1 px-3 pt-3 border-l border-dojo-border/40 shrink-0">
                   <button onClick={() => openPreview(ev)}
                     className="btn-ghost p-2 text-dojo-muted hover:text-dojo-red" title="Vista previa">
                     <Eye size={15} />
@@ -430,7 +423,7 @@ export default function EventsPage() {
               {form.imageUrl ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={form.imageUrl} alt="" className="w-full h-48 object-cover" />
+                  <img src={form.imageUrl} alt="" className="w-full h-auto block" />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <p className="text-white text-sm font-semibold flex items-center gap-2">
                       <ImageIcon size={16} /> Cambiar imagen
