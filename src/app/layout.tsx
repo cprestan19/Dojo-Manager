@@ -5,6 +5,11 @@ import { Providers } from "@/components/layout/Providers";
 export const metadata: Metadata = {
   title: "Dojo Master – Sistema de Administración de Karate",
   description: "Gestión integral de alumnos, pagos y rangos para dojos de karate",
+  icons: {
+    icon:             "/logo.png",
+    shortcut:         "/logo.png",
+    apple:            "/logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

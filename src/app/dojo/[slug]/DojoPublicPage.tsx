@@ -497,7 +497,11 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
       <footer className="py-8 px-6 border-t border-white/10">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-white/30 text-sm">
           <p>© {new Date().getFullYear()} {dojo.name}. Todos los derechos reservados.</p>
-          <p>Gestionado con <span className="text-white/50 font-semibold">Dojo Master</span></p>
+          <a href="https://dojomasteronline.com" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-white/20 hover:text-white/40 transition-colors text-xs">
+            <span>by</span>
+            <span className="font-semibold text-white/30">dojomasteronline.com</span>
+          </a>
         </div>
       </footer>
 
