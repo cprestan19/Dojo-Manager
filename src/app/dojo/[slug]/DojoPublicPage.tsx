@@ -114,8 +114,10 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
 
       {/* ── Navigation ── */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A14]/90 backdrop-blur-md border-b border-white/10">
-        <div className="px-6 h-24 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="px-6 h-24 flex items-center">
+
+          {/* ── Izquierda: logo + nombre ── */}
+          <div className="flex items-center gap-3 shrink-0">
             {dojo.logo && (
               <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#C0392B] flex items-center justify-center shadow-lg">
                 <Image src={dojo.logo} alt={dojo.name} width={48} height={48} className="object-contain" unoptimized />
@@ -124,8 +126,8 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
             <span className="font-bold text-xl tracking-wide">{dojo.name}</span>
           </div>
 
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-8 text-sm text-white/70">
+          {/* ── Centro: links de navegación ── */}
+          <div className="hidden md:flex flex-1 items-center justify-center gap-8 text-sm text-white/70">
             {[["Inicio","inicio"],["Nosotros","nosotros"],
               ...(sensei               ? [["Sensei","sensei"]]         : []),
               ["Horarios","horarios"],
@@ -137,7 +139,10 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
               <a key={href} href={`#${href}`}
                 className="hover:text-white transition-colors font-medium tracking-wide">{label}</a>
             ))}
-            {/* Botón Entrar — exclusivo para miembros */}
+          </div>
+
+          {/* ── Derecha: botones de acción ── */}
+          <div className="hidden md:flex items-center gap-3 shrink-0 ml-auto">
             <a href={`/dojo/${dojo.slug}/login`}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold border border-white/20 text-white/70 hover:text-white hover:border-white/40 transition-all">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
@@ -152,8 +157,8 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
             )}
           </div>
 
-          {/* Mobile menu toggle */}
-          <button onClick={() => setNavOpen(o => !o)} className="md:hidden p-2 text-white/70">
+          {/* ── Mobile: hamburger ── */}
+          <button onClick={() => setNavOpen(o => !o)} className="md:hidden p-2 text-white/70 ml-auto">
             <ChevronDown size={20} className={`transition-transform ${navOpen ? "rotate-180" : ""}`} />
           </button>
         </div>
