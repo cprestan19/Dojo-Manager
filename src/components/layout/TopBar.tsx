@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Bell, ChevronDown, LogOut, KeyRound,
   CreditCard, UserX, AlertTriangle, X, ExternalLink,
-  ChevronRight,
+  ChevronRight, ShieldAlert,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -77,8 +77,10 @@ function TodayDate() {
 /* ─── Types ─────────────────────────────────────────────── */
 interface LateItem { id: string; studentId: string; studentName: string; amount: number; dueDate: string; daysLate: number }
 interface AbsenceItem { id: string; fullName: string; daysSince: number | null; status: "ALERTA" | "RIESGO" }
+interface SecurityItem { id: string; userEmail: string | null; dojoId: string | null; ip: string | null; details: string | null; createdAt: string }
 interface Notifications {
   total: number;
+  securityAlerts?: { count: number; items: SecurityItem[]; sysadminLogins: SecurityItem[] };
   latePayments: { count: number; amount: number; items: LateItem[] };
   attendance: { alert: { count: number; students: AbsenceItem[] }; risk: { count: number; students: AbsenceItem[] } };
 }
@@ -89,10 +91,11 @@ function fmtCurrency(n: number) {
 
 /* ─── Notification Panel ─────────────────────────────────── */
 function NotificationPanel({ data, onClose }: { data: Notifications; onClose: () => void }) {
+  const hasSecurity = (data.securityAlerts?.count ?? 0) > 0;
   const hasLate    = data.latePayments.count > 0;
   const hasAlert   = data.attendance.alert.count > 0;
   const hasRisk    = data.attendance.risk.count > 0;
-  const hasNothing = !hasLate && !hasAlert && !hasRisk;
+  const hasNothing = !hasSecurity && !hasLate && !hasAlert && !hasRisk;
 
   return (
     <div className="absolute right-0 top-full mt-2 w-80 bg-dojo-dark border border-dojo-border rounded-2xl shadow-2xl z-50 overflow-hidden">
@@ -109,6 +112,37 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
           <div className="flex flex-col items-center justify-center py-10 text-dojo-sidebar-muted">
             <Bell size={32} className="mb-2 opacity-30" />
             <p className="text-sm">Sin notificaciones pendientes</p>
+          </div>
+        )}
+
+        {/* ── Alertas de Seguridad ── */}
+        {hasSecurity && data.securityAlerts && (
+          <div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-purple-900/20 border-b border-dojo-border/40">
+              <ShieldAlert size={13} className="text-purple-400 shrink-0" />
+              <p className="text-xs font-bold text-purple-400 uppercase tracking-wider">
+                Anomalías de acceso ({data.securityAlerts.count})
+              </p>
+            </div>
+            {data.securityAlerts.items.map(a => (
+              <div key={a.id} className="flex items-start gap-3 px-4 py-2.5 border-b border-dojo-border/20">
+                <ShieldAlert size={13} className="text-purple-400 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-dojo-sidebar-text truncate">
+                    {a.userEmail ?? "Email desconocido"}
+                  </p>
+                  <p className="text-[10px] text-dojo-sidebar-muted truncate">{a.details}</p>
+                  <p className="text-[9px] text-dojo-sidebar-muted/60 mt-0.5">IP: {a.ip} · {a.createdAt ? new Date(a.createdAt).toLocaleString("es-PA", { dateStyle:"short", timeStyle:"short" }) : ""}</p>
+                </div>
+              </div>
+            ))}
+            {data.securityAlerts.sysadminLogins?.length > 0 && (
+              <div className="px-4 py-2 border-b border-dojo-border/20">
+                <p className="text-[10px] text-dojo-sidebar-muted/60">
+                  🛡 {data.securityAlerts.sysadminLogins.length} acceso(s) de sysadmin vía página de dojo (últimos 7 días)
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -308,7 +342,9 @@ export function TopBar() {
             >
               <Bell size={20} />
               {notifsLoaded && totalNotifs > 0 && (
-                <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-dojo-red rounded-full flex items-center justify-center text-[10px] font-bold text-white leading-none px-1">
+                <span className={`absolute top-1 right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold text-white leading-none px-1 ${
+                  (notifs?.securityAlerts?.count ?? 0) > 0 ? "bg-purple-600" : "bg-dojo-red"
+                }`}>
                   {totalNotifs > 99 ? "99+" : totalNotifs}
                 </span>
               )}

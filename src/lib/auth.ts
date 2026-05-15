@@ -58,16 +58,32 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          // Sysadmin no puede entrar por página de dojo
+          // Sysadmin PUEDE entrar por cualquier página de dojo (acceso global)
+          // Solo se registra como evento informativo para auditoría
           if (user.role === "sysadmin") {
-            await logAudit({ action: "LOGIN_FAILED", userEmail: user.email, userId: user.id, ip, userAgent, details: "Sysadmin bloqueado en login de dojo" });
-            return null;
-          }
-
-          // El usuario debe pertenecer a ESTE dojo exactamente
-          if (user.dojoId !== dojo.id) {
-            await logAudit({ action: "LOGIN_FAILED", userEmail: user.email, userId: user.id, dojoId: user.dojoId, ip, userAgent, details: `No pertenece al dojo '${slug}'` });
-            return null;
+            await logAudit({
+              action:   "SYSADMIN_DOJO_LOGIN",
+              userId:    user.id,
+              userEmail: user.email,
+              ip,
+              userAgent,
+              details:  `Sysadmin accedió vía página del dojo '${slug}'`,
+            });
+            // No retorna null — el sysadmin continúa con login normal
+          } else {
+            // El usuario debe pertenecer a ESTE dojo exactamente
+            if (user.dojoId !== dojo.id) {
+              await logAudit({
+                action:   "SECURITY_ANOMALY",
+                userId:    user.id,
+                userEmail: user.email,
+                dojoId:    user.dojoId,
+                ip,
+                userAgent,
+                details:  `⚠️ Intento de acceso al dojo '${slug}' por usuario de OTRO dojo. IP: ${ip}`,
+              });
+              return null;
+            }
           }
         }
         // ────────────────────────────────────────────────────────────
