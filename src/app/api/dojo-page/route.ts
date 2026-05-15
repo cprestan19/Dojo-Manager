@@ -55,6 +55,7 @@ export async function PUT(req: NextRequest) {
         galleryImages: Array.isArray(body.galleryImages) ? body.galleryImages : [],
         stats:         Array.isArray(body.stats)         ? body.stats         : [],
         testimonials:  Array.isArray(body.testimonials)  ? body.testimonials  : [],
+        sensei:        body.sensei ?? null,
       },
       update: {
         ...(body.published     !== undefined && { published:     body.published }),
@@ -72,6 +73,7 @@ export async function PUT(req: NextRequest) {
         ...(body.galleryImages !== undefined && { galleryImages: Array.isArray(body.galleryImages) ? body.galleryImages : [] }),
         ...(body.stats         !== undefined && { stats:         Array.isArray(body.stats)         ? body.stats         : [] }),
         ...(body.testimonials  !== undefined && { testimonials:  Array.isArray(body.testimonials)  ? body.testimonials  : [] }),
+        ...(body.sensei        !== undefined && { sensei:        body.sensei || null }),
       },
     });
     return NextResponse.json(page);

@@ -23,13 +23,14 @@ interface PageData {
   galleryImages: string[];
   stats:         { value: string; label: string }[];
   testimonials:  { name: string; role: string; quote: string; photo: string }[];
+  sensei:        { name: string; rank: string; experience: string; bio: string; photo: string } | null;
 }
 
 const DEFAULT: PageData = {
   published: false, heroTitle: null, heroSubtitle: null, heroImage: null,
   aboutText: null, aboutImage: null, primaryColor: "#C0392B",
   showFreeTrial: true, showSchedules: true, showContact: true, showStore: false,
-  address: null, galleryImages: [], stats: [], testimonials: [],
+  address: null, galleryImages: [], stats: [], testimonials: [], sensei: null,
 };
 
 function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -53,7 +54,7 @@ export default function PublicPageSettings() {
   const [saved,      setSaved]      = useState(false);
   const [saveError,  setSaveError]  = useState("");
   const [copied,     setCopied]     = useState(false);
-  const [uploading,  setUploading]  = useState<"hero" | "about" | "gallery" | `testimonial-${number}` | null>(null);
+  const [uploading,  setUploading]  = useState<"hero" | "about" | "gallery" | "sensei" | `testimonial-${number}` | null>(null);
   const heroRef    = useRef<HTMLInputElement>(null);
   const aboutRef   = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -67,6 +68,7 @@ export default function PublicPageSettings() {
       galleryImages: Array.isArray(d.galleryImages) ? d.galleryImages : [],
       stats:         Array.isArray(d.stats)         ? d.stats         : [],
       testimonials:  Array.isArray(d.testimonials)  ? d.testimonials  : [],
+      sensei:        d.sensei && typeof d.sensei === "object" && !Array.isArray(d.sensei) ? d.sensei : null,
     });
     }
     setLoading(false);
@@ -376,6 +378,95 @@ export default function PublicPageSettings() {
             <p className="text-xs text-dojo-muted mt-1.5">
               Sube fotos de entrenamientos, competencias o atletas. Máx. 12 imágenes. Se muestran en galería tipo mosaico.
             </p>
+          </div>
+        )}
+      </div>
+
+      {/* Perfil del Sensei */}
+      <div className="card space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-dojo-white uppercase tracking-widest">Perfil del Sensei</p>
+          {page.sensei
+            ? <button onClick={() => setPage(p => ({ ...p, sensei: null }))}
+                className="text-xs text-dojo-muted hover:text-red-400 flex items-center gap-1 transition-colors">
+                <X size={12}/> Quitar perfil
+              </button>
+            : <button onClick={() => setPage(p => ({ ...p, sensei: { name:"", rank:"", experience:"", bio:"", photo:"" } }))}
+                className="btn-secondary text-xs px-3 py-1.5">
+                <Plus size={13}/> Agregar Sensei
+              </button>
+          }
+        </div>
+
+        {!page.sensei ? (
+          <p className="text-xs text-dojo-muted">
+            Agrega el perfil del maestro para generar confianza en los visitantes. Aparece entre "Sobre nosotros" y "Horarios".
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {/* Foto */}
+            <div className="flex items-start gap-4">
+              <div>
+                <label className="form-label">Foto</label>
+                <div onClick={() => {
+                  const input = document.getElementById("sensei-photo-input") as HTMLInputElement;
+                  input?.click();
+                }}
+                  className="w-24 h-24 rounded-full overflow-hidden cursor-pointer border-2 border-dashed border-dojo-border hover:border-dojo-red transition-colors flex items-center justify-center group">
+                  {page.sensei.photo
+                    ? // eslint-disable-next-line @next/next/no-img-element
+                      <img src={page.sensei.photo} alt="" className="w-full h-full object-cover" />
+                    : <div className="flex flex-col items-center gap-1 text-dojo-muted group-hover:text-dojo-red transition-colors">
+                        {uploading === "sensei" ? <div className="w-4 h-4 border-2 border-dojo-red border-t-transparent rounded-full animate-spin"/> : <><ImageIcon size={18}/><span className="text-[9px]">Foto</span></>}
+                      </div>
+                  }
+                </div>
+                <input id="sensei-photo-input" type="file" accept="image/*" className="hidden"
+                  onChange={async e => {
+                    const f = e.target.files?.[0]; if (!f) return;
+                    setUploading("sensei" as "hero");
+                    const fd = new FormData(); fd.append("file",f); fd.append("type","image"); fd.append("purpose","sensei-photo");
+                    const r = await fetch("/api/upload",{method:"POST",body:fd}); const j = await r.json();
+                    if (r.ok) setPage(p => p.sensei ? ({ ...p, sensei: { ...p.sensei!, photo:j.url } }) : p);
+                    setUploading(null); e.target.value="";
+                  }} />
+                {page.sensei.photo && (
+                  <button onClick={() => setPage(p => p.sensei ? ({ ...p, sensei: { ...p.sensei!, photo:"" } }) : p)}
+                    className="mt-1 text-[10px] text-dojo-muted hover:text-red-400 flex items-center gap-1 mx-auto">
+                    <X size={9}/> Quitar
+                  </button>
+                )}
+              </div>
+              <div className="flex-1 space-y-3">
+                <div>
+                  <label className="form-label">Nombre completo *</label>
+                  <input value={page.sensei.name}
+                    onChange={e => setPage(p => p.sensei ? ({ ...p, sensei: { ...p.sensei!, name:e.target.value } }) : p)}
+                    className="form-input" placeholder="Sensei Carlos López" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="form-label">Grado / Rango *</label>
+                    <input value={page.sensei.rank}
+                      onChange={e => setPage(p => p.sensei ? ({ ...p, sensei: { ...p.sensei!, rank:e.target.value } }) : p)}
+                      className="form-input" placeholder="Cinturón Negro 5° Dan" />
+                  </div>
+                  <div>
+                    <label className="form-label">Experiencia</label>
+                    <input value={page.sensei.experience}
+                      onChange={e => setPage(p => p.sensei ? ({ ...p, sensei: { ...p.sensei!, experience:e.target.value } }) : p)}
+                      className="form-input" placeholder="25 años de experiencia" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="form-label">Biografía / Descripción</label>
+              <textarea value={page.sensei.bio}
+                onChange={e => setPage(p => p.sensei ? ({ ...p, sensei: { ...p.sensei!, bio:e.target.value } }) : p)}
+                className="form-input resize-y" rows={4}
+                placeholder="Historia, logros, filosofía de enseñanza, federaciones, campeonatos..." />
+            </div>
           </div>
         )}
       </div>

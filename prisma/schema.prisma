@@ -82,6 +82,9 @@ model DojoPage {
   // Galería de atletas — array JSON de URLs Cloudinary
   galleryImages Json?   @map("gallery_images")
 
+  // Perfil del Sensei {name, rank, experience, bio, photo}
+  sensei        Json?
+
   // Barra de estadísticas [{value:"150+", label:"Alumnos formados"}, ...]
   stats         Json?
 

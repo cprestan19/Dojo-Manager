@@ -15,12 +15,14 @@ interface DojoPageData {
   showSchedules: boolean; showContact: boolean; showStore: boolean;
   address: string | null;
   galleryImages: unknown;
-  stats:         unknown; // [{value,label}[]]
-  testimonials:  unknown; // [{name,role,quote,photo?}[]]
+  stats:         unknown;
+  testimonials:  unknown;
+  sensei:        unknown;
 }
 
 interface Stat        { value: string; label: string }
 interface Testimonial { name: string; role: string; quote: string; photo?: string }
+interface Sensei      { name: string; rank: string; experience: string; bio: string; photo: string }
 interface DojoData {
   id: string; name: string; slug: string; slogan: string | null;
   phone: string | null; email: string | null; instagramUrl: string | null;
@@ -68,6 +70,9 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
   // Cast JSON → typed arrays
   const stats:        Stat[]        = Array.isArray(dojoPage.stats)        ? (dojoPage.stats        as Stat[])        : [];
   const testimonials: Testimonial[] = Array.isArray(dojoPage.testimonials) ? (dojoPage.testimonials as Testimonial[]) : [];
+  const sensei:       Sensei | null = dojoPage.sensei && typeof dojoPage.sensei === "object" && !Array.isArray(dojoPage.sensei)
+    ? (dojoPage.sensei as Sensei)
+    : null;
 
   // Cerrar lightbox con ESC
   useEffect(() => {
@@ -121,7 +126,9 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-8 text-sm text-white/70">
-            {[["Inicio","inicio"],["Nosotros","nosotros"],["Horarios","horarios"],
+            {[["Inicio","inicio"],["Nosotros","nosotros"],
+              ...(sensei               ? [["Sensei","sensei"]]         : []),
+              ["Horarios","horarios"],
               ...(products.length > 0  ? [["Tienda","tienda"]]         : []),
               ...(gallery.length > 0   ? [["Atletas","atletas"]]       : []),
               ...(dojoPage.address     ? [["Ubicación","ubicacion"]]   : []),
@@ -152,7 +159,9 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
         </div>
         {navOpen && (
           <div className="md:hidden border-t border-white/10 px-4 py-3 space-y-2 bg-[#0A0A14]/95">
-            {[["Inicio","inicio"],["Nosotros","nosotros"],["Horarios","horarios"],
+            {[["Inicio","inicio"],["Nosotros","nosotros"],
+              ...(sensei               ? [["Sensei","sensei"]]       : []),
+              ["Horarios","horarios"],
               ...(products.length > 0  ? [["Tienda","tienda"]]       : []),
               ...(gallery.length > 0   ? [["Atletas","atletas"]]     : []),
               ...(dojoPage.address     ? [["Ubicación","ubicacion"]] : []),
@@ -270,6 +279,77 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
                   <Image src={dojoPage.aboutImage} alt="Dojo" fill className="object-cover" />
                 </div>
               )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Sensei ── */}
+      {sensei && (
+        <section id="sensei" className="py-24 px-6">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: primary }}>
+                Nuestro Sensei
+              </p>
+              <h2 className="text-4xl md:text-5xl font-bold">El maestro detrás del dojo</h2>
+            </div>
+
+            <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16">
+              {/* Foto */}
+              <div className="shrink-0">
+                {sensei.photo
+                  ? // eslint-disable-next-line @next/next/no-img-element
+                    <img src={sensei.photo} alt={sensei.name}
+                      className="w-52 h-52 md:w-64 md:h-64 rounded-full object-cover shadow-2xl"
+                      style={{ border: `4px solid ${primary}60` }} />
+                  : <div className="w-52 h-52 md:w-64 md:h-64 rounded-full flex items-center justify-center text-6xl font-black shadow-2xl"
+                      style={{ background: primary+"22", border: `4px solid ${primary}60`, color: primary }}>
+                      {sensei.name?.charAt(0) ?? "S"}
+                    </div>
+                }
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 text-center md:text-left space-y-5">
+                {/* Nombre y rango */}
+                <div>
+                  <h3 className="text-3xl md:text-4xl font-black text-white mb-2"
+                    style={{ fontFamily: "'Cinzel', serif" }}>
+                    {sensei.name}
+                  </h3>
+                  <div className="flex items-center gap-2 justify-center md:justify-start">
+                    <span className="px-4 py-1.5 rounded-full text-sm font-bold text-white"
+                      style={{ background: primary }}>
+                      {sensei.rank}
+                    </span>
+                    {sensei.experience && (
+                      <span className="text-white/50 text-sm font-medium">
+                        · {sensei.experience}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bio */}
+                {sensei.bio && (
+                  <p className="text-white/65 text-lg leading-relaxed">
+                    {sensei.bio}
+                  </p>
+                )}
+
+                {/* Stats del sensei si existen */}
+                {stats.length > 0 && (
+                  <div className="flex flex-wrap gap-6 justify-center md:justify-start pt-2">
+                    {stats.map((s, i) => (
+                      <div key={i}>
+                        <p className="text-2xl font-black" style={{ color: primary }}>{s.value}</p>
+                        <p className="text-white/40 text-xs">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </section>
