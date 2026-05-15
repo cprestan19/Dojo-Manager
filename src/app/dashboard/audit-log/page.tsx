@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, Search, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
@@ -195,9 +195,8 @@ export default function AuditLogPage() {
                   const det     = parseDetails(log.details);
                   const isOpen  = expanded === log.id;
                   return (
-                    <>
+                    <React.Fragment key={log.id}>
                       <tr
-                        key={log.id}
                         onClick={() => setExpanded(isOpen ? null : log.id)}
                         className="border-b border-dojo-border/40 hover:bg-dojo-border/10 cursor-pointer transition-colors"
                       >
@@ -223,7 +222,7 @@ export default function AuditLogPage() {
                         </td>
                       </tr>
                       {isOpen && (
-                        <tr key={`${log.id}-detail`} className="bg-dojo-dark/60 border-b border-dojo-border/40">
+                        <tr className="bg-dojo-dark/60 border-b border-dojo-border/40">
                           <td colSpan={5} className="px-6 py-3">
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
                               {Object.entries(det).map(([k, v]) => (
@@ -236,7 +235,7 @@ export default function AuditLogPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })
               )}
