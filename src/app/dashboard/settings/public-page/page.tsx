@@ -18,6 +18,7 @@ interface PageData {
   showFreeTrial: boolean;
   showSchedules: boolean;
   showContact:   boolean;
+  showStore:     boolean;
   address:       string | null;
   galleryImages: string[];
 }
@@ -25,7 +26,7 @@ interface PageData {
 const DEFAULT: PageData = {
   published: false, heroTitle: null, heroSubtitle: null, heroImage: null,
   aboutText: null, aboutImage: null, primaryColor: "#C0392B",
-  showFreeTrial: true, showSchedules: true, showContact: true,
+  showFreeTrial: true, showSchedules: true, showContact: true, showStore: false,
   address: null, galleryImages: [],
 };
 
@@ -301,6 +302,7 @@ export default function PublicPageSettings() {
         <Toggle value={page.showSchedules}  onChange={v => setPage(p => ({ ...p, showSchedules: v }))}  label="Mostrar horarios de clases" />
         <Toggle value={page.showFreeTrial}  onChange={v => setPage(p => ({ ...p, showFreeTrial: v }))}  label="Mostrar formulario de clase gratuita" />
         <Toggle value={page.showContact}    onChange={v => setPage(p => ({ ...p, showContact: v }))}    label="Mostrar sección de contacto" />
+        <Toggle value={page.showStore}      onChange={v => setPage(p => ({ ...p, showStore: v }))}      label="Mostrar tienda (catálogo de productos)" />
       </div>
 
       {/* Ubicación */}

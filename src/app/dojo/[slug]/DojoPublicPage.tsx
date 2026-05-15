@@ -12,7 +12,7 @@ interface DojoPageData {
   published: boolean; heroTitle: string | null; heroSubtitle: string | null;
   heroImage: string | null; aboutText: string | null; aboutImage: string | null;
   primaryColor: string; showFreeTrial: boolean;
-  showSchedules: boolean; showContact: boolean;
+  showSchedules: boolean; showContact: boolean; showStore: boolean;
   address: string | null;
   galleryImages: unknown; // Json → cast to string[]
 }
@@ -60,11 +60,12 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
   const [selectedSize,setSelectedSize]= useState<Record<string,string>>({});
 
   useEffect(() => {
+    if (!dojoPage.showStore) return;
     fetch(`/api/public/store?slug=${dojo.slug}`)
       .then(r => r.ok ? r.json() : [])
       .then(setProducts)
       .catch(() => {});
-  }, [dojo.slug]);
+  }, [dojo.slug, dojoPage.showStore]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

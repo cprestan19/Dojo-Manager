@@ -74,6 +74,7 @@ model DojoPage {
   showFreeTrial  Boolean @default(true)  @map("show_free_trial")
   showSchedules  Boolean @default(true)  @map("show_schedules")
   showContact    Boolean @default(true)  @map("show_contact")
+  showStore      Boolean @default(false) @map("show_store")
 
   // Ubicación
   address String? @db.Text  // dirección física del dojo
