@@ -1,13 +1,78 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import {
   Bell, ChevronDown, LogOut, KeyRound,
   CreditCard, UserX, AlertTriangle, X, ExternalLink,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
+
+/* ─── Mapa de rutas → título + breadcrumb ───────────────── */
+const ROUTE_LABELS: Record<string, string> = {
+  "/dashboard":                    "Dashboard",
+  "/dashboard/students":           "Alumnos",
+  "/dashboard/students/new":       "Nuevo Alumno",
+  "/dashboard/leads":              "Prospectos",
+  "/dashboard/attendance":         "Asistencia",
+  "/dashboard/payments":           "Pagos",
+  "/dashboard/belts":              "Cintas o Grados",
+  "/dashboard/tournaments":        "Torneos",
+  "/dashboard/tournaments/new":    "Nuevo Torneo",
+  "/dashboard/events":             "Eventos",
+  "/dashboard/reports":            "Reportes",
+  "/dashboard/users":              "Usuarios",
+  "/dashboard/dojos":              "Dojos",
+  "/dashboard/audit-log":          "Audit Log",
+  "/dashboard/settings":           "Configuración",
+  "/dashboard/settings/katas":     "Katas",
+  "/dashboard/settings/videos":    "Videos por Cinta",
+  "/dashboard/settings/email":     "Correo",
+  "/dashboard/settings/roles":     "Roles y Accesos",
+  "/dashboard/settings/public-page": "Página Pública",
+  "/dashboard/change-password":    "Cambiar Contraseña",
+};
+
+function getPageInfo(pathname: string): { title: string; parent?: { label: string; href: string } } {
+  // Coincidencia exacta
+  if (ROUTE_LABELS[pathname]) {
+    // ¿Tiene padre?
+    if (pathname.startsWith("/dashboard/settings/") && pathname !== "/dashboard/settings") {
+      return { title: ROUTE_LABELS[pathname], parent: { label: "Configuración", href: "/dashboard/settings" } };
+    }
+    return { title: ROUTE_LABELS[pathname] };
+  }
+  // Rutas dinámicas: /dashboard/students/[id]
+  if (pathname.startsWith("/dashboard/students/") && pathname.includes("/edit")) {
+    return { title: "Editar Alumno", parent: { label: "Alumnos", href: "/dashboard/students" } };
+  }
+  if (pathname.startsWith("/dashboard/students/")) {
+    return { title: "Perfil de Alumno", parent: { label: "Alumnos", href: "/dashboard/students" } };
+  }
+  if (pathname.startsWith("/dashboard/tournaments/")) {
+    return { title: "Torneo", parent: { label: "Torneos", href: "/dashboard/tournaments" } };
+  }
+  return { title: "Dashboard" };
+}
+
+function TodayDate() {
+  const [date, setDate] = useState("");
+  useEffect(() => {
+    const fmt = new Intl.DateTimeFormat("es-PA", {
+      weekday: "long", day: "numeric", month: "long", year: "numeric",
+    });
+    setDate(fmt.format(new Date()));
+  }, []);
+  if (!date) return null;
+  // Capitalizar primera letra
+  const display = date.charAt(0).toUpperCase() + date.slice(1);
+  return (
+    <p className="text-xs text-dojo-sidebar-muted capitalize hidden xl:block">{display}</p>
+  );
+}
 
 /* ─── Types ─────────────────────────────────────────────── */
 interface LateItem { id: string; studentId: string; studentName: string; amount: number; dueDate: string; daysLate: number }
@@ -158,6 +223,8 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
 /* ─── TopBar ─────────────────────────────────────────────── */
 export function TopBar() {
   const { data: session } = useSession();
+  const pathname          = usePathname();
+  const { title, parent } = getPageInfo(pathname);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [bellOpen,     setBellOpen]     = useState(false);
   const [notifs,       setNotifs]       = useState<Notifications | null>(null);
@@ -207,8 +274,26 @@ export function TopBar() {
 
   return (
     <header className="hidden lg:flex py-4 items-center justify-between px-6 bg-dojo-dark border-b border-dojo-border gap-4 shrink-0">
-      {/* Left spacer */}
-      <div className="flex-1" />
+      {/* Título de página + breadcrumb + fecha */}
+      <div className="flex-1 min-w-0">
+        {/* Breadcrumb */}
+        {parent && (
+          <div className="flex items-center gap-1 mb-0.5">
+            <Link href={parent.href}
+              className="text-xs text-dojo-sidebar-muted hover:text-dojo-sidebar-text transition-colors">
+              {parent.label}
+            </Link>
+            <ChevronRight size={11} className="text-dojo-sidebar-muted/50" />
+            <span className="text-xs text-dojo-sidebar-muted/70">{title}</span>
+          </div>
+        )}
+        {/* Título principal */}
+        <p className="font-display font-bold text-dojo-sidebar-text text-xl leading-tight truncate">
+          {parent ? parent.label : title}
+        </p>
+        {/* Fecha */}
+        <TodayDate />
+      </div>
 
       {/* Right actions */}
       <div className="flex items-center gap-2">
