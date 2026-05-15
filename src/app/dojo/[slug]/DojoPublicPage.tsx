@@ -114,7 +114,7 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
 
       {/* ── Navigation ── */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A14]/90 backdrop-blur-md border-b border-white/10">
-        <div className="max-w-6xl mx-auto px-6 h-24 flex items-center justify-between">
+        <div className="px-6 h-24 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {dojo.logo && (
               <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#C0392B] flex items-center justify-center shadow-lg">
