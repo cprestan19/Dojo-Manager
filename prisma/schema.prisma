@@ -45,6 +45,7 @@ model Dojo {
   tournamentStreams        TournamentStream[]
   tournamentRegistrations TournamentRegistration[]
   events                  Event[]
+  storeProducts           StoreProduct[]
 
   @@map("dojos")
 }
@@ -697,4 +698,25 @@ model Event {
   @@index([dojoId])
   @@index([dojoId, endDate])
   @@map("events")
+}
+
+// ── Tienda del dojo ──────────────────────────────────────────
+model StoreProduct {
+  id          String   @id @default(cuid())
+  dojoId      String   @map("dojo_id")
+  dojo        Dojo     @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  name        String
+  description String?  @db.Text
+  price       Float
+  currency    String   @default("USD")
+  imageUrl    String?  @map("image_url") @db.Text
+  sizes       Json?    // string[] — ["XS","S","M","L","XL"] o null si no aplica
+  active      Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  @@index([dojoId])
+  @@index([dojoId, active])
+  @@map("store_products")
 }

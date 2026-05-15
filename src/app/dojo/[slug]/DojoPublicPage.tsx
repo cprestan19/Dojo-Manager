@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   Phone, Mail, Instagram, Clock, MapPin,
   Gift, Send, ChevronDown, CheckCircle, Star,
-  Users, MessageCircle, ArrowRight,
+  Users, MessageCircle, ArrowRight, ShoppingBag,
 } from "lucide-react";
 
 interface Schedule { id: string; name: string; days: string; startTime: string; endTime: string; description: string | null }
@@ -26,6 +26,11 @@ interface DojoData {
 interface TrialForm {
   childName: string; childAge: string;
   parentName: string; parentPhone: string; parentEmail: string; message: string;
+}
+
+interface StoreProduct {
+  id: string; name: string; description: string | null;
+  price: number; currency: string; imageUrl: string | null; sizes: unknown;
 }
 
 const EMPTY_FORM: TrialForm = { childName: "", childAge: "", parentName: "", parentPhone: "", parentEmail: "", message: "" };
@@ -51,6 +56,15 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
   const [submitted,   setSubmitted]   = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [navOpen,     setNavOpen]     = useState(false);
+  const [products,    setProducts]    = useState<StoreProduct[]>([]);
+  const [selectedSize,setSelectedSize]= useState<Record<string,string>>({});
+
+  useEffect(() => {
+    fetch(`/api/public/store?slug=${dojo.slug}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setProducts)
+      .catch(() => {});
+  }, [dojo.slug]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -90,8 +104,9 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-8 text-sm text-white/70">
             {[["Inicio","inicio"],["Nosotros","nosotros"],["Horarios","horarios"],
-              ...(gallery.length > 0 ? [["Atletas","atletas"]] : []),
-              ...(dojoPage.address   ? [["Ubicación","ubicacion"]] : []),
+              ...(products.length > 0  ? [["Tienda","tienda"]]         : []),
+              ...(gallery.length > 0   ? [["Atletas","atletas"]]       : []),
+              ...(dojoPage.address     ? [["Ubicación","ubicacion"]]   : []),
               ["Contacto","contacto"]
             ].map(([label, href]) => (
               <a key={href} href={`#${href}`}
@@ -114,8 +129,9 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
         {navOpen && (
           <div className="md:hidden border-t border-white/10 px-4 py-3 space-y-2 bg-[#0A0A14]/95">
             {[["Inicio","inicio"],["Nosotros","nosotros"],["Horarios","horarios"],
-              ...(gallery.length > 0 ? [["Atletas","atletas"]] : []),
-              ...(dojoPage.address   ? [["Ubicación","ubicacion"]] : []),
+              ...(products.length > 0  ? [["Tienda","tienda"]]       : []),
+              ...(gallery.length > 0   ? [["Atletas","atletas"]]     : []),
+              ...(dojoPage.address     ? [["Ubicación","ubicacion"]] : []),
               ["Contacto","contacto"]
             ].map(([label, href]) => (
               <a key={href} href={`#${href}`} onClick={() => setNavOpen(false)}
@@ -243,6 +259,101 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
                   {s.description && <p className="text-white/50 text-sm mt-2">{s.description}</p>}
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Tienda ── */}
+      {products.length > 0 && (
+        <section id="tienda" className="py-24 px-6" style={{ background: "rgba(255,255,255,0.02)", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-xs font-bold uppercase tracking-widest mb-3 flex items-center justify-center gap-2" style={{ color: primary }}>
+                <ShoppingBag size={13}/> Tienda
+              </p>
+              <h2 className="text-4xl md:text-5xl font-bold mb-4">Nuestros Productos</h2>
+              <p className="text-white/50 text-lg max-w-xl mx-auto">
+                Selecciona tu talla y consúltanos por WhatsApp. Coordinamos pago y entrega directamente contigo.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map(p => {
+                const sizes   = Array.isArray(p.sizes) ? (p.sizes as string[]) : [];
+                const chosen  = selectedSize[p.id] ?? "";
+                const price   = new Intl.NumberFormat("es-PA", { style:"currency", currency: p.currency, minimumFractionDigits:2 }).format(p.price);
+                const waMsg   = encodeURIComponent(
+                  `Hola ${dojo.name}! 👋\n\nEstoy interesado en:\n\n` +
+                  `📦 Producto: ${p.name}\n` +
+                  (chosen ? `👕 Talla: ${chosen}\n` : "") +
+                  `💰 Precio: ${price}\n\n` +
+                  `¿Podrían informarme sobre disponibilidad, forma de pago y entrega?`
+                );
+                const waUrl = whatsapp ? `https://wa.me/${whatsapp}?text=${waMsg}` : "";
+
+                return (
+                  <div key={p.id} className="rounded-2xl overflow-hidden group"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    {/* Imagen */}
+                    {p.imageUrl
+                      ? // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.imageUrl} alt={p.name}
+                          className="w-full h-56 object-cover block transition-transform duration-500 group-hover:scale-105" />
+                      : <div className="w-full h-56 flex items-center justify-center"
+                          style={{ background: primary+"15" }}>
+                          <ShoppingBag size={40} style={{ color: primary, opacity:0.4 }} />
+                        </div>
+                    }
+
+                    <div className="p-5 space-y-4">
+                      {/* Nombre y precio */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-white text-lg leading-tight">{p.name}</p>
+                          {p.description && (
+                            <p className="text-white/50 text-sm mt-1 line-clamp-2">{p.description}</p>
+                          )}
+                        </div>
+                        <p className="text-xl font-black shrink-0" style={{ color: primary }}>{price}</p>
+                      </div>
+
+                      {/* Selector de tallas */}
+                      {sizes.length > 0 && (
+                        <div>
+                          <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Selecciona talla</p>
+                          <div className="flex flex-wrap gap-2">
+                            {sizes.map(s => (
+                              <button key={s} onClick={() => setSelectedSize(ss => ({ ...ss, [p.id]: ss[p.id]===s ? "" : s }))}
+                                className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-all"
+                                style={{
+                                  background: chosen===s ? primary : "transparent",
+                                  borderColor: chosen===s ? primary : "rgba(255,255,255,0.15)",
+                                  color: chosen===s ? "#fff" : "rgba(255,255,255,0.6)",
+                                }}>
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Botón WhatsApp */}
+                      {waUrl ? (
+                        <a href={waUrl} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl font-bold text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
+                          style={{ background: "#25D366", boxShadow: "0 4px 16px #25D36640" }}>
+                          <MessageCircle size={18} fill="white"/> Consultar por WhatsApp
+                        </a>
+                      ) : (
+                        <p className="text-center text-white/30 text-sm py-2">
+                          Contáctanos para más información
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>

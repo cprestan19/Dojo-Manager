@@ -13,7 +13,7 @@ import {
   Users, CreditCard, Award, BookOpen,
   BarChart2, Settings, LogOut, Shield, Building2, ClipboardList, ExternalLink,
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
-  Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe,
+  Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag,
 } from "lucide-react";
 
 interface NavItem {
@@ -33,6 +33,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard/tournaments",     label: "Torneos",         icon: Trophy,          permKey: NAV_KEYS.TOURNAMENTS    },
   { href: "/dashboard/settings/katas",  label: "Katas",           icon: BookOpen,        permKey: NAV_KEYS.SETTINGS_KATAS },
   { href: "/dashboard/events",          label: "Eventos",         icon: Calendar,        permKey: NAV_KEYS.EVENTS         },
+  { href: "/dashboard/store",           label: "Tienda",          icon: ShoppingBag,     permKey: NAV_KEYS.STORE          },
   { href: "/dashboard/reports",         label: "Reportes",        icon: BarChart2,       permKey: NAV_KEYS.REPORTS        },
   { href: "/dashboard/users",           label: "Usuarios",        icon: Shield,          permKey: NAV_KEYS.USERS          },
   { href: "/dashboard/dojos",           label: "Dojos",           icon: Building2,       permKey: NAV_KEYS.DOJOS          },
