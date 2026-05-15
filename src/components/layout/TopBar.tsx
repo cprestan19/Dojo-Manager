@@ -206,7 +206,7 @@ export function TopBar() {
   const showBell    = role === "sysadmin" || role === "admin";
 
   return (
-    <header className="hidden lg:flex h-16 items-center justify-between px-6 bg-dojo-dark border-b border-dojo-border gap-4 shrink-0">
+    <header className="hidden lg:flex h-20 items-center justify-between px-8 bg-dojo-dark border-b border-dojo-border gap-4 shrink-0">
       {/* Left spacer */}
       <div className="flex-1" />
 
