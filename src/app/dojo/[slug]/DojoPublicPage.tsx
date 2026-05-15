@@ -77,29 +77,29 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
 
       {/* ── Navigation ── */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A14]/90 backdrop-blur-md border-b border-white/10">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-6 h-24 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {dojo.logo && (
-              <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#C0392B] flex items-center justify-center">
-                <Image src={dojo.logo} alt={dojo.name} width={36} height={36} className="object-contain" unoptimized />
+              <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#C0392B] flex items-center justify-center shadow-lg">
+                <Image src={dojo.logo} alt={dojo.name} width={48} height={48} className="object-contain" unoptimized />
               </div>
             )}
-            <span className="font-bold text-lg tracking-wide">{dojo.name}</span>
+            <span className="font-bold text-xl tracking-wide">{dojo.name}</span>
           </div>
 
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-6 text-sm text-white/70">
+          <div className="hidden md:flex items-center gap-8 text-sm text-white/70">
             {[["Inicio","inicio"],["Nosotros","nosotros"],["Horarios","horarios"],
               ...(gallery.length > 0 ? [["Atletas","atletas"]] : []),
               ...(dojoPage.address   ? [["Ubicación","ubicacion"]] : []),
               ["Contacto","contacto"]
             ].map(([label, href]) => (
               <a key={href} href={`#${href}`}
-                className="hover:text-white transition-colors">{label}</a>
+                className="hover:text-white transition-colors font-medium tracking-wide">{label}</a>
             ))}
             {dojoPage.showFreeTrial && (
               <a href="#prueba"
-                className="px-4 py-2 rounded-full text-white text-sm font-semibold transition-all hover:opacity-90"
+                className="px-5 py-2.5 rounded-full text-white text-sm font-semibold transition-all hover:opacity-90 hover:scale-105"
                 style={{ background: primary }}>
                 Clase Gratuita
               </a>
