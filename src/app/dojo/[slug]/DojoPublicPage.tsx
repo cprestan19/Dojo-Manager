@@ -130,6 +130,12 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
               <a key={href} href={`#${href}`}
                 className="hover:text-white transition-colors font-medium tracking-wide">{label}</a>
             ))}
+            {/* Botón Entrar — exclusivo para miembros */}
+            <a href={`/dojo/${dojo.slug}/login`}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold border border-white/20 text-white/70 hover:text-white hover:border-white/40 transition-all">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
+              Entrar
+            </a>
             {dojoPage.showFreeTrial && (
               <a href="#prueba"
                 className="px-5 py-2.5 rounded-full text-white text-sm font-semibold transition-all hover:opacity-90 hover:scale-105"
@@ -155,6 +161,11 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
               <a key={href} href={`#${href}`} onClick={() => setNavOpen(false)}
                 className="block py-2 text-white/70 hover:text-white">{label}</a>
             ))}
+            <a href={`/dojo/${dojo.slug}/login`} onClick={() => setNavOpen(false)}
+              className="block py-2 font-semibold text-white/70 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              Entrar al portal
+            </a>
             {dojoPage.showFreeTrial && (
               <a href="#prueba" onClick={() => setNavOpen(false)}
                 className="block py-2 font-semibold" style={{ color: primary }}>

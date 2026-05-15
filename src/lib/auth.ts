@@ -14,6 +14,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email:    { label: "Email",      type: "email"    },
         password: { label: "Contraseña", type: "password" },
+        dojoSlug: { label: "Dojo",       type: "text"     }, // opcional — login por página de dojo
       },
       async authorize(credentials, req) {
         const ip        = (req?.headers?.["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim()
@@ -24,9 +25,8 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         const user = await prisma.user.findUnique({
-          where:   { email: credentials.email },
+          where:   { email: credentials.email.toLowerCase().trim() },
           include: { student: { select: { photo: true } } },
-          // user.photo for admin/user roles; student.photo for student role
         });
 
         if (!user) {
@@ -43,6 +43,34 @@ export const authOptions: NextAuthOptions = {
           await logAudit({ action: "LOGIN_FAILED", userEmail: user.email, userId: user.id, dojoId: user.dojoId, ip, userAgent, details: "Contraseña incorrecta" });
           return null;
         }
+
+        // ── Validación de acceso por página de dojo ────────────────
+        if (credentials.dojoSlug) {
+          const slug = credentials.dojoSlug.trim().toLowerCase();
+          const dojo = await prisma.dojo.findUnique({
+            where:  { slug, active: true },
+            select: { id: true },
+          });
+
+          // Dojo no existe o inactivo
+          if (!dojo) {
+            await logAudit({ action: "LOGIN_FAILED", userEmail: user.email, userId: user.id, dojoId: user.dojoId, ip, userAgent, details: `Dojo '${slug}' no encontrado` });
+            return null;
+          }
+
+          // Sysadmin no puede entrar por página de dojo
+          if (user.role === "sysadmin") {
+            await logAudit({ action: "LOGIN_FAILED", userEmail: user.email, userId: user.id, ip, userAgent, details: "Sysadmin bloqueado en login de dojo" });
+            return null;
+          }
+
+          // El usuario debe pertenecer a ESTE dojo exactamente
+          if (user.dojoId !== dojo.id) {
+            await logAudit({ action: "LOGIN_FAILED", userEmail: user.email, userId: user.id, dojoId: user.dojoId, ip, userAgent, details: `No pertenece al dojo '${slug}'` });
+            return null;
+          }
+        }
+        // ────────────────────────────────────────────────────────────
 
         await logAudit({ action: "LOGIN_SUCCESS", userId: user.id, userEmail: user.email, dojoId: user.dojoId, ip, userAgent });
 
