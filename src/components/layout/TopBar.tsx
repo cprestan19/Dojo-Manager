@@ -8,10 +8,8 @@ import {
   ChevronRight, ShieldAlert,
 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
-import { useDojo } from "@/lib/hooks/useDojo";
 
 /* ─── Mapa de rutas → título + breadcrumb ───────────────── */
 const ROUTE_LABELS: Record<string, string> = {
@@ -261,7 +259,6 @@ export function TopBar() {
   const { data: session } = useSession();
   const pathname          = usePathname();
   const { title, parent } = getPageInfo(pathname);
-  const dojo              = useDojo();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [bellOpen,     setBellOpen]     = useState(false);
   const [notifs,       setNotifs]       = useState<Notifications | null>(null);
@@ -311,49 +308,26 @@ export function TopBar() {
 
   return (
     <header className="hidden lg:flex py-4 items-center justify-between px-6 bg-dojo-dark border-b border-dojo-border gap-4 shrink-0">
-      {/* Logo + nombre del dojo — izquierda */}
-      <div className="flex items-center gap-3 min-w-0">
-        {/* Logo */}
-        <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 flex items-center justify-center"
-          style={{ background: "rgba(192,57,43,0.2)", border: "1px solid rgba(192,57,43,0.3)" }}>
-          {dojo?.logo && dojo.logo.startsWith("http")
-            ? <Image src={dojo.logo} alt={dojo.name ?? "Dojo"} width={44} height={44}
-                className="w-full h-full object-contain" unoptimized />
-            : <span className="text-lg font-black text-dojo-red">
-                {(dojo?.name ?? "D").charAt(0).toUpperCase()}
-              </span>
-          }
-        </div>
-        {/* Nombre + módulo activo */}
-        <div className="min-w-0">
-          <p className="font-display font-bold text-dojo-sidebar-text text-base leading-tight truncate">
-            {dojo?.name ?? "Dojo Master"}
-          </p>
-          <div className="flex items-center gap-1">
-            {parent && (
-              <>
-                <Link href={parent.href}
-                  className="text-xs text-dojo-sidebar-muted hover:text-dojo-sidebar-text transition-colors">
-                  {parent.label}
-                </Link>
-                <ChevronRight size={10} className="text-dojo-sidebar-muted/40" />
-                <span className="text-xs text-dojo-sidebar-muted/60 truncate">{title}</span>
-              </>
-            )}
-            {!parent && (
-              <span className="text-xs text-dojo-sidebar-muted">{title}</span>
-            )}
+      {/* Título de página + breadcrumb + fecha */}
+      <div className="flex-1 min-w-0">
+        {/* Breadcrumb */}
+        {parent && (
+          <div className="flex items-center gap-1 mb-0.5">
+            <Link href={parent.href}
+              className="text-xs text-dojo-sidebar-muted hover:text-dojo-sidebar-text transition-colors">
+              {parent.label}
+            </Link>
+            <ChevronRight size={11} className="text-dojo-sidebar-muted/50" />
+            <span className="text-xs text-dojo-sidebar-muted/70">{title}</span>
           </div>
-        </div>
-      </div>
-
-      {/* Fecha — centro, solo en pantallas grandes */}
-      <div className="hidden xl:block flex-1 text-center">
+        )}
+        {/* Título principal */}
+        <p className="font-display font-bold text-dojo-sidebar-text text-xl leading-tight truncate">
+          {parent ? parent.label : title}
+        </p>
+        {/* Fecha */}
         <TodayDate />
       </div>
-
-      {/* Espaciador cuando no hay fecha */}
-      <div className="flex-1 xl:hidden" />
 
       {/* Right actions */}
       <div className="flex items-center gap-2">
