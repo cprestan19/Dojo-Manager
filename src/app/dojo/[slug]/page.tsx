@@ -66,14 +66,43 @@ export default async function DojoPublicPageRoute({ params, searchParams }: Prop
     aboutText: null, aboutImage: null,
     primaryColor: "#C0392B",
     showFreeTrial: true, showSchedules: true, showContact: true, showStore: false,
-    address: null, galleryImages: null,
+    address: null, galleryImages: null, stats: null, testimonials: null,
     createdAt: new Date(), updatedAt: new Date(),
   };
 
   const page = dojo.dojoPage ?? defaultPage;
 
+  // JSON-LD para SEO local (Google Maps, búsquedas locales)
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type":    "SportsClub",
+    "name":     dojo.name,
+    ...(dojo.slogan      && { "description": dojo.slogan }),
+    ...(dojo.phone       && { "telephone":   dojo.phone }),
+    ...(dojo.email       && { "email":       dojo.email }),
+    ...(page.address     && { "address": { "@type": "PostalAddress", "streetAddress": page.address } }),
+    ...(dojo.logo        && { "image": dojo.logo }),
+    ...(dojo.instagramUrl && { "sameAs": [dojo.instagramUrl] }),
+    "sport": "Karate",
+    "openingHoursSpecification": dojo.schedules.map(s => {
+      let days: string[] = [];
+      try { days = JSON.parse(s.days); } catch { days = []; }
+      const dayMap: Record<string,string> = {
+        lunes:"Monday", martes:"Tuesday", miercoles:"Wednesday",
+        jueves:"Thursday", viernes:"Friday", sabado:"Saturday", domingo:"Sunday",
+      };
+      return days.map(d => ({
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": dayMap[d] ?? d,
+        "opens":  s.startTime,
+        "closes": s.endTime,
+      }));
+    }).flat(),
+  };
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {/* Banner de vista previa — solo visible para el admin */}
       {isPreview && (
         <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-4 px-4 py-2.5 text-sm font-semibold"

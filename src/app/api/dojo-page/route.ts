@@ -53,6 +53,8 @@ export async function PUT(req: NextRequest) {
         showStore:     body.showStore     ?? false,
         address:       body.address       || null,
         galleryImages: Array.isArray(body.galleryImages) ? body.galleryImages : [],
+        stats:         Array.isArray(body.stats)         ? body.stats         : [],
+        testimonials:  Array.isArray(body.testimonials)  ? body.testimonials  : [],
       },
       update: {
         ...(body.published     !== undefined && { published:     body.published }),
@@ -68,6 +70,8 @@ export async function PUT(req: NextRequest) {
         ...(body.showStore     !== undefined && { showStore:     body.showStore     }),
         ...(body.address       !== undefined && { address:       body.address       || null }),
         ...(body.galleryImages !== undefined && { galleryImages: Array.isArray(body.galleryImages) ? body.galleryImages : [] }),
+        ...(body.stats         !== undefined && { stats:         Array.isArray(body.stats)         ? body.stats         : [] }),
+        ...(body.testimonials  !== undefined && { testimonials:  Array.isArray(body.testimonials)  ? body.testimonials  : [] }),
       },
     });
     return NextResponse.json(page);

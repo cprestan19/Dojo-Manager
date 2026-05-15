@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useDojo } from "@/lib/hooks/useDojo";
 import {
   Globe, Eye, EyeOff, Copy, Check, Save, Image as ImageIcon,
-  ExternalLink, X, Palette, ToggleLeft, ToggleRight, MapPin,
+  ExternalLink, X, Palette, ToggleLeft, ToggleRight, MapPin, Plus,
 } from "lucide-react";
 
 interface PageData {
@@ -21,13 +21,15 @@ interface PageData {
   showStore:     boolean;
   address:       string | null;
   galleryImages: string[];
+  stats:         { value: string; label: string }[];
+  testimonials:  { name: string; role: string; quote: string; photo: string }[];
 }
 
 const DEFAULT: PageData = {
   published: false, heroTitle: null, heroSubtitle: null, heroImage: null,
   aboutText: null, aboutImage: null, primaryColor: "#C0392B",
   showFreeTrial: true, showSchedules: true, showContact: true, showStore: false,
-  address: null, galleryImages: [],
+  address: null, galleryImages: [], stats: [], testimonials: [],
 };
 
 function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -51,7 +53,7 @@ export default function PublicPageSettings() {
   const [saved,      setSaved]      = useState(false);
   const [saveError,  setSaveError]  = useState("");
   const [copied,     setCopied]     = useState(false);
-  const [uploading,  setUploading]  = useState<"hero" | "about" | "gallery" | null>(null);
+  const [uploading,  setUploading]  = useState<"hero" | "about" | "gallery" | `testimonial-${number}` | null>(null);
   const heroRef    = useRef<HTMLInputElement>(null);
   const aboutRef   = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -60,7 +62,12 @@ export default function PublicPageSettings() {
     const r = await fetch("/api/dojo-page");
     if (r.ok) {
       const d = await r.json();
-      if (d) setPage({ ...DEFAULT, ...d, galleryImages: Array.isArray(d.galleryImages) ? d.galleryImages : [] });
+      if (d) setPage({
+      ...DEFAULT, ...d,
+      galleryImages: Array.isArray(d.galleryImages) ? d.galleryImages : [],
+      stats:         Array.isArray(d.stats)         ? d.stats         : [],
+      testimonials:  Array.isArray(d.testimonials)  ? d.testimonials  : [],
+    });
     }
     setLoading(false);
   }, []);
@@ -370,6 +377,89 @@ export default function PublicPageSettings() {
               Sube fotos de entrenamientos, competencias o atletas. Máx. 12 imágenes. Se muestran en galería tipo mosaico.
             </p>
           </div>
+        )}
+      </div>
+
+      {/* Estadísticas del Hero */}
+      <div className="card space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-dojo-white uppercase tracking-widest">Estadísticas</p>
+          <span className="text-xs text-dojo-muted">{page.stats.length}/4</span>
+        </div>
+        <p className="text-xs text-dojo-muted">Aparecen debajo del hero. Ej: "150+ Alumnos", "10 Años de experiencia"</p>
+        <div className="space-y-2">
+          {page.stats.map((s, i) => (
+            <div key={i} className="flex gap-2 items-center">
+              <input value={s.value} onChange={e => setPage(p => ({ ...p, stats: p.stats.map((x,j) => j===i ? {...x, value:e.target.value} : x) }))}
+                className="form-input w-24 text-center font-bold" placeholder="150+" />
+              <input value={s.label} onChange={e => setPage(p => ({ ...p, stats: p.stats.map((x,j) => j===i ? {...x, label:e.target.value} : x) }))}
+                className="form-input flex-1" placeholder="Alumnos formados" />
+              <button onClick={() => setPage(p => ({ ...p, stats: p.stats.filter((_,j) => j!==i) }))}
+                className="btn-ghost p-1.5 text-dojo-muted hover:text-red-400 shrink-0"><X size={14}/></button>
+            </div>
+          ))}
+        </div>
+        {page.stats.length < 4 && (
+          <button onClick={() => setPage(p => ({ ...p, stats: [...p.stats, { value:"", label:"" }] }))}
+            className="btn-secondary text-sm w-full"><Plus size={14}/> Agregar estadística</button>
+        )}
+      </div>
+
+      {/* Testimonios */}
+      <div className="card space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-dojo-white uppercase tracking-widest">Testimonios de Alumnos</p>
+          <span className="text-xs text-dojo-muted">{page.testimonials.length}/6</span>
+        </div>
+        <div className="space-y-4">
+          {page.testimonials.map((t, i) => (
+            <div key={i} className="p-4 rounded-xl border border-dojo-border/40 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-dojo-muted font-semibold">Testimonio {i+1}</p>
+                <button onClick={() => setPage(p => ({ ...p, testimonials: p.testimonials.filter((_,j) => j!==i) }))}
+                  className="text-dojo-muted hover:text-red-400 transition-colors"><X size={14}/></button>
+              </div>
+              <textarea value={t.quote}
+                onChange={e => setPage(p => ({ ...p, testimonials: p.testimonials.map((x,j) => j===i ? {...x, quote:e.target.value} : x) }))}
+                className="form-input resize-none w-full" rows={2}
+                placeholder='"Llevo 2 años y mi hijo cambió completamente..."' />
+              <div className="grid grid-cols-2 gap-2">
+                <input value={t.name}
+                  onChange={e => setPage(p => ({ ...p, testimonials: p.testimonials.map((x,j) => j===i ? {...x, name:e.target.value} : x) }))}
+                  className="form-input text-sm" placeholder="Nombre del alumno" />
+                <input value={t.role}
+                  onChange={e => setPage(p => ({ ...p, testimonials: p.testimonials.map((x,j) => j===i ? {...x, role:e.target.value} : x) }))}
+                  className="form-input text-sm" placeholder="Cinta Negra · 3 años" />
+              </div>
+              {/* Foto opcional */}
+              <div className="flex items-center gap-3">
+                {t.photo
+                  ? <div className="flex items-center gap-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={t.photo} alt="" className="w-8 h-8 rounded-full object-cover" />
+                      <button onClick={() => setPage(p => ({ ...p, testimonials: p.testimonials.map((x,j) => j===i ? {...x, photo:""} : x) }))}
+                        className="text-xs text-dojo-muted hover:text-red-400 flex items-center gap-1"><X size={10}/> Quitar</button>
+                    </div>
+                  : <label className="flex items-center gap-2 cursor-pointer text-xs text-dojo-muted hover:text-dojo-red transition-colors">
+                      <ImageIcon size={14}/>
+                      {uploading === `testimonial-${i}` ? "Subiendo..." : "Foto (opcional)"}
+                      <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                        const f = e.target.files?.[0]; if (!f) return;
+                        setUploading(`testimonial-${i}`);
+                        const fd = new FormData(); fd.append("file",f); fd.append("type","image"); fd.append("purpose","testimonial");
+                        const r = await fetch("/api/upload",{method:"POST",body:fd}); const j = await r.json();
+                        if (r.ok) setPage(p => ({ ...p, testimonials: p.testimonials.map((x,k) => k===i ? {...x, photo:j.url} : x) }));
+                        setUploading(null); e.target.value="";
+                      }} />
+                    </label>
+                }
+              </div>
+            </div>
+          ))}
+        </div>
+        {page.testimonials.length < 6 && (
+          <button onClick={() => setPage(p => ({ ...p, testimonials: [...p.testimonials, { name:"", role:"", quote:"", photo:"" }] }))}
+            className="btn-secondary text-sm w-full"><Plus size={14}/> Agregar testimonio</button>
         )}
       </div>
 

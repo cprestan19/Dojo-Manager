@@ -82,6 +82,12 @@ model DojoPage {
   // Galería de atletas — array JSON de URLs Cloudinary
   galleryImages Json?   @map("gallery_images")
 
+  // Barra de estadísticas [{value:"150+", label:"Alumnos formados"}, ...]
+  stats         Json?
+
+  // Testimonios [{name, role, quote, photo?}, ...]
+  testimonials  Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

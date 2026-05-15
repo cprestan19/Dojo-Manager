@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   Phone, Mail, Instagram, Clock, MapPin,
-  Gift, Send, ChevronDown, CheckCircle, Star,
+  Gift, Send, ChevronDown, CheckCircle, Star, X,
   Users, MessageCircle, ArrowRight, ShoppingBag,
 } from "lucide-react";
 
@@ -14,8 +14,13 @@ interface DojoPageData {
   primaryColor: string; showFreeTrial: boolean;
   showSchedules: boolean; showContact: boolean; showStore: boolean;
   address: string | null;
-  galleryImages: unknown; // Json → cast to string[]
+  galleryImages: unknown;
+  stats:         unknown; // [{value,label}[]]
+  testimonials:  unknown; // [{name,role,quote,photo?}[]]
 }
+
+interface Stat        { value: string; label: string }
+interface Testimonial { name: string; role: string; quote: string; photo?: string }
 interface DojoData {
   id: string; name: string; slug: string; slogan: string | null;
   phone: string | null; email: string | null; instagramUrl: string | null;
@@ -58,6 +63,18 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
   const [navOpen,     setNavOpen]     = useState(false);
   const [products,    setProducts]    = useState<StoreProduct[]>([]);
   const [selectedSize,setSelectedSize]= useState<Record<string,string>>({});
+  const [lightbox,    setLightbox]    = useState<string|null>(null);
+
+  // Cast JSON → typed arrays
+  const stats:        Stat[]        = Array.isArray(dojoPage.stats)        ? (dojoPage.stats        as Stat[])        : [];
+  const testimonials: Testimonial[] = Array.isArray(dojoPage.testimonials) ? (dojoPage.testimonials as Testimonial[]) : [];
+
+  // Cerrar lightbox con ESC
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setLightbox(null); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     if (!dojoPage.showStore) return;
@@ -199,6 +216,22 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
         </div>
       </section>
 
+      {/* ── Stats bar ── */}
+      {stats.length > 0 && (
+        <div className="py-10 px-6 border-y border-white/5" style={{ background: "rgba(255,255,255,0.02)" }}>
+          <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6">
+            {stats.map((s, i) => (
+              <div key={i} className="text-center">
+                <p className="text-4xl md:text-5xl font-black mb-1" style={{ color: primary, fontFamily: "'Cinzel', serif" }}>
+                  {s.value}
+                </p>
+                <p className="text-white/50 text-sm font-medium">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── About ── */}
       {dojoPage.aboutText && (
         <section id="nosotros" className="py-24 px-6">
@@ -258,6 +291,53 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
                     {parseDays(s.days)}
                   </p>
                   {s.description && <p className="text-white/50 text-sm mt-2">{s.description}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Testimonios ── */}
+      {testimonials.length > 0 && (
+        <section className="py-24 px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: primary }}>
+                Testimonios
+              </p>
+              <h2 className="text-4xl md:text-5xl font-bold">Lo que dicen nuestros alumnos</h2>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {testimonials.map((t, i) => (
+                <div key={i} className="rounded-2xl p-6 flex flex-col gap-4"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  {/* Estrellas */}
+                  <div className="flex gap-1">
+                    {[1,2,3,4,5].map(n => (
+                      <Star key={n} size={16} fill="#F59E0B" stroke="none" />
+                    ))}
+                  </div>
+                  {/* Cita */}
+                  <p className="text-white/75 text-sm leading-relaxed flex-1 italic">
+                    &ldquo;{t.quote}&rdquo;
+                  </p>
+                  {/* Alumno */}
+                  <div className="flex items-center gap-3 pt-2 border-t border-white/10">
+                    {t.photo
+                      ? // eslint-disable-next-line @next/next/no-img-element
+                        <img src={t.photo} alt={t.name}
+                          className="w-10 h-10 rounded-full object-cover shrink-0" />
+                      : <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                          style={{ background: primary+"30", color: primary }}>
+                          {t.name.charAt(0).toUpperCase()}
+                        </div>
+                    }
+                    <div>
+                      <p className="font-semibold text-white text-sm">{t.name}</p>
+                      <p className="text-white/40 text-xs">{t.role}</p>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -380,17 +460,21 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
             <div className="columns-2 md:columns-3 gap-3 space-y-3">
               {gallery.map((url, i) => (
                 <div key={i}
-                  className="break-inside-avoid rounded-2xl overflow-hidden group relative"
-                  style={{ marginBottom: "12px" }}>
+                  className="break-inside-avoid rounded-2xl overflow-hidden group relative cursor-zoom-in"
+                  style={{ marginBottom: "12px" }}
+                  onClick={() => setLightbox(url)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={url}
                     alt={`Atleta ${i + 1}`}
                     className="w-full h-auto object-cover block transition-transform duration-500 group-hover:scale-105"
                   />
-                  {/* Overlay sutil en hover */}
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"
-                    style={{ background: `linear-gradient(to top, ${primary}55 0%, transparent 60%)` }} />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-2xl"
+                    style={{ background: `rgba(0,0,0,0.35)` }}>
+                    <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                      <Star size={18} className="text-white" />
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -616,6 +700,40 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
           </a>
         </div>
       </footer>
+
+      {/* ── Lightbox ── */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.95)" }}
+          onClick={() => setLightbox(null)}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightbox}
+            alt="Foto ampliada"
+            className="max-h-[90vh] max-w-[90vw] object-contain rounded-2xl shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+            <X size={22} />
+          </button>
+        </div>
+      )}
+
+      {/* ── Sticky CTA móvil ── */}
+      {dojoPage.showFreeTrial && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden pointer-events-none">
+          <div className="px-4 pb-4 pt-8" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.9) 60%, transparent)" }}>
+            <a href="#prueba"
+              className="pointer-events-auto flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl font-bold text-white text-base transition-all active:scale-[0.98]"
+              style={{ background: primary, boxShadow: `0 4px 24px ${primary}70` }}>
+              <Gift size={20} /> Solicitar Clase Gratuita — ¡Es Gratis!
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* ── Fixed WhatsApp button ── */}
       {whatsapp && (
