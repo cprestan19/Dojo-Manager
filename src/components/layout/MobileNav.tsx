@@ -68,11 +68,11 @@ const settingsItems: NavItem[] = [
 
 // Quick-access items shown at the bottom bar (max 5, most used)
 const quickItems: NavItem[] = [
-  { href: "/dashboard",              label: "Inicio",       icon: Home,        permKey: NAV_KEYS.DASHBOARD },
-  { href: "/dashboard/students",     label: "Alumnos",      icon: Users,       permKey: NAV_KEYS.STUDENTS  },
-  { href: "/dashboard/payments",     label: "Pagos",        icon: CreditCard,  permKey: NAV_KEYS.PAYMENTS  },
-  { href: "/dashboard/attendance",   label: "Asistencia",   icon: ClipboardList, permKey: NAV_KEYS.ATTENDANCE },
-  { href: "/dashboard/belts",        label: "Rangos",       icon: Award,       permKey: NAV_KEYS.BELTS     },
+  { href: "/dashboard",                   label: "Inicio",     icon: Home,         permKey: NAV_KEYS.DASHBOARD          },
+  { href: "/dashboard/students",          label: "Alumnos",    icon: Users,        permKey: NAV_KEYS.STUDENTS           },
+  { href: "/dashboard/attendance",        label: "Asistencia", icon: ClipboardList,permKey: NAV_KEYS.ATTENDANCE          },
+  { href: "/dashboard/tournament-events", label: "Torneos",    icon: Trophy,       permKey: NAV_KEYS.TOURNAMENT_EVENTS  },
+  { href: "/dashboard/payments",          label: "Pagos",      icon: CreditCard,   permKey: NAV_KEYS.PAYMENTS           },
 ];
 
 const backRoutes: Record<string, string> = {
