@@ -9,7 +9,9 @@ export interface DojoInfo {
   ownerName: string | null;
   phone:     string | null;
   slogan:    string | null;
-  active:    boolean;
+  active:         boolean;
+  locale:         string;    // "es" | "en"
+  tournamentPro:  boolean;   // Módulo Torneo Pro activado
 }
 
 /**

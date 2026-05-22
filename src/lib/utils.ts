@@ -110,13 +110,13 @@ export const STREAM_STATUS = {
 } as const;
 
 export function getTournamentStatusFlow(currentStatus: string): string[] {
+  // Estados: draft → ready → active → completed → confirmed
   const flows: Record<string, string[]> = {
-    draft:               ["registration_open", "cancelled"],
-    registration_open:   ["registration_closed", "cancelled"],
-    registration_closed: ["in_progress", "registration_open"],
-    in_progress:         ["finished"],
-    finished:            [],
-    cancelled:           [],
+    draft:     ["ready", "active"],
+    ready:     ["active", "draft"],
+    active:    ["completed", "ready", "draft"],
+    completed: ["confirmed", "active"],
+    confirmed: ["active", "completed"],  // se puede reabrir
   };
   return flows[currentStatus] ?? [];
 }

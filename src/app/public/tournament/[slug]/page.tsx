@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { TOURNAMENT_STATUS, JUDGE_ROLES, SCHEDULE_EVENT_TYPES } from "@/lib/utils";
 import { PublicRegistrationForm } from "./PublicRegistrationForm";
+import { ClubRegistrationSection } from "./ClubRegistrationSection";
 
 interface TournamentData {
   id: string;
@@ -22,6 +23,12 @@ interface TournamentData {
   organizerPhone: string | null;
   rules: string | null;
   flyerImage: string | null;
+  tournamentType: string;
+  entryFeePerCategory: number | null;
+  feeCurrency: string;
+  requireWaiver: boolean;
+  waiverText: string | null;
+  maxAthletesPerClub: number | null;
   tatamis: { id: string; name: string; color: string; order: number }[];
   scheduleSlots: {
     id: string;
@@ -59,9 +66,13 @@ export default async function PublicTournamentPage({
 
   if (!tournament) notFound();
 
-  const statusInfo = TOURNAMENT_STATUS[tournament.status as keyof typeof TOURNAMENT_STATUS];
-  const isLive = tournament.stream?.status === "live";
-  const isRegOpen = tournament.status === "registration_open";
+  const statusInfo  = TOURNAMENT_STATUS[tournament.status as keyof typeof TOURNAMENT_STATUS];
+  const isLive      = tournament.stream?.status === "live";
+  const isRegOpen   = tournament.status === "registration_open";
+  const isOpenTournament = tournament.tournamentType === "open" || tournament.tournamentType === "federated";
+  const regIsOpen   = isOpenTournament &&
+    ["draft","ready","active"].includes(tournament.status) &&
+    (!tournament.registrationCloseAt || new Date() < new Date(tournament.registrationCloseAt));
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#0f1117", color: "#e5e7eb", fontFamily: "system-ui, sans-serif" }}>
@@ -125,6 +136,7 @@ export default async function PublicTournamentPage({
           </div>
         )}
 
+        {/* Inscripción individual (sistema legacy) */}
         {isRegOpen && (
           <div style={{ marginBottom: "24px", background: "#1a1d27", borderRadius: "16px", border: "1px solid #2d3048", padding: "24px" }}>
             <h2 style={{ fontSize: "18px", fontWeight: "700", color: "#f0f0f0", marginBottom: "16px" }}>
@@ -132,6 +144,21 @@ export default async function PublicTournamentPage({
             </h2>
             <PublicRegistrationForm slug={tournament.publicSlug} maxParticipants={tournament.maxParticipants} />
           </div>
+        )}
+
+        {/* Inscripción por club (torneos abiertos) */}
+        {isOpenTournament && (
+          <ClubRegistrationSection
+            slug={tournament.publicSlug}
+            tournamentName={tournament.name}
+            registrationCloseAt={tournament.registrationCloseAt}
+            entryFeePerCategory={tournament.entryFeePerCategory}
+            feeCurrency={tournament.feeCurrency}
+            requireWaiver={tournament.requireWaiver}
+            waiverText={tournament.waiverText}
+            maxAthletesPerClub={tournament.maxAthletesPerClub}
+            regIsOpen={regIsOpen}
+          />
         )}
 
         {tournament.scheduleSlots.length > 0 && (

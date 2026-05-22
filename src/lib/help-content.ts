@@ -321,6 +321,143 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
     ],
   },
 
+  "/dashboard/tournaments-pro": {
+    title:       "Torneo Pro",
+    emoji:       "🏆",
+    description: "Gestiona torneos completos de karate: brackets, tatamis, jueces, transmisión en vivo e inscripciones de clubs externos.",
+    steps: [
+      "Crea el torneo con '+ Nuevo Torneo' — define nombre, fecha, lugar y organización.",
+      "Tab INFORMACIÓN: cambia el estado de 'Borrador' → 'Listo' con el selector junto al nombre. Elige el tipo: Interno (solo tus alumnos) o Abierto (clubs externos).",
+      "Tab ATLETAS: crea las categorías (brackets) con el formulario WKF encadenado — Tipo → Género → Grupo de edad → Peso. El nombre se genera automáticamente.",
+      "Tab ATLETAS: agrega participantes a cada bracket. Genera el cuadro con el botón 'Generar Bracket' (kumite) o 'Generar Orden' (kata).",
+      "Tab TATAMIS & JUECES: crea los tatamis del evento, asigna jueces a cada tatami y configura el stream de YouTube por tatami.",
+      "Tab EN VIVO: selecciona el 'Combate Activo' en el dropdown ★ de cada tatami — esto activa la pantalla TV, el overlay OBS y la app del juez.",
+      "App del Juez: los jueces abren /tournament/[id]/judge en su celular y seleccionan su nombre para puntuar.",
+      "Overlay OBS: copia la URL desde el tab EN VIVO o desde /tournament/[id]/overlay. En OBS: fuente Navegador, 1920×1080, fondo transparente.",
+      "Tab INSCRIPCIONES (torneos abiertos): aprueba clubs, valida pagos y envía credenciales QR cuando todo esté confirmado.",
+    ],
+    tips: [
+      "El estado 'Listo' o 'Activo' es necesario para que el overlay OBS muestre datos de combate.",
+      "Para torneos abiertos: configura el Slug Público en el tab Información, activa la página pública y copia el link de inscripción para enviarlo a coaches externos.",
+      "El PIN de acreditación (tab Información) protege la pantalla de entrada /tournament/[id]/tatami/[id]/accredit donde los voluntarios escanean QRs.",
+      "El overlay OBS usa fondo transparente — en OBS activa 'Enable Background Transparency' en la fuente de navegador.",
+      "Si el stream sale como 'Finalizado', usa el botón '↺ Reiniciar Stream' en el tab En Vivo.",
+    ],
+  },
+
+  "/dashboard/tournaments-pro/new": {
+    title:       "Crear Torneo",
+    emoji:       "➕",
+    description: "Configura los parámetros iniciales del torneo antes de comenzar.",
+    steps: [
+      "Ingresa el nombre del torneo, fecha, lugar y organización (p.ej. FEPAKA, WKF, Ryo-Bukai).",
+      "El Líder 1 es el director técnico principal del evento — es obligatorio.",
+      "Al guardar, el torneo queda en estado 'Borrador'. Puedes editarlo antes de publicarlo.",
+    ],
+    tips: [
+      "El tipo de torneo (Interno/Abierto) se configura en el tab Información después de crearlo.",
+      "Puedes cambiar el nombre y todos los datos antes de que el torneo esté 'Activo'.",
+    ],
+  },
+
+  "/dashboard/tournaments-pro/": {
+    title:       "Gestión del Torneo",
+    emoji:       "🏅",
+    description: "Panel central del torneo con todos los tabs de gestión.",
+    steps: [
+      "INFORMACIÓN: datos básicos + tipo de torneo + configuración para clubs externos.",
+      "ATLETAS: crea brackets WKF y agrega participantes. El nombre de categoría se genera solo.",
+      "KUMITE / KATA: visualiza y gestiona los brackets generados. Registra resultados de matches.",
+      "TATAMIS & JUECES: configura los tatamis, asigna jueces y gestiona el stream por tatami.",
+      "EN VIVO: controla el combate activo, el stream de YouTube y el overlay OBS.",
+      "INSCRIPCIONES: gestiona clubs externos — aprueba, rechaza, valida pagos, envía credenciales QR.",
+      "RESULTADOS: visualiza el bracket final con el campeón de cada categoría.",
+    ],
+    tips: [
+      "El selector de estado (Borrador/Listo/Activo) está en el header del torneo, junto al nombre.",
+      "Para que el overlay OBS funcione: estado debe ser 'Listo' o superior, y debe haber un combate activo seleccionado en el tatami.",
+    ],
+  },
+
+  "/dashboard/settings/import": {
+    title:       "Importar Alumnos",
+    emoji:       "📥",
+    description: "Carga masiva de alumnos desde un archivo Excel.",
+    steps: [
+      "Descarga la plantilla — tiene todos los campos con instrucciones en la segunda hoja",
+      "Llena la hoja 'Alumnos' desde la fila 3 (la fila 2 es solo un ejemplo — puedes borrarla)",
+      "Los campos en rojo son OBLIGATORIOS: Nombre Completo y Cédula",
+      "Guarda el archivo como .xlsx y súbelo en esta página",
+      "El sistema procesa y muestra un resumen: creados, omitidos (duplicados) y errores",
+    ],
+    tips: [
+      "La cédula es la llave única — si ya existe en tu dojo, el alumno NO se duplica ni se actualiza",
+      "Si la misma cédula existe en otro dojo, se crea igualmente (cada dojo está aislado)",
+      "Los campos opcionales vacíos quedan en blanco — no causan error",
+      "Después de importar, edita cada alumno individualmente para agregar su foto",
+      "Descarga el Reporte CSV al final para guardar un registro de la importación",
+      "Puedes importar hasta 500 alumnos por archivo Excel",
+    ],
+  },
+
+  "/coach": {
+    title:       "Portal del Coach",
+    emoji:       "🥋",
+    description: "Gestiona la inscripción de tu club en el torneo desde este portal privado.",
+    steps: [
+      "Tab 'Mis Atletas': agrega cada atleta con sus datos básicos. El sistema calcula automáticamente su grupo de edad (Cadete, Junior, Senior, etc.) según la fecha del torneo.",
+      "Al agregar un atleta, selecciona las categorías en las que competirá. El sistema filtra solo las categorías compatibles con su edad, peso y género.",
+      "Marca '★ Es atleta de Ranking' si el atleta tiene un título reciente — el organizador validará y asignará el seed en el bracket.",
+      "Tab 'Pago': ingresa la referencia de transferencia y sube el comprobante de pago (imagen). El organizador debe confirmar el pago.",
+      "Tab 'Estado': visualiza el progreso de tu inscripción — Pendiente → Aprobado → Pagado → Credenciales enviadas.",
+      "Cuando el organizador apruebe y confirme el pago, recibirás un email con el código QR de acreditación de cada atleta.",
+      "El día del torneo, presenta los QRs de tus atletas en la entrada para acreditarlos.",
+    ],
+    tips: [
+      "Este enlace es válido por 30 días — guárdalo o revisa tu correo para acceder de nuevo. No lo compartas: es de acceso privado.",
+      "Puedes agregar, editar o retirar atletas mientras las inscripciones estén abiertas (antes de la fecha de cierre).",
+      "Si un atleta es rechazado, recibirás el motivo por email y podrás inscribirlo en otra categoría disponible.",
+      "El peso que ingresas afecta qué categorías aparecen disponibles — si el atleta cambia de peso, edítalo antes del cierre.",
+      "Los atletas con ranking validado aparecen con ★ en el bracket y se ubican en posiciones especiales para no enfrentarse hasta semifinal.",
+    ],
+  },
+
+  "/portal/live": {
+    title:       "En Vivo",
+    emoji:       "📺",
+    description: "Mira las transmisiones en vivo de los torneos de tu dojo.",
+    steps: [
+      "Verás una tarjeta por cada tatami que esté transmitiendo en este momento.",
+      "Toca cualquier tarjeta para abrir la transmisión en vivo de YouTube.",
+      "La calidad del video se ajusta automáticamente a tu conexión de internet.",
+    ],
+    tips: [
+      "Esta sección solo muestra transmisiones de tu dojo — actualiza cada 30 segundos.",
+      "Si no ves ninguna transmisión, el torneo puede que aún no haya comenzado o el stream no esté activo.",
+      "La imagen de la tarjeta muestra el thumbnail del canal de YouTube — si el stream está activo, verás el video en vivo al entrar.",
+    ],
+  },
+
+  "/tournament/review": {
+    title:       "Video Review",
+    emoji:       "📹",
+    description: "Revisión de video para decisiones disputadas en torneos.",
+    steps: [
+      "El árbitro pulsa 'Solicitar Video Review' en la app del juez — el timer se pausa automáticamente.",
+      "La pantalla TV muestra el banner '📹 VIDEO REVIEW EN PROCESO' para que el público espere.",
+      "El árbitro abre la pantalla de review en su tablet: /tournament/[id]/tatami/[id]/review",
+      "Ingresa el PIN de acreditación del torneo para acceder.",
+      "El sistema muestra el segundo exacto donde buscar en el archivo OBS local o en el stream de YouTube.",
+      "El árbitro decide: ✅ Confirmar Punto / ↩️ Revertir / ⚖️ Sin Definición.",
+      "El combate se reanuda automáticamente después de la decisión.",
+    ],
+    tips: [
+      "Activa 'Grabar localmente' en OBS además de transmitir — da revisión sin latencia (0 segundos vs 35s de YouTube Live).",
+      "El PIN de acreditación se configura en el tab Información del torneo.",
+      "Si YouTube está caído, el sistema siempre muestra el segundo exacto para buscar en el archivo MP4 local.",
+    ],
+  },
+
 };
 
 export function getHelpContent(pathname: string): HelpContent | null {

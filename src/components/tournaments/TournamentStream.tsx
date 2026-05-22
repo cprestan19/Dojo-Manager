@@ -163,7 +163,7 @@ export function TournamentStream({ tournamentId, publicSlug, onRefresh }: Props)
           )}
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           {currentStatus === "offline" && (
             <button onClick={() => setShowConfirmLive(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors">
@@ -174,6 +174,12 @@ export function TournamentStream({ tournamentId, publicSlug, onRefresh }: Props)
             <button onClick={() => handleStatusChange("finished")}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium transition-colors">
               <Square size={15} /> Finalizar Stream
+            </button>
+          )}
+          {currentStatus === "finished" && (
+            <button onClick={() => handleStatusChange("offline")}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-dojo-card border border-dojo-border hover:bg-dojo-border text-dojo-white text-sm font-medium transition-colors">
+              ↺ Reiniciar Stream
             </button>
           )}
         </div>
