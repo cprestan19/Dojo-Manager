@@ -18,6 +18,7 @@ export const NAV_KEYS = {
   SETTINGS_ROLES:  "settings.roles",
   SETTINGS_IMPORT: "settings.import",
   KATAS_CATALOG:   "katas",
+  TOURNAMENT_EVENTS: "tournament-events",  // Asistencia a Torneos (independiente de Torneo Pro)
   EVENTS:          "events",
   LEADS:           "leads",
   PUBLIC_PAGE:     "public-page",
@@ -43,6 +44,7 @@ export const ALL_DOJO_KEYS: NavKey[] = [
   NAV_KEYS.SETTINGS_EMAIL,
   NAV_KEYS.SETTINGS_ROLES,
   NAV_KEYS.SETTINGS_IMPORT,
+  NAV_KEYS.TOURNAMENT_EVENTS,
   NAV_KEYS.EVENTS,
   NAV_KEYS.LEADS,
   NAV_KEYS.PUBLIC_PAGE,
@@ -73,9 +75,10 @@ export const DEFAULT_PERMISSIONS: Record<string, NavKey[]> = {
     NAV_KEYS.DASHBOARD,
     NAV_KEYS.STUDENTS,
     NAV_KEYS.ATTENDANCE,
+    NAV_KEYS.TOURNAMENT_EVENTS,
     NAV_KEYS.BELTS,
     NAV_KEYS.SCHEDULES,
-    // TOURNAMENTS: solo admin/sysadmin
+    // TOURNAMENTS: solo admin/sysadmin (Torneo Pro)
   ],
 };
 
@@ -99,6 +102,7 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "settings.roles":   "Roles y Accesos",
   "settings.import":  "Importar Alumnos",
   "katas":            "Catálogo Katas",
+  "tournament-events": "Torneos",
   "events":           "Eventos",
   "leads":            "Prospectos",
   "public-page":      "Página Pública",

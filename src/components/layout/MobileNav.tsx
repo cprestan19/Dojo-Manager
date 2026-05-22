@@ -33,8 +33,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/settings/videos":    "Videos por Cinta",
   "/dashboard/settings/email":     "Correo / Notificaciones",
   "/dashboard/settings/roles":     "Roles y Accesos",
-  "/dashboard/tournaments":        "Torneos",
-  "/dashboard/tournaments/new":    "Nuevo Torneo",
+  "/dashboard/tournaments-pro":     "Torneo Pro",
+  "/dashboard/tournaments-pro/new": "Nuevo Torneo",
 };
 
 interface NavItem { href: string; label: string; icon: React.ElementType; permKey: NavKey }
@@ -46,7 +46,6 @@ const drawerItems: NavItem[] = [
   { href: "/dashboard/attendance",     label: "Asistencia",      icon: ClipboardList,   permKey: NAV_KEYS.ATTENDANCE     },
   { href: "/dashboard/payments",       label: "Pagos",           icon: CreditCard,      permKey: NAV_KEYS.PAYMENTS       },
   { href: "/dashboard/belts",          label: "Cintas o Grados", icon: Award,           permKey: NAV_KEYS.BELTS          },
-  { href: "/dashboard/tournaments",    label: "Torneos",         icon: Trophy,          permKey: NAV_KEYS.TOURNAMENTS    },
   { href: "/dashboard/settings/katas", label: "Katas",           icon: BookOpen,        permKey: NAV_KEYS.SETTINGS_KATAS },
   { href: "/dashboard/events",         label: "Eventos",         icon: Calendar,        permKey: NAV_KEYS.EVENTS         },
   { href: "/dashboard/store",          label: "Tienda",          icon: ShoppingBag,     permKey: NAV_KEYS.STORE          },
@@ -87,8 +86,8 @@ const backRoutes: Record<string, string> = {
   "/dashboard/settings/email":  "/dashboard/settings",
   "/dashboard/settings/roles":  "/dashboard/settings",
   "/scanner":                   "/dashboard",
-  "/dashboard/tournaments":     "/dashboard",
-  "/dashboard/tournaments/new": "/dashboard/tournaments",
+  "/dashboard/tournaments-pro":     "/dashboard",
+  "/dashboard/tournaments-pro/new": "/dashboard/tournaments-pro",
 };
 
 export function MobileNav() {
@@ -106,6 +105,7 @@ export function MobileNav() {
 
   const role       = (session?.user as { role?: string })?.role ?? "user";
   const isSysadmin = role === "sysadmin";
+  const hasProAccess = isSysadmin || !!dojo?.tournamentPro;
   const name    = session?.user?.name ?? "";
   const photo   = session?.user?.image ?? null;
   const initials = name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
@@ -115,7 +115,7 @@ export function MobileNav() {
     role === "admin"    ? "Administrador" :
     role === "user"     ? "Usuario" : role;
 
-  const visibleDrawer   = drawerItems.filter(i => perms.has(i.permKey));
+  const visibleDrawer = drawerItems.filter(i => perms.has(i.permKey));
   const visibleSettings = settingsItems.filter(i => perms.has(i.permKey));
   const visibleQuick    = quickItems.filter(i => perms.has(i.permKey)).slice(0, 5);
 
@@ -222,8 +222,8 @@ export function MobileNav() {
 
           {/* Torneo Pro */}
           {(isSysadmin || role === "admin") && (
-            isSysadmin ? (
-              <Link href="/dashboard/tournaments" onClick={close}
+            hasProAccess ? (
+              <Link href="/dashboard/tournaments-pro" onClick={close}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-dojo-gold hover:bg-dojo-gold/10 transition-colors">
                 <Crown size={18} />
                 <span className="flex-1">Torneo Pro</span>

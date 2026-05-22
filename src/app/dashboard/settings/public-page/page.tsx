@@ -3,8 +3,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useDojo } from "@/lib/hooks/useDojo";
 import {
   Globe, Eye, EyeOff, Copy, Check, Save, Image as ImageIcon,
-  ExternalLink, X, Palette, ToggleLeft, ToggleRight, MapPin, Plus,
+  ExternalLink, X, Palette, ToggleLeft, ToggleRight, MapPin, Plus, Building2, Loader2,
 } from "lucide-react";
+
+interface OrgItem { id: string; name: string; logoUrl: string | null; order: number }
 
 interface PageData {
   id?:           string;
@@ -54,10 +56,53 @@ export default function PublicPageSettings() {
   const [saved,      setSaved]      = useState(false);
   const [saveError,  setSaveError]  = useState("");
   const [copied,     setCopied]     = useState(false);
-  const [uploading,  setUploading]  = useState<"hero" | "about" | "gallery" | "sensei" | `testimonial-${number}` | null>(null);
+  const [uploading,  setUploading]  = useState<"hero" | "about" | "gallery" | "sensei" | `testimonial-${number}` | `org-logo-${number}` | null>(null);
   const heroRef    = useRef<HTMLInputElement>(null);
   const aboutRef   = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+
+  // Organizaciones
+  const [orgs,         setOrgs]         = useState<OrgItem[]>([]);
+  const [newOrgName,   setNewOrgName]   = useState("");
+  const [addingOrg,    setAddingOrg]    = useState(false);
+
+  const loadOrgs = useCallback(async () => {
+    const r = await fetch("/api/dojo-organizations");
+    if (r.ok) setOrgs(await r.json());
+  }, []);
+
+  async function addOrg() {
+    if (!newOrgName.trim()) return;
+    setAddingOrg(true);
+    const r = await fetch("/api/dojo-organizations", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ name: newOrgName.trim(), order: orgs.length }),
+    });
+    if (r.ok) { const org = await r.json(); setOrgs(p => [...p, org]); setNewOrgName(""); }
+    setAddingOrg(false);
+  }
+
+  async function deleteOrg(id: string) {
+    await fetch(`/api/dojo-organizations/${id}`, { method: "DELETE" });
+    setOrgs(p => p.filter(o => o.id !== id));
+  }
+
+  async function uploadOrgLogo(orgId: string, idx: number, file: File) {
+    setUploading(`org-logo-${idx}`);
+    const fd = new FormData(); fd.append("file", file); fd.append("type", "image"); fd.append("purpose", "org-logo");
+    const r = await fetch("/api/upload", { method: "POST", body: fd });
+    const j = await r.json();
+    if (r.ok) {
+      await fetch(`/api/dojo-organizations/${orgId}`, {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ logoUrl: j.url }),
+      });
+      setOrgs(p => p.map(o => o.id === orgId ? { ...o, logoUrl: j.url } : o));
+    }
+    setUploading(null);
+  }
 
   const load = useCallback(async () => {
     const r = await fetch("/api/dojo-page");
@@ -74,7 +119,7 @@ export default function PublicPageSettings() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadOrgs(); }, [load, loadOrgs]);
 
   const publicUrl = dojo?.slug ? `${window.location.origin}/dojo/${dojo.slug}` : "";
 
@@ -552,6 +597,58 @@ export default function PublicPageSettings() {
           <button onClick={() => setPage(p => ({ ...p, testimonials: [...p.testimonials, { name:"", role:"", quote:"", photo:"" }] }))}
             className="btn-secondary text-sm w-full"><Plus size={14}/> Agregar testimonio</button>
         )}
+      </div>
+
+      {/* Organizaciones */}
+      <div className="card space-y-4">
+        <div className="flex items-center gap-2">
+          <Building2 size={16} className="text-dojo-red" />
+          <p className="text-xs font-bold text-dojo-white uppercase tracking-widest">Organizaciones / Federaciones</p>
+        </div>
+        <p className="text-xs text-dojo-muted">
+          Federaciones o asociaciones a las que pertenece el dojo. Se muestran como logos en la página pública.
+        </p>
+
+        {/* Lista existente */}
+        {orgs.length > 0 && (
+          <div className="space-y-2">
+            {orgs.map((org, idx) => (
+              <div key={org.id} className="flex items-center gap-3 p-3 rounded-xl border border-dojo-border/40 bg-dojo-darker/40">
+                {/* Logo */}
+                <label className="cursor-pointer shrink-0" title="Cambiar logo">
+                  {org.logoUrl
+                    ? // eslint-disable-next-line @next/next/no-img-element
+                      <img src={org.logoUrl} alt={org.name} className="h-10 w-14 object-contain rounded" />
+                    : <div className="h-10 w-14 rounded border border-dashed border-dojo-border flex items-center justify-center text-dojo-muted hover:text-dojo-red transition-colors">
+                        {uploading === `org-logo-${idx}` ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
+                      </div>
+                  }
+                  <input type="file" accept="image/*" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadOrgLogo(org.id, idx, f); e.target.value = ""; }} />
+                </label>
+                <span className="flex-1 text-sm text-dojo-white font-medium truncate">{org.name}</span>
+                <button onClick={() => deleteOrg(org.id)} className="shrink-0 text-dojo-muted hover:text-red-400 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Agregar nueva */}
+        <div className="flex gap-2">
+          <input
+            value={newOrgName}
+            onChange={e => setNewOrgName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addOrg(); } }}
+            className="form-input flex-1 text-sm"
+            placeholder="FEPAKA, WKF, Ryo-Bukai..."
+          />
+          <button onClick={addOrg} disabled={addingOrg || !newOrgName.trim()} className="btn-secondary text-sm shrink-0">
+            {addingOrg ? <Loader2 size={14} className="animate-spin" /> : <><Plus size={14}/> Agregar</>}
+          </button>
+        </div>
+        <p className="text-xs text-dojo-muted">Agrega el nombre primero, luego sube el logo haciendo clic en el espacio gris.</p>
       </div>
 
       {/* Guardar */}

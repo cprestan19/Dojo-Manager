@@ -41,6 +41,7 @@ export default function SettingsPage() {
   const [toleranceDays,        setToleranceDays]        = useState(5);
   const [interestPct,          setInterestPct]          = useState(10);
   const [autoRemindersEnabled, setAutoRemindersEnabled] = useState(false);
+  const [locale,               setLocale]               = useState("es");
   const [loginBgImage,    setLoginBgImage]    = useState<string | null>(null);
   const [bgUploading,     setBgUploading]     = useState(false);
   const [bgError,         setBgError]         = useState("");
@@ -49,15 +50,21 @@ export default function SettingsPage() {
   const fileRef   = useRef<HTMLInputElement>(null);
   const bgFileRef = useRef<HTMLInputElement>(null);
 
-  // Cargar lista de dojos para sysadmin
+  // Cargar lista de dojos para sysadmin + pre-seleccionar el dojo del contexto activo
   useEffect(() => {
     if (role !== "sysadmin") return;
-    fetch("/api/dojos")
-      .then(r => r.ok ? r.json() : [])
-      .then((list: DojoOption[]) => {
-        setDojoList(list);
-        if (list.length > 0) setSelectedId(list[0].id);
-      });
+    Promise.all([
+      fetch("/api/dojos").then(r => r.ok ? r.json() : []),
+      fetch("/api/dojo").then(r => r.ok ? r.json() : null),   // contexto sx-dojo si existe
+    ]).then(([list, contextDojo]: [DojoOption[], { id: string } | null]) => {
+      setDojoList(list);
+      if (contextDojo?.id) {
+        // Pre-seleccionar el dojo del contexto activo (sx-dojo cookie)
+        setSelectedId(contextDojo.id);
+      } else if (list.length > 0) {
+        setSelectedId(list[0].id);
+      }
+    });
   }, [role]);
 
   // Cargar config del dojo
@@ -82,6 +89,7 @@ export default function SettingsPage() {
           setInterestPct(data.lateInterestPct ?? 10);
           setAutoRemindersEnabled(data.autoRemindersEnabled ?? false);
           setLoginBgImage(data.loginBgImage ?? null);
+          setLocale(data.locale ?? "es");
         }
         setLoading(false);
       });
@@ -120,6 +128,7 @@ export default function SettingsPage() {
         reminderToleranceDays: toleranceDays,
         lateInterestPct:       interestPct,
         autoRemindersEnabled,
+        locale,
       }),
     });
     if (res.ok) {
@@ -477,6 +486,25 @@ export default function SettingsPage() {
                   {bgSaved && <p className="text-green-400 text-xs text-center">¡Imagen guardada!</p>}
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Idioma del aplicativo */}
+          <div className="card space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">🌐</span>
+              <div>
+                <p className="text-sm font-semibold text-dojo-white">Idioma del aplicativo</p>
+                <p className="text-xs text-dojo-muted">Solo afecta a los usuarios de este dojo</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {([["es","🇪🇸 Español"], ["en","🇺🇸 English"]] as const).map(([val, label]) => (
+                <button key={val} type="button" onClick={() => setLocale(val)}
+                  className={`py-3 rounded-xl border text-sm font-semibold transition-all ${locale === val ? "border-dojo-red bg-dojo-red/10 text-dojo-white" : "border-dojo-border text-dojo-muted hover:border-dojo-muted"}`}>
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 

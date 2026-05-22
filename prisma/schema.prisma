@@ -1110,3 +1110,57 @@ model StoreProduct {
   @@index([dojoId, active])
   @@map("store_products")
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// MÓDULO ASISTENCIA A TORNEOS — independiente de Torneo Pro y de asistencia
+// diaria. dojoId y studentId son strings sin FK formal para no modificar
+// modelos existentes. Aislamiento multi-tenant enforced en las APIs.
+// ════════════════════════════════════════════════════════════════════════════
+
+model TournamentEvent {
+  id        String   @id @default(cuid())
+  dojoId    String   @map("dojo_id")        // dojo propietario — SIEMPRE presente
+  name      String                           // nombre del torneo
+  date      DateTime                         // fecha del evento
+  location  String                           // sede/lugar
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  participants TournamentEventParticipant[]
+
+  @@index([dojoId])
+  @@index([dojoId, date])
+  @@map("tournament_events")
+}
+
+model TournamentEventParticipant {
+  id        String @id @default(cuid())
+  eventId   String @map("event_id")
+  studentId String @map("student_id")   // sin FK formal — no modifica Student
+
+  // ── Asistencia ─────────────────────────────────────────────────
+  arrived   Boolean   @default(false)
+  arrivedAt DateTime? @map("arrived_at")
+  scannedBy String?   @map("scanned_by")   // nombre del usuario que escaneó
+
+  // ── Resultados ─────────────────────────────────────────────────
+  kataName     String? @map("kata_name")       // kata ejecutado
+  kataResult   String? @map("kata_result")     // ej: "1° Lugar", "Medalla de Oro"
+  kumiteResult String? @map("kumite_result")   // ej: "Medalla de Bronce"
+  competitionNotes String? @db.Text @map("competition_notes")
+
+  // IDs de los registros en KataCompetition (para actualizar en lugar de duplicar)
+  kataCompetitionId    String? @map("kata_competition_id")
+  kumiteCompetitionId  String? @map("kumite_competition_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  event TournamentEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, studentId])
+  @@index([eventId])
+  @@index([studentId])
+  @@map("tournament_event_participants")
+}

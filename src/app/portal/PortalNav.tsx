@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { User, CreditCard, Clock, ClipboardList, LogOut, Video, Calendar } from "lucide-react";
+import { useEffect, useState } from "react";
+import { User, CreditCard, Clock, ClipboardList, LogOut, Video, Calendar, Radio } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 import Image from "next/image";
 
@@ -16,7 +17,7 @@ interface Props {
   };
 }
 
-const tabs = [
+const BASE_TABS = [
   { href: "/portal",            label: "Perfil",      icon: User          },
   { href: "/portal/payments",   label: "Pagos",       icon: CreditCard    },
   { href: "/portal/schedules",  label: "Horarios",    icon: Clock         },
@@ -30,6 +31,27 @@ export default function PortalNav({ student }: Props) {
   const belt      = student.beltHistory[0]?.beltColor;
   const beltInfo  = belt ? getBeltInfo(belt) : null;
   const initials  = student.fullName.split(" ").slice(0, 2).map(w => w[0]).join("");
+
+  const [hasLive, setHasLive] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/portal/live-tatamis")
+      .then(r => r.ok ? r.json() : { tatamis: [] })
+      .then(d => setHasLive((d.tatamis?.length ?? 0) > 0))
+      .catch(() => null);
+    const iv = setInterval(() => {
+      fetch("/api/portal/live-tatamis")
+        .then(r => r.ok ? r.json() : { tatamis: [] })
+        .then(d => setHasLive((d.tatamis?.length ?? 0) > 0))
+        .catch(() => null);
+    }, 30_000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const tabs = [
+    ...BASE_TABS,
+    { href: "/portal/live", label: "En Vivo", icon: Radio, badge: hasLive },
+  ];
 
   return (
     <>
@@ -68,18 +90,24 @@ export default function PortalNav({ student }: Props) {
         <div className="flex">
           {tabs.map(t => {
             const Icon   = t.icon;
-            const active = pathname === t.href;
+            const active = pathname === t.href || pathname.startsWith(t.href + "/");
+            const badge  = "badge" in t ? t.badge : false;
             return (
               <Link
                 key={t.href}
                 href={t.href}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors border-b-2 ${
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors border-b-2 relative ${
                   active
                     ? "border-dojo-red text-dojo-red"
                     : "border-transparent text-dojo-muted hover:text-dojo-white"
                 }`}
               >
-                <Icon size={18} />
+                <span className="relative">
+                  <Icon size={18} />
+                  {badge && (
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  )}
+                </span>
                 {t.label}
               </Link>
             );

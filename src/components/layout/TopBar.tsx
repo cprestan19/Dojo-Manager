@@ -10,52 +10,58 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
+import { useLocale } from "@/lib/hooks/useLocale";
+import type { Translations } from "@/lib/i18n";
 
-/* ─── Mapa de rutas → título + breadcrumb ───────────────── */
-const ROUTE_LABELS: Record<string, string> = {
-  "/dashboard":                    "Dashboard",
-  "/dashboard/students":           "Alumnos",
-  "/dashboard/students/new":       "Nuevo Alumno",
-  "/dashboard/leads":              "Prospectos",
-  "/dashboard/attendance":         "Asistencia",
-  "/dashboard/payments":           "Pagos",
-  "/dashboard/belts":              "Cintas o Grados",
-  "/dashboard/tournaments":        "Torneos",
-  "/dashboard/tournaments/new":    "Nuevo Torneo",
-  "/dashboard/events":             "Eventos",
-  "/dashboard/reports":            "Reportes",
-  "/dashboard/users":              "Usuarios",
-  "/dashboard/dojos":              "Dojos",
-  "/dashboard/audit-log":          "Audit Log",
-  "/dashboard/settings":           "Configuración",
-  "/dashboard/settings/katas":     "Katas",
-  "/dashboard/settings/videos":    "Videos por Cinta",
-  "/dashboard/settings/email":     "Correo",
-  "/dashboard/settings/roles":     "Roles y Accesos",
-  "/dashboard/settings/public-page": "Página Pública",
-  "/dashboard/change-password":    "Cambiar Contraseña",
-};
+function buildRouteLabels(tb: Translations["topbar"]): Record<string, string> {
+  return {
+    "/dashboard":                       tb.dashboard,
+    "/dashboard/students":              tb.students,
+    "/dashboard/students/new":          tb.newStudent,
+    "/dashboard/leads":                 tb.leads,
+    "/dashboard/attendance":            tb.attendance,
+    "/dashboard/payments":              tb.payments,
+    "/dashboard/belts":                 tb.belts,
+    "/dashboard/tournaments-pro":        "Torneo Pro",
+    "/dashboard/tournaments-pro/new":     tb.newTournament,
+    "/dashboard/events":                tb.events,
+    "/dashboard/store":                 tb.store,
+    "/dashboard/reports":               tb.reports,
+    "/dashboard/users":                 tb.users,
+    "/dashboard/dojos":                 tb.dojos,
+    "/dashboard/audit-log":             tb.auditLog,
+    "/dashboard/settings":              tb.settings,
+    "/dashboard/settings/katas":        tb.settingsKatas,
+    "/dashboard/settings/videos":       tb.settingsVideos,
+    "/dashboard/settings/email":        tb.settingsEmail,
+    "/dashboard/settings/roles":        tb.settingsRoles,
+    "/dashboard/settings/public-page":  tb.settingsPublicPage,
+    "/dashboard/settings/import":       "Importar Alumnos",
+    "/dashboard/change-password":       tb.changePassword,
+  };
+}
 
-function getPageInfo(pathname: string): { title: string; parent?: { label: string; href: string } } {
-  // Coincidencia exacta
-  if (ROUTE_LABELS[pathname]) {
-    // ¿Tiene padre?
+function getPageInfo(pathname: string, tb: Translations["topbar"]): { title: string; parent?: { label: string; href: string } } {
+  const labels = buildRouteLabels(tb);
+  if (labels[pathname]) {
     if (pathname.startsWith("/dashboard/settings/") && pathname !== "/dashboard/settings") {
-      return { title: ROUTE_LABELS[pathname], parent: { label: "Configuración", href: "/dashboard/settings" } };
+      return { title: labels[pathname], parent: { label: tb.settings, href: "/dashboard/settings" } };
     }
-    return { title: ROUTE_LABELS[pathname] };
+    return { title: labels[pathname] };
   }
-  // Rutas dinámicas: /dashboard/students/[id]
   if (pathname.startsWith("/dashboard/students/") && pathname.includes("/edit")) {
-    return { title: "Editar Alumno", parent: { label: "Alumnos", href: "/dashboard/students" } };
+    return { title: tb.editStudent, parent: { label: tb.students, href: "/dashboard/students" } };
   }
   if (pathname.startsWith("/dashboard/students/")) {
-    return { title: "Perfil de Alumno", parent: { label: "Alumnos", href: "/dashboard/students" } };
+    return { title: tb.studentProfile, parent: { label: tb.students, href: "/dashboard/students" } };
+  }
+  if (pathname.startsWith("/dashboard/tournaments-pro/")) {
+    return { title: "Torneo Pro", parent: { label: "Torneo Pro", href: "/dashboard/tournaments-pro" } };
   }
   if (pathname.startsWith("/dashboard/tournaments/")) {
-    return { title: "Torneo", parent: { label: "Torneos", href: "/dashboard/tournaments" } };
+    return { title: "Torneo Pro", parent: { label: "Torneo Pro", href: "/dashboard/tournaments-pro" } };
   }
-  return { title: "Dashboard" };
+  return { title: tb.dashboard };
 }
 
 function TodayDate() {
@@ -258,7 +264,8 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
 export function TopBar() {
   const { data: session } = useSession();
   const pathname          = usePathname();
-  const { title, parent } = getPageInfo(pathname);
+  const { t }             = useLocale();
+  const { title, parent } = getPageInfo(pathname, t.topbar);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [bellOpen,     setBellOpen]     = useState(false);
   const [notifs,       setNotifs]       = useState<Notifications | null>(null);

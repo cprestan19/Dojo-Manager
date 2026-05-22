@@ -7,13 +7,14 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useDojo } from "@/lib/hooks/useDojo";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useLocale } from "@/lib/hooks/useLocale";
 import { NAV_KEYS } from "@/lib/permissions";
 import type { NavKey } from "@/lib/permissions";
 import {
   Users, CreditCard, Award, BookOpen,
   BarChart2, Settings, LogOut, Shield, Building2, ClipboardList, ExternalLink,
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
-  Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag,
+  Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Upload,
 } from "lucide-react";
 
 interface NavItem {
@@ -23,29 +24,32 @@ interface NavItem {
   permKey: NavKey;
 }
 
-const navItems: NavItem[] = [
-  { href: "/dashboard",                 label: "Dashboard",       icon: LayoutDashboard, permKey: NAV_KEYS.DASHBOARD      },
-  { href: "/dashboard/students",        label: "Alumnos",         icon: Users,           permKey: NAV_KEYS.STUDENTS       },
-  { href: "/dashboard/leads",           label: "Prospectos",      icon: UserPlus,        permKey: NAV_KEYS.LEADS          },
-  { href: "/dashboard/attendance",      label: "Asistencia",      icon: ClipboardList,   permKey: NAV_KEYS.ATTENDANCE     },
-  { href: "/dashboard/payments",        label: "Pagos",           icon: CreditCard,      permKey: NAV_KEYS.PAYMENTS       },
-  { href: "/dashboard/belts",           label: "Cintas o Grados", icon: Award,           permKey: NAV_KEYS.BELTS          },
-  { href: "/dashboard/tournaments",     label: "Torneos",         icon: Trophy,          permKey: NAV_KEYS.TOURNAMENTS    },
-  { href: "/dashboard/settings/katas",  label: "Katas",           icon: BookOpen,        permKey: NAV_KEYS.SETTINGS_KATAS },
-  { href: "/dashboard/events",          label: "Eventos",         icon: Calendar,        permKey: NAV_KEYS.EVENTS         },
-  { href: "/dashboard/store",           label: "Tienda",          icon: ShoppingBag,     permKey: NAV_KEYS.STORE          },
-  { href: "/dashboard/reports",         label: "Reportes",        icon: BarChart2,       permKey: NAV_KEYS.REPORTS        },
-  { href: "/dashboard/users",           label: "Usuarios",        icon: Shield,          permKey: NAV_KEYS.USERS          },
-  { href: "/dashboard/dojos",           label: "Dojos",           icon: Building2,       permKey: NAV_KEYS.DOJOS          },
-  { href: "/dashboard/audit-log",      label: "Audit Log",       icon: ScrollText,      permKey: NAV_KEYS.AUDIT_LOG      },
+type NavItemDef = { href: string; icon: React.ElementType; permKey: NavKey; labelKey: string };
+
+const NAV_DEFS: NavItemDef[] = [
+  { href: "/dashboard",                  icon: LayoutDashboard, permKey: NAV_KEYS.DASHBOARD,       labelKey: "dashboard"   },
+  { href: "/dashboard/students",         icon: Users,           permKey: NAV_KEYS.STUDENTS,        labelKey: "students"    },
+  { href: "/dashboard/leads",            icon: UserPlus,        permKey: NAV_KEYS.LEADS,           labelKey: "leads"       },
+  { href: "/dashboard/attendance",         icon: ClipboardList, permKey: NAV_KEYS.ATTENDANCE,        labelKey: "attendance"        },
+  { href: "/dashboard/tournament-events", icon: Trophy,        permKey: NAV_KEYS.TOURNAMENT_EVENTS, labelKey: "tournament-events" },
+  { href: "/dashboard/payments",          icon: CreditCard,    permKey: NAV_KEYS.PAYMENTS,          labelKey: "payments"          },
+  { href: "/dashboard/belts",            icon: Award,           permKey: NAV_KEYS.BELTS,           labelKey: "belts"       },
+  { href: "/dashboard/settings/katas",   icon: BookOpen,        permKey: NAV_KEYS.SETTINGS_KATAS,  labelKey: "katas"       },
+  { href: "/dashboard/events",           icon: Calendar,        permKey: NAV_KEYS.EVENTS,          labelKey: "events"      },
+  { href: "/dashboard/store",            icon: ShoppingBag,     permKey: NAV_KEYS.STORE,           labelKey: "store"       },
+  { href: "/dashboard/reports",          icon: BarChart2,       permKey: NAV_KEYS.REPORTS,         labelKey: "reports"     },
+  { href: "/dashboard/users",            icon: Shield,          permKey: NAV_KEYS.USERS,           labelKey: "users"       },
+  { href: "/dashboard/dojos",            icon: Building2,       permKey: NAV_KEYS.DOJOS,           labelKey: "dojos"       },
+  { href: "/dashboard/audit-log",        icon: ScrollText,      permKey: NAV_KEYS.AUDIT_LOG,       labelKey: "auditLog"    },
 ];
 
-const settingsSubItems: NavItem[] = [
-  { href: "/dashboard/settings",            label: "General",           icon: Settings,    permKey: NAV_KEYS.SETTINGS_GENERAL },
-  { href: "/dashboard/settings/public-page",label: "Página Pública",    icon: Globe,       permKey: NAV_KEYS.PUBLIC_PAGE      },
-  { href: "/dashboard/settings/videos",     label: "Videos de Katas",   icon: Video,       permKey: NAV_KEYS.SETTINGS_VIDEOS  },
-  { href: "/dashboard/settings/email",  label: "Correo / Notificaciones", icon: Mail,     permKey: NAV_KEYS.SETTINGS_EMAIL   },
-  { href: "/dashboard/settings/roles",  label: "Roles y Accesos",      icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES   },
+const SETTINGS_DEFS: NavItemDef[] = [
+  { href: "/dashboard/settings",             icon: Settings,    permKey: NAV_KEYS.SETTINGS_GENERAL, labelKey: "settingsGeneral" },
+  { href: "/dashboard/settings/public-page", icon: Globe,       permKey: NAV_KEYS.PUBLIC_PAGE,       labelKey: "settingsPublic"  },
+  { href: "/dashboard/settings/videos",      icon: Video,       permKey: NAV_KEYS.SETTINGS_VIDEOS,  labelKey: "settingsVideos"  },
+  { href: "/dashboard/settings/email",       icon: Mail,        permKey: NAV_KEYS.SETTINGS_EMAIL,   labelKey: "settingsEmail"   },
+  { href: "/dashboard/settings/roles",       icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES,   labelKey: "settingsRoles"   },
+  { href: "/dashboard/settings/import",      icon: Upload,      permKey: NAV_KEYS.SETTINGS_IMPORT,  labelKey: "importStudents"  },
 ];
 
 export function Sidebar() {
@@ -54,14 +58,20 @@ export function Sidebar() {
   const role  = (session?.user as { role?: string })?.role ?? "user";
   const dojo  = useDojo();
   const perms = usePermissions();
+  const { t } = useLocale();
+
+  const navItems     = NAV_DEFS.map(d => ({ ...d, label: (t.nav as Record<string,string>)[d.labelKey] ?? d.labelKey }));
+  const settingsItems = SETTINGS_DEFS.map(d => ({ ...d, label: (t.nav as Record<string,string>)[d.labelKey] ?? d.labelKey }));
 
   const inSettings = pathname.startsWith("/dashboard/settings") && !pathname.startsWith("/dashboard/settings/katas");
   const [settingsOpen,   setSettingsOpen]   = useState(() => inSettings);
   const [showProPopup,   setShowProPopup]   = useState(false);
-  const isSysadmin = role === "sysadmin";
+  const isSysadmin   = role === "sysadmin";
+  const hasProAccess = isSysadmin || !!dojo?.tournamentPro;
 
-  const visible         = navItems.filter(i => perms.has(i.permKey));
-  const visibleSettings = settingsSubItems.filter(i => perms.has(i.permKey));
+  const visible = navItems.filter(i => perms.has(i.permKey));
+
+  const visibleSettings = settingsItems.filter(i => perms.has(i.permKey));
 
   const roleLabel =
     role === "sysadmin" ? "Super Admin" :
@@ -122,11 +132,11 @@ export function Sidebar() {
           );
         })}
 
-        {/* Torneo Pro — visible para todos, funcional solo para sysadmin */}
-        {(isSysadmin || role === "admin") && (
-          isSysadmin ? (
+        {/* Torneo Pro — reemplaza "Torneos" cuando está activo */}
+        {(isSysadmin || role === "admin") && (() => {
+          return hasProAccess ? (
             <Link
-              href="/dashboard/tournaments"
+              href="/dashboard/tournaments-pro"
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium relative",
                 pathname.startsWith("/dashboard/tournaments-pro")
@@ -151,8 +161,8 @@ export function Sidebar() {
               <span className="flex-1 text-left">Torneo Pro</span>
               <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-dojo-border text-dojo-muted/60 tracking-wider">PRO</span>
             </button>
-          )
-        )}
+          );
+        })()}
 
         {/* Modal popup Torneo Pro */}
         {showProPopup && (
