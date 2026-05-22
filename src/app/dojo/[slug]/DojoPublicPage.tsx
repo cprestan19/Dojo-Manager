@@ -267,7 +267,7 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
               Acceso de Estudiantes
             </a>
             {dojoPage.showFreeTrial && (
-              <a href="#prueba"
+              <a href="#prueba" onClick={() => setNavOpen(false)}
                 className="px-5 py-2.5 rounded-full text-white text-sm font-semibold transition-all hover:opacity-90 hover:scale-105"
                 style={{ background: primary }}>
                 Clase Gratuita
@@ -334,13 +334,13 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             {dojoPage.showFreeTrial && (
-              <a href="#prueba"
+              <a href="#prueba" onClick={() => setNavOpen(false)}
                 className="flex items-center gap-2 px-8 py-4 rounded-full font-bold text-white text-lg transition-all hover:scale-105 shadow-lg"
                 style={{ background: primary, boxShadow: `0 8px 32px ${primary}55` }}>
                 <Gift size={20} /> Clase Gratuita
               </a>
             )}
-            <a href="#horarios"
+            <a href="#horarios" onClick={() => setNavOpen(false)}
               className="flex items-center gap-2 px-8 py-4 rounded-full font-bold text-lg border border-white/20 hover:border-white/50 transition-all">
               Ver Horarios <ArrowRight size={18} />
             </a>
