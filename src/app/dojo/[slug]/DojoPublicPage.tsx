@@ -931,7 +931,7 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
       {dojoPage.showFreeTrial && (
         <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden pointer-events-none">
           <div className="px-4 pb-4 pt-8" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.9) 60%, transparent)" }}>
-            <a href="#prueba"
+            <a href="#prueba" onClick={() => setNavOpen(false)}
               className="pointer-events-auto flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl font-bold text-white text-base transition-all active:scale-[0.98]"
               style={{ background: primary, boxShadow: `0 4px 24px ${primary}70` }}>
               <Gift size={20} /> Solicitar Clase Gratuita — ¡Es Gratis!
