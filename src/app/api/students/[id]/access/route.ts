@@ -125,6 +125,9 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     return NextResponse.json({
       ok: true, email,
+      // tempPassword se devuelve UNA SOLA VEZ para que el admin pueda
+      // compartirla manualmente si el correo falla. No se guarda en BD.
+      tempPassword: plainPassword,
       emailSent, emailError,
     }, { status: 201 });
 

@@ -866,24 +866,42 @@ export default function StudentDetailPage() {
           <div className="flex items-start justify-between">
             <p className={`font-semibold text-sm flex items-center gap-2 ${accessResult.emailSent ? "text-blue-300" : "text-yellow-300"}`}>
               <KeyRound size={15}/>
-              {accessResult.emailSent ? "Acceso creado — correo enviado" : "Acceso creado — correo NO enviado"}
+              {accessResult.emailSent ? "✅ Acceso creado — correo enviado" : "⚠️ Acceso creado — correo NO enviado"}
             </p>
             <button onClick={() => setAccessResult(null)} className="text-dojo-muted hover:text-dojo-white text-xs">✕</button>
           </div>
-          <div className="bg-dojo-dark rounded-lg p-3 space-y-1.5 font-mono text-sm">
-            <div className="flex justify-between"><span className="text-dojo-muted">Correo:</span><span className="text-dojo-white">{accessResult.email}</span></div>
-            <div className="flex justify-between"><span className="text-dojo-muted">Contraseña temporal:</span><span className="text-dojo-gold font-bold">{accessResult.tempPassword}</span></div>
+
+          {/* Credenciales — siempre visibles para que el admin pueda compartirlas si el email falla */}
+          <div className="bg-dojo-dark rounded-lg p-3 space-y-2 font-mono text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-dojo-muted shrink-0">Correo:</span>
+              <span className="text-dojo-white text-right break-all">{accessResult.email}</span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-dojo-muted shrink-0">Contraseña temporal:</span>
+              <span className="text-dojo-gold font-bold text-base tracking-widest">
+                {accessResult.tempPassword || <span className="text-dojo-muted text-xs font-normal italic">no disponible</span>}
+              </span>
+            </div>
           </div>
+
           {accessResult.emailSent ? (
-            <p className="text-xs text-blue-300/70">El correo fue enviado al alumno. Deberá cambiar su contraseña al primer ingreso.</p>
+            <p className="text-xs text-blue-300/70">
+              📧 Correo enviado exitosamente. El alumno debe cambiar su contraseña al primer ingreso.
+            </p>
           ) : (
-            <div className="space-y-1.5">
-              <p className="text-xs text-yellow-300 font-semibold">⚠️ No se pudo enviar el correo. Comparte las credenciales manualmente.</p>
+            <div className="space-y-2">
+              <p className="text-xs text-yellow-300 font-semibold">
+                El correo no se pudo enviar — comparte las credenciales de arriba directamente al acudiente por WhatsApp o en persona.
+              </p>
               {accessResult.emailError && (
-                <p className="text-xs text-yellow-200/60 break-all font-sans">Error: {accessResult.emailError}</p>
+                <p className="text-xs text-yellow-200/50 break-all font-sans">
+                  Detalle del error: {accessResult.emailError}
+                </p>
               )}
-              <p className="text-xs text-yellow-300/70">
-                Revisa la configuración SMTP en <strong>Configuración → Correo</strong>.
+              <p className="text-xs text-yellow-300/60">
+                Para que el correo funcione, configura el SMTP en{" "}
+                <strong>Configuración → Correo / Notificaciones</strong>.
               </p>
             </div>
           )}
