@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import { logAudit } from "@/lib/audit";
 
 export const authOptions: NextAuthOptions = {
@@ -113,6 +114,8 @@ export const authOptions: NextAuthOptions = {
         token.dojoId             = u.dojoId    ?? null;
         token.studentId          = u.studentId ?? null;
         token.mustChangePassword = u.mustChangePassword ?? false;
+        // UUID fijo por sesión — correlaciona todos los eventos del mismo login en el audit log
+        token.sessionId          = randomUUID();
         // Only store URL-based photos in JWT — base64 strings exceed the 4 KB cookie limit
         const raw = u.photoUrl ?? null;
         token.picture = raw?.startsWith("http") ? raw : null;
@@ -122,13 +125,15 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         const u = session.user as {
-          id?: string; role?: string; dojoId?: string | null; studentId?: string | null; mustChangePassword?: boolean;
+          id?: string; role?: string; dojoId?: string | null; studentId?: string | null;
+          mustChangePassword?: boolean; sessionId?: string;
         };
         u.id                 = token.id        as string;
         u.role               = token.role      as string;
         u.dojoId             = token.dojoId    as string | null;
         u.studentId          = token.studentId as string | null;
         u.mustChangePassword = token.mustChangePassword as boolean;
+        u.sessionId          = token.sessionId as string | undefined;
         session.user.image   = (token.picture  as string | null) ?? null;
       }
       return session;

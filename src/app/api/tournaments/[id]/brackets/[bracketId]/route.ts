@@ -31,10 +31,10 @@ export async function DELETE(
   });
   if (!bracket) return NextResponse.json({ error: "Bracket no encontrado" }, { status: 404 });
 
-  // Admin solo puede eliminar borradores; sysadmin puede eliminar cualquier estado
-  if (user.role !== "sysadmin" && bracket.status !== "draft") {
+  // Admin puede eliminar cualquier bracket NO confirmado; sysadmin puede eliminar cualquiera
+  if (user.role !== "sysadmin" && bracket.bracketLocked) {
     return NextResponse.json(
-      { error: "Solo se pueden eliminar brackets en estado Borrador. Contacta al Sysadmin para eliminar brackets activos." },
+      { error: "No se puede eliminar una llave ya confirmada. Contacta al Sysadmin para reabrirla." },
       { status: 400 },
     );
   }

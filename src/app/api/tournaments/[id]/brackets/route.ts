@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { buildCategoryLabel } from "@/lib/tournament-categories";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -66,12 +67,27 @@ export async function POST(
     const raw = await req.json().catch(() => null);
     if (!raw) return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
 
-    const { name, order, gender, type } = raw as { name?: string; order?: number; gender?: string | null; type?: string };
+    const {
+      name, order, gender, type,
+      ageGroup, weightCategory, beltCategory,
+      isTeamKata, categoryLabel: providedLabel,
+    } = raw as {
+      name?: string; order?: number; gender?: string | null; type?: string;
+      ageGroup?: string | null; weightCategory?: string | null;
+      beltCategory?: string | null; isTeamKata?: boolean;
+      categoryLabel?: string | null;
+    };
+
     if (!name || !name.trim()) {
       return NextResponse.json({ error: "El nombre del bracket es requerido" }, { status: 400 });
     }
-    const validGender = gender === "M" || gender === "F" ? gender : null;
-    const bracketType = type === "kata" ? "kata" : "kumite";
+    const validGender  = gender === "M" || gender === "F" ? gender : null;
+    const bracketType  = type === "kata" ? "kata" : "kumite";
+    const teamKata     = bracketType === "kata" ? (isTeamKata ?? false) : false;
+
+    // Auto-generate categoryLabel if not provided
+    const categoryLabel = providedLabel?.trim() ||
+      buildCategoryLabel(bracketType, validGender, ageGroup ?? null, weightCategory ?? null, teamKata);
 
     // Determine next order if not provided
     let bracketOrder = order ?? 0;
@@ -86,12 +102,18 @@ export async function POST(
 
     const bracket = await prisma.tournamentBracket.create({
       data: {
-        tournamentId: id,
-        name:   name.trim(),
-        type:   bracketType,
-        gender: validGender,
-        order:  bracketOrder,
-        status: "draft",
+        tournamentId:  id,
+        name:          name.trim(),
+        type:          bracketType,
+        gender:        validGender,
+        order:         bracketOrder,
+        bracketOrder:  bracketOrder,
+        status:        "draft",
+        ageGroup:      ageGroup ?? null,
+        weightCategory: weightCategory ?? null,
+        beltCategory:  beltCategory ?? null,
+        isTeamKata:    teamKata,
+        categoryLabel,
       },
       include: {
         _count: {

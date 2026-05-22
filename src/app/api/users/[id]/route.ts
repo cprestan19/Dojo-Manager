@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { UpdateUserSchema, validationError } from "@/lib/validation";
-import { logAudit } from "@/lib/audit";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null; id?: string; email?: string };
@@ -83,17 +83,20 @@ export async function PUT(req: NextRequest, { params }: Params) {
           ? "USER_ACTIVATED"
           : "USER_UPDATED";
 
+    const ctx = buildAuditCtx(session, req, { dojoId: dojoId ?? target.dojoId });
     await logAudit({
+      ...ctx,
       action,
-      userId:    sessionUserId,
-      userEmail: sessionEmail,
-      dojoId:    dojoId ?? target.dojoId,
-      details:   JSON.stringify({
-        targetId:    id,
-        targetEmail: target.email,
-        targetName:  target.name,
+      module:       AUDIT_MODULE.USERS,
+      resourceType: "User",
+      resourceId:   id,
+      targetId:     id,
+      targetEmail:  target.email,
+      statusCode:   200,
+      details:      JSON.stringify({
+        before:  { name: target.name, email: target.email, role: target.role, active: target.active },
+        after:   { name: body.name ?? target.name, email: body.email ?? target.email, role: body.role ?? target.role, active: body.active ?? target.active },
         changes,
-        changedBy:   sessionEmail,
       }),
     });
 
@@ -132,17 +135,18 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
     await prisma.user.delete({ where: { id } });
 
+    const ctx2 = buildAuditCtx(session, req, { dojoId: dojoId ?? target.dojoId });
     await logAudit({
-      action:    "USER_DELETED",
-      userId:    sessionUserId,
-      userEmail: sessionEmail,
-      dojoId:    dojoId ?? target.dojoId,
-      details:   JSON.stringify({
-        deletedId:    id,
-        deletedEmail: target.email,
-        deletedName:  target.name,
-        deletedRole:  target.role,
-        deletedBy:    sessionEmail,
+      ...ctx2,
+      action:       "USER_DELETED",
+      module:       AUDIT_MODULE.USERS,
+      resourceType: "User",
+      resourceId:   id,
+      targetId:     id,
+      targetEmail:  target.email,
+      statusCode:   200,
+      details:      JSON.stringify({
+        before: { name: target.name, email: target.email, role: target.role },
       }),
     });
 

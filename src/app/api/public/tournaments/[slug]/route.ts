@@ -31,6 +31,12 @@ export async function GET(
         organizerPhone: true,
         rules: true,
         flyerImage: true,
+        tournamentType: true,
+        entryFeePerCategory: true,
+        feeCurrency: true,
+        requireWaiver: true,
+        waiverText: true,
+        maxAthletesPerClub: true,
       },
     });
 

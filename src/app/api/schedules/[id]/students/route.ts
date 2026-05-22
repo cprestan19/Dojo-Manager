@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 
-type SessionUser = { dojoId?: string; role?: string };
+type SessionUser = { dojoId?: string | null; role?: string };
 
 // PUT /api/schedules/[id]/students
 // Body: { studentIds: string[] }
@@ -17,8 +18,11 @@ export async function PUT(
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { dojoId, role } = session.user as SessionUser;
-  if (!dojoId || role === "user") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  if (role === "user") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const { id: scheduleId } = await params;
   const body = await req.json() as { studentIds?: string[] };

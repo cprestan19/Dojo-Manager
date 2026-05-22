@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
     ? body.kataIds.filter(Boolean).slice(0, 5)
     : body.kataId ? [body.kataId] : [];
 
+  const t0    = Date.now();
   const entry = await prisma.beltHistory.create({
     data: {
       studentId:  body.studentId,
@@ -72,6 +74,18 @@ export async function POST(req: NextRequest) {
       id: true, beltColor: true, changeDate: true, isRanking: true, notes: true, studentId: true,
       kata: { select: { id: true, name: true, beltColor: true } },
     },
+  });
+
+  const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
+  await logAudit({
+    ...ctx,
+    action:       body.isRanking ? "BELT_RANKING_ADDED" : "BELT_ADDED",
+    module:       AUDIT_MODULE.BELTS,
+    resourceType: "BeltHistory",
+    resourceId:   entry.id,
+    targetId:     body.studentId,
+    statusCode:   201,
+    details:      JSON.stringify({ beltColor: body.beltColor, isRanking: body.isRanking ?? false, kataIds }),
   });
 
   return NextResponse.json(entry, { status: 201 });

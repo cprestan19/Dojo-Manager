@@ -6,6 +6,7 @@ import { sendPaymentReminder } from "@/lib/email";
 import { formatDate } from "@/lib/utils";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { CreatePaymentSchema, UpdatePaymentSchema, validationError } from "@/lib/validation";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
   const student = await prisma.student.findUnique({ where: { id: body.studentId, dojoId } });
   if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
 
+  const t0      = Date.now();
   const payment = await prisma.payment.create({
     data: {
       studentId: body.studentId,
@@ -74,6 +76,18 @@ export async function POST(req: NextRequest) {
     include: {
       student: { select: { fullName: true, firstName: true, lastName: true, motherEmail: true, fatherEmail: true } },
     },
+  });
+
+  const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
+  await logAudit({
+    ...ctx,
+    action:       "PAYMENT_CREATED",
+    module:       AUDIT_MODULE.PAYMENTS,
+    resourceType: "Payment",
+    resourceId:   payment.id,
+    targetId:     body.studentId,
+    statusCode:   201,
+    details:      JSON.stringify({ amount: body.amount, type: body.type, status: body.status, studentName: payment.student.fullName }),
   });
 
   return NextResponse.json(payment, { status: 201 });
@@ -96,6 +110,8 @@ export async function PUT(req: NextRequest) {
   if (!parsed.success) return validationError(parsed.error);
   const { id, ...data } = parsed.data;
 
+  const t0      = Date.now();
+  const before  = await prisma.payment.findFirst({ where: { id, student: { dojoId } }, select: { status: true, amount: true } });
   const payment = await prisma.payment.update({
     where: { id, student: { dojoId } },
     data: {
@@ -104,6 +120,24 @@ export async function PUT(req: NextRequest) {
       ...(data.amount   !== undefined ? { amount: data.amount } : {}),
       ...(data.note     !== undefined ? { note: data.note ?? null } : {}),
     },
+  });
+
+  const action = data.status === "paid" && before?.status !== "paid"
+    ? "PAYMENT_MARKED_PAID"
+    : "PAYMENT_UPDATED";
+
+  const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
+  await logAudit({
+    ...ctx,
+    action,
+    module:       AUDIT_MODULE.PAYMENTS,
+    resourceType: "Payment",
+    resourceId:   id,
+    statusCode:   200,
+    details:      JSON.stringify({
+      before: before ? { status: before.status, amount: before.amount } : null,
+      after:  { status: payment.status, amount: payment.amount },
+    }),
   });
 
   return NextResponse.json(payment);

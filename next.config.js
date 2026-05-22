@@ -4,19 +4,19 @@
 const ContentSecurityPolicy = [
   "default-src 'self'",
   // Scripts: self + inline (Next.js hydration requires unsafe-inline)
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com",
   // Styles: self + inline (Tailwind inline styles) + Google Fonts
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   // Fonts: self + Google Fonts CDN
   "font-src 'self' https://fonts.gstatic.com",
-  // Images: self + Cloudinary + data URIs (avatars/fallbacks)
-  "img-src 'self' https://res.cloudinary.com data: blob:",
+  // Images: self + Cloudinary + DiceBear avatars + data URIs (avatars/fallbacks)
+  "img-src 'self' https://res.cloudinary.com https://api.dicebear.com data: blob:",
   // Media: Cloudinary videos
   "media-src 'self' https://res.cloudinary.com blob:",
-  // API/fetch connections: self only
-  "connect-src 'self'",
-  // Frames: deny all (no iframes)
-  "frame-src 'none'",
+  // API/fetch connections: self + Google Analytics
+  "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com",
+  // Frames: YouTube embeds permitidos (portal/live, overlay, página pública torneo)
+  "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
   "frame-ancestors 'none'",
   // Workers (html5-qrcode uses a blob worker)
   "worker-src 'self' blob:",
@@ -41,6 +41,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "api.dicebear.com" },
     ],
     dangerouslyAllowSVG: true,
   },
@@ -54,11 +55,28 @@ const nextConfig = {
     "@prisma/adapter-pg",
     "html5-qrcode",
     "cloudinary",
+    "exceljs",
   ],
 
   // Security headers applied to all routes
   async headers() {
     return [
+      // ── Portal privado del coach — no indexar, no cachear ────────────────
+      {
+        source: "/coach/:path*",
+        headers: [
+          { key: "Cache-Control",  value: "no-store, no-cache, must-revalidate, proxy-revalidate" },
+          { key: "X-Robots-Tag",   value: "noindex, nofollow, noarchive, nosnippet" },
+          { key: "Pragma",         value: "no-cache" },
+        ],
+      },
+      // ── Páginas de overlay y acreditación — no indexar ───────────────────
+      {
+        source: "/tournament/:path*",
+        headers: [
+          { key: "X-Robots-Tag",   value: "noindex, nofollow" },
+        ],
+      },
       {
         source: "/(.*)",
         headers: [

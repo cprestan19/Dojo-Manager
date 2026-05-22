@@ -3,7 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { randomInt } from "crypto";
 import { sendStudentWelcome } from "@/lib/email";
+import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -14,24 +17,32 @@ function generatePassword(): string {
   const digits  = "23456789";
   const special = "@#$!";
   const all     = upper + lower + digits + special;
-  const random  = (set: string) => set[Math.floor(Math.random() * set.length)];
-  const chars   = [random(upper), random(lower), random(digits), random(special),
-    ...Array.from({ length: 8 }, () => random(all))];
-  return chars.sort(() => Math.random() - 0.5).join("");
+  const pick    = (set: string) => set[randomInt(set.length)];
+  const chars   = [pick(upper), pick(lower), pick(digits), pick(special),
+    ...Array.from({ length: 8 }, () => pick(all))];
+  // Fisher-Yates con CSPRNG
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
 }
 
-export async function POST(_req: NextRequest, { params }: Params) {
+export async function POST(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const { role, dojoId } = session.user as SessionUser;
+    const { role, dojoId: sessionDojoId } = session.user as SessionUser;
     if (role !== "admin" && role !== "sysadmin")
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
+    const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
+    if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
+
     const student = await prisma.student.findUnique({
-      where:  { id, ...(dojoId ? { dojoId } : {}) },
+      where:  { id, dojoId },
       select: {
         id: true, fullName: true, dojoId: true,
         motherEmail: true, fatherEmail: true,
@@ -40,7 +51,6 @@ export async function POST(_req: NextRequest, { params }: Params) {
     });
     if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
 
-    // Use || so empty strings are treated as missing
     const email = student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
     if (!email)
       return NextResponse.json({ error: "El alumno no tiene correo registrado" }, { status: 400 });
@@ -51,20 +61,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     const plainPassword = generatePassword();
     const hashed        = await bcrypt.hash(plainPassword, 12);
 
-    // ── Create / restore portal access ──────────────────────────────
-    // Always upsert by email so we handle every case without constraint errors:
-    //
-    // Case 1 — no portal user exists for this email → CREATE
-    // Case 2 — a user with this email exists (linked or not) → UPDATE credentials
-    // Case 3 — student had a different email before → old user stays inactive,
-    //          new email gets a fresh/updated user linked to this student
-    //
-    // After upsert, make sure any previous portal user (different email) is deactivated.
     const previousUser = student.portalUser ?? null;
-
-    // If the student already has a portal user with a DIFFERENT email,
-    // release its studentId first — otherwise the upsert CREATE path
-    // will hit a unique constraint on student_id.
     if (previousUser && previousUser.email !== email) {
       await prisma.user.update({
         where: { id: previousUser.id },
@@ -95,7 +92,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
       },
     });
 
-    // ── Send welcome email ───────────────────────────────────────────
+    // ── Enviar correo de bienvenida ───────────────────────────────────
     let emailSent  = false;
     let emailError: string | null = null;
     try {
@@ -107,44 +104,51 @@ export async function POST(_req: NextRequest, { params }: Params) {
         ? { ...dojoRaw, logo: dojoRaw.logo?.startsWith("http") ? dojoRaw.logo : null }
         : undefined;
 
-      await sendStudentWelcome({
-        to:           email,
-        studentName:  student.fullName,
-        loginEmail:   email,
-        tempPassword: plainPassword,
-        dojo,
-      });
+      await sendStudentWelcome({ to: email, studentName: student.fullName, loginEmail: email, tempPassword: plainPassword, dojo });
       emailSent = true;
     } catch (err) {
       emailError = err instanceof Error ? err.message : String(err);
       console.error("[access] Welcome email failed:", emailError);
     }
 
+    const ctx = buildAuditCtx(session, req, { dojoId });
+    await logAudit({
+      ...ctx,
+      action:       "PORTAL_ACCESS_GRANTED",
+      module:       AUDIT_MODULE.PORTAL,
+      resourceType: "Student",
+      resourceId:   id,
+      targetEmail:  email,
+      statusCode:   201,
+      details:      JSON.stringify({ studentName: student.fullName, email, emailSent, emailError }),
+    });
+
     return NextResponse.json({
-      ok: true, email, tempPassword: plainPassword,
+      ok: true, email,
       emailSent, emailError,
     }, { status: 201 });
 
   } catch (err) {
     console.error("[access] POST error:", err instanceof Error ? err.message : err);
-    return NextResponse.json({
-      error: err instanceof Error ? err.message : "Error interno",
-    }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Error interno" }, { status: 500 });
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const { role, dojoId } = session.user as SessionUser;
+    const { role, dojoId: sessionDojoId } = session.user as SessionUser;
     if (role !== "admin" && role !== "sysadmin")
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
+    const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
+    if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
+
     const student = await prisma.student.findUnique({
-      where:  { id, ...(dojoId ? { dojoId } : {}) },
+      where:  { id, dojoId },
       select: { portalUser: { select: { id: true } } },
     });
     if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
@@ -153,6 +157,17 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     await prisma.user.update({
       where: { id: student.portalUser.id },
       data:  { active: false },
+    });
+
+    const ctx2 = buildAuditCtx(session, req as NextRequest, { dojoId });
+    await logAudit({
+      ...ctx2,
+      action:       "PORTAL_ACCESS_REVOKED",
+      module:       AUDIT_MODULE.PORTAL,
+      resourceType: "Student",
+      resourceId:   id,
+      targetId:     student.portalUser.id,
+      statusCode:   200,
     });
 
     return NextResponse.json({ ok: true });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type SessionUser = { role?: string };
 
@@ -16,18 +17,30 @@ export async function POST(req: NextRequest) {
   const { dojoId } = await req.json();
   if (!dojoId) return NextResponse.json({ error: "dojoId requerido" }, { status: 400 });
 
-  // Verify the dojo exists
   const dojo = await prisma.dojo.findUnique({
     where:  { id: dojoId },
     select: { id: true, name: true, slug: true },
   });
   if (!dojo) return NextResponse.json({ error: "Dojo no encontrado" }, { status: 404 });
 
-  const res = NextResponse.json({ ok: true, dojo });
+  const res    = NextResponse.json({ ok: true, dojo });
+  const secure = process.env.NODE_ENV === "production";
 
-  // Set session-scoped cookie (cleared when browser closes)
-  res.cookies.set("sx-dojo",      dojo.id,   { path: "/", sameSite: "lax", httpOnly: false });
-  res.cookies.set("sx-dojo-name", dojo.name, { path: "/", sameSite: "lax", httpOnly: false });
+  res.cookies.set("sx-dojo",      dojo.id,   { path: "/", sameSite: "lax", httpOnly: true, secure });
+  res.cookies.set("sx-dojo-name", dojo.name, { path: "/", sameSite: "lax", httpOnly: true, secure });
+
+  const ctx = buildAuditCtx(session, req, { dojoId: dojo.id });
+  await logAudit({
+    ...ctx,
+    action:      "SYSADMIN_ENTER_DOJO",
+    module:      AUDIT_MODULE.SYSADMIN,
+    resourceType: "Dojo",
+    resourceId:  dojo.id,
+    dojoSlug:    dojo.slug,
+    statusCode:  200,
+    isSysadminProxy: true,
+    details:     JSON.stringify({ dojoName: dojo.name, dojoSlug: dojo.slug }),
+  });
 
   return res;
 }

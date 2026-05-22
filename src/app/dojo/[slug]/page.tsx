@@ -33,12 +33,11 @@ export default async function DojoPublicPageRoute({ params, searchParams }: Prop
   const { preview } = await searchParams;
   const isPreview   = preview === "1";
 
-  // En modo preview: verificar que el solicitante es admin/sysadmin del dojo
-  if (isPreview) {
-    const session = await getServerSession(authOptions);
-    const role = (session?.user as { role?: string })?.role;
-    if (role !== "admin" && role !== "sysadmin") notFound();
-  }
+  // Verificar rol del visitante — sysadmin y admin pueden ver páginas no publicadas
+  const session  = await getServerSession(authOptions);
+  const role     = (session?.user as { role?: string })?.role;
+  const isSysadmin = role === "sysadmin";
+  const isAdmin    = role === "admin";
 
   const dojo = await prisma.dojo.findUnique({
     where:  { slug, active: true },
@@ -51,13 +50,19 @@ export default async function DojoPublicPageRoute({ params, searchParams }: Prop
         select:  { id: true, name: true, days: true, startTime: true, endTime: true, description: true },
         orderBy: { startTime: "asc" },
       },
+      organizations: {
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        select:  { id: true, name: true, logoUrl: true },
+      },
       dojoPage: true,
     },
   });
 
-  // Modo normal: requiere página publicada
   if (!dojo) notFound();
-  if (!isPreview && !dojo.dojoPage?.published) notFound();
+
+  // Sysadmin ve cualquier dojo; admin ve su propio dojo; público solo páginas publicadas
+  const canPreview = isSysadmin || isAdmin;
+  if (!canPreview && !dojo.dojoPage?.published) notFound();
 
   // Defaults si todavía no se guardó la configuración
   const defaultPage = {
@@ -103,14 +108,13 @@ export default async function DojoPublicPageRoute({ params, searchParams }: Prop
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      {/* Banner de vista previa — solo visible para el admin */}
-      {isPreview && (
+      {/* Banner de vista previa — visible para admin/sysadmin cuando la página no está publicada */}
+      {canPreview && !page.published && (
         <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-4 px-4 py-2.5 text-sm font-semibold"
           style={{ background: "#F59E0B", color: "#111" }}>
-          <span>⚠️ Vista previa — esta página {page.published ? "está publicada" : "aún NO está publicada"}</span>
-          <a href={`/dashboard/settings/public-page`}
-            className="underline hover:opacity-70 transition-opacity">
-            ← Volver al editor
+          <span>⚠️ Vista previa — esta página aún NO está publicada al público</span>
+          <a href="/dashboard/settings/public-page" className="underline hover:opacity-70 transition-opacity">
+            ← Ir al editor
           </a>
         </div>
       )}

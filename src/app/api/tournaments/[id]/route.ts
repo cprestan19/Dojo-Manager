@@ -31,7 +31,6 @@ export async function GET(
               id: true,
               fullName: true,
               birthDate: true,
-              photo: true,
               beltHistory: {
                 take: 1,
                 orderBy: { changeDate: "desc" },
@@ -52,16 +51,11 @@ export async function GET(
       brackets: {
         orderBy: { order: "asc" },
         select: {
-          id: true,
-          name: true,
-          type: true,
-          gender: true,
-          order: true,
-          status: true,
-          bracketLocked: true,
-          _count: {
-            select: { participants: true, matches: true },
-          },
+          id: true, name: true, type: true, gender: true,
+          order: true, status: true, bracketLocked: true,
+          categoryLabel: true, ageGroup: true, weightCategory: true,
+          beltCategory: true, isTeamKata: true,
+          _count: { select: { participants: true, matches: true } },
         },
       },
     },
@@ -107,6 +101,13 @@ export async function PUT(
       leader1, leader2, leader3,
       tatami, scheduledAt,
       description, format, arbitrage, requirements, contact, flyerImage,
+      // Torneo abierto / público
+      tournamentType, isPublic, publicSlug,
+      registrationOpenAt, registrationCloseAt,
+      entryFeePerCategory, feeCurrency,
+      requirePhoto, requireFederationId, requireWaiver, waiverText,
+      maxAthletesPerClub, maxTotalAthletes,
+      accreditationPin,
     } = raw as {
       name?: string; date?: string; location?: string; organization?: string;
       leader1?: string; leader2?: string; leader3?: string;
@@ -114,26 +115,59 @@ export async function PUT(
       description?: string | null; format?: string | null;
       arbitrage?: string | null; requirements?: string | null;
       contact?: string | null; flyerImage?: string | null;
+      tournamentType?: string; isPublic?: boolean; publicSlug?: string | null;
+      registrationOpenAt?: string | null; registrationCloseAt?: string | null;
+      entryFeePerCategory?: number | null; feeCurrency?: string;
+      requirePhoto?: boolean; requireFederationId?: boolean;
+      requireWaiver?: boolean; waiverText?: string | null;
+      maxAthletesPerClub?: number | null; maxTotalAthletes?: number | null;
+      accreditationPin?: string | null;
     };
+
+    // Validar publicSlug único si se envía
+    if (publicSlug) {
+      const slugConflict = await prisma.tournament.findFirst({
+        where: { publicSlug: publicSlug.trim(), id: { not: id } },
+        select: { id: true },
+      });
+      if (slugConflict) {
+        return NextResponse.json({ error: "El slug público ya está en uso por otro torneo" }, { status: 409 });
+      }
+    }
 
     const updated = await prisma.tournament.update({
       where: { id },
       data: {
-        ...(name         !== undefined ? { name: name!.trim() }                                          : {}),
-        ...(date         !== undefined ? { date: new Date(date!) }                                       : {}),
-        ...(location     !== undefined ? { location: location!.trim() }                                  : {}),
-        ...(organization !== undefined ? { organization: organization!.trim() }                          : {}),
-        ...(leader1      !== undefined ? { leader1: leader1!.trim() }                                    : {}),
-        ...(leader2      !== undefined ? { leader2: leader2?.trim() || null }                            : {}),
-        ...(leader3      !== undefined ? { leader3: leader3?.trim() || null }                            : {}),
-        ...(tatami       !== undefined ? { tatami: tatami ?? null }                                      : {}),
-        ...(scheduledAt  !== undefined ? { scheduledAt: scheduledAt ? new Date(scheduledAt) : null }     : {}),
-        ...(description  !== undefined ? { description: description  || null }                           : {}),
-        ...(format       !== undefined ? { format: format            || null }                           : {}),
-        ...(arbitrage    !== undefined ? { arbitrage: arbitrage      || null }                           : {}),
-        ...(requirements !== undefined ? { requirements: requirements || null }                          : {}),
-        ...(contact      !== undefined ? { contact: contact          || null }                           : {}),
-        ...(flyerImage   !== undefined ? { flyerImage: flyerImage    || null }                           : {}),
+        ...(name                !== undefined ? { name: name!.trim() }                                                 : {}),
+        ...(date                !== undefined ? { date: new Date(date!) }                                              : {}),
+        ...(location            !== undefined ? { location: location!.trim() }                                         : {}),
+        ...(organization        !== undefined ? { organization: organization!.trim() }                                 : {}),
+        ...(leader1             !== undefined ? { leader1: leader1!.trim() }                                           : {}),
+        ...(leader2             !== undefined ? { leader2: leader2?.trim() || null }                                   : {}),
+        ...(leader3             !== undefined ? { leader3: leader3?.trim() || null }                                   : {}),
+        ...(tatami              !== undefined ? { tatami: tatami ?? null }                                             : {}),
+        ...(scheduledAt         !== undefined ? { scheduledAt: scheduledAt ? new Date(scheduledAt) : null }            : {}),
+        ...(description         !== undefined ? { description: description   || null }                                 : {}),
+        ...(format              !== undefined ? { format: format             || null }                                 : {}),
+        ...(arbitrage           !== undefined ? { arbitrage: arbitrage       || null }                                 : {}),
+        ...(requirements        !== undefined ? { requirements: requirements || null }                                 : {}),
+        ...(contact             !== undefined ? { contact: contact           || null }                                 : {}),
+        ...(flyerImage          !== undefined ? { flyerImage: flyerImage     || null }                                 : {}),
+        // Torneo abierto
+        ...(tournamentType      !== undefined ? { tournamentType: tournamentType }                                     : {}),
+        ...(isPublic            !== undefined ? { isPublic }                                                           : {}),
+        ...(publicSlug          !== undefined ? { publicSlug: publicSlug?.trim() || null }                            : {}),
+        ...(registrationOpenAt  !== undefined ? { registrationOpenAt:  registrationOpenAt  ? new Date(registrationOpenAt)  : null } : {}),
+        ...(registrationCloseAt !== undefined ? { registrationCloseAt: registrationCloseAt ? new Date(registrationCloseAt) : null } : {}),
+        ...(entryFeePerCategory !== undefined ? { entryFeePerCategory: entryFeePerCategory ?? null }                  : {}),
+        ...(feeCurrency         !== undefined ? { feeCurrency: feeCurrency || "USD" }                                 : {}),
+        ...(requirePhoto        !== undefined ? { requirePhoto }                                                       : {}),
+        ...(requireFederationId !== undefined ? { requireFederationId }                                               : {}),
+        ...(requireWaiver       !== undefined ? { requireWaiver }                                                     : {}),
+        ...(waiverText          !== undefined ? { waiverText: waiverText || null }                                    : {}),
+        ...(maxAthletesPerClub  !== undefined ? { maxAthletesPerClub:  maxAthletesPerClub  ?? null }                  : {}),
+        ...(maxTotalAthletes    !== undefined ? { maxTotalAthletes:    maxTotalAthletes    ?? null }                  : {}),
+        ...(accreditationPin    !== undefined ? { accreditationPin: accreditationPin?.trim() || null }                : {}),
       },
     });
 

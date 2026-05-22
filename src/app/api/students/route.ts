@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { CreateStudentSchema, validationError } from "@/lib/validation";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
     const maxCodeResult = await prisma.student.aggregate({ _max: { studentCode: true } });
     const studentCode   = (maxCodeResult._max.studentCode ?? 999) + 1;
 
+    const t0      = Date.now();
     const student = await prisma.student.create({
       data: {
         dojoId,
@@ -106,6 +108,17 @@ export async function POST(req: NextRequest) {
         fatherEmail:         body.fatherEmail || null,
         address:             body.address             ?? null,
       },
+    });
+
+    const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
+    await logAudit({
+      ...ctx,
+      action:       "STUDENT_CREATED",
+      module:       AUDIT_MODULE.STUDENTS,
+      resourceType: "Student",
+      resourceId:   student.id,
+      statusCode:   201,
+      details:      JSON.stringify({ fullName: student.fullName, studentCode: student.studentCode, gender: student.gender, nationality: student.nationality }),
     });
 
     return NextResponse.json(student, { status: 201 });

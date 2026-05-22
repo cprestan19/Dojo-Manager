@@ -42,6 +42,16 @@ export async function PUT(
       return NextResponse.json({ error: "studentIds debe ser un arreglo" }, { status: 400 });
     }
 
+    // Verify all students belong to this dojo — prevent cross-dojo contamination
+    if (studentIds.length > 0) {
+      const validCount = await prisma.student.count({
+        where: { id: { in: studentIds }, dojoId },
+      });
+      if (validCount !== studentIds.length) {
+        return NextResponse.json({ error: "Uno o más alumnos no pertenecen a este dojo" }, { status: 400 });
+      }
+    }
+
     // Replace participants in a transaction
     await prisma.$transaction([
       prisma.tournamentParticipant.deleteMany({ where: { tournamentId: id } }),

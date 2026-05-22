@@ -1,12 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Plus, Users, GraduationCap, Globe, CheckCircle, XCircle, Copy, KeyRound, LogIn, Lock, Eye, EyeOff } from "lucide-react";
+import { Building2, Plus, Users, GraduationCap, Globe, CheckCircle, XCircle, Copy, KeyRound, LogIn, Lock, Eye, EyeOff, Crown, Trash2, AlertTriangle } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 
 interface Dojo {
   id: string; name: string; slug: string; logo: string | null;
-  active: boolean; createdAt: string;
+  active: boolean; tournamentPro: boolean; createdAt: string;
   _count: { users: number; students: number };
 }
 
@@ -24,6 +24,10 @@ export default function DojosPage() {
   const [error,        setError]        = useState("");
   const [createdAdmin, setCreatedAdmin] = useState<CreatedAdmin | null>(null);
   const [entering,     setEntering]     = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Dojo | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting,     setDeleting]     = useState(false);
+  const [deleteError,  setDeleteError]  = useState("");
 
   async function enterDojo(dojo: Dojo) {
     setEntering(dojo.id);
@@ -102,6 +106,46 @@ export default function DojosPage() {
     load();
   }
 
+  function openDelete(dojo: Dojo) {
+    setDeleteTarget(dojo);
+    setDeleteConfirm("");
+    setDeleteError("");
+  }
+
+  function closeDelete() {
+    setDeleteTarget(null);
+    setDeleteConfirm("");
+    setDeleteError("");
+  }
+
+  // Normaliza espacios múltiples para la comparación (evita fallos por doble espacio en nombres)
+  function normalize(s: string) { return s.trim().replace(/\s+/g, " "); }
+
+  async function handleDelete() {
+    if (!deleteTarget || normalize(deleteConfirm) !== normalize(deleteTarget.name)) return;
+    setDeleting(true);
+    setDeleteError("");
+    const res = await fetch(`/api/dojos/${deleteTarget.id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) {
+      setDeleteError(data.error ?? "Error al eliminar el dojo");
+      setDeleting(false);
+      return;
+    }
+    closeDelete();
+    setDeleting(false);
+    load();
+  }
+
+  async function toggleTournamentPro(dojo: Dojo) {
+    await fetch(`/api/dojos/${dojo.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: dojo.name, tournamentPro: !dojo.tournamentPro }),
+    });
+    load();
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -142,16 +186,25 @@ export default function DojosPage() {
                     <p className="text-dojo-muted text-xs font-mono">{dojo.slug}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => toggleActive(dojo)}
-                  title={dojo.active ? "Desactivar" : "Activar"}
-                  className="text-dojo-muted hover:text-dojo-white transition-colors"
-                >
-                  {dojo.active
-                    ? <CheckCircle size={18} className="text-green-400" />
-                    : <XCircle size={18} className="text-red-400" />
-                  }
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleActive(dojo)}
+                    title={dojo.active ? "Desactivar" : "Activar"}
+                    className="text-dojo-muted hover:text-dojo-white transition-colors"
+                  >
+                    {dojo.active
+                      ? <CheckCircle size={18} className="text-green-400" />
+                      : <XCircle size={18} className="text-red-400" />
+                    }
+                  </button>
+                  <button
+                    onClick={() => openDelete(dojo)}
+                    title="Eliminar dojo"
+                    className="text-dojo-muted hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -166,6 +219,30 @@ export default function DojosPage() {
                   <p className="text-dojo-muted text-xs">Alumnos</p>
                 </div>
               </div>
+
+              {/* Toggle Torneo Pro */}
+              <button
+                onClick={() => toggleTournamentPro(dojo)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all"
+                style={{
+                  background:   dojo.tournamentPro ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.03)",
+                  borderColor:  dojo.tournamentPro ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.07)",
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Crown size={14} className={dojo.tournamentPro ? "text-dojo-gold" : "text-dojo-muted"} />
+                  <span className={`text-xs font-semibold ${dojo.tournamentPro ? "text-dojo-gold" : "text-dojo-muted"}`}>
+                    Torneo Pro
+                  </span>
+                </div>
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider transition-all ${
+                  dojo.tournamentPro
+                    ? "bg-dojo-gold text-black"
+                    : "bg-dojo-border text-dojo-muted"
+                }`}>
+                  {dojo.tournamentPro ? "ACTIVO" : "INACTIVO"}
+                </div>
+              </button>
 
               <div className="flex items-center justify-between gap-2 border-t border-dojo-border pt-3">
                 <div className="flex items-center gap-2 text-xs text-dojo-muted min-w-0">
@@ -225,6 +302,68 @@ export default function DojosPage() {
           </button>
         </div>
       )}
+
+      {/* Modal eliminar dojo */}
+      <Modal open={!!deleteTarget} onClose={closeDelete} title="Eliminar Dojo">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-red-900/30 border border-red-800/50">
+            <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-red-300 text-sm font-semibold">Acción irreversible</p>
+              <p className="text-red-300/80 text-xs mt-0.5">
+                Se eliminarán permanentemente el dojo y todos sus datos. Solo afecta a este dojo — ningún otro dojo es modificado.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-dojo-darker rounded-xl p-4 space-y-1.5">
+            <p className="text-dojo-white text-sm font-semibold mb-2">{deleteTarget?.name}</p>
+            <p className="text-dojo-muted text-xs flex items-center gap-1.5">
+              <Users size={11} /> {deleteTarget?._count.users ?? 0} usuarios del dojo
+            </p>
+            <p className="text-dojo-muted text-xs flex items-center gap-1.5">
+              <GraduationCap size={11} /> {deleteTarget?._count.students ?? 0} alumnos y toda su historia (pagos, cintas, asistencias)
+            </p>
+            <p className="text-dojo-muted text-xs flex items-center gap-1.5">
+              <Building2 size={11} /> Torneos, brackets, resultados, katas, horarios y configuración
+            </p>
+            <p className="text-dojo-muted/60 text-[11px] mt-2 pt-2 border-t border-dojo-border">
+              ⚠️ Las imágenes en Cloudinary deben eliminarse manualmente si es necesario.
+            </p>
+          </div>
+
+          <div>
+            <label className="form-label">
+              Escribe <span className="text-dojo-white font-mono">{deleteTarget?.name}</span> para confirmar
+            </label>
+            <input
+              type="text"
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleDelete(); }}
+              className="form-input"
+              placeholder="Nombre exacto del dojo..."
+              autoComplete="off"
+            />
+          </div>
+
+          {deleteError && <p className="text-red-400 text-sm">{deleteError}</p>}
+
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={handleDelete}
+              disabled={deleting || normalize(deleteConfirm) !== normalize(deleteTarget?.name ?? "")}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-all bg-red-700 hover:bg-red-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Trash2 size={15} />
+              {deleting ? "Eliminando..." : "Eliminar definitivamente"}
+            </button>
+            <button onClick={closeDelete} className="btn-secondary flex-1 justify-center">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Modal nuevo dojo */}
       <Modal open={modal} onClose={closeModal} title="Nuevo Dojo">

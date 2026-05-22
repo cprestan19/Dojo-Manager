@@ -4,14 +4,22 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
 
 async function resolveEntry(id: string, dojoId: string) {
   const entry = await prisma.beltHistory.findUnique({
-    where: { id },
-    select: { id: true, student: { select: { dojoId: true } } },
+    where:  { id },
+    select: {
+      id: true,
+      beltColor: true,
+      changeDate: true,
+      isRanking: true,
+      studentId: true,
+      student: { select: { dojoId: true } },
+    },
   });
   if (!entry || entry.student.dojoId !== dojoId) return null;
   return entry;
@@ -22,14 +30,15 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { dojoId } = session.user as SessionUser;
-  // NOTE: role needed for sysadmin context — check SessionUser type
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
-  if (!await resolveEntry(id, dojoId))
-    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+  const before = await resolveEntry(id, dojoId);
+  if (!before) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   try {
+    const t0   = Date.now();
     const body = await req.json();
     const kataIds: string[] = Array.isArray(body.kataIds)
       ? body.kataIds.filter(Boolean).slice(0, 5)
@@ -51,6 +60,22 @@ export async function PUT(req: NextRequest, { params }: Params) {
         kata: { select: { id: true, name: true, beltColor: true } },
       },
     });
+
+    const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
+    await logAudit({
+      ...ctx,
+      action:       "BELT_UPDATED",
+      module:       AUDIT_MODULE.BELTS,
+      resourceType: "BeltHistory",
+      resourceId:   id,
+      targetId:     before.studentId,
+      statusCode:   200,
+      details:      JSON.stringify({
+        before: { beltColor: before.beltColor, isRanking: before.isRanking },
+        after:  { beltColor: entry.beltColor,  isRanking: entry.isRanking  },
+      }),
+    });
+
     return NextResponse.json(entry);
   } catch (err) {
     console.error("belt-history [id] error:", err);
@@ -58,18 +83,32 @@ export async function PUT(req: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { dojoId } = session.user as SessionUser;
-  // NOTE: role needed for sysadmin context — check SessionUser type
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
-  if (!await resolveEntry(id, dojoId))
-    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+  const t0     = Date.now();
+  const before = await resolveEntry(id, dojoId);
+  if (!before) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   await prisma.beltHistory.delete({ where: { id } });
+
+  const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
+  await logAudit({
+    ...ctx,
+    action:       "BELT_DELETED",
+    module:       AUDIT_MODULE.BELTS,
+    resourceType: "BeltHistory",
+    resourceId:   id,
+    targetId:     before.studentId,
+    statusCode:   200,
+    details:      JSON.stringify({ beltColor: before.beltColor, isRanking: before.isRanking }),
+  });
+
   return NextResponse.json({ ok: true });
 }

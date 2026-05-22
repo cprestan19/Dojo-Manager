@@ -428,3 +428,20 @@ export async function sendPasswordReset({
   const { transporter: t, smtpUser, fromName } = await createTransporter();
   await t.sendMail({ from: fromAddress(smtpUser, fromName, dojo), to, subject, html });
 }
+
+/**
+ * Envío genérico de email — para notificaciones de torneos abiertos y coaches externos.
+ * Usa la misma configuración SMTP del sistema.
+ */
+export async function sendEmail({
+  to,
+  subject,
+  html,
+}: {
+  to:      string;
+  subject: string;
+  html:    string;
+}): Promise<void> {
+  const { transporter: t, smtpUser, fromName } = await createTransporter();
+  await t.sendMail({ from: fromAddress(smtpUser, fromName), to, subject, html });
+}

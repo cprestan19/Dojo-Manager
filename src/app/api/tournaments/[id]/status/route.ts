@@ -8,7 +8,8 @@ import { getTournamentStatusFlow } from "@/lib/utils";
 
 type SessionUser = { role?: string; dojoId?: string | null; id?: string; email?: string };
 
-const RESTRICTED_TRANSITIONS = new Set(["registration_closed", "in_progress", "finished", "cancelled"]);
+// "confirmed" solo sysadmin puede asignarlo (bloqueo oficial de resultados)
+const RESTRICTED_TRANSITIONS = new Set(["confirmed"]);
 
 export async function PUT(
   req: NextRequest,
@@ -52,32 +53,10 @@ export async function PUT(
     );
   }
 
-  if (newStatus === "in_progress") {
-    const [tatamiCount, judgeCount] = await Promise.all([
-      prisma.tournamentTatami.count({ where: { tournamentId, dojoId } }),
-      prisma.tournamentJudge.count({ where: { tournamentId, dojoId } }),
-    ]);
-    if (tatamiCount < 1 || judgeCount < 1) {
-      return NextResponse.json(
-        { error: "El torneo necesita al menos 1 tatami y 1 juez para iniciar" },
-        { status: 400 },
-      );
-    }
-  }
-
-  const extraData: Record<string, unknown> = {};
-  if (newStatus === "registration_closed" && !tournament.bracketsLockedAt) {
-    extraData.bracketsLockedAt = new Date();
-    extraData.bracketsLockedBy = user.email ?? null;
-  }
-
   try {
     const updated = await prisma.tournament.update({
       where: { id: tournamentId },
-      data: {
-        status: newStatus,
-        ...extraData,
-      },
+      data:  { status: newStatus },
     });
 
     await logAudit({

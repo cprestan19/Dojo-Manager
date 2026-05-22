@@ -48,6 +48,14 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const ip           = getClientIp(req);
 
+  // ── Redirigir usuarios autenticados (admin/sysadmin) desde "/" a "/dashboard" ──
+  if (pathname === "/") {
+    const token = await readToken(req);
+    if (token && token.role !== "student") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+  }
+
   // ── Rate limits — public / unauthenticated endpoints ─────────
   // Scanner QR: generous limit for legitimate fast scans
   if (pathname.startsWith("/api/scan")) {
@@ -83,6 +91,16 @@ export async function middleware(req: NextRequest) {
   // File uploads: prevent Cloudinary quota exhaustion
   if (pathname === "/api/upload" && req.method === "POST") {
     if (!rateLimit(`upload:${ip}`, 10, 60_000)) return tooManyRequests("60");
+  }
+
+  // Free trial form: prevent spam from public page
+  if (pathname === "/api/public/free-trial" && req.method === "POST") {
+    if (!rateLimit(`free-trial:${ip}`, 5, 60_000)) return tooManyRequests("60");
+  }
+
+  // Tournament public registration: prevent spam
+  if (pathname.includes("/api/public/tournaments/") && pathname.endsWith("/register") && req.method === "POST") {
+    if (!rateLimit(`tournament-reg:${ip}`, 10, 60_000)) return tooManyRequests("60");
   }
 
   // ── Protect /portal ──────────────────────────────────────────
@@ -131,6 +149,8 @@ export const config = {
     "/api/scan/:path*",
     "/api/attendance",
     "/api/auth/callback/credentials",
+    "/api/public/free-trial",
+    "/api/public/tournaments/:path*",
     // Authenticated data endpoints with rate limits
     "/api/students",
     "/api/students/:path*",

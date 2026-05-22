@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -60,7 +61,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   try {
+    const t0   = Date.now();
     const body = await req.json();
+
+    // Snapshot del estado anterior para el log
+    const before = await prisma.student.findUnique({
+      where:  { id, dojoId },
+      select: { fullName: true, active: true, cedula: true, fepakaId: true },
+    });
 
     const student = await prisma.student.update({
       where: { id, dojoId },
@@ -110,6 +118,24 @@ export async function PUT(req: NextRequest, { params }: Params) {
       });
     }
 
+    const action = before && body.active !== undefined && body.active !== before.active
+      ? (body.active ? "STUDENT_ACTIVATED" : "STUDENT_DEACTIVATED")
+      : "STUDENT_UPDATED";
+
+    const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
+    await logAudit({
+      ...ctx,
+      action,
+      module:       AUDIT_MODULE.STUDENTS,
+      resourceType: "Student",
+      resourceId:   id,
+      statusCode:   200,
+      details:      JSON.stringify({
+        before: before ? { fullName: before.fullName, active: before.active } : null,
+        after:  { fullName: student.fullName, active: student.active },
+      }),
+    });
+
     return NextResponse.json(student);
   } catch (err) {
     console.error("PUT /api/students/[id] error:", err);
@@ -117,7 +143,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE( req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -128,6 +154,20 @@ export async function DELETE( req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
+  const t0      = Date.now();
+  const student = await prisma.student.findUnique({ where: { id, dojoId }, select: { fullName: true, studentCode: true } });
   await prisma.student.delete({ where: { id, dojoId } });
+
+  const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
+  await logAudit({
+    ...ctx,
+    action:       "STUDENT_DELETED",
+    module:       AUDIT_MODULE.STUDENTS,
+    resourceType: "Student",
+    resourceId:   id,
+    statusCode:   200,
+    details:      JSON.stringify({ fullName: student?.fullName, studentCode: student?.studentCode }),
+  });
+
   return NextResponse.json({ ok: true });
 }

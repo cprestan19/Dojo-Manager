@@ -3,21 +3,22 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { encrypt, isEncrypted } from "@/lib/crypto";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type SessionUser = { role?: string };
 
 async function guardEmailAdmin(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!session) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }), session: null };
   const { role } = session.user as SessionUser;
   if (role !== "sysadmin")
-    return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-  return null;
+    return { error: NextResponse.json({ error: "Sin permisos" }, { status: 403 }), session: null };
+  return { error: null, session };
 }
 
 export async function GET(req: NextRequest) {
-  const err = await guardEmailAdmin(req);
-  if (err) return err;
+  const { error } = await guardEmailAdmin(req);
+  if (error) return error;
 
   const cfg = await prisma.emailSettings.findUnique({ where: { id: "singleton" } });
   if (!cfg) return NextResponse.json({
@@ -29,9 +30,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const err = await guardEmailAdmin(req);
-  if (err) return err;
+  const { error, session } = await guardEmailAdmin(req);
+  if (error) return error;
 
+  const t0   = Date.now();
   const body = await req.json();
 
   const host = String(body.host ?? "").trim();
@@ -46,12 +48,12 @@ export async function PUT(req: NextRequest) {
   let storedPassword: string;
 
   if (!rawPassword || rawPassword === "••••••••") {
-    // Keep existing encrypted password
     storedPassword = existing?.password ?? "";
   } else {
-    // New password: encrypt it (but don't double-encrypt)
     storedPassword = isEncrypted(rawPassword) ? rawPassword : encrypt(rawPassword);
   }
+
+  const passwordChanged = !(!rawPassword || rawPassword === "••••••••");
 
   const cfg = await prisma.emailSettings.upsert({
     where:  { id: "singleton" },
@@ -72,6 +74,24 @@ export async function PUT(req: NextRequest) {
       fromName: String(body.fromName ?? "Dojo Master").trim() || "Dojo Master",
       password: storedPassword,
     },
+  });
+
+  const ctx = buildAuditCtx(session!, req, { startTime: t0 });
+  await logAudit({
+    ...ctx,
+    action:       "EMAIL_SETTINGS_UPDATED",
+    module:       AUDIT_MODULE.SETTINGS,
+    resourceType: "EmailSettings",
+    resourceId:   "singleton",
+    statusCode:   200,
+    details:      JSON.stringify({
+      host,
+      port:          Number(body.port ?? 587),
+      user,
+      secure:        Boolean(body.secure ?? false),
+      fromName:      String(body.fromName ?? "").trim(),
+      passwordChanged,
+    }),
   });
 
   return NextResponse.json({ ...cfg, password: cfg.password ? "••••••••" : "" });

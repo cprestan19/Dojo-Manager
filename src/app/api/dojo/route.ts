@@ -9,6 +9,7 @@ import prisma from "@/lib/prisma";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/queries";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -19,9 +20,9 @@ export async function GET(req: NextRequest) {
   const { role, dojoId: sessionDojoId } = session.user as SessionUser;
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
 
-  // sysadmin puede consultar cualquier dojo vía ?id=
+  // sysadmin puede consultar cualquier dojo vía ?id= o por cookie sx-dojo (contexto activo)
   const targetId = role === "sysadmin"
-    ? (new URL(req.url).searchParams.get("id") ?? null)
+    ? (new URL(req.url).searchParams.get("id") ?? getEffectiveDojoId(role, sessionDojoId, req))
     : dojoId;
 
   if (!targetId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, name: true, slug: true, ownerName: true,
       email: true, phone: true, slogan: true, active: true,
+      locale: true, tournamentPro: true,
       createdAt: true, updatedAt: true,
       reminderToleranceDays: true, lateInterestPct: true,
       autoRemindersEnabled: true,
@@ -52,7 +54,7 @@ export async function GET(req: NextRequest) {
       logo:         dojo.logo         ? (dojo.logo.startsWith("http")         ? dojo.logo         : null) : null,
       loginBgImage: dojo.loginBgImage ? (dojo.loginBgImage.startsWith("http") ? dojo.loginBgImage : null) : null,
     },
-    { headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=60" } },
+    { headers: { "Cache-Control": "no-store" } },
   );
 }
 
@@ -74,6 +76,11 @@ export async function PUT(req: NextRequest) {
 
   const body = await req.json();
 
+  if (body.name !== undefined && !String(body.name ?? "").trim()) {
+    return NextResponse.json({ error: "El nombre del dojo no puede estar vacío" }, { status: 400 });
+  }
+
+  const t0   = Date.now();
   const dojo = await prisma.dojo.update({
     where: { id: targetId },
     data: {
@@ -87,9 +94,34 @@ export async function PUT(req: NextRequest) {
       reminderToleranceDays: body.reminderToleranceDays != null ? Number(body.reminderToleranceDays) : undefined,
       lateInterestPct:       body.lateInterestPct       != null ? Number(body.lateInterestPct)       : undefined,
       autoRemindersEnabled:  body.autoRemindersEnabled  != null ? Boolean(body.autoRemindersEnabled)  : undefined,
+      locale:                body.locale === "en" ? "en" : body.locale === "es" ? "es" : undefined,
+    },
+    select: {
+      id: true, name: true, slug: true, ownerName: true,
+      email: true, phone: true, slogan: true, active: true,
+      locale: true, tournamentPro: true,
+      reminderToleranceDays: true, lateInterestPct: true,
+      autoRemindersEnabled: true, logo: true,
     },
   });
 
   revalidateTag(CACHE_TAGS.dojo(targetId));
-  return NextResponse.json(dojo);
+
+  const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId: targetId });
+  await logAudit({
+    ...ctx,
+    action:       "DOJO_SETTINGS_UPDATED",
+    module:       AUDIT_MODULE.SETTINGS,
+    resourceType: "Dojo",
+    resourceId:   targetId,
+    statusCode:   200,
+    details:      JSON.stringify({
+      changed: Object.keys(body).filter(k => k !== "logo" && k !== "loginBgImage"),
+    }),
+  });
+
+  return NextResponse.json({
+    ...dojo,
+    logo: dojo.logo?.startsWith("http") ? dojo.logo : null,
+  });
 }

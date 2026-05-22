@@ -29,6 +29,8 @@ model Dojo {
   loginBgImage  String? @db.Text @map("login_bg_image")
   instagramUrl  String? @map("instagram_url")
   themeId       String  @default("dark-saas") @map("theme_id")
+  locale        String  @default("es")        @map("locale")       // "es" | "en"
+  tournamentPro Boolean @default(false)       @map("tournament_pro") // Módulo Torneo Pro activado
 
   users           User[]
   students        Student[]
@@ -46,8 +48,27 @@ model Dojo {
   tournamentRegistrations TournamentRegistration[]
   events                  Event[]
   storeProducts           StoreProduct[]
+  organizations           DojoOrganization[]
+  externalClubs           ExternalClub[]
+  externalAthletes        ExternalAthlete[]
 
   @@map("dojos")
+}
+
+// ── Organizations / federations the dojo belongs to ─────────
+model DojoOrganization {
+  id      String @id @default(cuid())
+  dojoId  String @map("dojo_id")
+  dojo    Dojo   @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+
+  name    String
+  logoUrl String? @map("logo_url") @db.Text  // Cloudinary URL
+  order   Int     @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([dojoId])
+  @@map("dojo_organizations")
 }
 
 // ── Public website content for each dojo ────────────────────
@@ -368,19 +389,56 @@ model StudentSchedule {
 
 model AuditLog {
   id        String   @id @default(cuid())
-  action    String
-  userId    String?
-  userEmail String?
+
+  // ── Qué se hizo ─────────────────────────────────────────────
+  action       String                    // LOGIN_FAILED | STUDENT_CREATED | PAYMENT_MARKED_PAID | ...
+  module       String?                   // AUTH | STUDENTS | PAYMENTS | BELTS | ATTENDANCE | USERS | SETTINGS | SYSADMIN | TOURNAMENTS | PORTAL
+  method       String?                   // GET | POST | PUT | PATCH | DELETE
+  resourceType String?  @map("resource_type")  // Student | User | Payment | BeltHistory | Dojo | Tournament
+  resourceId   String?  @map("resource_id")    // ID del registro afectado
+  statusCode   Int?     @map("status_code")    // Código HTTP del resultado: 200 | 201 | 400 | 401 | 403 | 500
+
+  // ── Quién lo hizo ────────────────────────────────────────────
+  userId           String?
+  userName         String?  @map("user_name")          // Nombre del actor
+  userEmail        String?
+  isSysadminProxy  Boolean  @default(false) @map("is_sysadmin_proxy")  // sysadmin operando en dojo ajeno
+
+  // ── Dónde ────────────────────────────────────────────────────
   dojoId    String?
   dojoSlug  String?
+
+  // ── Sobre quién / qué ────────────────────────────────────────
+  targetId    String?  @map("target_id")     // ID del usuario o recurso objetivo
+  targetEmail String?  @map("target_email")  // Email del objetivo (acciones sobre usuarios)
+
+  // ── Red, dispositivo y geolocalización ───────────────────────
   ip        String?
   userAgent String?  @db.Text
-  details   String?  @db.Text
+  country   String?             // Código ISO del país (ES, PA, CO) via headers Vercel/Cloudflare
+  city      String?             // Ciudad del usuario
+  region    String?             // Región/estado
+
+  // ── Sesión y correlación ──────────────────────────────────────
+  sessionId String?  @map("session_id")  // UUID fijo por sesión — correlaciona todos los eventos del mismo login
+
+  // ── Rendimiento y contexto ───────────────────────────────────
+  duration  Int?      // Duración de la operación en ms
+  details   String?  @db.Text  // JSON: { before, after, reason, extra }
+
+  // ── Integridad ────────────────────────────────────────────────
+  hash      String?  @db.Text  // SHA-256 de los campos clave — detecta tampering del log
+
   createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([action])
+  @@index([module])
+  @@index([resourceType, resourceId])
+  @@index([ip])
+  @@index([sessionId])
   @@index([createdAt])
+  @@index([dojoId, createdAt])
   @@map("audit_logs")
 }
 
@@ -491,10 +549,28 @@ model Tournament {
   organizerPhone      String?   @map("organizer_phone")
   rules               String?   @db.Text
 
-  participants TournamentParticipant[]
-  matches      TournamentMatch[]
-  referees     TournamentReferee[]
-  brackets     TournamentBracket[]
+  // ── Torneos abiertos / federados ────────────────────────────
+  // "internal" = solo alumnos del dojo | "open" = clubs externos | "federated" = con federación
+  tournamentType      String    @default("internal")  @map("tournament_type")
+  entryFeePerCategory Float?    @map("entry_fee_per_category")
+  feeCurrency         String    @default("USD")       @map("fee_currency")
+  requirePhoto        Boolean   @default(false)       @map("require_photo")
+  requireFederationId Boolean   @default(false)       @map("require_federation_id")
+  requireWaiver       Boolean   @default(true)        @map("require_waiver")
+  waiverText          String?   @db.Text              @map("waiver_text")
+  maxAthletesPerClub  Int?      @map("max_athletes_per_club")
+  maxTotalAthletes    Int?      @map("max_total_athletes")
+
+  // ── Acreditación ─────────────────────────────────────────────
+  // PIN 4-6 dígitos para voluntarios en la entrada — NUNCA exponer en APIs públicas
+  accreditationPin    String?   @map("accreditation_pin")
+
+  participants    TournamentParticipant[]
+  matches         TournamentMatch[]
+  referees        TournamentReferee[]
+  brackets        TournamentBracket[]
+  externalClubs   ExternalClub[]
+  externalAthletes ExternalAthlete[]
 
   @@index([dojoId])
   @@index([dojoId, status])
@@ -514,12 +590,30 @@ model TournamentBracket {
   status              String    @default("draft")
   bracketScheduledAt  DateTime? @map("bracket_scheduled_at")
   bracketTatami       Int?      @map("bracket_tatami")
+
+  // ── Categoría WKF ────────────────────────────────────────────
+  // "mini_4_5"|"mini_6_7"|"infantil_a"|"infantil_b"|"pre_cadete"|"cadete"|"junior"|"sub21"|"senior"|"master35"|"master45"|"open"
+  ageGroup       String?   @map("age_group")
+  // "-50kg"|"-55kg"|"-60kg"|"-61kg"|"-67kg"|"-68kg"|"-75kg"|"-84kg"|"+84kg"|"open" — null para kata
+  weightCategory String?   @map("weight_category")
+  // "principiantes"|"intermedios"|"avanzados"|"elite" — para torneos por cinta
+  beltCategory   String?   @map("belt_category")
+  // true = Kata en Equipo (3 atletas por equipo)
+  isTeamKata     Boolean   @default(false) @map("is_team_kata")
+  // Auto-generado por buildCategoryLabel() — "Kumite Cadete -63kg Masculino"
+  categoryLabel  String?   @map("category_label")
+  // Orden de disputa en el tatami
+  bracketOrder   Int       @default(0) @map("bracket_order")
+
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
-  participants TournamentParticipant[]
-  matches      TournamentMatch[]
+
+  participants             TournamentParticipant[]
+  matches                  TournamentMatch[]
+  externalAthleteCategories ExternalAthleteCategory[]
 
   @@index([tournamentId])
+  @@index([tournamentId, status])
   @@map("tournament_brackets")
 }
 
@@ -532,6 +626,15 @@ model TournamentParticipant {
   bracketId    String?    @map("bracket_id")
   bracket      TournamentBracket? @relation(fields: [bracketId], references: [id], onDelete: SetNull)
   seed         Int        @default(0)
+  weight       Float?     @map("weight")   // peso en kg del competidor (para overlay de TV)
+
+  // ── QR de acreditación ───────────────────────────────────────
+  // Solo se genera cuando tournament.status = ready|active Y admin confirma lista
+  qrCode           String?   @unique @map("qr_code")
+  accreditedAt     DateTime? @map("accredited_at")
+  credentialSentAt DateTime? @map("credential_sent_at")
+  kikenAt          DateTime? @map("kiken_at")   // solo árbitro admin puede setearlo
+
   createdAt    DateTime   @default(now())
 
   @@unique([bracketId, studentId])
@@ -539,6 +642,7 @@ model TournamentParticipant {
   @@index([studentId])
   @@index([bracketId])
   @@index([bracketId, tournamentId])
+  @@index([qrCode])
   @@map("tournament_participants")
 }
 
@@ -548,6 +652,8 @@ model TournamentMatch {
   tournament     Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   bracketId      String?    @map("bracket_id")
   bracket        TournamentBracket? @relation(fields: [bracketId], references: [id], onDelete: SetNull)
+  tatamiId       String?    @map("tatami_id")
+  tatami         TournamentTatami? @relation("TatamiMatches", fields: [tatamiId], references: [id], onDelete: SetNull)
   round          Int
   matchNumber    Int        @map("match_number")
   participant1Id String?    @map("participant1_id")
@@ -556,14 +662,86 @@ model TournamentMatch {
   score2         Int?       @map("score2")
   winnerId       String?    @map("winner_id")
   isBye          Boolean    @default(false) @map("is_bye")
+  senshu         String?    @map("senshu") // participantId del primer anotador (desempate)
 
-  // Unicidad: no pueden existir dos matches con mismo round+matchNumber en el mismo bracket
+  // ── Hantei (判定) — decisión por empate ───────────────────────
+  // "none" | "called" | "voting" | "decided"
+  hanteiStatus     String    @default("none")  @map("hantei_status")
+  hanteiWinnerId   String?   @map("hantei_winner_id")
+  hanteiVotesAo    Int       @default(0)       @map("hantei_votes_ao")
+  hanteiVotesAka   Int       @default(0)       @map("hantei_votes_aka")
+  hanteiCalledAt   DateTime? @map("hantei_called_at")
+  hanteiDecidedAt  DateTime? @map("hantei_decided_at")
+
+  // ── Video Review ─────────────────────────────────────────────
+  // "none" | "requested" | "reviewing" | "confirmed" | "reversed"
+  reviewStatus       String    @default("none")  @map("review_status")
+  reviewRequestedAt  DateTime? @map("review_requested_at")
+  reviewRequestedBy  String?   @map("review_requested_by")  // "ao"|"aka"|"referee"
+  reviewDecision     String?   @map("review_decision")      // "confirmed"|"reversed"|"no_contest"
+  reviewNotes        String?   @db.Text @map("review_notes")
+  reviewCompletedAt  DateTime? @map("review_completed_at")
+
+  judgeScores    TournamentJudgeScore[]
+
   @@unique([bracketId, round, matchNumber])
   @@index([tournamentId, round])
   @@index([bracketId])
+  @@index([tatamiId])
+  @@index([tatamiId, winnerId])
   @@index([tournamentId, bracketId, round, matchNumber])
   @@index([tournamentId, round, matchNumber])
   @@map("tournament_matches")
+}
+
+// ── Puntuación individual por juez ───────────────────────────
+model TournamentJudgeScore {
+  id           String           @id @default(cuid())
+  matchId      String           @map("match_id")
+  match        TournamentMatch  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  judgeId      String           @map("judge_id")
+  judge        TournamentJudge  @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  tatamiId     String?          @map("tatami_id")
+  tatami       TournamentTatami? @relation(fields: [tatamiId], references: [id], onDelete: SetNull)
+
+  // Kumite: puntos enteros | Kata: decimales (ej. 8.5)
+  scoreType    String  @default("kumite") @map("score_type")  // "kumite" | "kata"
+
+  // Kumite: técnicas individuales (para pantalla de TV)
+  ippon1       Int     @default(0) @map("ippon1")     // 3 pts cada uno
+  wazaari1     Int     @default(0) @map("wazaari1")   // 2 pts
+  yuko1        Int     @default(0) @map("yuko1")      // 1 pt
+  ippon2       Int     @default(0) @map("ippon2")
+  wazaari2     Int     @default(0) @map("wazaari2")
+  yuko2        Int     @default(0) @map("yuko2")
+
+  // Kumite: total calculado (= ippon*3 + wazaari*2 + yuko*1)
+  score1       Float   @default(0) @map("score1")
+  score2       Float   @default(0) @map("score2")
+
+  // Kumite: penalizaciones — chukoku(C)/hansoku(H)
+  chukoku1     Int     @default(0) @map("chukoku1")   // advertencia leve
+  hansoku1     Int     @default(0) @map("hansoku1")   // descalificación
+  chukoku2     Int     @default(0) @map("chukoku2")
+  hansoku2     Int     @default(0) @map("hansoku2")
+  penalty1     Int     @default(0) @map("penalty1")   // total penalizaciones C1
+  penalty2     Int     @default(0) @map("penalty2")   // total penalizaciones C2
+
+  // Última técnica registrada (para mostrar en TV)
+  lastTechnique1 String? @map("last_technique1")  // "ippon"|"wazaari"|"yuko"|"chukoku"|"hansoku"
+  lastTechnique2 String? @map("last_technique2")
+
+  // Kata: nota del juez (ej. 8.5)
+  kataScore1   Float?  @map("kata_score1")
+  kataScore2   Float?  @map("kata_score2")
+
+  updatedAt    DateTime @updatedAt
+
+  @@unique([matchId, judgeId])
+  @@index([matchId])
+  @@index([judgeId])
+  @@index([tatamiId])
+  @@map("tournament_judge_scores")
 }
 
 model TournamentEmailLog {
@@ -600,8 +778,48 @@ model TournamentTatami {
   color        String   @default("#C0392B")
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
-  judges       TournamentJudge[]
+
+  // ── Streaming por tatami ──────────────────────────────────
+  youtubeVideoId   String? @map("youtube_video_id")
+  youtubeStreamKey String? @db.Text @map("youtube_stream_key")
+  streamStatus     String  @default("offline") @map("stream_status") // offline|live|finished
+  overlayMessage   String? @db.Text @map("overlay_message")
+
+  // ── Match activo en este tatami (para overlay y scoreboard) ──
+  currentMatchId        String?   @map("current_match_id")
+  currentMatchStartedAt DateTime? @map("current_match_started_at") // marca de inicio del Sencho
+  matchTimerRunning     Boolean   @default(false) @map("match_timer_running")
+  matchTimerBaseElapsed Int       @default(0)     @map("match_timer_base_elapsed") // segundos acumulados antes de la última pausa
+  matchDurationSecs     Int       @default(120)   @map("match_duration_secs")      // duración total del match en segundos (default 2:00)
+
+  // ── Display TV — máquina de estados ──────────────────────────
+  // "idle" | "active" | "winner" | "next_preview"
+  matchDisplayState   String    @default("idle")  @map("match_display_state")
+  winnerParticipantId String?   @map("winner_participant_id")
+  // "points"|"ippon"|"wazaari"|"hansoku"|"kiken"|"senshu"
+  winnerReason        String?   @map("winner_reason")
+  // Al setearse, la pantalla TV inicia cuenta regresiva 10s → next_preview automáticamente
+  matchWonAt          DateTime? @map("match_won_at")
+
+  // ── Video Review ─────────────────────────────────────────────
+  videoReviewEnabled Boolean @default(false) @map("video_review_enabled")
+  // Ruta donde OBS graba el archivo local — solo informativo, el sistema NO accede al FS
+  obsRecordingPath   String? @map("obs_recording_path")
+  // Segundos desde el inicio del match cuando se solicitó la última revisión
+  lastReviewOffset   Int?    @map("last_review_offset")
+
+  // ── Overlay OBS parametrizable ───────────────────────────────
+  // "1920x1080"|"1280x720"|"3840x2160"|"1080x1920"|"1366x768"
+  overlayPreset  String @default("1920x1080") @map("overlay_preset")
+  overlayWidth   Int    @default(1920)         @map("overlay_width")
+  overlayHeight  Int    @default(1080)         @map("overlay_height")
+  overlayScale   Float  @default(1.0)          @map("overlay_scale")
+
+  judges        TournamentJudge[]
   scheduleSlots TournamentScheduleSlot[]
+  matches       TournamentMatch[]        @relation("TatamiMatches")
+  judgeScores   TournamentJudgeScore[]
+
   @@index([tournamentId])
   @@index([dojoId])
   @@map("tournament_tatamis")
@@ -620,6 +838,7 @@ model TournamentJudge {
   nationality  String?
   active       Boolean           @default(true)
   createdAt    DateTime          @default(now())
+  judgeScores  TournamentJudgeScore[]
   @@index([tournamentId])
   @@index([dojoId])
   @@map("tournament_judges")
@@ -689,6 +908,167 @@ model TournamentRegistration {
   @@index([tournamentId])
   @@index([dojoId])
   @@map("tournament_registrations")
+}
+
+// ── Clubs externos (torneos abiertos) ───────────────────────
+model ExternalClub {
+  id           String   @id @default(cuid())
+  tournamentId String   @map("tournament_id")
+  dojoId       String   @map("dojo_id")        // dojo anfitrión — SIEMPRE
+
+  clubName     String   @map("club_name")
+  country      String?
+  city         String?
+  coachName    String   @map("coach_name")
+  coachEmail   String   @map("coach_email")
+  coachPhone   String?  @map("coach_phone")
+  federationId String?  @map("federation_id")
+
+  // JWT firmado 30 días — NUNCA retornar al organizador
+  accessToken   String   @unique @map("access_token")
+  accessExpires DateTime @map("access_expires")
+
+  // "pending"|"approved"|"rejected"|"waitlist"
+  status          String    @default("pending")
+  approvedAt      DateTime? @map("approved_at")
+  approvedBy      String?   @map("approved_by")
+  rejectionReason String?   @db.Text @map("rejection_reason")
+
+  // "unpaid"|"partial"|"paid"|"waived"
+  paymentStatus   String    @default("unpaid") @map("payment_status")
+  paymentRef      String?   @map("payment_ref")
+  paymentProofUrl String?   @db.Text @map("payment_proof_url")  // URL Cloudinary
+  paymentNotes    String?   @db.Text @map("payment_notes")
+  paidAt          DateTime? @map("paid_at")
+
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  tournament Tournament        @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  dojo       Dojo              @relation(fields: [dojoId], references: [id])
+  athletes   ExternalAthlete[]
+
+  @@index([tournamentId])
+  @@index([dojoId])
+  @@index([coachEmail])
+  @@index([accessToken])
+  @@map("external_clubs")
+}
+
+// ── Atletas de clubs externos ────────────────────────────────
+model ExternalAthlete {
+  id             String   @id @default(cuid())
+  tournamentId   String   @map("tournament_id")
+  dojoId         String   @map("dojo_id")         // dojo anfitrión — SIEMPRE
+  externalClubId String   @map("external_club_id")
+
+  firstName   String   @map("first_name")
+  lastName    String   @map("last_name")
+  documentId  String?  @map("document_id")        // NUNCA incluir en listas
+  birthDate   DateTime @map("birth_date")
+  gender      String                               // "M"|"F"
+  nationality String?                              // código ISO "PA","CO","MX"
+  weight      Float?
+  beltColor   String?  @map("belt_color")
+  fepakaId    String?  @map("fepaka_id")
+  photoUrl    String?  @db.Text @map("photo_url") // URL Cloudinary
+
+  // Calculado al guardar con calculateAgeGroup()
+  ageGroup    String?  @map("age_group")
+
+  // "pending"|"approved"|"rejected"|"withdrawn"
+  status      String   @default("pending")
+
+  waiverSigned   Boolean   @default(false) @map("waiver_signed")
+  waiverSignedAt DateTime? @map("waiver_signed_at")
+  waiverIp       String?   @map("waiver_ip")
+
+  // QR de acreditación — solo cuando club.status=approved Y paymentStatus=paid|waived
+  qrCode           String?   @unique @map("qr_code")
+  accreditedAt     DateTime? @map("accredited_at")
+  credentialSentAt DateTime? @map("credential_sent_at")
+  kikenAt          DateTime? @map("kiken_at")
+
+  // Bracket asignado post-aprobación (sin FK formal — solo referencia)
+  bracketId   String?  @map("bracket_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  tournament   Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  dojo         Dojo          @relation(fields: [dojoId], references: [id])
+  externalClub ExternalClub  @relation(fields: [externalClubId], references: [id], onDelete: Cascade)
+  categories   ExternalAthleteCategory[]
+
+  @@index([tournamentId])
+  @@index([dojoId])
+  @@index([externalClubId])
+  @@index([externalClubId, status])
+  @@index([qrCode])
+  @@map("external_athletes")
+}
+
+// ── Inscripciones por categoría de atleta externo ───────────
+model ExternalAthleteCategory {
+  id           String @id @default(cuid())
+  tournamentId String @map("tournament_id")
+  dojoId       String @map("dojo_id")         // dojo anfitrión — SIEMPRE
+  athleteId    String @map("athlete_id")
+
+  // Sin FK formal en bracketId para no crear relación inversa en TournamentBracket legacy
+  bracketId     String? @map("bracket_id")
+  categoryLabel String  @map("category_label")  // "Kumite Cadete -63kg Masculino"
+
+  // "pending"|"approved"|"rejected"|"waitlist"|"withdrawn"
+  status          String  @default("pending")
+  rejectionReason String? @db.Text @map("rejection_reason")
+
+  feeAmount     Float?  @map("fee_amount")
+  // "unpaid"|"paid"|"waived"
+  paymentStatus String  @default("unpaid") @map("payment_status")
+
+  // Ranking/seeding
+  isRanking        Boolean  @default(false) @map("is_ranking")       // coach lo marca al inscribir
+  rankingValidated Boolean? @map("ranking_validated")                 // null=pendiente, true/false=decisión
+  rankingNote      String?  @db.Text @map("ranking_note")            // coach: "Campeón Nac. 2024"
+  rankingSeed      Int?     @map("ranking_seed")                      // organizador asigna: 1-4
+
+  bracketSeed     Int? @map("bracket_seed")
+  bracketPosition Int? @map("bracket_position")
+
+  approvedAt DateTime? @map("approved_at")
+  approvedBy String?   @map("approved_by")
+
+  athlete ExternalAthlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  bracket TournamentBracket? @relation(fields: [bracketId], references: [id], onDelete: SetNull)
+
+  @@index([tournamentId])
+  @@index([dojoId])
+  @@index([athleteId])
+  @@index([bracketId])
+  @@map("external_athlete_categories")
+}
+
+// ── Hantei votes ─────────────────────────────────────────────
+model HanteiVote {
+  id           String @id @default(cuid())
+  matchId      String @map("match_id")
+  judgeId      String @map("judge_id")
+  tournamentId String @map("tournament_id")
+  dojoId       String @map("dojo_id")          // SIEMPRE presente — isolación multi-tenant
+
+  vote         String  // "ao" | "aka"
+  isReferee    Boolean @default(false) @map("is_referee")
+  // true = árbitro principal — su voto es el desempate en caso de empate 2-2
+
+  votedAt DateTime @default(now()) @map("voted_at")
+
+  @@unique([matchId, judgeId])  // un juez, un voto por combate
+  @@index([matchId])
+  @@index([tournamentId])
+  @@index([dojoId])
+  @@map("hantei_votes")
 }
 
 // ── Eventos del dojo ─────────────────────────────────────────

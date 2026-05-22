@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -10,12 +11,20 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { dojoId } = session.user as SessionUser;
-  // NOTE: role needed for sysadmin context — check SessionUser type
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const type = searchParams.get("type") ?? "belt";
+
+  // Log de exportación (solo para tipos válidos — se registra antes de cada return)
+  const VALID_TYPES = ["belt", "age", "payments", "ranking"];
+  const auditCtx = buildAuditCtx(session, req, { dojoId });
+  const auditReport = () => logAudit({
+    ...auditCtx, action: "REPORT_EXPORTED", module: AUDIT_MODULE.STUDENTS,
+    statusCode: 200, details: JSON.stringify({ reportType: type }),
+  });
 
   if (type === "belt") {
     // Select only the fields shown in the report — skip photo, contacts, address, etc.
@@ -36,6 +45,7 @@ export async function GET(req: NextRequest) {
       const belt = s.beltHistory[0]?.beltColor ?? "sin-cinta";
       (grouped[belt] ??= []).push(s);
     }
+    await auditReport();
     return NextResponse.json(grouped);
   }
 
@@ -59,6 +69,7 @@ export async function GET(req: NextRequest) {
       else if (age <= 40) ranges["26–40 años"].push(s);
       else                ranges["> 40 años"].push(s);
     }
+    await auditReport();
     return NextResponse.json(ranges);
   }
 
@@ -74,6 +85,7 @@ export async function GET(req: NextRequest) {
     const byStatus = Object.fromEntries(rows.map(r => [r.status, r]));
     const get = (s: string) => byStatus[s] ?? { _count: { id: 0 }, _sum: { amount: 0 } };
 
+    await auditReport();
     return NextResponse.json({
       pending:        get("pending")._count.id,
       paid:           get("paid")._count.id,
@@ -114,8 +126,10 @@ export async function GET(req: NextRequest) {
       return { ...r, kataNames };
     });
 
+    await auditReport();
     return NextResponse.json(result);
   }
 
+  void VALID_TYPES; // evitar warning de variable no usada
   return NextResponse.json({ error: "Tipo de reporte inválido" }, { status: 400 });
 }

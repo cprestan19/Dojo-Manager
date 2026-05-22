@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -66,6 +67,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // ── Autenticación requerida — aislamiento multi-tenant ───
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+    const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
+    if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
+
     // ── Parse & validate body ────────────────────────────────
     let body: { studentId?: unknown; type?: unknown; scheduleId?: unknown; note?: unknown };
     try {
@@ -83,17 +92,10 @@ export async function POST(req: NextRequest) {
     if (!type || !VALID_TYPES.has(type))
       return NextResponse.json({ error: "type debe ser 'entry' o 'exit'" }, { status: 400 });
 
-    // ── Fetch student — CRITICAL: always filter by dojoId ───
-    // The QR scanner endpoint is public but we still validate that the student
-    // exists and belongs to the dojo before creating any record.
+    // ── Fetch student — SIEMPRE filtrado por dojoId de la sesión ─
+    // Garantiza que jamás se pueda marcar asistencia de un alumno de otro dojo.
     const student = await prisma.student.findFirst({
-      where: {
-        id: studentId,
-        // If the scanner sends a numeric code instead of cuid, support both.
-        // dojoId is intentionally NOT required here so the scanner can work
-        // without a session — but we still validate the student exists in DB.
-        // Dojo isolation is enforced: only the student's own attendance is created.
-      },
+      where: { id: studentId, dojoId },
       select: {
         id: true, fullName: true, firstName: true, lastName: true,
         photo: true, active: true, dojoId: true,
@@ -108,10 +110,10 @@ export async function POST(req: NextRequest) {
     if (!student)        return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
     if (!student.active) return NextResponse.json({ error: "Alumno inactivo" },      { status: 403 });
 
-    // ── Validate scheduleId belongs to the student's dojo ───
+    // ── Validar que el horario pertenece al mismo dojo ───────
     if (scheduleId) {
       const schedule = await prisma.schedule.findFirst({
-        where: { id: scheduleId, dojoId: student.dojoId },
+        where: { id: scheduleId, dojoId },
         select: { id: true },
       });
       if (!schedule) return NextResponse.json({ error: "Horario no válido" }, { status: 400 });
@@ -140,6 +142,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create attendance record and reset absence status in one transaction
+    const t0 = Date.now();
     const [attendance] = await prisma.$transaction([
       prisma.attendance.create({
         data: {
@@ -157,6 +160,18 @@ export async function POST(req: NextRequest) {
         select: { id: true },
       }),
     ]);
+
+    const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
+    await logAudit({
+      ...ctx,
+      action:       type === "entry" ? "ATTENDANCE_ENTRY" : "ATTENDANCE_EXIT",
+      module:       AUDIT_MODULE.ATTENDANCE,
+      resourceType: "Attendance",
+      resourceId:   attendance.id,
+      targetId:     student.id,
+      statusCode:   201,
+      details:      JSON.stringify({ studentName: student.fullName, type, scheduleId: scheduleId || null }),
+    });
 
     return NextResponse.json({ ok: true, attendance, student: studentOut }, { status: 201 });
 

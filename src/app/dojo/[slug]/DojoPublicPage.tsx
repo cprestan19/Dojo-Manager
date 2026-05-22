@@ -1,10 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
   Phone, Mail, Instagram, Clock, MapPin,
   Gift, Send, ChevronDown, CheckCircle, Star, X,
   Users, MessageCircle, ArrowRight, ShoppingBag,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 interface Schedule { id: string; name: string; days: string; startTime: string; endTime: string; description: string | null }
@@ -27,6 +28,7 @@ interface DojoData {
   id: string; name: string; slug: string; slogan: string | null;
   phone: string | null; email: string | null; instagramUrl: string | null;
   logo: string | null; schedules: Schedule[];
+  organizations: DojoOrganization[];
   dojoPage: DojoPageData;
 }
 
@@ -40,6 +42,10 @@ interface StoreProduct {
   price: number; currency: string; imageUrl: string | null; sizes: unknown;
 }
 
+interface DojoOrganization {
+  id: string; name: string; logoUrl: string | null;
+}
+
 const EMPTY_FORM: TrialForm = { childName: "", childAge: "", parentName: "", parentPhone: "", parentEmail: "", message: "" };
 
 function parseDays(raw: string): string {
@@ -48,6 +54,118 @@ function parseDays(raw: string): string {
     const map: Record<string, string> = { lunes:"Lun", martes:"Mar", miercoles:"Mié", jueves:"Jue", viernes:"Vie", sabado:"Sáb", domingo:"Dom" };
     return days.map(d => map[d] ?? d).join(" · ");
   } catch { return raw; }
+}
+
+// ── Carrusel horizontal de galería ──────────────────────────────────────────
+function GalleryCarousel({
+  gallery, primary, onOpen,
+}: {
+  gallery: string[];
+  primary: string;
+  onOpen:  (url: string) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const SCROLL_AMOUNT = 300;
+
+  function scroll(dir: "prev" | "next") {
+    trackRef.current?.scrollBy({ left: dir === "next" ? SCROLL_AMOUNT : -SCROLL_AMOUNT, behavior: "smooth" });
+  }
+
+  return (
+    <section id="atletas" className="py-20 px-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Encabezado */}
+        <div className="text-center mb-10">
+          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: primary }}>
+            Galería
+          </p>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
+            Formación de <span style={{ color: primary }}>Atletas</span>
+          </h2>
+          <p className="text-white/50 text-lg max-w-xl mx-auto">
+            Cada entrenamiento forja carácter. Conoce a los atletas que dan vida a nuestro dojo.
+          </p>
+        </div>
+
+        {/* Carrusel */}
+        <div className="relative group/carousel">
+          {/* Botón anterior */}
+          <button
+            onClick={() => scroll("prev")}
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200 shadow-lg"
+            style={{ background: primary }}
+            aria-label="Anterior"
+          >
+            <ChevronLeft size={20} className="text-white" />
+          </button>
+
+          {/* Track de imágenes */}
+          <div
+            ref={trackRef}
+            className="flex gap-3 overflow-x-auto pb-3 scroll-smooth"
+            style={{
+              scrollSnapType:    "x mandatory",
+              scrollbarWidth:    "none",        // Firefox
+              msOverflowStyle:   "none",        // IE
+              WebkitOverflowScrolling: "touch", // iOS inertia
+            }}
+          >
+            {gallery.map((url, i) => (
+              <div
+                key={i}
+                className="shrink-0 rounded-xl overflow-hidden relative cursor-zoom-in group"
+                style={{
+                  width:       "220px",
+                  height:      "165px",
+                  scrollSnapAlign: "start",
+                }}
+                onClick={() => onOpen(url)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`Atleta ${i + 1}`}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                {/* Overlay zoom */}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center"
+                  style={{ background: "rgba(0,0,0,0.35)" }}
+                >
+                  <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <Star size={15} className="text-white" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Botón siguiente */}
+          <button
+            onClick={() => scroll("next")}
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity duration-200 shadow-lg"
+            style={{ background: primary }}
+            aria-label="Siguiente"
+          >
+            <ChevronRight size={20} className="text-white" />
+          </button>
+
+          {/* Ocultar scrollbar en WebKit */}
+          <style>{`
+            #atletas div::-webkit-scrollbar { display: none; }
+          `}</style>
+        </div>
+
+        {/* Indicador desliza */}
+        {gallery.length > 3 && (
+          <p className="text-center text-white/30 text-xs mt-4 flex items-center justify-center gap-1.5">
+            <ChevronLeft size={12} /> desliza para ver más <ChevronRight size={12} />
+          </p>
+        )}
+      </div>
+    </section>
+  );
 }
 
 export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
@@ -146,7 +264,7 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
             <a href={`/dojo/${dojo.slug}/login`}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold border border-white/20 text-white/70 hover:text-white hover:border-white/40 transition-all">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
-              Entrar
+              Acceso de Estudiantes
             </a>
             {dojoPage.showFreeTrial && (
               <a href="#prueba"
@@ -178,7 +296,7 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
             <a href={`/dojo/${dojo.slug}/login`} onClick={() => setNavOpen(false)}
               className="block py-2 font-semibold text-white/70 flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              Entrar al portal
+              Acceso de Estudiantes
             </a>
             {dojoPage.showFreeTrial && (
               <a href="#prueba" onClick={() => setNavOpen(false)}
@@ -208,12 +326,6 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
         }
 
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
-          {dojo.logo && (
-            <div className="w-24 h-24 rounded-3xl overflow-hidden mx-auto mb-8 shadow-2xl"
-              style={{ border: `2px solid ${primary}60`, background: primary + "33" }}>
-              <Image src={dojo.logo} alt={dojo.name} width={96} height={96} className="object-contain w-full h-full" unoptimized />
-            </div>
-          )}
           <h1 className="font-bold text-5xl md:text-7xl mb-4 tracking-tight leading-none">
             {heroTitle}
           </h1>
@@ -253,6 +365,40 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
                 <p className="text-white/50 text-sm font-medium">{s.label}</p>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Organizaciones ── */}
+      {dojo.organizations.length > 0 && (
+        <div className="py-10 px-6 border-b border-white/5">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-center text-xs font-bold uppercase tracking-widest text-white/30 mb-7">
+              Avalado por
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
+              {dojo.organizations.map(org => (
+                <div key={org.id} className="flex flex-col items-center gap-2 group">
+                  {org.logoUrl
+                    ? // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={org.logoUrl} alt={org.name}
+                        className="h-14 w-auto object-contain opacity-60 group-hover:opacity-100 transition-opacity grayscale group-hover:grayscale-0"
+                      />
+                    : <div
+                        className="h-14 px-5 flex items-center justify-center rounded-xl text-sm font-bold text-white/40 group-hover:text-white/70 transition-colors border border-white/10"
+                        style={{ background: "rgba(255,255,255,0.04)" }}>
+                        {org.name}
+                      </div>
+                  }
+                  {org.logoUrl && (
+                    <span className="text-xs text-white/30 group-hover:text-white/50 transition-colors text-center">
+                      {org.name}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -461,11 +607,11 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
                 const chosen  = selectedSize[p.id] ?? "";
                 const price   = new Intl.NumberFormat("es-PA", { style:"currency", currency: p.currency, minimumFractionDigits:2 }).format(p.price);
                 const waMsg   = encodeURIComponent(
-                  `Hola ${dojo.name}! 👋\n\nEstoy interesado en:\n\n` +
-                  `📦 Producto: ${p.name}\n` +
-                  (chosen ? `👕 Talla: ${chosen}\n` : "") +
-                  `💰 Precio: ${price}\n\n` +
-                  `¿Podrían informarme sobre disponibilidad, forma de pago y entrega?`
+                  `Hola ${dojo.name}!\n\nEstoy interesado en:\n\n` +
+                  `Producto: ${p.name}\n` +
+                  (chosen ? `Talla: ${chosen}\n` : "") +
+                  `Precio: ${price}\n\n` +
+                  `Podrian informarme sobre disponibilidad, forma de pago y entrega?`
                 );
                 const waUrl = whatsapp ? `https://wa.me/${whatsapp}?text=${waMsg}` : "";
 
@@ -536,46 +682,9 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
         </section>
       )}
 
-      {/* ── Galería de atletas ── */}
+      {/* ── Galería de atletas — carrusel horizontal ── */}
       {gallery.length > 0 && (
-        <section id="atletas" className="py-24 px-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12">
-              <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: primary }}>
-                Galería
-              </p>
-              <h2 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
-                Formación de <span style={{ color: primary }}>Atletas</span>
-              </h2>
-              <p className="text-white/50 text-lg max-w-xl mx-auto">
-                Cada entrenamiento forja carácter. Conoce a los atletas que dan vida a nuestro dojo.
-              </p>
-            </div>
-
-            {/* Masonry grid */}
-            <div className="columns-2 md:columns-3 gap-3 space-y-3">
-              {gallery.map((url, i) => (
-                <div key={i}
-                  className="break-inside-avoid rounded-2xl overflow-hidden group relative cursor-zoom-in"
-                  style={{ marginBottom: "12px" }}
-                  onClick={() => setLightbox(url)}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
-                    alt={`Atleta ${i + 1}`}
-                    className="w-full h-auto object-cover block transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-2xl"
-                    style={{ background: `rgba(0,0,0,0.35)` }}>
-                    <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                      <Star size={18} className="text-white" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <GalleryCarousel gallery={gallery} primary={primary} onOpen={setLightbox} />
       )}
 
       {/* ── Ubicación ── */}

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { distributeParticipantsWithSeeds } from "@/lib/tournament-seeding";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -98,14 +99,28 @@ export async function POST(
   }
 
   try {
-    const participantIds = shuffle(bracket.participants.map((p) => p.id));
-    const bracketSize = nextPowerOf2(participantIds.length);
-    const totalRounds = Math.log2(bracketSize);
+    const bracketSize  = nextPowerOf2(bracket.participants.length);
+    const totalRounds  = Math.log2(bracketSize);
+
+    // Use seeding if any participant has a seed > 0, otherwise shuffle randomly
+    const hasSeeds = bracket.participants.some(p => p.seed > 0);
+
+    let orderedIds: string[];
+    if (hasSeeds) {
+      const distributed = distributeParticipantsWithSeeds(
+        bracket.participants.map(p => ({ id: p.id, seed: p.seed })),
+        bracketSize,
+      );
+      // distributed is sorted by position (1..bracketSize); fill gaps with nulls
+      orderedIds = distributed.map(d => d.id);
+    } else {
+      orderedIds = shuffle(bracket.participants.map(p => p.id));
+    }
 
     // Fill slots with participant IDs and nulls for byes
     const slots: (string | null)[] = [
-      ...participantIds,
-      ...Array(bracketSize - participantIds.length).fill(null),
+      ...orderedIds,
+      ...Array(bracketSize - orderedIds.length).fill(null),
     ];
 
     type MatchData = {

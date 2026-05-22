@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
   const now = new Date();
 
   // Ejecutar queries en paralelo — antes eran 3 roundtrips secuenciales
-  const [latePaymentsAgg, latePaymentsList, students] = await Promise.all([
+  const [latePaymentsAgg, latePaymentsList, newLeads, students] = await Promise.all([
     // ── 1a. Late payments: aggregate ─────────────────────────────
     prisma.payment.aggregate({
       where: { student: { dojoId }, status: "late" },
@@ -100,6 +100,11 @@ export async function GET(req: NextRequest) {
         id: true, amount: true, dueDate: true,
         student: { select: { id: true, fullName: true } },
       },
+    }),
+
+    // ── 2b. Leads no leídos (prospectos de clase de prueba) ──────────
+    prisma.freeTrialRequest.count({
+      where: { dojoId, read: false, status: "pending" },
     }),
 
     // ── 2. Active students with last entry attendance ─────────────
@@ -134,10 +139,12 @@ export async function GET(req: NextRequest) {
   const total =
     latePaymentsAgg._count +
     alertStudents.length +
-    riskStudents.length;
+    riskStudents.length +
+    (newLeads ?? 0);
 
   return NextResponse.json({
     total,
+    leads: { count: newLeads ?? 0 },
     latePayments: {
       count:    latePaymentsAgg._count,
       amount:   latePaymentsAgg._sum.amount ?? 0,

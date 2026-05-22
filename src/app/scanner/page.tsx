@@ -161,13 +161,19 @@ export default function ScannerPage() {
         () => { /* scan failures are normal between frames — ignore */ },
       ).catch((err: unknown) => {
         if (cancelled) return;
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
         console.error("[scanner] Camera start failed:", msg);
-        setCameraError(
-          msg.toLowerCase().includes("permission")
-            ? "Permisos de cámara denegados. Actívalos en la configuración del navegador."
-            : "No se pudo iniciar la cámara. Verifica que el navegador tenga acceso.",
-        );
+
+        if (msg.includes("dismissed")) {
+          // El usuario cerró el diálogo sin aceptar — solo hay que volver e intentar de nuevo
+          setCameraError("Toca «Activar Cámara» y acepta el permiso cuando el navegador lo solicite.");
+          setView("cameraReady");
+        } else if (msg.includes("permission") || msg.includes("notallowed") || msg.includes("not allowed")) {
+          // Permiso bloqueado en la configuración del navegador
+          setCameraError("Permisos de cámara denegados. Actívalos en la configuración del navegador.");
+        } else {
+          setCameraError("No se pudo iniciar la cámara. Verifica que el navegador tenga acceso.");
+        }
       });
     });
 
@@ -360,28 +366,37 @@ export default function ScannerPage() {
             <p className="font-display text-dojo-white text-xl font-bold">
               {selectedSchedule?.name ?? "Marcación Libre"}
             </p>
-            <p className="text-dojo-muted text-sm leading-relaxed max-w-xs">
-              Para escanear el código QR del alumno necesitamos acceso a la
-              <span className="text-dojo-white font-medium"> cámara trasera</span> del dispositivo.
-            </p>
-            <p className="text-dojo-muted/60 text-xs">
-              Solo se usará para leer códigos QR — no se graba ni almacena nada.
-            </p>
+            {cameraError ? (
+              <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-yellow-900/40 border border-yellow-700/50 max-w-xs mx-auto">
+                <AlertTriangle size={16} className="text-yellow-400 shrink-0 mt-0.5" />
+                <p className="text-yellow-200 text-sm leading-snug">{cameraError}</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-dojo-muted text-sm leading-relaxed max-w-xs">
+                  Para escanear el código QR del alumno necesitamos acceso a la
+                  <span className="text-dojo-white font-medium"> cámara trasera</span> del dispositivo.
+                </p>
+                <p className="text-dojo-muted/60 text-xs">
+                  Solo se usará para leer códigos QR — no se graba ni almacena nada.
+                </p>
+              </>
+            )}
           </div>
 
           {/* Main CTA */}
           <div className="w-full max-w-xs space-y-3">
             <button
-              onClick={() => setView("scanning")}
+              onClick={() => { setCameraError(""); setView("scanning"); }}
               className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-display font-bold text-lg tracking-wide transition-all active:scale-95"
               style={{ background: "#C0392B", color: "#fff", boxShadow: "0 4px 20px rgba(192,57,43,0.4)" }}
             >
               <QrCode size={22} />
-              Activar Cámara
+              {cameraError ? "Reintentar" : "Activar Cámara"}
             </button>
 
             <button
-              onClick={() => setView("scheduleSelection")}
+              onClick={() => { setCameraError(""); setView("scheduleSelection"); }}
               className="w-full py-3 rounded-xl text-dojo-muted text-sm hover:text-dojo-white transition-colors"
             >
               ← Volver a turnos
