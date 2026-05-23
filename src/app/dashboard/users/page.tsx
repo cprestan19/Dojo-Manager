@@ -38,21 +38,25 @@ const emptyForm = () => ({
 });
 
 export default function UsersPage() {
-  const [users,     setUsers]    = useState<User[]>([]);
-  const [loading,   setLoading]  = useState(true);
-  const [roles,     setRoles]    = useState<RoleOption[]>(SYSTEM_ROLES);
-  const [mode,      setMode]     = useState<ModalMode>("create");
-  const [modal,     setModal]    = useState(false);
-  const [form,      setForm]     = useState(emptyForm());
-  const [editId,    setEditId]   = useState<string | null>(null);
-  const [showPass,  setShow]     = useState(false);
-  const [saving,    setSaving]   = useState(false);
-  const [error,     setError]    = useState("");
-  const [toggling,  setToggling] = useState<string | null>(null);
-  const [deleting,  setDel]      = useState<string | null>(null);
-  const [uploading, setUploading]= useState(false);
-  const [photoErr,  setPhotoErr] = useState("");
+  const [users,      setUsers]     = useState<User[]>([]);
+  const [loading,    setLoading]   = useState(true);
+  const [roles,      setRoles]     = useState<RoleOption[]>(SYSTEM_ROLES);
+  const [filterRole, setFilterRole]= useState<string>("");
+  const [mode,       setMode]      = useState<ModalMode>("create");
+  const [modal,      setModal]     = useState(false);
+  const [form,       setForm]      = useState(emptyForm());
+  const [editId,     setEditId]    = useState<string | null>(null);
+  const [showPass,   setShow]      = useState(false);
+  const [saving,     setSaving]    = useState(false);
+  const [error,      setError]     = useState("");
+  const [toggling,   setToggling]  = useState<string | null>(null);
+  const [deleting,   setDel]       = useState<string | null>(null);
+  const [uploading,  setUploading] = useState(false);
+  const [photoErr,   setPhotoErr]  = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Usuarios filtrados por rol seleccionado (client-side, no toca la API ni permisos)
+  const visibleUsers = filterRole ? users.filter(u => u.role === filterRole) : users;
 
   const fetch_ = useCallback(async () => {
     setLoading(true);
@@ -198,29 +202,56 @@ export default function UsersPage() {
             <Shield size={24} className="text-dojo-red" /> Usuarios del Sistema
           </h1>
           <p className="text-dojo-muted text-sm mt-1">
-            {users.filter(u => u.active).length} activos · {users.filter(u => !u.active).length} inactivos
+            {visibleUsers.filter(u => u.active).length} activos · {visibleUsers.filter(u => !u.active).length} inactivos
+            {filterRole && ` · filtrado por rol`}
           </p>
         </div>
         <button onClick={openCreate} className="btn-primary"><Plus size={18} /> Nuevo Usuario</button>
       </div>
 
-      {/* Role legend */}
-      <div className="flex flex-wrap gap-3">
-        {roles.filter(r => r.roleName !== "student").map(r => (
-          <div key={r.roleName} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dojo-card border border-dojo-border">
-            <span className={BADGE[r.roleName] ?? "badge-blue"}>{r.roleLabel}</span>
-            {!r.isSystem && <span className="text-xs text-dojo-muted italic">Personalizado</span>}
-          </div>
-        ))}
+      {/* Filtro por rol */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setFilterRole("")}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+            filterRole === ""
+              ? "bg-dojo-red/20 border-dojo-red text-dojo-white"
+              : "bg-dojo-card border-dojo-border text-dojo-muted hover:text-dojo-white hover:border-dojo-border/80"
+          }`}
+        >
+          Todos
+          <span className="text-xs font-bold tabular-nums">{users.length}</span>
+        </button>
+        {roles.filter(r => r.roleName !== "student").map(r => {
+          const count = users.filter(u => u.role === r.roleName).length;
+          const isActive = filterRole === r.roleName;
+          return (
+            <button
+              key={r.roleName}
+              onClick={() => setFilterRole(isActive ? "" : r.roleName)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-dojo-red/20 border-dojo-red text-dojo-white"
+                  : "bg-dojo-card border-dojo-border text-dojo-muted hover:text-dojo-white hover:border-dojo-border/80"
+              }`}
+            >
+              <span className={BADGE[r.roleName] ?? "badge-blue"}>{r.roleLabel}</span>
+              {!r.isSystem && <span className="text-xs text-dojo-muted italic">Custom</span>}
+              <span className="text-xs font-bold tabular-nums">{count}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Mobile: card list ── */}
       <div className="block sm:hidden space-y-2">
         {loading && <p className="text-center py-10 text-dojo-muted text-sm">Cargando...</p>}
-        {!loading && users.length === 0 && (
-          <p className="text-center py-10 text-dojo-muted text-sm">No hay usuarios.</p>
+        {!loading && visibleUsers.length === 0 && (
+          <p className="text-center py-10 text-dojo-muted text-sm">
+            {filterRole ? "No hay usuarios con ese rol." : "No hay usuarios."}
+          </p>
         )}
-        {users.map(u => (
+        {visibleUsers.map(u => (
           <div key={u.id} className={`card p-3 space-y-2.5 ${!u.active ? "opacity-60" : ""}`}>
             {/* Row 1: avatar + name + actions */}
             <div className="flex items-center gap-3">
@@ -281,10 +312,12 @@ export default function UsersPage() {
             </thead>
             <tbody>
               {loading && <tr><td colSpan={7} className="text-center py-12 text-dojo-muted">Cargando...</td></tr>}
-              {!loading && users.length === 0 && (
-                <tr><td colSpan={7} className="text-center py-12 text-dojo-muted">No hay usuarios.</td></tr>
+              {!loading && visibleUsers.length === 0 && (
+                <tr><td colSpan={7} className="text-center py-12 text-dojo-muted">
+                  {filterRole ? "No hay usuarios con ese rol." : "No hay usuarios."}
+                </td></tr>
               )}
-              {users.map(u => (
+              {visibleUsers.map(u => (
                 <tr key={u.id} className={`border-b border-dojo-border/40 hover:bg-dojo-border/10 ${!u.active ? "opacity-60" : ""}`}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
