@@ -8,6 +8,7 @@ interface ScanResult {
   type:        "success" | "already" | "not-enrolled" | "error";
   studentName: string;
   belt?:       string;
+  arrivedAt?:  string | null;
   message?:    string;
 }
 
@@ -27,6 +28,7 @@ export default function TournamentEventScanPage() {
 
   const scannerRef      = useRef<Html5QrcodeType | null>(null);
   const isProcessingRef = useRef(false);
+  const manualBusyRef   = useRef(false); // guard contra doble envío en entrada manual
 
   // Cargar datos básicos del evento
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function TournamentEventScanPage() {
           setLastResult({ type: "error", studentName: "", message: data.error ?? "QR no válido para este torneo" });
         }
       } else if (data.alreadyArrived) {
-        setLastResult({ type: "already", studentName: data.studentName, belt: data.belt });
+        setLastResult({ type: "already", studentName: data.studentName, belt: data.belt, arrivedAt: data.arrivedAt });
       } else {
         setLastResult({ type: "success", studentName: data.studentName, belt: data.belt });
         setArrivedCount(n => n + 1);
@@ -76,9 +78,11 @@ export default function TournamentEventScanPage() {
 
   // Entrada manual de ID o código numérico
   const handleManual = useCallback(async () => {
+    if (manualBusyRef.current) return; // prevenir doble envío
     const val = manualInput.trim();
     if (!val) { setManualError("Ingresa el ID o código del alumno"); return; }
     setManualError("");
+    manualBusyRef.current = true;
     setManualLoading(true);
     try { await scannerRef.current?.pause(true); } catch { /* ok */ }
 
@@ -98,7 +102,7 @@ export default function TournamentEventScanPage() {
           setLastResult({ type: "error", studentName: "", message: data.error ?? "ID no válido para este torneo" });
         }
       } else if (data.alreadyArrived) {
-        setLastResult({ type: "already", studentName: data.studentName, belt: data.belt });
+        setLastResult({ type: "already", studentName: data.studentName, belt: data.belt, arrivedAt: data.arrivedAt });
       } else {
         setLastResult({ type: "success", studentName: data.studentName, belt: data.belt });
         setArrivedCount(n => n + 1);
@@ -108,6 +112,7 @@ export default function TournamentEventScanPage() {
     } catch {
       setManualError("Error de conexión");
     } finally {
+      manualBusyRef.current = false;
       setManualLoading(false);
       try { scannerRef.current?.resume(); } catch { /* ok */ }
     }
@@ -116,7 +121,7 @@ export default function TournamentEventScanPage() {
   // Cuenta regresiva para limpiar el resultado
   useEffect(() => {
     if (!lastResult) { setCountdown(0); return; }
-    const secs = lastResult.type === "success" ? 4 : 3;
+    const secs = lastResult.type === "success" ? 4 : lastResult.type === "already" ? 5 : 3;
     setCountdown(secs);
     const iv = setInterval(() => setCountdown(n => {
       if (n <= 1) {
@@ -173,16 +178,25 @@ export default function TournamentEventScanPage() {
   const pct = totalCount > 0 ? Math.round((arrivedCount / totalCount) * 100) : 0;
 
   const resultBg: Record<ScanResult["type"], string> = {
-    success:      "#064e3b",
-    already:      "#451a03",
+    success:        "#064e3b",
+    already:        "#78350f",   // ámbar oscuro — llamativo y distinto al éxito
     "not-enrolled": "#1e1b4b",
-    error:        "#450a0a",
+    error:          "#450a0a",
+  };
+  const resultBorder: Record<ScanResult["type"], string> = {
+    success:        "rgba(34,197,94,0.4)",
+    already:        "#f59e0b",   // borde ámbar brillante — inconfundible
+    "not-enrolled": "rgba(99,102,241,0.4)",
+    error:          "rgba(239,68,68,0.4)",
   };
   const resultIcon: Record<ScanResult["type"], string> = {
-    success: "✅", already: "⚠️", "not-enrolled": "🔕", error: "❌",
+    success: "✅", already: "🚫", "not-enrolled": "🔕", error: "❌",
   };
   const resultTitle: Record<ScanResult["type"], string> = {
-    success: "¡Llegada registrada!", already: "Ya estaba registrado", "not-enrolled": "No inscrito en este torneo", error: "QR no válido",
+    success:        "¡Llegada registrada!",
+    already:        "YA FUE REGISTRADO HOY",
+    "not-enrolled": "No inscrito en este torneo",
+    error:          "QR no válido",
   };
 
   return (
@@ -286,16 +300,26 @@ export default function TournamentEventScanPage() {
           {/* Resultado del último scan */}
           {lastResult && (
             <div className="mt-4 rounded-2xl p-4 transition-all"
-              style={{ background: resultBg[lastResult.type], border: "1px solid rgba(255,255,255,0.1)" }}>
+              style={{ background: resultBg[lastResult.type], border: `2px solid ${resultBorder[lastResult.type]}` }}>
               <div className="flex items-start gap-3">
                 <span className="text-3xl leading-none">{resultIcon[lastResult.type]}</span>
                 <div className="flex-1">
-                  <p className="font-bold text-white text-sm">{resultTitle[lastResult.type]}</p>
+                  <p className={`font-bold text-sm ${lastResult.type === "already" ? "text-yellow-300 text-base" : "text-white"}`}>
+                    {resultTitle[lastResult.type]}
+                  </p>
                   {lastResult.studentName && (
                     <p className="text-white font-bold text-lg mt-0.5">{lastResult.studentName}</p>
                   )}
                   {lastResult.belt && <p className="text-white/60 text-xs">{lastResult.belt}</p>}
-                  {lastResult.message && (
+                  {lastResult.type === "already" && lastResult.arrivedAt && (
+                    <p className="text-yellow-200 text-xs mt-1 font-semibold">
+                      Registrado a las {new Date(lastResult.arrivedAt).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  )}
+                  {lastResult.type === "already" && (
+                    <p className="text-yellow-200/70 text-xs mt-0.5">No se puede registrar dos veces el mismo día.</p>
+                  )}
+                  {lastResult.message && lastResult.type !== "already" && (
                     <p className="text-white/60 text-xs mt-0.5">{lastResult.message}</p>
                   )}
                 </div>
