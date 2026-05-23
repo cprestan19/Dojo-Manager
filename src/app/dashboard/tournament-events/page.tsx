@@ -91,7 +91,7 @@ function MedalGroup({ emoji, label, color, bg, students, medalKey }: MedalGroupP
 
 /* ── función de impresión ─────────────────────────────────────────── */
 
-function printMedalStats(stats: TEventStats) {
+function printMedalStats(stats: TEventStats, events: TEventSummary[]) {
   const today = new Date().toLocaleDateString("es-PA", { day: "numeric", month: "long", year: "numeric" });
 
   const goldList   = stats.students.filter(s => s.gold > 0)
@@ -132,6 +132,13 @@ function printMedalStats(stats: TEventStats) {
       </table>`;
   }
 
+  const tournamentLines = events
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .map(e => {
+      const d = new Date(e.date).toLocaleDateString("es-PA", { day: "numeric", month: "short", year: "numeric" });
+      return `<li style="margin-bottom:2px">${e.name} <span style="color:#aaa;font-size:11px">(${d})</span></li>`;
+    }).join("");
+
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -141,7 +148,9 @@ function printMedalStats(stats: TEventStats) {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Nunito', Arial, sans-serif; padding: 28px; color: #1a1a1a; }
     h1 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
-    .date { font-size: 12px; color: #888; margin-bottom: 20px; }
+    .tournaments { font-size: 12px; color: #555; margin-bottom: 4px; }
+    .tournaments ul { list-style: none; padding-left: 8px; margin-top: 4px; }
+    .date { font-size: 11px; color: #aaa; margin-bottom: 20px; margin-top: 4px; }
     .medals { display: flex; gap: 14px; margin-bottom: 24px; }
     .medal-card { flex: 1; text-align: center; padding: 16px 8px; border-radius: 12px; }
     .medal-card .emoji { font-size: 26px; }
@@ -154,7 +163,12 @@ function printMedalStats(stats: TEventStats) {
   </style>
 </head>
 <body>
-  <h1>🏆 Estadísticas de Medallas — Torneos</h1>
+  <h1>🏆 Estadísticas de Medallas</h1>
+  ${events.length > 0 ? `
+  <div class="tournaments">
+    <strong>Torneos incluidos:</strong>
+    <ul>${tournamentLines}</ul>
+  </div>` : ""}
   <p class="date">Generado el ${today}</p>
 
   <div class="medals">
@@ -297,9 +311,9 @@ export default function TournamentEventsPage() {
               Estadísticas de Torneos
             </h2>
             <div className="flex items-center gap-2">
-              {stats && stats.students.length > 0 && (
+              {stats && !loadingStats && (
                 <button
-                  onClick={() => printMedalStats(stats)}
+                  onClick={() => printMedalStats(stats, events)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-dojo-darker border border-dojo-border text-dojo-muted hover:text-dojo-white transition-colors"
                   title="Imprimir PDF"
                 >

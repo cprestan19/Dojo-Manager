@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         FROM tournament_event_participants p
         INNER JOIN students s ON s.id = p.student_id AND s.active = true AND s.dojo_id = ${dojoId}
         WHERE p.event_id = ANY(${ids}::text[])
-          AND (p.kata_result IS NOT NULL OR p.kumite_result IS NOT NULL)
+          AND (NULLIF(p.kata_result, '') IS NOT NULL OR NULLIF(p.kumite_result, '') IS NOT NULL)
         GROUP BY p.event_id
       `
     : [];

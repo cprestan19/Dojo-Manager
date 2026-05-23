@@ -1,9 +1,227 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, QrCode, Search, Check, X, ChevronRight, Pencil } from "lucide-react";
+import { ArrowLeft, QrCode, Search, Check, X, ChevronRight, Pencil, Printer } from "lucide-react";
 import { KATA_OPTIONS, RESULT_OPTIONS, type TEventDetail, type TEventParticipant } from "@/lib/tournament-events";
 import { getBeltInfo } from "@/lib/utils";
+
+function printParticipantList(data: TEventDetail) {
+  const dateStr = new Date(data.date).toLocaleDateString("es-PA", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+  const today = new Date().toLocaleDateString("es-PA", { day: "numeric", month: "long", year: "numeric" });
+
+  const rows = data.participants.map((p, i) => {
+    const arrived  = p.arrived
+      ? `<span style="color:#16a34a;font-weight:700">✓ Presente</span>`
+      : `<span style="color:#9ca3af">Pendiente</span>`;
+    const result = (p.kataResult || p.kumiteResult)
+      ? `<span style="color:#b45309">🏅 ${[p.kataResult, p.kumiteResult].filter(Boolean).join(" · ")}</span>`
+      : "—";
+    return `
+      <tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"}">
+        <td style="padding:6px 8px;text-align:center;color:#6b7280;font-size:11px">${i + 1}</td>
+        <td style="padding:6px 8px;font-family:monospace;font-size:12px;color:#92400e;font-weight:700">${p.studentCode ? `#${p.studentCode}` : "—"}</td>
+        <td style="padding:6px 8px;font-weight:600">${p.fullName}</td>
+        <td style="padding:6px 8px;color:#555;font-size:12px">${p.belt || "—"}</td>
+        <td style="padding:6px 8px;text-align:center;color:#555;font-size:12px">${p.age > 0 ? `${p.age} a.` : "—"}</td>
+        <td style="padding:6px 8px;font-size:12px">${arrived}</td>
+        <td style="padding:6px 8px;font-size:11px;color:#6b7280">${p.category || "—"}</td>
+        <td style="padding:6px 8px;font-size:11px">${result}</td>
+      </tr>`;
+  }).join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>${data.name} — Lista de Participantes</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; padding: 24px; color: #1a1a1a; font-size: 13px; }
+    h1 { font-size: 18px; font-weight: 800; margin-bottom: 2px; }
+    .sub { font-size: 12px; color: #555; margin-bottom: 4px; }
+    .meta { font-size: 11px; color: #888; margin-bottom: 18px; }
+    .stats { display: flex; gap: 16px; margin-bottom: 18px; }
+    .stat { background: #f3f4f6; border-radius: 8px; padding: 10px 16px; text-align: center; }
+    .stat .n { font-size: 22px; font-weight: 900; }
+    .stat .l { font-size: 10px; color: #6b7280; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead tr { background: #f0f0f0; }
+    th { padding: 6px 8px; text-align: left; font-weight: 700; font-size: 11px; color: #333; }
+    td { border-bottom: 1px solid #f0f0f0; }
+    @media print { body { padding: 12px; } }
+  </style>
+</head>
+<body>
+  <h1>🏆 ${data.name}</h1>
+  <p class="sub">📍 ${data.location} &nbsp;·&nbsp; 📅 ${dateStr}</p>
+  <p class="meta">Generado el ${today}</p>
+  <div class="stats">
+    <div class="stat"><div class="n">${data.totalStudents}</div><div class="l">Inscritos</div></div>
+    <div class="stat" style="color:#16a34a"><div class="n" style="color:#16a34a">${data.arrivedCount}</div><div class="l" style="color:#555">Llegaron</div></div>
+    <div class="stat"><div class="n" style="color:#9ca3af">${data.totalStudents - data.arrivedCount}</div><div class="l">Pendientes</div></div>
+    <div class="stat"><div class="n" style="color:#b45309">${data.resultsCount}</div><div class="l">Con resultado</div></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>ID</th><th>Alumno</th><th>Cinta</th>
+        <th>Edad</th><th>Asistencia</th><th>Categoría</th><th>Resultado</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+}
+
+function parseMedal(result: string | null): "gold" | "silver" | "bronze" | null {
+  if (!result) return null;
+  if (result.includes("Oro"))    return "gold";
+  if (result.includes("Plata"))  return "silver";
+  if (result.includes("Bronce")) return "bronze";
+  return null;
+}
+
+function printEventStats(data: TEventDetail) {
+  const dateStr = new Date(data.date).toLocaleDateString("es-PA", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+  const today = new Date().toLocaleDateString("es-PA", { day: "numeric", month: "long", year: "numeric" });
+
+  type MedalEntry = { fullName: string; studentCode: number | null; belt: string; age: number; categories: string[]; gold: number; silver: number; bronze: number };
+  const map = new Map<string, MedalEntry>();
+
+  for (const p of data.participants) {
+    if (!map.has(p.studentId)) {
+      map.set(p.studentId, { fullName: p.fullName, studentCode: p.studentCode, belt: p.belt, age: p.age, categories: [], gold: 0, silver: 0, bronze: 0 });
+    }
+    const e = map.get(p.studentId)!;
+    if (p.category?.trim() && !e.categories.includes(p.category.trim())) e.categories.push(p.category.trim());
+    for (const r of [p.kataResult, p.kumiteResult]) {
+      const m = parseMedal(r);
+      if (m === "gold")   e.gold++;
+      if (m === "silver") e.silver++;
+      if (m === "bronze") e.bronze++;
+    }
+  }
+
+  const all = [...map.values()].filter(e => e.gold + e.silver + e.bronze > 0);
+  const goldList   = all.filter(e => e.gold > 0)  .sort((a, b) => b.gold - a.gold   || b.silver - a.silver || b.bronze - a.bronze);
+  const silverList = all.filter(e => e.gold === 0 && e.silver > 0).sort((a, b) => b.silver - a.silver || b.bronze - a.bronze);
+  const bronzeList = all.filter(e => e.gold === 0 && e.silver === 0 && e.bronze > 0).sort((a, b) => b.bronze - a.bronze);
+
+  const totalGold   = all.reduce((s, e) => s + e.gold,   0);
+  const totalSilver = all.reduce((s, e) => s + e.silver, 0);
+  const totalBronze = all.reduce((s, e) => s + e.bronze, 0);
+
+  function rows(list: MedalEntry[]) {
+    return list.map((e, i) => `
+      <tr style="background:${i % 2 === 0 ? "#fff" : "#f9f9f9"}">
+        <td style="padding:7px 10px;font-family:monospace;font-size:12px;color:#92400e;font-weight:700">${e.studentCode ? `#${e.studentCode}` : "—"}</td>
+        <td style="padding:7px 10px;font-weight:600">${e.fullName}</td>
+        <td style="padding:7px 10px;color:#555;font-size:12px">${e.belt || "—"}</td>
+        <td style="padding:7px 10px;color:#555;text-align:center;font-size:12px">${e.age > 0 ? `${e.age} años` : "—"}</td>
+        <td style="padding:7px 10px;color:#555;font-size:12px">${e.categories.length > 0 ? e.categories.join(", ") : "—"}</td>
+        <td style="padding:7px 10px;text-align:center">
+          ${e.gold   > 0 ? `🥇 ${e.gold}  ` : ""}${e.silver > 0 ? `🥈 ${e.silver}  ` : ""}${e.bronze > 0 ? `🥉 ${e.bronze}` : ""}
+        </td>
+      </tr>`).join("");
+  }
+
+  function section(emoji: string, label: string, color: string, list: MedalEntry[]) {
+    if (list.length === 0) return "";
+    return `
+      <h3 style="color:${color};margin:22px 0 8px;font-size:15px">${emoji} ${label} <span style="font-size:12px;color:#888">(${list.length} alumno${list.length !== 1 ? "s" : ""})</span></h3>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:6px">
+        <thead>
+          <tr style="background:#f0f0f0;color:#333">
+            <th style="padding:7px 10px;text-align:left">ID</th>
+            <th style="padding:7px 10px;text-align:left">Alumno</th>
+            <th style="padding:7px 10px;text-align:left">Cinta</th>
+            <th style="padding:7px 10px;text-align:center">Edad</th>
+            <th style="padding:7px 10px;text-align:left">Categoría</th>
+            <th style="padding:7px 10px;text-align:center">Medallas</th>
+          </tr>
+        </thead>
+        <tbody>${rows(list)}</tbody>
+      </table>`;
+  }
+
+  const noMedals = all.length === 0
+    ? `<p style="color:#888;font-size:13px;margin-top:20px">No hay resultados con medallas registrados para este torneo.</p>`
+    : "";
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Estadísticas — ${data.name}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Nunito', Arial, sans-serif; padding: 28px; color: #1a1a1a; }
+    h1 { font-size: 20px; font-weight: 800; margin-bottom: 2px; }
+    .sub { font-size: 12px; color: #555; margin-bottom: 2px; }
+    .date { font-size: 11px; color: #aaa; margin-bottom: 20px; }
+    .medals { display: flex; gap: 14px; margin-bottom: 24px; }
+    .medal-card { flex: 1; text-align: center; padding: 16px 8px; border-radius: 12px; }
+    .medal-card .emoji { font-size: 26px; }
+    .medal-card .count { font-size: 28px; font-weight: 900; margin: 4px 0; }
+    .medal-card .lbl { font-size: 11px; color: #666; font-weight: 600; }
+    .gold-card   { background: #fffbeb; border: 1px solid #fde68a; }
+    .silver-card { background: #f9fafb; border: 1px solid #e5e7eb; }
+    .bronze-card { background: #fff7ed; border: 1px solid #fed7aa; }
+    @media print { body { padding: 14px; } }
+  </style>
+</head>
+<body>
+  <h1>🏆 ${data.name}</h1>
+  <p class="sub">📍 ${data.location} &nbsp;·&nbsp; 📅 ${dateStr}</p>
+  <p class="date">Estadísticas de Medallas · Generado el ${today}</p>
+
+  <div class="medals">
+    <div class="medal-card gold-card">
+      <div class="emoji">🥇</div>
+      <div class="count" style="color:#b45309">${totalGold}</div>
+      <div class="lbl">Medallas de Oro</div>
+    </div>
+    <div class="medal-card silver-card">
+      <div class="emoji">🥈</div>
+      <div class="count" style="color:#6b7280">${totalSilver}</div>
+      <div class="lbl">Medallas de Plata</div>
+    </div>
+    <div class="medal-card bronze-card">
+      <div class="emoji">🥉</div>
+      <div class="count" style="color:#c2410c">${totalBronze}</div>
+      <div class="lbl">Medallas de Bronce</div>
+    </div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin-bottom:18px">
+
+  ${noMedals}
+  ${section("🥇", "Con Medalla de Oro",    "#b45309", goldList)}
+  ${section("🥈", "Con Medalla de Plata",  "#6b7280", silverList)}
+  ${section("🥉", "Con Medalla de Bronce", "#c2410c", bronzeList)}
+
+  <script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+}
 
 export default function TournamentEventDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -149,11 +367,29 @@ export default function TournamentEventDetailPage() {
           <p className="text-dojo-muted text-sm mt-0.5 capitalize">{dateStr}</p>
           <p className="text-dojo-muted text-xs">{data.location}</p>
         </div>
-        <a href={`/dashboard/tournament-events/${id}/scan`}
-          className="shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl text-white"
-          style={{ background: "#C0392B" }}>
-          <QrCode size={14} /> Escanear QR
-        </a>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => data && printParticipantList(data)}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-dojo-card border border-dojo-border text-dojo-muted hover:text-dojo-white transition-colors"
+            title="Imprimir lista de participantes"
+          >
+            <Printer size={14} />
+            <span className="hidden sm:inline">Lista</span>
+          </button>
+          <button
+            onClick={() => data && printEventStats(data)}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-dojo-gold/10 border border-dojo-gold/30 text-dojo-gold hover:bg-dojo-gold/20 transition-colors"
+            title="Imprimir estadísticas de medallas"
+          >
+            <Printer size={14} />
+            <span className="hidden sm:inline">Estadísticas</span>
+          </button>
+          <a href={`/dashboard/tournament-events/${id}/scan`}
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl text-white"
+            style={{ background: "#C0392B" }}>
+            <QrCode size={14} /> <span className="hidden sm:inline">Escanear QR</span><span className="sm:hidden">QR</span>
+          </a>
+        </div>
       </div>
 
       {/* Stats — clicables */}
@@ -262,7 +498,12 @@ export default function TournamentEventDetailPage() {
                   }
                   {hasResult && <span className="text-xs bg-dojo-gold/20 text-dojo-gold px-1.5 py-0.5 rounded-full">Resultado</span>}
                 </div>
-                <div className="flex items-center gap-3 mt-0.5">
+                <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                  {p.studentCode && (
+                    <span className="text-xs font-mono font-bold text-dojo-gold bg-dojo-gold/10 px-1.5 py-0.5 rounded leading-none">
+                      #{p.studentCode}
+                    </span>
+                  )}
                   {bInfo && (
                     <span className="flex items-center gap-1 text-xs text-dojo-muted">
                       <span className="w-2 h-2 rounded-full border border-white/20" style={{ backgroundColor: bInfo.hex }} />
