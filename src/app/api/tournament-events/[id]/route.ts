@@ -81,7 +81,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     notes:         event.notes,
     totalStudents: participants.length,
     arrivedCount:  participants.filter(p => p.arrived).length,
-    resultsCount:  participants.filter(p => p.kataResult).length,
+    resultsCount:  participants.filter(p => p.kataResult || p.kumiteResult).length,
     participants,
   });
 }
