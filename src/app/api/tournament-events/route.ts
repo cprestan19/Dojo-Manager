@@ -26,23 +26,29 @@ export async function GET(req: NextRequest) {
 
   // Contar cuántos llegaron y cuántos tienen resultado
   const ids = events.map(e => e.id);
-  const arrived = ids.length > 0 ? await prisma.tournamentEventParticipant.groupBy({
-    by:    ["eventId"],
-    where: { eventId: { in: ids }, arrived: true },
-    _count: { eventId: true },
-  }) : [];
-  // Cuenta participantes con kataResult O kumiteResult — $queryRaw por OR compuesto
+  // Ambas queries excluyen alumnos inactivos — igual que el detalle del evento
+  const rawArrived: { event_id: string; cnt: bigint }[] = ids.length > 0
+    ? await prisma.$queryRaw`
+        SELECT p.event_id, COUNT(*) AS cnt
+        FROM tournament_event_participants p
+        INNER JOIN students s ON s.id = p.student_id AND s.active = true AND s.dojo_id = ${dojoId}
+        WHERE p.event_id = ANY(${ids}::text[])
+          AND p.arrived = true
+        GROUP BY p.event_id
+      `
+    : [];
   const rawResults: { event_id: string; cnt: bigint }[] = ids.length > 0
     ? await prisma.$queryRaw`
-        SELECT event_id, COUNT(*) AS cnt
-        FROM tournament_event_participants
-        WHERE event_id = ANY(${ids}::text[])
-          AND (kata_result IS NOT NULL OR kumite_result IS NOT NULL)
-        GROUP BY event_id
+        SELECT p.event_id, COUNT(*) AS cnt
+        FROM tournament_event_participants p
+        INNER JOIN students s ON s.id = p.student_id AND s.active = true AND s.dojo_id = ${dojoId}
+        WHERE p.event_id = ANY(${ids}::text[])
+          AND (p.kata_result IS NOT NULL OR p.kumite_result IS NOT NULL)
+        GROUP BY p.event_id
       `
     : [];
 
-  const arrivedMap  = Object.fromEntries(arrived.map(a => [a.eventId, a._count.eventId]));
+  const arrivedMap  = Object.fromEntries(rawArrived.map(r => [r.event_id, Number(r.cnt)]));
   const resultsMap  = Object.fromEntries(rawResults.map(r => [r.event_id, Number(r.cnt)]));
 
   return NextResponse.json(events.map(e => ({
