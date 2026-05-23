@@ -132,9 +132,17 @@ export function resolvePermissions(
   dbRecord?: { permissions: unknown } | null,
 ): Set<NavKey> {
   if (role === "sysadmin") return new Set([...ALL_DOJO_KEYS, NAV_KEYS.DOJOS, NAV_KEYS.AUDIT_LOG]);
-  if (dbRecord?.permissions) {
-    const raw = dbRecord.permissions;
-    if (Array.isArray(raw)) return new Set(raw as NavKey[]);
+
+  let perms: Set<NavKey>;
+  if (dbRecord?.permissions && Array.isArray(dbRecord.permissions)) {
+    perms = new Set(dbRecord.permissions as NavKey[]);
+  } else {
+    perms = new Set(DEFAULT_PERMISSIONS[role] ?? DEFAULT_PERMISSIONS.user);
   }
-  return new Set(DEFAULT_PERMISSIONS[role] ?? DEFAULT_PERMISSIONS.user);
+
+  // El rol "user" nunca puede ver Dashboard — se elimina incluso si está
+  // guardado explícitamente en DojoRolePermission (sin modificar la BD)
+  if (role === "user") perms.delete(NAV_KEYS.DASHBOARD);
+
+  return perms;
 }
