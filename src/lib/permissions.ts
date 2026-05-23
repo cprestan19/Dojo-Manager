@@ -72,7 +72,7 @@ export const DEFAULT_PERMISSIONS: Record<string, NavKey[]> = {
   sysadmin: [...ALL_DOJO_KEYS, NAV_KEYS.DOJOS],
   admin:    ADMIN_KEYS,
   user: [
-    NAV_KEYS.DASHBOARD,
+    // DASHBOARD excluido: el rol user no ve el inicio/métricas
     // STUDENTS: solo admin/sysadmin — el rol user no ve alumnos
     NAV_KEYS.ATTENDANCE,
     NAV_KEYS.TOURNAMENT_EVENTS,
