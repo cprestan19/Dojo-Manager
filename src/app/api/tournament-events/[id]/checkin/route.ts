@@ -55,13 +55,13 @@ export async function POST(req: NextRequest, { params }: Params) {
   });
 
   if (!participant) {
-    // Podría ser un alumno del dojo pero no inscrito
+    // Podría ser un alumno del dojo pero no inscrito (verificar también que esté activo)
     const student = await prisma.student.findFirst({
-      where:  { id: studentId, dojoId },
+      where:  { id: studentId, dojoId, active: true },
       select: { id: true, fullName: true },
     });
     if (!student)
-      return NextResponse.json({ error: "Alumno no pertenece a este dojo" }, { status: 403 });
+      return NextResponse.json({ error: "Alumno no encontrado, inactivo o no pertenece a este dojo" }, { status: 403 });
     return NextResponse.json({
       error:       "Alumno no está inscrito en este torneo",
       studentName: student.fullName,

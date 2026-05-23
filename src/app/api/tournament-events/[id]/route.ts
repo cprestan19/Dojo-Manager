@@ -27,16 +27,19 @@ export async function GET(req: NextRequest, { params }: Params) {
   });
   if (!event) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
 
-  // Cargar datos de los alumnos en una query
+  // Cargar solo alumnos ACTIVOS — los inactivos no aparecen en ningún módulo
   const studentIds = event.participants.map(p => p.studentId);
   const students   = await prisma.student.findMany({
-    where:  { id: { in: studentIds }, dojoId },
+    where:  { id: { in: studentIds }, dojoId, active: true },
     select: { id: true, fullName: true, birthDate: true, studentCode: true, photo: true,
               beltHistory: { orderBy: { changeDate: "desc" }, take: 1, select: { beltColor: true } } },
   });
   const sMap = Object.fromEntries(students.map(s => [s.id, s]));
 
-  const participants = event.participants.map(p => {
+  // Filtrar participantes cuyo alumno está inactivo (sMap solo tiene activos)
+  const participants = event.participants
+    .filter(p => sMap[p.studentId])   // excluir inactivos
+    .map(p => {
     const s = sMap[p.studentId];
     return {
       participantId:    p.id,
