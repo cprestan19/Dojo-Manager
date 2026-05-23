@@ -73,12 +73,11 @@ export const DEFAULT_PERMISSIONS: Record<string, NavKey[]> = {
   admin:    ADMIN_KEYS,
   user: [
     NAV_KEYS.DASHBOARD,
-    NAV_KEYS.STUDENTS,
+    // STUDENTS: solo admin/sysadmin — el rol user no ve alumnos
     NAV_KEYS.ATTENDANCE,
     NAV_KEYS.TOURNAMENT_EVENTS,
     NAV_KEYS.BELTS,
     NAV_KEYS.SCHEDULES,
-    // TOURNAMENTS: solo admin/sysadmin (Torneo Pro)
   ],
 };
 
