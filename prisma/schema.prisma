@@ -1145,6 +1145,7 @@ model TournamentEventParticipant {
   scannedBy String?   @map("scanned_by")   // nombre del usuario que escaneó
 
   // ── Resultados ─────────────────────────────────────────────────
+  category     String? @map("category")        // categoría de competencia (ej: "Cadete -57kg")
   kataName     String? @map("kata_name")       // kata ejecutado
   kataResult   String? @map("kata_result")     // ej: "1° Lugar", "Medalla de Oro"
   kumiteResult String? @map("kumite_result")   // ej: "Medalla de Bronce"
@@ -1162,5 +1163,7 @@ model TournamentEventParticipant {
   @@unique([eventId, studentId])
   @@index([eventId])
   @@index([studentId])
+  @@index([eventId, arrived])
+  @@index([eventId, kataResult])
   @@map("tournament_event_participants")
 }

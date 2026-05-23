@@ -31,14 +31,19 @@ export async function GET(req: NextRequest) {
     where: { eventId: { in: ids }, arrived: true },
     _count: { eventId: true },
   }) : [];
-  const results = ids.length > 0 ? await prisma.tournamentEventParticipant.groupBy({
-    by:    ["eventId"],
-    where: { eventId: { in: ids }, kataResult: { not: null } },
-    _count: { eventId: true },
-  }) : [];
+  // Cuenta participantes con kataResult O kumiteResult — $queryRaw por OR compuesto
+  const rawResults: { event_id: string; cnt: bigint }[] = ids.length > 0
+    ? await prisma.$queryRaw`
+        SELECT event_id, COUNT(*) AS cnt
+        FROM tournament_event_participants
+        WHERE event_id = ANY(${ids}::text[])
+          AND (kata_result IS NOT NULL OR kumite_result IS NOT NULL)
+        GROUP BY event_id
+      `
+    : [];
 
-  const arrivedMap  = Object.fromEntries(arrived.map(a  => [a.eventId, a._count.eventId]));
-  const resultsMap  = Object.fromEntries(results.map(r  => [r.eventId, r._count.eventId]));
+  const arrivedMap  = Object.fromEntries(arrived.map(a => [a.eventId, a._count.eventId]));
+  const resultsMap  = Object.fromEntries(rawResults.map(r => [r.event_id, Number(r.cnt)]));
 
   return NextResponse.json(events.map(e => ({
     id:            e.id,

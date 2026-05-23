@@ -147,7 +147,7 @@ export default function NewTournamentEventPage() {
             <input className="form-input" placeholder="Ej: Copa Nacional FEPAKA 2025"
               value={form.name} onChange={e => setField("name", e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="form-label">Fecha del Evento *</label>
               <input type="datetime-local" className="form-input"
@@ -196,8 +196,8 @@ export default function NewTournamentEventPage() {
               <input className="form-input pl-8" placeholder="Buscar por nombre..."
                 value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="col-span-2 sm:col-span-1">
                 <label className="form-label">Cinta</label>
                 <select className="form-input" value={beltFilter} onChange={e => setBeltFilter(e.target.value)}>
                   <option value="">Todas</option>

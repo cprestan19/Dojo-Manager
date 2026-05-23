@@ -44,6 +44,7 @@ export interface TEventParticipant {
   arrived:         boolean;
   arrivedAt:       string | null;
   scannedBy:       string | null;
+  category:        string | null;
   kataName:        string | null;
   kataResult:      string | null;
   kumiteResult:    string | null;
@@ -52,6 +53,26 @@ export interface TEventParticipant {
 
 export interface TEventDetail extends TEventSummary {
   participants: TEventParticipant[];
+}
+
+export interface TEventMedalStudent {
+  studentId:   string;
+  fullName:    string;
+  photo:       string | null;
+  studentCode: number | null;
+  belt:        string;
+  age:         number;
+  categories:  string[];
+  gold:        number;
+  silver:      number;
+  bronze:      number;
+}
+
+export interface TEventStats {
+  totalGold:   number;
+  totalSilver: number;
+  totalBronze: number;
+  students:    TEventMedalStudent[];
 }
 
 /** Calcula edad a partir de birthDate */
