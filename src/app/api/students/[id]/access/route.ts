@@ -98,7 +98,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     try {
       const dojoRaw = await prisma.dojo.findUnique({
         where:  { id: student.dojoId },
-        select: { name: true, email: true, phone: true, logo: true, slogan: true, ownerName: true },
+        select: { name: true, slug: true, email: true, phone: true, logo: true, slogan: true, ownerName: true },
       });
       const dojo = dojoRaw
         ? { ...dojoRaw, logo: dojoRaw.logo?.startsWith("http") ? dojoRaw.logo : null }

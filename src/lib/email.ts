@@ -68,6 +68,7 @@ function fromAddress(smtpUser: string, fromName: string, dojo?: DojoMeta): strin
 
 interface DojoMeta {
   name:      string;
+  slug?:     string | null;
   email?:    string | null;
   logo?:     string | null;
   phone?:    string | null;
@@ -274,7 +275,8 @@ export async function sendStudentWelcome({
   tempPassword: string;
   dojo?:        DojoMeta;
 }) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.dojomasteronline.com";
+  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.dojomasteronline.com";
+  const loginUrl = dojo?.slug ? `${appUrl}/dojo/${dojo.slug}/login` : `${appUrl}/login`;
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
@@ -290,7 +292,7 @@ export async function sendStudentWelcome({
             <tr>
               <td style="padding:8px 0;color:#8892A4;font-size:13px;">URL de acceso</td>
               <td style="padding:8px 0;text-align:right;">
-                <a href="${appUrl}/login" style="color:#E74C3C;">${appUrl}/login</a>
+                <a href="${loginUrl}" style="color:#E74C3C;">${loginUrl}</a>
               </td>
             </tr>
             <tr>
