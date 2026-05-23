@@ -31,7 +31,7 @@ const NAV_DEFS: NavItemDef[] = [
   { href: "/dashboard/students",         icon: Users,           permKey: NAV_KEYS.STUDENTS,        labelKey: "students"    },
   { href: "/dashboard/leads",            icon: UserPlus,        permKey: NAV_KEYS.LEADS,           labelKey: "leads"       },
   { href: "/dashboard/attendance",         icon: ClipboardList, permKey: NAV_KEYS.ATTENDANCE,        labelKey: "attendance"        },
-  { href: "/dashboard/tournament-events", icon: Trophy,        permKey: NAV_KEYS.TOURNAMENT_EVENTS, labelKey: "tournament-events" },
+  { href: "/dashboard/tournament-events", icon: Trophy,        permKey: NAV_KEYS.TOURNAMENT_EVENTS, labelKey: "tournament-events"  },
   { href: "/dashboard/payments",          icon: CreditCard,    permKey: NAV_KEYS.PAYMENTS,          labelKey: "payments"          },
   { href: "/dashboard/belts",            icon: Award,           permKey: NAV_KEYS.BELTS,           labelKey: "belts"       },
   { href: "/dashboard/settings/katas",   icon: BookOpen,        permKey: NAV_KEYS.SETTINGS_KATAS,  labelKey: "katas"       },

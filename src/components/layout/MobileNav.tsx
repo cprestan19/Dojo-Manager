@@ -25,7 +25,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/belts":              "Cintas o Grados",
   "/dashboard/schedules":          "Horarios",
   "/dashboard/attendance":               "Asistencia",
-  "/dashboard/tournament-events":        "Torneos",
+  "/dashboard/tournament-events":        "Asistencia de Torneos",
   "/dashboard/tournament-events/new":    "Nuevo Torneo",
   "/dashboard/settings/katas":     "Katas",
   "/dashboard/reports":            "Reportes",
@@ -46,7 +46,7 @@ const drawerItems: NavItem[] = [
   { href: "/dashboard/students",       label: "Alumnos",         icon: Users,           permKey: NAV_KEYS.STUDENTS       },
   { href: "/dashboard/leads",          label: "Prospectos",      icon: UserPlus,        permKey: NAV_KEYS.LEADS          },
   { href: "/dashboard/attendance",          label: "Asistencia",  icon: ClipboardList, permKey: NAV_KEYS.ATTENDANCE        },
-  { href: "/dashboard/tournament-events",  label: "Torneos",     icon: Trophy,        permKey: NAV_KEYS.TOURNAMENT_EVENTS },
+  { href: "/dashboard/tournament-events",  label: "Asistencia de Torneos", icon: Trophy, permKey: NAV_KEYS.TOURNAMENT_EVENTS },
   { href: "/dashboard/payments",       label: "Pagos",           icon: CreditCard,      permKey: NAV_KEYS.PAYMENTS       },
   { href: "/dashboard/belts",          label: "Cintas o Grados", icon: Award,           permKey: NAV_KEYS.BELTS          },
   { href: "/dashboard/settings/katas", label: "Katas",           icon: BookOpen,        permKey: NAV_KEYS.SETTINGS_KATAS },
@@ -71,7 +71,7 @@ const quickItems: NavItem[] = [
   { href: "/dashboard",                   label: "Inicio",     icon: Home,         permKey: NAV_KEYS.DASHBOARD          },
   { href: "/dashboard/students",          label: "Alumnos",    icon: Users,        permKey: NAV_KEYS.STUDENTS           },
   { href: "/dashboard/attendance",        label: "Asistencia", icon: ClipboardList,permKey: NAV_KEYS.ATTENDANCE          },
-  { href: "/dashboard/tournament-events", label: "Torneos",    icon: Trophy,       permKey: NAV_KEYS.TOURNAMENT_EVENTS  },
+  { href: "/dashboard/tournament-events", label: "Torneos",    icon: Trophy,       permKey: NAV_KEYS.TOURNAMENT_EVENTS },
   { href: "/dashboard/payments",          label: "Pagos",      icon: CreditCard,   permKey: NAV_KEYS.PAYMENTS           },
 ];
 
