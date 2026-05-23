@@ -194,9 +194,16 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
             {portalFilter !== "all" && ` · Portal: ${{ has:"Con acceso", none:"Sin acceso", revoked:"Revocado"}[portalFilter]}`}
           </p>
         </div>
-        <Link href="/dashboard/students/new" className="btn-primary">
-          <Plus size={18} /> Nuevo Alumno
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/students/portal-activity"
+            className="btn-ghost flex items-center gap-1.5 text-sm"
+            title="Ver actividad del portal de alumnos">
+            <MonitorSmartphone size={16} /> Portal
+          </Link>
+          <Link href="/dashboard/students/new" className="btn-primary">
+            <Plus size={18} /> Nuevo Alumno
+          </Link>
+        </div>
       </div>
 
       {/* Fila de filtros */}
