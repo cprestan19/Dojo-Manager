@@ -135,11 +135,17 @@ export async function POST(req: NextRequest) {
       continue;
     }
     if (!cedula) {
-      rows.push({ status: "error", row: physicalRow, fullName, reason: "Cédula/Documento es obligatorio" });
+      rows.push({ status: "error", row: physicalRow, fullName, reason: "Cédula/Documento es obligatorio — fila rechazada" });
       continue;
     }
 
     const cedulaTrim = cedula.trim();
+
+    // Segunda validación: cédula no puede quedar vacía después de limpiar espacios
+    if (!cedulaTrim) {
+      rows.push({ status: "error", row: physicalRow, fullName, reason: "Cédula/Documento no puede estar vacía — fila rechazada" });
+      continue;
+    }
 
     // Leer campos comunes (necesarios tanto en create como en update)
     const birthDate  = parseDate(getCell(row, "birthDate"));
