@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, QrCode, Search, Check, X, ChevronRight, Pencil, Printer } from "lucide-react";
+import { ArrowLeft, QrCode, Search, Check, X, ChevronRight, Pencil, Printer, UserPlus } from "lucide-react";
 import { KATA_OPTIONS, RESULT_OPTIONS, type TEventDetail, type TEventParticipant } from "@/lib/tournament-events";
 import { getBeltInfo } from "@/lib/utils";
 
@@ -234,7 +234,68 @@ export default function TournamentEventDetailPage() {
   const [saveErr, setSaveErr] = useState("");
   const [saveOk,  setSaveOk]  = useState(false);
   const [editForm, setEditForm] = useState<Partial<TEventParticipant>>({});
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Agregar alumno a último momento ────────────────────────────
+  type StudentResult = { id: string; fullName: string; studentCode: number | null; belt: string | null };
+  const [showAddModal,  setShowAddModal]  = useState(false);
+  const [addSearch,     setAddSearch]     = useState("");
+  const [addResults,    setAddResults]    = useState<StudentResult[]>([]);
+  const [addSearching,  setAddSearching]  = useState(false);
+  const [adding,        setAdding]        = useState<string | null>(null); // studentId en proceso
+  const [addErr,        setAddErr]        = useState("");
+  const [addOkName,     setAddOkName]     = useState("");
+
+  function openAddModal() {
+    setAddSearch(""); setAddResults([]); setAddErr(""); setAddOkName(""); setAdding(null);
+    setShowAddModal(true);
+  }
+  function closeAddModal() {
+    setShowAddModal(false);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+  }
+
+  function handleAddSearch(val: string) {
+    setAddSearch(val);
+    setAddErr("");
+    setAddOkName("");
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (val.trim().length < 2) { setAddResults([]); return; }
+    searchTimerRef.current = setTimeout(async () => {
+      setAddSearching(true);
+      try {
+        const r = await fetch(`/api/tournament-events/${id}/participants?search=${encodeURIComponent(val.trim())}`);
+        if (r.ok) setAddResults(await r.json());
+      } catch { /* silenciar */ }
+      finally { setAddSearching(false); }
+    }, 350);
+  }
+
+  async function addStudent(student: StudentResult) {
+    setAdding(student.id);
+    setAddErr("");
+    try {
+      const r = await fetch(`/api/tournament-events/${id}/participants`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ studentId: student.id }),
+      });
+      const json = await r.json().catch(() => ({})) as { error?: string; alreadyEnrolled?: boolean };
+      if (!r.ok) {
+        setAddErr(json.error ?? `Error al agregar (${r.status})`);
+        return;
+      }
+      setAddOkName(student.fullName);
+      setAddSearch("");
+      setAddResults([]);
+      await load(); // refresca la lista principal
+    } catch {
+      setAddErr("Error de conexión");
+    } finally {
+      setAdding(null);
+    }
+  }
 
   // ── Edición del evento ──────────────────────────────────────────
   const [editEvent,     setEditEvent]     = useState(false);
@@ -385,6 +446,14 @@ export default function TournamentEventDetailPage() {
           >
             <Printer size={14} />
             <span className="hidden sm:inline">Estadísticas</span>
+          </button>
+          <button
+            onClick={openAddModal}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-dojo-card border border-dojo-border text-dojo-muted hover:text-dojo-white hover:border-dojo-white/30 transition-colors"
+            title="Agregar alumno al torneo"
+          >
+            <UserPlus size={14} />
+            <span className="hidden sm:inline">Agregar</span>
           </button>
           <a href={`/dashboard/tournament-events/${id}/scan`}
             className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl text-white"
@@ -551,6 +620,114 @@ export default function TournamentEventDetailPage() {
           </div>
         )}
       </div>
+
+      {/* ══ MODAL AGREGAR ALUMNO ══ */}
+      {showAddModal && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={e => { if (e.target === e.currentTarget) closeAddModal(); }}
+        >
+          <div className="bg-dojo-card border border-dojo-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-5 space-y-4">
+              <div className="w-10 h-1 bg-dojo-border rounded mx-auto sm:hidden" />
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-dojo-white">➕ Agregar Alumno</p>
+                  <p className="text-xs text-dojo-muted mt-0.5">Busca por nombre o código (#)</p>
+                </div>
+                <button onClick={closeAddModal} className="text-dojo-muted hover:text-dojo-white transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Búsqueda */}
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
+                <input
+                  autoFocus
+                  className="form-input pl-8 text-sm w-full"
+                  placeholder="Nombre o código del alumno..."
+                  value={addSearch}
+                  onChange={e => handleAddSearch(e.target.value)}
+                />
+                {addSearching && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-3.5 h-3.5 border-2 border-dojo-red border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+
+              {/* Resultado de éxito */}
+              {addOkName && (
+                <div className="flex items-center gap-2 bg-green-500/15 border border-green-500/40 rounded-xl px-4 py-3">
+                  <Check size={15} className="text-green-400 shrink-0" />
+                  <p className="text-green-400 text-sm font-semibold">{addOkName} agregado exitosamente</p>
+                </div>
+              )}
+
+              {/* Error */}
+              {addErr && (
+                <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                  {addErr}
+                </p>
+              )}
+
+              {/* Resultados de búsqueda */}
+              {addResults.length > 0 && (
+                <div className="space-y-1.5">
+                  {addResults.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => addStudent(s)}
+                      disabled={adding === s.id}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-dojo-darker border border-dojo-border hover:border-dojo-red/50 hover:bg-dojo-red/5 transition-all text-left disabled:opacity-60"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-dojo-card flex items-center justify-center shrink-0">
+                        <span className="text-dojo-gold font-bold text-xs">
+                          {s.fullName.split(" ").slice(0, 2).map(w => w[0]).join("")}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-dojo-white truncate">{s.fullName}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {s.studentCode && (
+                            <span className="text-xs font-mono text-dojo-gold">#{s.studentCode}</span>
+                          )}
+                          {s.belt && (
+                            <span className="text-xs text-dojo-muted">{s.belt}</span>
+                          )}
+                        </div>
+                      </div>
+                      {adding === s.id
+                        ? <div className="w-4 h-4 border-2 border-dojo-red border-t-transparent rounded-full animate-spin shrink-0" />
+                        : <UserPlus size={15} className="text-dojo-muted shrink-0" />
+                      }
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Estado vacío */}
+              {addSearch.trim().length >= 2 && !addSearching && addResults.length === 0 && !addErr && !addOkName && (
+                <p className="text-center text-dojo-muted text-sm py-4">
+                  No se encontraron alumnos disponibles para inscribir
+                </p>
+              )}
+
+              {addSearch.trim().length < 2 && !addOkName && (
+                <p className="text-xs text-dojo-muted text-center py-2">
+                  Escribe al menos 2 caracteres para buscar
+                </p>
+              )}
+
+              <button onClick={closeAddModal} className="btn-secondary w-full justify-center">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ MODAL EDITAR EVENTO ══ */}
       {editEvent && (
