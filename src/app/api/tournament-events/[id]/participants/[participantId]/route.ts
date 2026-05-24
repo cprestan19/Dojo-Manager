@@ -9,6 +9,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string; participantId: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -34,10 +35,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
       where:  { id: participantId, eventId },
       select: {
         id: true, studentId: true,
+        arrived: true, kataResult: true, kumiteResult: true,
         kataCompetitionId: true, kumiteCompetitionId: true,
       },
     });
     if (!participant) return NextResponse.json({ error: "Participante no encontrado" }, { status: 404 });
+
+    const student = await prisma.student.findUnique({
+      where:  { id: participant.studentId },
+      select: { fullName: true, studentCode: true },
+    });
 
     const body = await req.json().catch(() => ({})) as {
       arrived?:          boolean;
@@ -123,6 +130,45 @@ export async function PUT(req: NextRequest, { params }: Params) {
         body.category?.trim() || null,
         participantId,
       );
+    }
+
+    // ── Auditoría ────────────────────────────────────────────────────────────
+    const arrivedChanged  = body.arrived !== undefined && body.arrived !== participant.arrived;
+    const resultsChanged  = (body.kataResult   !== undefined && (body.kataResult?.trim()   || null) !== participant.kataResult)
+                         || (body.kumiteResult  !== undefined && (body.kumiteResult?.trim() || null) !== participant.kumiteResult);
+
+    if (arrivedChanged || resultsChanged) {
+      const action = arrivedChanged && body.arrived
+        ? "TOURNAMENT_ATTENDANCE_REGISTERED"
+        : arrivedChanged && !body.arrived
+        ? "TOURNAMENT_ATTENDANCE_REMOVED"
+        : "TOURNAMENT_RESULT_SAVED";
+
+      const ctx = buildAuditCtx(session, req, { dojoId });
+      await logAudit({
+        ...ctx,
+        action,
+        module:       AUDIT_MODULE.TOURNAMENTS,
+        resourceType: "TournamentEventParticipant",
+        resourceId:   participantId,
+        statusCode:   200,
+        details: JSON.stringify({
+          event:   { id: eventId, name: event.name },
+          student: { id: participant.studentId, fullName: student?.fullName ?? "—", studentCode: student?.studentCode ?? null },
+          before: {
+            arrived:     participant.arrived,
+            kataResult:  participant.kataResult,
+            kumiteResult: participant.kumiteResult,
+          },
+          after: {
+            ...(body.arrived      !== undefined ? { arrived:      body.arrived }                        : {}),
+            ...(body.kataResult   !== undefined ? { kataResult:   body.kataResult?.trim()   || null }   : {}),
+            ...(body.kumiteResult !== undefined ? { kumiteResult: body.kumiteResult?.trim() || null }    : {}),
+            ...(body.category     !== undefined ? { category:     body.category?.trim()     || null }    : {}),
+            ...(body.kataName     !== undefined ? { kataName:     body.kataName?.trim()     || null }    : {}),
+          },
+        }),
+      });
     }
 
     return NextResponse.json({ ok: true, updated });
