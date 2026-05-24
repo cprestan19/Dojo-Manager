@@ -157,7 +157,7 @@ const TESTIMONIALS = [
 export default function LandingPage() {
   const [navOpen,   setNavOpen]   = useState(false);
   const [openFaq,   setOpenFaq]   = useState<number | null>(null);
-  const [dojoCount, setDojoCount] = useState(0);
+  const [dojoCount, setDojoCount] = useState(120);
   const [lang,      setLang]      = useState<"es"|"en">("es");
 
   // FIX: useRef evita que el contador reinicie en re-renders

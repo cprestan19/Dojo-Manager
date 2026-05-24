@@ -3,6 +3,10 @@
  *
  * Guarda los resultados de un participante (kata + kumite).
  * Sincroniza automáticamente con KataCompetition (historial de competencias).
+ *
+ * CONCURRENCIA: Soporta ediciones simultáneas de alumnos distintos sin problema.
+ * Locking optimista opcional: si el cliente envía `updatedAt`, se valida contra DB
+ * y se retorna 409 si otro usuario guardó mientras tanto.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -13,6 +17,14 @@ import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string; participantId: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
+
+const MAX_LEN = {
+  category:         100,
+  kataName:         200,
+  kataResult:       200,
+  kumiteResult:     200,
+  competitionNotes: 1000,
+} as const;
 
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
@@ -34,7 +46,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const participant = await prisma.tournamentEventParticipant.findFirst({
       where:  { id: participantId, eventId },
       select: {
-        id: true, studentId: true,
+        id: true, studentId: true, updatedAt: true,
         arrived: true, kataResult: true, kumiteResult: true,
         kataCompetitionId: true, kumiteCompetitionId: true,
       },
@@ -53,7 +65,33 @@ export async function PUT(req: NextRequest, { params }: Params) {
       kataResult?:       string | null;
       kumiteResult?:     string | null;
       competitionNotes?: string | null;
+      updatedAt?:        string;   // ISO string — locking optimista opcional
     };
+
+    // ── Locking optimista (si el cliente envía updatedAt) ─────────────────────
+    if (body.updatedAt) {
+      const clientTs  = new Date(body.updatedAt).getTime();
+      const serverTs  = participant.updatedAt.getTime();
+      if (Math.abs(clientTs - serverTs) > 999) {
+        return NextResponse.json({
+          error:    "El registro fue modificado por otro usuario. Por favor recarga y vuelve a intentar.",
+          conflict: true,
+        }, { status: 409 });
+      }
+    }
+
+    // ── Validación de longitud ────────────────────────────────────────────────
+    const trim = (v?: string | null) => v?.trim() ?? null;
+    if (trim(body.category)     && trim(body.category)!.length     > MAX_LEN.category)
+      return NextResponse.json({ error: `Categoría: máximo ${MAX_LEN.category} caracteres` }, { status: 422 });
+    if (trim(body.kataName)     && trim(body.kataName)!.length     > MAX_LEN.kataName)
+      return NextResponse.json({ error: `Nombre de kata: máximo ${MAX_LEN.kataName} caracteres` }, { status: 422 });
+    if (trim(body.kataResult)   && trim(body.kataResult)!.length   > MAX_LEN.kataResult)
+      return NextResponse.json({ error: `Resultado kata: máximo ${MAX_LEN.kataResult} caracteres` }, { status: 422 });
+    if (trim(body.kumiteResult) && trim(body.kumiteResult)!.length > MAX_LEN.kumiteResult)
+      return NextResponse.json({ error: `Resultado kumite: máximo ${MAX_LEN.kumiteResult} caracteres` }, { status: 422 });
+    if (trim(body.competitionNotes) && trim(body.competitionNotes)!.length > MAX_LEN.competitionNotes)
+      return NextResponse.json({ error: `Notas: máximo ${MAX_LEN.competitionNotes} caracteres` }, { status: 422 });
 
     // ── Sincronizar con KataCompetition (historial de competencias) ──────────
     let kataCompetitionId    = participant.kataCompetitionId;
@@ -156,8 +194,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
           event:   { id: eventId, name: event.name },
           student: { id: participant.studentId, fullName: student?.fullName ?? "—", studentCode: student?.studentCode ?? null },
           before: {
-            arrived:     participant.arrived,
-            kataResult:  participant.kataResult,
+            arrived:      participant.arrived,
+            kataResult:   participant.kataResult,
             kumiteResult: participant.kumiteResult,
           },
           after: {

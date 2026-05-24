@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     ? await Promise.all([
         prisma.student.findMany({
           where:  { id: { in: medalistIds }, dojoId },
-          select: { id: true, fullName: true, photo: true, studentCode: true, birthDate: true },
+          select: { id: true, fullName: true, studentCode: true, birthDate: true },
         }),
         prisma.beltHistory.findMany({
           where:   { studentId: { in: medalistIds } },
@@ -110,7 +110,6 @@ export async function GET(req: NextRequest) {
       return {
         studentId:   id,
         fullName:    student?.fullName ?? "Alumno",
-        photo:       student?.photo   ?? null,
         studentCode: student?.studentCode ?? null,
         belt:        latestBelt.get(id) ?? "blanca",
         age:         student?.birthDate ? computeAge(student.birthDate) : 0,
