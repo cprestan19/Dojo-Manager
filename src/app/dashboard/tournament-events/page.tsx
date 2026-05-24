@@ -221,17 +221,20 @@ export default function TournamentEventsPage() {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function load() {
-    // ?t= evita que el navegador o Next.js sirva la respuesta cacheada
-    const r = await fetch(`/api/tournament-events?t=${Date.now()}`, { cache: "no-store" });
-    if (r.ok) setEvents(await r.json());
-    setLoading(false);
+    try {
+      const r = await fetch(`/api/tournament-events?t=${Date.now()}`, { cache: "no-store" });
+      if (r.ok) setEvents(await r.json());
+    } catch { /* red temporalmente no disponible — se reintenta en el siguiente ciclo */ }
+    finally { setLoading(false); }
   }
 
   async function loadStats() {
     setLoadingStats(true);
-    const r = await fetch(`/api/tournament-events/stats?t=${Date.now()}`, { cache: "no-store" });
-    if (r.ok) setStats(await r.json());
-    setLoadingStats(false);
+    try {
+      const r = await fetch(`/api/tournament-events/stats?t=${Date.now()}`, { cache: "no-store" });
+      if (r.ok) setStats(await r.json());
+    } catch { /* silenciar error de red */ }
+    finally { setLoadingStats(false); }
   }
 
   useEffect(() => {

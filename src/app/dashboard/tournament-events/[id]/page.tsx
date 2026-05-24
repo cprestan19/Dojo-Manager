@@ -243,8 +243,10 @@ export default function TournamentEventDetailPage() {
   const [eventFormErr,  setEventFormErr]  = useState("");
 
   const load = useCallback(async () => {
-    const r = await fetch(`/api/tournament-events/${id}`);
-    if (r.ok) setData(await r.json());
+    try {
+      const r = await fetch(`/api/tournament-events/${id}`);
+      if (r.ok) setData(await r.json());
+    } catch { /* red temporalmente no disponible */ }
   }, [id]);
 
   useEffect(() => {
