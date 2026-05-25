@@ -4,6 +4,29 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { deleteResource } from "@/lib/cloudinary";
+
+// Extrae el publicId de una URL de Cloudinary para poder borrarla
+function extractCloudinaryPublicId(url: string): string | null {
+  if (!url?.startsWith("https://res.cloudinary.com/")) return null;
+  const afterUpload = url.split("/upload/")[1];
+  if (!afterUpload) return null;
+  // Eliminar versión (v1234567890/)
+  const withoutVersion = afterUpload.replace(/^v\d+\//, "");
+  // Eliminar extensión de archivo
+  const withoutExt = withoutVersion.replace(/\.[^./]+$/, "");
+  // Eliminar segmentos de transformación (ej: q_auto,f_auto / w_300 / c_fill)
+  const segments = withoutExt.split("/");
+  const publicParts: string[] = [];
+  let pastTransforms = false;
+  for (const seg of segments) {
+    if (!pastTransforms && /^[a-z]+_/.test(seg)) continue; // transformación
+    pastTransforms = true;
+    publicParts.push(seg);
+  }
+  const publicId = publicParts.join("/");
+  return publicId || null;
+}
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -159,7 +182,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   // Solo permitir eliminar alumnos inactivos
   const student = await prisma.student.findUnique({
     where:  { id, dojoId },
-    select: { fullName: true, studentCode: true, active: true },
+    select: { fullName: true, studentCode: true, active: true, photo: true },
   });
   if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
   if (student.active) return NextResponse.json({ error: "Solo se pueden eliminar alumnos inactivos" }, { status: 409 });
@@ -190,6 +213,14 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     //    Attendance, StudentSchedule, KataCompetition
     await tx.student.delete({ where: { id, dojoId } });
   }, { timeout: 15000 });
+
+  // Borrar foto de Cloudinary fuera de la transacción (no bloquea si falla)
+  if (student.photo) {
+    const publicId = extractCloudinaryPublicId(student.photo);
+    if (publicId) {
+      try { await deleteResource(publicId, "image"); } catch { /* continúa aunque Cloudinary falle */ }
+    }
+  }
 
   const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
   await logAudit({
