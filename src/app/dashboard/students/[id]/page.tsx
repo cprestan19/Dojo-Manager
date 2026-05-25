@@ -737,6 +737,7 @@ export default function StudentDetailPage() {
   const [payModal,        setPayModal]        = useState(false);
   const [markingPay,      setMarkingPay]      = useState<string | null>(null);
   const [togglingActive,  setTogglingActive]  = useState(false);
+  const [deleting,        setDeleting]        = useState(false);
   const [accessLoading,   setAccessLoading]   = useState(false);
   const [accessResult,    setAccessResult]    = useState<{ email: string; tempPassword: string; emailSent: boolean; emailError: string | null } | null>(null);
 
@@ -839,6 +840,30 @@ export default function StudentDetailPage() {
     });
     setTogglingActive(false);
     if (res.ok) fetchStudent();
+  }
+
+  async function deleteStudent() {
+    if (!student) return;
+    const confirmed = confirm(
+      `⚠️ ELIMINAR PERMANENTEMENTE a ${student.fullName}\n\n` +
+      `Esto borrará TODOS sus datos: pagos, asistencia, historial de cintas, inscripciones a torneos y acceso al portal.\n\n` +
+      `Esta acción NO se puede deshacer. ¿Confirmas?`
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/students/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        router.push("/dashboard/students");
+      } else {
+        const json = await res.json().catch(() => ({})) as { error?: string };
+        alert(json.error ?? "Error al eliminar el alumno");
+      }
+    } catch {
+      alert("Error de conexión");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function deleteKataComp(entryId: string) {
@@ -992,6 +1017,16 @@ export default function StudentDetailPage() {
               : <><UserCheck size={15}/> {togglingActive ? "..." : "Activar"}</>
             }
           </button>
+          {!student.active && (
+            <button
+              onClick={deleteStudent}
+              disabled={deleting}
+              className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-red-900/60 text-red-500 hover:bg-red-950/40 transition-colors disabled:opacity-50"
+              title="Eliminar permanentemente este alumno inactivo"
+            >
+              <Trash2 size={15}/> {deleting ? "Eliminando..." : "Eliminar"}
+            </button>
+          )}
           <Link href={`/dashboard/students/${id}/edit`} className="btn-secondary">
             <Edit size={16}/> Editar
           </Link>

@@ -154,9 +154,42 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
-  const t0      = Date.now();
-  const student = await prisma.student.findUnique({ where: { id, dojoId }, select: { fullName: true, studentCode: true } });
-  await prisma.student.delete({ where: { id, dojoId } });
+  const t0 = Date.now();
+
+  // Solo permitir eliminar alumnos inactivos
+  const student = await prisma.student.findUnique({
+    where:  { id, dojoId },
+    select: { fullName: true, studentCode: true, active: true },
+  });
+  if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+  if (student.active) return NextResponse.json({ error: "Solo se pueden eliminar alumnos inactivos" }, { status: 409 });
+
+  // Limpiar datos huérfanos antes del DELETE principal
+  await prisma.$transaction(async (tx) => {
+    // 1. TournamentEventParticipant — sin FK formal, quedarían huérfanos
+    await tx.$executeRawUnsafe(
+      `DELETE FROM tournament_event_participants WHERE student_id = $1`, id,
+    );
+
+    // 2. TournamentParticipant — onDelete: Restrict bloquearía el DELETE del alumno
+    await tx.tournamentParticipant.deleteMany({ where: { studentId: id } });
+
+    // 3. TournamentRegistration — opcional (SetNull no aplica aquí en algunas versiones)
+    await tx.tournamentRegistration.updateMany({
+      where: { studentId: id },
+      data:  { studentId: null },
+    });
+
+    // 4. User.studentId — desvincula el usuario del portal sin eliminarlo
+    await tx.user.updateMany({
+      where: { studentId: id },
+      data:  { studentId: null },
+    });
+
+    // 5. DELETE del alumno — cascadea: Inscription, Payment, BeltHistory,
+    //    Attendance, StudentSchedule, KataCompetition
+    await tx.student.delete({ where: { id, dojoId } });
+  }, { timeout: 15000 });
 
   const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
   await logAudit({
@@ -166,7 +199,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     resourceType: "Student",
     resourceId:   id,
     statusCode:   200,
-    details:      JSON.stringify({ fullName: student?.fullName, studentCode: student?.studentCode }),
+    details:      JSON.stringify({ fullName: student.fullName, studentCode: student.studentCode }),
   });
 
   return NextResponse.json({ ok: true });
