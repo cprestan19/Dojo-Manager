@@ -223,6 +223,8 @@ function printEventStats(data: TEventDetail) {
   w.focus();
 }
 
+type KataGroup = { group: string; items: string[] };
+
 export default function TournamentEventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
@@ -234,6 +236,7 @@ export default function TournamentEventDetailPage() {
   const [saveErr, setSaveErr] = useState("");
   const [saveOk,  setSaveOk]  = useState(false);
   const [editForm, setEditForm] = useState<Partial<TEventParticipant>>({});
+  const [kataGroups, setKataGroups] = useState<KataGroup[]>(KATA_OPTIONS);
   const pollingRef   = useRef<ReturnType<typeof setInterval> | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -315,6 +318,25 @@ export default function TournamentEventDetailPage() {
     pollingRef.current = setInterval(load, 6000); // polling cada 6s para múltiples escáneres
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [load]);
+
+  useEffect(() => {
+    fetch("/api/katas?active=1")
+      .then(r => r.ok ? r.json() : [])
+      .then((katas: { name: string; description: string | null }[]) => {
+        const cinta       = katas.filter(k => k.description === "Kata de Cinta").map(k => k.name);
+        const competencia = katas.filter(k => k.description === "Kata de Competencias").map(k => k.name);
+        const sinTipo     = katas.filter(k => !k.description).map(k => k.name);
+
+        const groups: KataGroup[] = [];
+        if (cinta.length       > 0) groups.push({ group: "Katas de Cinta",        items: cinta });
+        if (competencia.length > 0) groups.push({ group: "Katas de Competencia",   items: competencia });
+        if (sinTipo.length     > 0) groups.push({ group: "Otros",                  items: sinTipo });
+
+        // Fallback: si el dojo no tiene katas configuradas usa la lista estándar
+        if (groups.length > 0) setKataGroups(groups);
+      })
+      .catch(() => { /* mantiene el fallback hardcodeado */ });
+  }, []);
 
   function openModal(p: TEventParticipant) {
     setSaveErr("");
@@ -859,7 +881,7 @@ export default function TournamentEventDetailPage() {
                     value={editForm.kataName ?? ""}
                     onChange={e => setEditForm(f => ({ ...f, kataName: e.target.value }))}>
                     <option value="">— Seleccionar kata —</option>
-                    {KATA_OPTIONS.map(g => (
+                    {kataGroups.map(g => (
                       <optgroup key={g.group} label={g.group}>
                         {g.items.map(k => <option key={k}>{k}</option>)}
                       </optgroup>

@@ -127,7 +127,7 @@ const PLANS = [
     cta:"Empezar con Silver", ctaLink:"/register",
   },
   {
-    name:"Gold", emoji:"🥇", price:"$59", period:"/mes",
+    name:"Gold", emoji:"🥇", price:"$90", period:"/mes",
     color:GOLD, highlight:true, badge:"Más completo", limit:"Alumnos ilimitados",
     features:["Alumnos ilimitados","Todo lo del plan Silver","🏆 Torneos Profesionales","Streaming en vivo YouTube/OBS","Tatamis, jueces y árbitros","Inscripciones federativas online","Overlay profesional para transmisión","Programa y cronograma del evento","Admins ilimitados","Soporte 24/7"],
     missing:[],
