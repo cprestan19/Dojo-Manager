@@ -94,6 +94,29 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
     ],
   },
 
+  "/dashboard/tournament-events": {
+    title:       "Asistencia de Torneos",
+    emoji:       "🥋",
+    description: "Control de asistencia y resultados para el día del torneo. Soporta múltiples escáneres simultáneos sin conflictos.",
+    steps: [
+      "Crea un evento con '+ Nuevo Torneo' — define nombre, fecha, sede e inscribe los alumnos que participarán.",
+      "El día del torneo, abre el evento y usa el botón 'Escanear QR' para registrar llegadas con la cámara.",
+      "El botón 'Agregar' (ícono de persona+) permite inscribir alumnos que se registraron a último momento sin perder los datos existentes.",
+      "Haz clic en la tarjeta de cualquier alumno para abrir su panel de resultados: categoría, kata ejecutado, resultado de kata y kumite.",
+      "Los resultados se sincronizan automáticamente al historial de competencias del alumno.",
+      "La pantalla se actualiza automáticamente cada 6 segundos — varias personas pueden usar el sistema al mismo tiempo.",
+      "Imprime la lista de participantes con el botón 'Lista' (ícono 🖨), o las estadísticas de medallas con 'Estadísticas'.",
+      "Las tarjetas de estadísticas (Inscritos / Llegaron / Resultados) son clicables — úsalas como filtros rápidos.",
+    ],
+    tips: [
+      "El escáner QR acepta el código del alumno aunque ya esté marcado — muestra 'Ya registrado' sin crear duplicados.",
+      "Puedes buscar un alumno por nombre en el buscador superior para encontrarlo rápido entre muchos inscritos.",
+      "Los filtros de la barra inferior (Todos / Llegaron / Con resultado / Pendiente) ayudan a ver quién falta por registrar.",
+      "Los resultados de medalla (Oro, Plata, Bronce) quedan en el historial de competencias del alumno y aparecen en los reportes globales.",
+      "El PDF de estadísticas solo incluye los resultados de ese torneo específico — no mezcla datos con otros eventos.",
+    ],
+  },
+
   "/dashboard/tournaments": {
     title:       "Torneos",
     emoji:       "🏆",
