@@ -1232,7 +1232,9 @@ export default function StudentDetailPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-dojo-white">
-                        {entry.kata?.name ?? <span className="text-dojo-muted italic">Sin kata seleccionado</span>}
+                        {entry.kata?.name
+                          ?? entry.notes?.match(/Kata:\s*([^|]+)/)?.[1]?.trim()
+                          ?? <span className="text-dojo-muted italic">Sin kata seleccionado</span>}
                       </p>
                       {entry.tournament && (
                         <p className="text-xs text-dojo-muted mt-0.5">🏟 {entry.tournament}</p>
