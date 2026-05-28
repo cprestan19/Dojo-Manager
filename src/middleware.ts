@@ -93,6 +93,11 @@ export async function middleware(req: NextRequest) {
     if (!rateLimit(`upload:${ip}`, 10, 60_000)) return tooManyRequests("60");
   }
 
+  // Video upload signature: same budget as uploads
+  if (pathname === "/api/upload/video-signature" && req.method === "GET") {
+    if (!rateLimit(`upload:${ip}`, 10, 60_000)) return tooManyRequests("60");
+  }
+
   // Free trial form: prevent spam from public page
   if (pathname === "/api/public/free-trial" && req.method === "POST") {
     if (!rateLimit(`free-trial:${ip}`, 5, 60_000)) return tooManyRequests("60");
@@ -159,5 +164,6 @@ export const config = {
     "/api/users",
     "/api/users/:path*",
     "/api/upload",
+    "/api/upload/video-signature",
   ],
 };

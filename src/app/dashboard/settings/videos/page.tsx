@@ -52,24 +52,42 @@ export default function VideosSettingsPage() {
   function openCreate() { setEditing(empty()); setUploadErr(""); setUploadErrTachi(""); setModal(true); }
   function openEdit(v: BeltVideo) { setEditing({ ...v }); setUploadErr(""); setUploadErrTachi(""); setModal(true); }
 
+  // Sube un video directamente a Cloudinary desde el navegador usando una
+  // firma temporal del servidor — evita el límite de 4.5 MB de Vercel.
+  async function uploadVideoToCloudinary(file: File): Promise<{ url: string; publicId: string }> {
+    // 1. Pedir firma al servidor
+    const sigRes = await fetch("/api/upload/video-signature");
+    if (!sigRes.ok) throw new Error("No se pudo iniciar la subida. Intenta de nuevo.");
+    const { signature, timestamp, folder, apiKey, cloudName } =
+      await sigRes.json() as { signature: string; timestamp: number; folder: string; apiKey: string; cloudName: string };
+
+    // 2. Subir el archivo directo a Cloudinary (sin pasar por Vercel)
+    const fd = new FormData();
+    fd.append("file",      file);
+    fd.append("api_key",   apiKey);
+    fd.append("timestamp", String(timestamp));
+    fd.append("signature", signature);
+    fd.append("folder",    folder);
+
+    const cloudRes  = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
+      { method: "POST", body: fd },
+    );
+    const cloudData = await cloudRes.json() as { secure_url?: string; public_id?: string; error?: { message: string } };
+
+    if (!cloudRes.ok) throw new Error(cloudData.error?.message ?? "Error al subir el video a Cloudinary");
+
+    return { url: cloudData.secure_url!, publicId: cloudData.public_id! };
+  }
+
   async function handleVideoFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadErr("");
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("type", "video");
-      const res  = await fetch("/api/upload", { method: "POST", body: fd });
-      let data: { url?: string; publicId?: string; error?: string };
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error(`Error al subir video (HTTP ${res.status}). El archivo puede ser demasiado grande.`);
-      }
-      if (!res.ok) throw new Error(data.error ?? "Error al subir video");
-      setEditing(p => ({ ...p, videoUrl: data.url, publicId: data.publicId }));
+      const { url, publicId } = await uploadVideoToCloudinary(file);
+      setEditing(p => ({ ...p, videoUrl: url, publicId }));
     } catch (err: unknown) {
       setUploadErr(err instanceof Error ? err.message : "Error al subir video");
     } finally {
@@ -84,18 +102,8 @@ export default function VideosSettingsPage() {
     setUploadErrTachi("");
     setUploadingTachi(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("type", "video");
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      let data: { url?: string; publicId?: string; error?: string };
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error(`Error al subir video (HTTP ${res.status}). El archivo puede ser demasiado grande.`);
-      }
-      if (!res.ok) throw new Error(data.error ?? "Error al subir video");
-      setEditing(p => ({ ...p, tachiKataUrl: data.url, tachiKataPublicId: data.publicId }));
+      const { url, publicId } = await uploadVideoToCloudinary(file);
+      setEditing(p => ({ ...p, tachiKataUrl: url, tachiKataPublicId: publicId }));
     } catch (err: unknown) {
       setUploadErrTachi(err instanceof Error ? err.message : "Error al subir video");
     } finally {

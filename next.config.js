@@ -13,8 +13,8 @@ const ContentSecurityPolicy = [
   "img-src 'self' https://res.cloudinary.com https://api.dicebear.com data: blob:",
   // Media: Cloudinary videos
   "media-src 'self' https://res.cloudinary.com blob:",
-  // API/fetch connections: self + Google Analytics
-  "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com",
+  // API/fetch connections: self + Google Analytics + Cloudinary (direct video upload from browser)
+  "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://api.cloudinary.com",
   // Frames: YouTube embeds permitidos (portal/live, overlay, página pública torneo)
   "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
   "frame-ancestors 'none'",
