@@ -6,7 +6,7 @@ import { BELT_COLORS } from "@/lib/utils";
 
 interface BeltVideo {
   id: string; beltColor: string; title: string;
-  description: string | null; videoUrl: string; order: number;
+  description: string | null; videoUrl: string; tachiKataUrl: string | null; order: number;
 }
 
 interface VideoData {
@@ -17,12 +17,27 @@ interface VideoData {
 export default function PortalVideosPage() {
   const [data,    setData]    = useState<VideoData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState("");
   const [playing, setPlaying] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/portal/belt-videos")
-      .then(r => r.json())
-      .then(setData)
+      .then(r => {
+        if (!r.ok) throw new Error(`Error ${r.status}`);
+        return r.json();
+      })
+      .then((d: VideoData | VideoData[]) => {
+        // Guard: API should always return { videos, earnedBelts }
+        if (Array.isArray(d)) {
+          setData({ videos: [], earnedBelts: [] });
+        } else {
+          setData(d);
+        }
+      })
+      .catch(err => {
+        console.error("Error cargando videos:", err);
+        setError("No se pudieron cargar los videos. Intenta de nuevo.");
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -35,6 +50,15 @@ export default function PortalVideosPage() {
             <div className="h-36 w-full bg-dojo-border/40 rounded-lg animate-pulse" />
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-16 text-dojo-muted">
+        <Video size={48} className="mx-auto mb-4 opacity-30" />
+        <p className="font-semibold text-red-400">{error}</p>
       </div>
     );
   }
@@ -105,7 +129,7 @@ export default function PortalVideosPage() {
                     <BeltBadge beltColor={v.beltColor} />
                   </div>
 
-                  {/* Video player — lazy: only render when the user clicks play */}
+                  {/* Video principal */}
                   <div className="bg-black">
                     {playing === v.id ? (
                       <video
@@ -127,6 +151,36 @@ export default function PortalVideosPage() {
                       </button>
                     )}
                   </div>
+
+                  {/* Tachi Kata — video opcional */}
+                  {v.tachiKataUrl && (
+                    <>
+                      <div className="px-4 py-2 border-t border-dojo-border/40 flex items-center gap-2 bg-dojo-dark/50">
+                        <span className="text-xs font-semibold text-dojo-gold">Tachi Kata</span>
+                      </div>
+                      <div className="bg-black">
+                        {playing === `tachi-${v.id}` ? (
+                          <video
+                            src={v.tachiKataUrl}
+                            controls
+                            autoPlay
+                            className="w-full max-h-72"
+                            onEnded={() => setPlaying(null)}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setPlaying(`tachi-${v.id}`)}
+                            className="w-full h-28 flex flex-col items-center justify-center gap-2 text-dojo-muted hover:text-dojo-white transition-colors group"
+                          >
+                            <div className="w-12 h-12 rounded-full bg-dojo-gold/20 group-hover:bg-dojo-gold/40 flex items-center justify-center transition-colors">
+                              <Video size={22} className="text-dojo-gold" />
+                            </div>
+                            <p className="text-xs">Reproducir Tachi Kata</p>
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>

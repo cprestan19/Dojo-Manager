@@ -9,6 +9,8 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
+  /** Si true, hacer clic en el fondo NO cierra el modal */
+  disableBackdropClose?: boolean;
 }
 
 const sizeClasses = {
@@ -18,7 +20,7 @@ const sizeClasses = {
   xl: "max-w-5xl",
 };
 
-export function Modal({ open, onClose, title, children, size = "md" }: ModalProps) {
+export function Modal({ open, onClose, title, children, size = "md", disableBackdropClose = false }: ModalProps) {
   useEffect(() => {
     if (open) document.body.style.overflow = "hidden";
     else       document.body.style.overflow = "";
@@ -29,7 +31,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={disableBackdropClose ? undefined : onClose} />
       <div className={cn("relative w-full bg-dojo-card border border-dojo-border rounded-2xl shadow-2xl flex flex-col max-h-[90vh]", sizeClasses[size])}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-dojo-border shrink-0">

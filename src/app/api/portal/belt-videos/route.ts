@@ -13,30 +13,35 @@ export async function GET() {
   if (role !== "student") return NextResponse.json({ error: "Solo alumnos" }, { status: 403 });
   if (!dojoId || !studentId) return NextResponse.json({ error: "Sesión inválida" }, { status: 403 });
 
-  // Get the unique belt colors this student has earned
-  const beltRows = await prisma.beltHistory.findMany({
-    where:  { studentId },
-    select: { beltColor: true },
-    distinct: ["beltColor"],
-  });
+  try {
+    // Get the unique belt colors this student has earned
+    const beltRows = await prisma.beltHistory.findMany({
+      where:  { studentId },
+      select: { beltColor: true },
+      distinct: ["beltColor"],
+    });
 
-  const earnedBelts = beltRows.map(r => r.beltColor);
+    const earnedBelts = beltRows.map(r => r.beltColor);
 
-  if (earnedBelts.length === 0) return NextResponse.json([]);
+    if (earnedBelts.length === 0) return NextResponse.json({ videos: [], earnedBelts: [] });
 
-  // Return only active videos for belts the student has earned
-  const videos = await prisma.beltVideo.findMany({
-    where: {
-      dojoId,
-      active:    true,
-      beltColor: { in: earnedBelts },
-    },
-    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-    select: {
-      id: true, beltColor: true, title: true,
-      description: true, videoUrl: true, order: true,
-    },
-  });
+    // Return only active videos for belts the student has earned
+    const videos = await prisma.beltVideo.findMany({
+      where: {
+        dojoId,
+        active:    true,
+        beltColor: { in: earnedBelts },
+      },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true, beltColor: true, title: true,
+        description: true, videoUrl: true, tachiKataUrl: true, order: true,
+      },
+    });
 
-  return NextResponse.json({ videos, earnedBelts });
+    return NextResponse.json({ videos, earnedBelts });
+  } catch (err) {
+    console.error("Error cargando videos del portal:", err);
+    return NextResponse.json({ error: "Error al cargar videos" }, { status: 500 });
+  }
 }

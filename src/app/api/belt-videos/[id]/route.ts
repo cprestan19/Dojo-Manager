@@ -24,21 +24,33 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const existing = await prisma.beltVideo.findFirst({ where: { id, dojoId } });
   if (!existing) return NextResponse.json({ error: "Video no encontrado" }, { status: 404 });
 
-  // If a new video was uploaded, delete the old one from Cloudinary
+  // If a new main video was uploaded, delete the old one from Cloudinary
   if (body.videoUrl && body.publicId && body.publicId !== existing.publicId) {
-    try { await deleteResource(existing.publicId, "video"); } catch { /* log but continue */ }
+    try { await deleteResource(existing.publicId, "video"); } catch { /* continue */ }
+  }
+
+  // If a new Tachi Kata video was uploaded, delete the old one from Cloudinary
+  if (body.tachiKataPublicId && body.tachiKataPublicId !== existing.tachiKataPublicId && existing.tachiKataPublicId) {
+    try { await deleteResource(existing.tachiKataPublicId, "video"); } catch { /* continue */ }
+  }
+
+  // If Tachi Kata was explicitly cleared (null sent), delete from Cloudinary
+  if (body.tachiKataUrl === null && existing.tachiKataPublicId) {
+    try { await deleteResource(existing.tachiKataPublicId, "video"); } catch { /* continue */ }
   }
 
   const video = await prisma.beltVideo.update({
     where: { id },
     data: {
-      beltColor:   body.beltColor   ?? existing.beltColor,
-      title:       body.title?.trim() ?? existing.title,
-      description: body.description !== undefined ? (body.description?.trim() || null) : existing.description,
-      videoUrl:    body.videoUrl    ?? existing.videoUrl,
-      publicId:    body.publicId    ?? existing.publicId,
-      order:       body.order !== undefined ? Number(body.order) : existing.order,
-      active:      body.active      ?? existing.active,
+      beltColor:         body.beltColor   ?? existing.beltColor,
+      title:             body.title?.trim() ?? existing.title,
+      description:       body.description !== undefined ? (body.description?.trim() || null) : existing.description,
+      videoUrl:          body.videoUrl    ?? existing.videoUrl,
+      publicId:          body.publicId    ?? existing.publicId,
+      tachiKataUrl:      "tachiKataUrl" in body      ? (body.tachiKataUrl      || null) : existing.tachiKataUrl,
+      tachiKataPublicId: "tachiKataPublicId" in body ? (body.tachiKataPublicId || null) : existing.tachiKataPublicId,
+      order:             body.order !== undefined ? Number(body.order) : existing.order,
+      active:            body.active      ?? existing.active,
     },
   });
 
@@ -59,8 +71,11 @@ export async function DELETE( req: NextRequest, { params }: Params) {
   const existing = await prisma.beltVideo.findFirst({ where: { id, dojoId } });
   if (!existing) return NextResponse.json({ error: "Video no encontrado" }, { status: 404 });
 
-  // Delete from Cloudinary first, then from DB
-  try { await deleteResource(existing.publicId, "video"); } catch { /* continue even if Cloudinary fails */ }
+  // Delete main video and Tachi Kata from Cloudinary, then from DB
+  try { await deleteResource(existing.publicId, "video"); } catch { /* continue */ }
+  if (existing.tachiKataPublicId) {
+    try { await deleteResource(existing.tachiKataPublicId, "video"); } catch { /* continue */ }
+  }
 
   await prisma.beltVideo.delete({ where: { id } });
   return NextResponse.json({ ok: true });

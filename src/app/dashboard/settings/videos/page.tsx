@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { Video, Plus, Edit2, Trash2, Save, X, Upload, Loader2, PlayCircle } from "lucide-react";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { Modal } from "@/components/ui/Modal";
@@ -8,6 +9,7 @@ import { BELT_COLORS } from "@/lib/utils";
 interface BeltVideo {
   id: string; beltColor: string; title: string;
   description: string | null; videoUrl: string; publicId: string;
+  tachiKataUrl?: string | null; tachiKataPublicId?: string | null;
   order: number; active: boolean;
 }
 
@@ -16,6 +18,10 @@ const empty = (): Partial<BeltVideo> => ({
 });
 
 export default function VideosSettingsPage() {
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string })?.role ?? "";
+  const canEdit = role === "admin" || role === "sysadmin";
+
   const [videos,   setVideos]  = useState<BeltVideo[]>([]);
   const [loading,  setLoading] = useState(true);
   const [modal,    setModal]   = useState(false);
@@ -24,10 +30,15 @@ export default function VideosSettingsPage() {
   const [deleting, setDel]     = useState<string | null>(null);
   const [preview,  setPreview] = useState<BeltVideo | null>(null);
 
-  // Upload state
+  // Upload state — main video
   const [uploading,   setUploading]  = useState(false);
   const [uploadError, setUploadErr]  = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Upload state — Tachi Kata video
+  const [uploadingTachi,   setUploadingTachi]  = useState(false);
+  const [uploadErrorTachi, setUploadErrTachi]  = useState("");
+  const tachiFileRef = useRef<HTMLInputElement>(null);
 
   const fetch_ = useCallback(async () => {
     setLoading(true);
@@ -38,8 +49,8 @@ export default function VideosSettingsPage() {
 
   useEffect(() => { fetch_(); }, [fetch_]);
 
-  function openCreate() { setEditing(empty()); setUploadErr(""); setModal(true); }
-  function openEdit(v: BeltVideo) { setEditing({ ...v }); setUploadErr(""); setModal(true); }
+  function openCreate() { setEditing(empty()); setUploadErr(""); setUploadErrTachi(""); setModal(true); }
+  function openEdit(v: BeltVideo) { setEditing({ ...v }); setUploadErr(""); setUploadErrTachi(""); setModal(true); }
 
   async function handleVideoFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -51,7 +62,12 @@ export default function VideosSettingsPage() {
       fd.append("file", file);
       fd.append("type", "video");
       const res  = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
+      let data: { url?: string; publicId?: string; error?: string };
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`Error al subir video (HTTP ${res.status}). El archivo puede ser demasiado grande.`);
+      }
       if (!res.ok) throw new Error(data.error ?? "Error al subir video");
       setEditing(p => ({ ...p, videoUrl: data.url, publicId: data.publicId }));
     } catch (err: unknown) {
@@ -59,6 +75,32 @@ export default function VideosSettingsPage() {
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function handleTachiFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadErrTachi("");
+    setUploadingTachi(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "video");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      let data: { url?: string; publicId?: string; error?: string };
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`Error al subir video (HTTP ${res.status}). El archivo puede ser demasiado grande.`);
+      }
+      if (!res.ok) throw new Error(data.error ?? "Error al subir video");
+      setEditing(p => ({ ...p, tachiKataUrl: data.url, tachiKataPublicId: data.publicId }));
+    } catch (err: unknown) {
+      setUploadErrTachi(err instanceof Error ? err.message : "Error al subir video");
+    } finally {
+      setUploadingTachi(false);
+      if (tachiFileRef.current) tachiFileRef.current.value = "";
     }
   }
 
@@ -109,9 +151,11 @@ export default function VideosSettingsPage() {
             {videos.length} video(s) · {totalActive} activos · {totalInactive} inactivos
           </p>
         </div>
-        <button onClick={openCreate} className="btn-primary">
-          <Plus size={18} /> Nuevo Video
-        </button>
+        {canEdit && (
+          <button onClick={openCreate} className="btn-primary">
+            <Plus size={18} /> Nuevo Video
+          </button>
+        )}
       </div>
 
       {loading && <div className="text-center py-20 text-dojo-muted">Cargando...</div>}
@@ -157,19 +201,25 @@ export default function VideosSettingsPage() {
                         >
                           <PlayCircle size={15} />
                         </button>
-                        <button
-                          onClick={() => openEdit(v)}
-                          className="btn-ghost p-1.5 text-dojo-muted hover:text-dojo-white"
-                        >
-                          <Edit2 size={15} />
-                        </button>
-                        <button
-                          onClick={() => deleteVideo(v)}
-                          disabled={deleting === v.id}
-                          className="btn-ghost p-1.5 text-dojo-muted hover:text-red-400"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        {canEdit && (
+                          <>
+                            <button
+                              onClick={() => openEdit(v)}
+                              className="btn-ghost p-1.5 text-dojo-muted hover:text-dojo-white"
+                              title="Editar"
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                            <button
+                              onClick={() => deleteVideo(v)}
+                              disabled={deleting === v.id}
+                              className="btn-ghost p-1.5 text-dojo-muted hover:text-red-400"
+                              title="Eliminar"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -188,8 +238,8 @@ export default function VideosSettingsPage() {
         </div>
       )}
 
-      {/* Modal crear / editar */}
-      <Modal open={modal} onClose={() => setModal(false)} title={editing.id ? "Editar Video" : "Nuevo Video"} size="lg">
+      {/* Modal crear / editar — no cierra al hacer clic fuera */}
+      <Modal open={modal} onClose={() => setModal(false)} title={editing.id ? "Editar Video" : "Nuevo Video"} size="lg" disableBackdropClose>
         <div className="space-y-4">
           {/* Título */}
           <div>
@@ -272,6 +322,57 @@ export default function VideosSettingsPage() {
               {editing.videoUrl && !uploading && (
                 <video
                   src={editing.videoUrl}
+                  controls
+                  className="w-full rounded-lg mt-2 max-h-48 bg-black"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Tachi Kata — video opcional */}
+          <div className="border border-dojo-border rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-dojo-white">Tachi Kata</span>
+              <span className="text-xs text-dojo-muted">(opcional)</span>
+              {editing.tachiKataUrl && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(p => ({ ...p, tachiKataUrl: null, tachiKataPublicId: null }))}
+                  className="ml-auto text-xs text-red-400 hover:text-red-300"
+                >
+                  Quitar
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => tachiFileRef.current?.click()}
+                  disabled={uploadingTachi}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  {uploadingTachi ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                  {uploadingTachi ? "Subiendo..." : editing.tachiKataUrl ? "Reemplazar Tachi Kata" : "Subir video Tachi Kata"}
+                </button>
+                {editing.tachiKataUrl && !uploadingTachi && (
+                  <span className="text-xs text-green-400 flex items-center gap-1">
+                    <PlayCircle size={13} /> Video listo
+                  </span>
+                )}
+              </div>
+              <input
+                ref={tachiFileRef}
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime"
+                className="hidden"
+                onChange={handleTachiFile}
+              />
+              <p className="text-xs text-dojo-muted">MP4, WebM o MOV · máx. 200 MB</p>
+              {uploadErrorTachi && <p className="text-xs text-red-400">{uploadErrorTachi}</p>}
+              {editing.tachiKataUrl && !uploadingTachi && (
+                <video
+                  src={editing.tachiKataUrl}
                   controls
                   className="w-full rounded-lg mt-2 max-h-48 bg-black"
                 />

@@ -46,12 +46,14 @@ export async function POST(req: NextRequest) {
   const video = await prisma.beltVideo.create({
     data: {
       dojoId,
-      beltColor:   body.beltColor,
-      title:       body.title.trim(),
-      description: body.description?.trim() || null,
-      videoUrl:    body.videoUrl,
-      publicId:    body.publicId,
-      order:       Number(body.order) || 0,
+      beltColor:        body.beltColor,
+      title:            body.title.trim(),
+      description:      body.description?.trim() || null,
+      videoUrl:         body.videoUrl,
+      publicId:         body.publicId,
+      tachiKataUrl:     body.tachiKataUrl      || null,
+      tachiKataPublicId: body.tachiKataPublicId || null,
+      order:            Number(body.order) || 0,
     },
   });
 

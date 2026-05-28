@@ -478,9 +478,11 @@ model BeltVideo {
   beltColor   String   @map("belt_color")
   title       String
   description String?  @db.Text
-  videoUrl    String   @map("video_url")
-  publicId    String   @map("public_id")
-  order       Int      @default(0)
+  videoUrl          String   @map("video_url")
+  publicId          String   @map("public_id")
+  tachiKataUrl      String?  @map("tachi_kata_url")
+  tachiKataPublicId String?  @map("tachi_kata_public_id")
+  order             Int      @default(0)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
