@@ -25,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (!existing) return NextResponse.json({ error: "Video no encontrado" }, { status: 404 });
 
   // If a new main video was uploaded, delete the old one from Cloudinary
-  if (body.videoUrl && body.publicId && body.publicId !== existing.publicId) {
+  if (body.videoUrl && body.publicId && body.publicId !== existing.publicId && existing.publicId) {
     try { await deleteResource(existing.publicId, "video"); } catch { /* continue */ }
   }
 
@@ -72,7 +72,9 @@ export async function DELETE( req: NextRequest, { params }: Params) {
   if (!existing) return NextResponse.json({ error: "Video no encontrado" }, { status: 404 });
 
   // Delete main video and Tachi Kata from Cloudinary, then from DB
-  try { await deleteResource(existing.publicId, "video"); } catch { /* continue */ }
+  if (existing.publicId) {
+    try { await deleteResource(existing.publicId, "video"); } catch { /* continue */ }
+  }
   if (existing.tachiKataPublicId) {
     try { await deleteResource(existing.tachiKataPublicId, "video"); } catch { /* continue */ }
   }

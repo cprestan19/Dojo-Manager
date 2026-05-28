@@ -38,22 +38,22 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
 
-  if (!body.title?.trim())     return NextResponse.json({ error: "Título requerido" }, { status: 400 });
-  if (!body.beltColor)         return NextResponse.json({ error: "Cinta requerida" }, { status: 400 });
-  if (!body.videoUrl)          return NextResponse.json({ error: "URL de video requerida" }, { status: 400 });
-  if (!body.publicId)          return NextResponse.json({ error: "publicId requerido" }, { status: 400 });
+  if (!body.title?.trim()) return NextResponse.json({ error: "Título requerido" }, { status: 400 });
+  if (!body.beltColor)     return NextResponse.json({ error: "Cinta requerida" }, { status: 400 });
+  if (!body.videoUrl && !body.tachiKataUrl)
+    return NextResponse.json({ error: "Se requiere al menos un video (kata o tachi kata)" }, { status: 400 });
 
   const video = await prisma.beltVideo.create({
     data: {
       dojoId,
-      beltColor:        body.beltColor,
-      title:            body.title.trim(),
-      description:      body.description?.trim() || null,
-      videoUrl:         body.videoUrl,
-      publicId:         body.publicId,
-      tachiKataUrl:     body.tachiKataUrl      || null,
+      beltColor:         body.beltColor,
+      title:             body.title.trim(),
+      description:       body.description?.trim() || null,
+      videoUrl:          body.videoUrl          || null,
+      publicId:          body.publicId          || null,
+      tachiKataUrl:      body.tachiKataUrl      || null,
       tachiKataPublicId: body.tachiKataPublicId || null,
-      order:            Number(body.order) || 0,
+      order:             Number(body.order) || 0,
     },
   });
 

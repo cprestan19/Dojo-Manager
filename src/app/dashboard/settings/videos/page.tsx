@@ -113,7 +113,10 @@ export default function VideosSettingsPage() {
   }
 
   async function save() {
-    if (!editing.videoUrl) { setUploadErr("Debes subir un video primero"); return; }
+    if (!editing.videoUrl && !editing.tachiKataUrl) {
+      setUploadErr("Debes subir al menos un video (kata o tachi kata)");
+      return;
+    }
     setSaving(true);
     const isEdit = Boolean(editing.id);
     const url    = isEdit ? `/api/belt-videos/${editing.id}` : "/api/belt-videos";
@@ -298,7 +301,7 @@ export default function VideosSettingsPage() {
 
           {/* Upload video */}
           <div>
-            <label className="form-label">Archivo de Video *</label>
+            <label className="form-label">Video de Kata <span className="text-dojo-muted font-normal">(opcional si subes Tachi Kata)</span></label>
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <button
@@ -409,7 +412,7 @@ export default function VideosSettingsPage() {
             <button
               type="button"
               onClick={save}
-              disabled={saving || uploading || !editing.title || !editing.videoUrl}
+              disabled={saving || uploading || uploadingTachi || !editing.title || (!editing.videoUrl && !editing.tachiKataUrl)}
               className="btn-primary"
             >
               <Save size={16} /> {saving ? "Guardando..." : "Guardar"}

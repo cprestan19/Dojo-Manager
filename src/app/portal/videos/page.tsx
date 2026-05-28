@@ -6,7 +6,7 @@ import { BELT_COLORS } from "@/lib/utils";
 
 interface BeltVideo {
   id: string; beltColor: string; title: string;
-  description: string | null; videoUrl: string; tachiKataUrl: string | null; order: number;
+  description: string | null; videoUrl: string | null; tachiKataUrl: string | null; order: number;
 }
 
 interface VideoData {
@@ -129,28 +129,30 @@ export default function PortalVideosPage() {
                     <BeltBadge beltColor={v.beltColor} />
                   </div>
 
-                  {/* Video principal */}
-                  <div className="bg-black">
-                    {playing === v.id ? (
-                      <video
-                        src={v.videoUrl}
-                        controls
-                        autoPlay
-                        className="w-full max-h-72"
-                        onEnded={() => setPlaying(null)}
-                      />
-                    ) : (
-                      <button
-                        onClick={() => setPlaying(v.id)}
-                        className="w-full h-36 flex flex-col items-center justify-center gap-2 text-dojo-muted hover:text-dojo-white transition-colors group"
-                      >
-                        <div className="w-14 h-14 rounded-full bg-dojo-red/20 group-hover:bg-dojo-red/40 flex items-center justify-center transition-colors">
-                          <Video size={28} className="text-dojo-red" />
-                        </div>
-                        <p className="text-xs">Reproducir video</p>
-                      </button>
-                    )}
-                  </div>
+                  {/* Video principal — solo si tiene URL */}
+                  {v.videoUrl && (
+                    <div className="bg-black">
+                      {playing === v.id ? (
+                        <video
+                          src={v.videoUrl}
+                          controls
+                          autoPlay
+                          className="w-full max-h-72"
+                          onEnded={() => setPlaying(null)}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setPlaying(v.id)}
+                          className="w-full h-36 flex flex-col items-center justify-center gap-2 text-dojo-muted hover:text-dojo-white transition-colors group"
+                        >
+                          <div className="w-14 h-14 rounded-full bg-dojo-red/20 group-hover:bg-dojo-red/40 flex items-center justify-center transition-colors">
+                            <Video size={28} className="text-dojo-red" />
+                          </div>
+                          <p className="text-xs">Reproducir video</p>
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Tachi Kata — video opcional */}
                   {v.tachiKataUrl && (
