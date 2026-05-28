@@ -1234,6 +1234,7 @@ export default function StudentDetailPage() {
                       <p className="text-sm font-semibold text-dojo-white">
                         {entry.kata?.name
                           ?? entry.notes?.match(/Kata:\s*([^|]+)/)?.[1]?.trim()
+                          ?? (entry.notes?.split("|").some(s => s.trim() === "Kumite") ? "Kumite" : null)
                           ?? <span className="text-dojo-muted italic">Sin kata seleccionado</span>}
                       </p>
                       {entry.tournament && (
