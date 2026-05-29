@@ -488,7 +488,8 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
               <input type="number" step="0.01" {...register("inscription.annualAmount")}
-                className="form-input pl-7" placeholder="0.00" />
+                className="form-input pl-7" placeholder="0.00"
+                onWheel={(e) => (e.target as HTMLInputElement).blur()} />
             </div>
           </div>
 
@@ -531,7 +532,8 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
                 <input type="number" step="0.01" {...register("inscription.monthlyAmount")}
-                  className="form-input pl-7" placeholder="0.00" />
+                  className="form-input pl-7" placeholder="0.00"
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()} />
               </div>
             </div>
           ) : (
@@ -540,7 +542,8 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
                 <input type="number" step="0.01" {...register("inscription.biweeklyAmount")}
-                  className="form-input pl-7" placeholder="0.00" />
+                  className="form-input pl-7" placeholder="0.00"
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()} />
               </div>
               <p className="text-xs text-dojo-muted mt-1">
                 Se generarán 2 cobros por mes: el día 1 y el día 15.
@@ -569,7 +572,8 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
                         hasDiscount && Number(discountAmount) < 0 && "border-green-700",
                         hasDiscount && Number(discountAmount) > 0 && "border-yellow-700",
                       )}
-                      placeholder="Ej. -10.00 o +5.00" />
+                      placeholder="Ej. -10.00 o +5.00"
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()} />
                   </div>
                   {hasDiscount && (
                     <p className={cn("text-xs mt-1 font-semibold",
