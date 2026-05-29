@@ -54,8 +54,17 @@ export default function KatasPage() {
           <div key={belt.value} className="card p-0 overflow-hidden">
             <div className="flex items-center gap-3 px-5 py-3 border-b border-dojo-border"
               style={{ backgroundColor: belt.hex + "15" }}>
-              <span className="w-3 h-3 rounded-full border border-white/30" style={{ backgroundColor: belt.hex }}/>
-              <p className="font-semibold text-sm" style={{ color: belt.hex === "#FFFFFF" ? "#ccc" : belt.hex }}>
+              <span
+                className="w-3 h-3 rounded-full"
+                style={
+                  belt.hex === "#1A1A1A"
+                    ? { backgroundColor: "#1A1A1A", border: "1.5px solid rgba(255,255,255,0.6)" }
+                    : { backgroundColor: belt.hex, border: "1px solid rgba(255,255,255,0.3)" }
+                }
+              />
+              <p className="font-semibold text-sm" style={{
+                color: belt.textColor === "#000" ? belt.hex : belt.textColor,
+              }}>
                 Cinta {belt.label}
               </p>
               <span className="text-xs text-dojo-muted ml-auto">{list.length} kata(s)</span>
