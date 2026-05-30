@@ -129,58 +129,163 @@ export default async function PortalProfilePage() {
         </div>
       </div>
 
-      {/* ── QR de identificación ── */}
-      <StudentQR
-        studentCode={student.studentCode}
-        fullName={student.fullName}
-      />
+      {/* ── QR + Familia ─────────────────────────────────────── */}
+      {siblings.length === 0 ? (
+        <>
+          {/* Sin familia: QR simple + pagos del alumno */}
+          <StudentQR studentCode={student.studentCode} fullName={student.fullName} />
 
-      {/* ── Hermanos / Familia ── */}
-      {siblings.length > 0 && (
-        <div className="space-y-4">
-          <p className="section-title flex items-center gap-2 text-dojo-muted px-1">
-            <Users size={13} /> Otros miembros de tu familia
-          </p>
-          {siblings.map(s => {
-            const sibBelt    = s.beltHistory[0]?.beltColor;
-            const sibBeltInfo = sibBelt ? getBeltInfo(sibBelt) : null;
-            const sibAge     = Math.floor((Date.now() - new Date(s.birthDate).getTime()) / (365.25 * 86400000));
-            const sibIsUrl   = s.photo?.startsWith("http");
-
-            return (
-              <div key={s.id} className="card border border-dojo-border/60 space-y-4">
-                {/* ── Header: avatar + nombre + cinta ── */}
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-dojo-border overflow-hidden flex items-center justify-center text-lg font-bold text-dojo-gold shrink-0">
-                    {sibIsUrl
-                      ? <Image src={s.photo!} alt="" width={64} height={64} className="object-cover w-full h-full" unoptimized />
-                      : s.fullName.split(" ").slice(0, 2).map(w => w[0]).join("")}
+          {student.payments.length > 0 && (
+            <div className="card border border-yellow-800/40 bg-yellow-900/10">
+              <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                <CreditCard size={13} /> Pagos pendientes
+              </p>
+              <div className="space-y-2">
+                {student.payments.map(p => (
+                  <div key={p.id} className="flex justify-between text-sm">
+                    <span className="text-dojo-muted">{formatDate(p.dueDate)}</span>
+                    <span className={p.status === "late" ? "text-red-400 font-semibold" : "text-yellow-400"}>
+                      ${p.amount.toFixed(2)} {p.status === "late" ? "· Atrasado" : "· Pendiente"}
+                    </span>
                   </div>
-                  <div className="min-w-0">
-                    <h2 className="font-display text-base font-bold text-dojo-white leading-tight">{s.fullName}</h2>
-                    <p className="text-dojo-muted text-xs mt-0.5">{sibAge} años · {s.gender === "M" ? "Masculino" : "Femenino"}</p>
-                    {s.studentCode && (
-                      <span className="font-mono text-xs text-dojo-gold flex items-center gap-1 mt-0.5">
-                        <Fingerprint size={11} /> #{s.studentCode}
-                      </span>
-                    )}
-                    {sibBeltInfo && (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full mt-1"
-                        style={{ backgroundColor: sibBeltInfo.hex + "25", color: sibBeltInfo.hex === "#FFFFFF" ? "#ccc" : sibBeltInfo.hex, border: `1px solid ${sibBeltInfo.hex}40` }}>
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sibBeltInfo.hex }} />
-                        Cinta {sibBeltInfo.label}
+                ))}
+              </div>
+              <Link href="/portal/payments" className="block mt-3 text-xs text-dojo-red hover:underline text-center">
+                Ver historial completo →
+              </Link>
+            </div>
+          )}
+        </>
+      ) : (
+        /* Con familia: resumen unificado de todos los miembros */
+        <div className="card space-y-0 p-0 overflow-hidden">
+          {/* Encabezado */}
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-dojo-border bg-dojo-darker/60">
+            <Users size={14} className="text-dojo-muted" />
+            <p className="text-xs font-bold text-dojo-muted uppercase tracking-wider">Resumen Familiar</p>
+          </div>
+
+          {/* Alumno principal */}
+          {(() => {
+            const mainPays = student.payments;
+            return (
+              <div className="p-4 border-b border-dojo-border">
+                {/* Header alumno */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 rounded-xl bg-dojo-border overflow-hidden flex items-center justify-center text-sm font-bold text-dojo-gold shrink-0">
+                    {student.photo?.startsWith("http")
+                      ? <Image src={student.photo} alt="" width={48} height={48} className="object-cover w-full h-full" unoptimized />
+                      : student.fullName.split(" ").slice(0, 2).map(w => w[0]).join("")}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-dojo-white text-sm leading-tight">{student.fullName}</p>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-dojo-red/20 text-dojo-red border border-dojo-red/30">Tú</span>
+                    </div>
+                    {student.studentCode && (
+                      <span className="font-mono text-[11px] text-dojo-gold flex items-center gap-1 mt-0.5">
+                        <Fingerprint size={10} /> #{student.studentCode}
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* ── Pagos pendientes ── */}
-                {s.payments.length > 0 && (
-                  <div className="rounded-lg border border-yellow-800/40 bg-yellow-900/10 px-3 py-2.5">
-                    <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <CreditCard size={11} /> Pagos pendientes
+                {/* Cinta */}
+                {beltInfo ? (
+                  <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-dojo-darker border border-dojo-border/60">
+                    <Award size={13} className="text-dojo-muted shrink-0" />
+                    <span className="text-xs font-semibold" style={{ color: beltInfo.hex === "#FFFFFF" ? "#ccc" : beltInfo.hex }}>
+                      {beltInfo.label}
+                    </span>
+                    <span className="w-3 h-3 rounded-full shrink-0 ml-auto border border-white/20" style={{ backgroundColor: beltInfo.hex }} />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-dojo-darker border border-dojo-border/60">
+                    <Award size={13} className="text-dojo-muted" />
+                    <span className="text-xs text-dojo-muted">Sin cinta registrada</span>
+                  </div>
+                )}
+
+                {/* Pagos */}
+                {mainPays.length > 0 ? (
+                  <div className="rounded-lg border border-yellow-800/40 bg-yellow-900/10 px-3 py-2.5 mb-3">
+                    <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                      <CreditCard size={10} /> Pagos pendientes
                     </p>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
+                      {mainPays.map(p => (
+                        <div key={p.id} className="flex justify-between text-xs">
+                          <span className="text-dojo-muted">{formatDate(p.dueDate)}</span>
+                          <span className={p.status === "late" ? "text-red-400 font-semibold" : "text-yellow-400"}>
+                            ${p.amount.toFixed(2)} {p.status === "late" ? "· Atrasado" : "· Pendiente"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <Link href="/portal/payments" className="block mt-2 text-[10px] text-dojo-red hover:underline text-right">
+                      Ver historial →
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-green-800/40 bg-green-900/10 px-3 py-2 mb-3 flex items-center gap-2">
+                    <span className="text-green-400 text-xs font-semibold">✓ Al día en pagos</span>
+                  </div>
+                )}
+
+                {/* QR */}
+                <StudentQR studentCode={student.studentCode} fullName={student.fullName} />
+              </div>
+            );
+          })()}
+
+          {/* Hermanos */}
+          {siblings.map((s, idx) => {
+            const sibBelt     = s.beltHistory[0]?.beltColor;
+            const sibBeltInfo = sibBelt ? getBeltInfo(sibBelt) : null;
+            const isLast      = idx === siblings.length - 1;
+
+            return (
+              <div key={s.id} className={`p-4 ${!isLast ? "border-b border-dojo-border" : ""}`}>
+                {/* Header hermano */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 rounded-xl bg-dojo-border overflow-hidden flex items-center justify-center text-sm font-bold text-dojo-gold shrink-0">
+                    {s.photo?.startsWith("http")
+                      ? <Image src={s.photo!} alt="" width={48} height={48} className="object-cover w-full h-full" unoptimized />
+                      : s.fullName.split(" ").slice(0, 2).map(w => w[0]).join("")}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-dojo-white text-sm leading-tight">{s.fullName}</p>
+                    {s.studentCode && (
+                      <span className="font-mono text-[11px] text-dojo-gold flex items-center gap-1 mt-0.5">
+                        <Fingerprint size={10} /> #{s.studentCode}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Cinta hermano */}
+                {sibBeltInfo ? (
+                  <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-dojo-darker border border-dojo-border/60">
+                    <Award size={13} className="text-dojo-muted shrink-0" />
+                    <span className="text-xs font-semibold" style={{ color: sibBeltInfo.hex === "#FFFFFF" ? "#ccc" : sibBeltInfo.hex }}>
+                      {sibBeltInfo.label}
+                    </span>
+                    <span className="w-3 h-3 rounded-full shrink-0 ml-auto border border-white/20" style={{ backgroundColor: sibBeltInfo.hex }} />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-dojo-darker border border-dojo-border/60">
+                    <Award size={13} className="text-dojo-muted" />
+                    <span className="text-xs text-dojo-muted">Sin cinta registrada</span>
+                  </div>
+                )}
+
+                {/* Pagos hermano */}
+                {s.payments.length > 0 ? (
+                  <div className="rounded-lg border border-yellow-800/40 bg-yellow-900/10 px-3 py-2.5 mb-3">
+                    <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                      <CreditCard size={10} /> Pagos pendientes
+                    </p>
+                    <div className="space-y-1">
                       {s.payments.map(p => (
                         <div key={p.id} className="flex justify-between text-xs">
                           <span className="text-dojo-muted">{formatDate(p.dueDate)}</span>
@@ -191,38 +296,17 @@ export default async function PortalProfilePage() {
                       ))}
                     </div>
                   </div>
+                ) : (
+                  <div className="rounded-lg border border-green-800/40 bg-green-900/10 px-3 py-2 mb-3 flex items-center gap-2">
+                    <span className="text-green-400 text-xs font-semibold">✓ Al día en pagos</span>
+                  </div>
                 )}
 
-                {/* ── QR de identificación ── */}
-                <StudentQR
-                  studentCode={s.studentCode}
-                  fullName={s.fullName}
-                />
+                {/* QR hermano */}
+                <StudentQR studentCode={s.studentCode} fullName={s.fullName} />
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* ── Pagos pendientes ── */}
-      {student.payments.length > 0 && (
-        <div className="card border border-yellow-800/40 bg-yellow-900/10">
-          <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-            <CreditCard size={13} /> Pagos pendientes
-          </p>
-          <div className="space-y-2">
-            {student.payments.map(p => (
-              <div key={p.id} className="flex justify-between text-sm">
-                <span className="text-dojo-muted">{formatDate(p.dueDate)}</span>
-                <span className={p.status === "late" ? "text-red-400 font-semibold" : "text-yellow-400"}>
-                  ${p.amount.toFixed(2)} {p.status === "late" ? "· Atrasado" : "· Pendiente"}
-                </span>
-              </div>
-            ))}
-          </div>
-          <Link href="/portal/payments" className="block mt-3 text-xs text-dojo-red hover:underline text-center">
-            Ver historial completo →
-          </Link>
         </div>
       )}
 
