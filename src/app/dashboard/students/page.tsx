@@ -20,6 +20,7 @@ export default async function StudentsPage() {
       id: true, fullName: true, firstName: true, lastName: true,
       birthDate: true, gender: true, nationality: true, active: true,
       photo: true,  // URL Cloudinary para avatar
+      familyId: true,
       beltHistory: {
         orderBy: { changeDate: "desc" },
         take: 1,

@@ -1,10 +1,11 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import {
   User, Heart, Phone, CreditCard, Award,
-  Camera, ChevronDown, ChevronUp, Save, ArrowLeft, Calendar, Loader2
+  Camera, ChevronDown, ChevronUp, Save, ArrowLeft, Calendar, Loader2,
+  Users, Link2, X,
 } from "lucide-react";
 import { cn, calculateAge, BELT_COLORS, GENDERS, NATIONALITIES } from "@/lib/utils";
 
@@ -121,6 +122,52 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
   const [error,          setError]          = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // ── Sibling linking (creation only) ──────────────────────────
+  interface SiblingResult { id: string; fullName: string; studentCode: number | null; familyId: string | null; }
+  const [siblingQuery,    setSiblingQuery]    = useState("");
+  const [siblingResults,  setSiblingResults]  = useState<SiblingResult[]>([]);
+  const [searchingSibling, setSearchingSibling] = useState(false);
+  const [selectedSibling,  setSelectedSibling]  = useState<SiblingResult | null>(null);
+  const [showSiblingSearch, setShowSiblingSearch] = useState(false);
+
+  const searchSiblings = useCallback(async (q: string) => {
+    if (q.length < 2) { setSiblingResults([]); return; }
+    setSearchingSibling(true);
+    try {
+      const res = await fetch(`/api/families/search?q=${encodeURIComponent(q)}`);
+      if (res.ok) setSiblingResults(await res.json());
+    } finally {
+      setSearchingSibling(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => searchSiblings(siblingQuery), 300);
+    return () => clearTimeout(t);
+  }, [siblingQuery, searchSiblings]);
+
+  async function handleSelectSibling(sib: SiblingResult) {
+    setSelectedSibling(sib);
+    setShowSiblingSearch(false);
+    setSiblingQuery("");
+    setSiblingResults([]);
+
+    // Auto-fill empty contact fields from sibling's data
+    try {
+      const res = await fetch(`/api/students/${sib.id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const cur  = { motherName: watch("motherName"), motherPhone: watch("motherPhone"), motherEmail: watch("motherEmail"),
+                     fatherName: watch("fatherName"), fatherPhone: watch("fatherPhone"), fatherEmail: watch("fatherEmail") };
+      if (!cur.motherName  && data.motherName)  setValue("motherName",  data.motherName);
+      if (!cur.motherPhone && data.motherPhone) setValue("motherPhone", data.motherPhone);
+      if (!cur.motherEmail && data.motherEmail) setValue("motherEmail", data.motherEmail);
+      if (!cur.fatherName  && data.fatherName)  setValue("fatherName",  data.fatherName);
+      if (!cur.fatherPhone && data.fatherPhone) setValue("fatherPhone", data.fatherPhone);
+      if (!cur.fatherEmail && data.fatherEmail) setValue("fatherEmail", data.fatherEmail);
+    } catch { /* non-critical */ }
+  }
+
   const birthDate          = watch("birthDate");
   const hasInsurance       = watch("hasPrivateInsurance");
   const discountAmount  = watch("inscription.discountAmount");
@@ -162,7 +209,10 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
     const firstName = parts[0] ?? "";
     const lastName  = parts.slice(1).join(" ");
     const { fullName: _, ...rest } = data;
-    const payload = { ...rest, fullName: trimmed, firstName, lastName, photo };
+
+    // If sibling already has a familyId, attach the new student to it directly
+    const familyId = selectedSibling?.familyId ?? null;
+    const payload = { ...rest, fullName: trimmed, firstName, lastName, photo, familyId };
 
     const url    = isEdit ? `/api/students/${defaultValues?.id}` : "/api/students";
     const method = isEdit ? "PUT" : "POST";
@@ -182,7 +232,18 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
       return;
     }
 
-    router.push(`/dashboard/students/${(body as { id: string }).id}`);
+    const newStudentId = (body as { id: string }).id;
+
+    // If sibling selected but had no familyId yet, create the family link now
+    if (!isEdit && selectedSibling && !selectedSibling.familyId) {
+      await fetch("/api/families", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ studentIds: [newStudentId, selectedSibling.id] }),
+      }).catch(() => { /* non-critical — FamilyManager can link later */ });
+    }
+
+    router.push(`/dashboard/students/${newStudentId}`);
   }
 
   return (
@@ -603,6 +664,88 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
           <p className="text-xs text-dojo-muted">
             Podrás registrar el rango y el historial de cintas desde la página del alumno una vez guardado.
           </p>
+        </div>
+      )}
+
+      {/* ── FAMILIA (solo en creación) ── */}
+      {!isEdit && (
+        <div className="card mb-4">
+          <p className="section-title flex items-center gap-2 mb-4">
+            <Users size={14} /> ¿Este alumno tiene hermanos en el dojo?
+          </p>
+
+          {selectedSibling ? (
+            <div className="flex items-center justify-between p-3 rounded-lg border border-dojo-gold/40 bg-dojo-gold/5">
+              <div>
+                <p className="text-sm font-semibold text-dojo-white">{selectedSibling.fullName}</p>
+                {selectedSibling.studentCode != null && (
+                  <p className="text-xs text-dojo-muted font-mono">#{selectedSibling.studentCode}</p>
+                )}
+                <p className="text-xs text-dojo-gold mt-1">
+                  {selectedSibling.familyId
+                    ? "El nuevo alumno se unirá a su familia"
+                    : "Se creará una familia nueva para ambos"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedSibling(null)}
+                className="text-dojo-muted hover:text-red-400 transition-colors ml-3 shrink-0"
+                title="Quitar hermano seleccionado"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ) : !showSiblingSearch ? (
+            <button
+              type="button"
+              onClick={() => setShowSiblingSearch(true)}
+              className="btn-secondary text-sm flex items-center gap-2"
+            >
+              <Link2 size={14} /> Buscar hermano por nombre...
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  value={siblingQuery}
+                  onChange={e => setSiblingQuery(e.target.value)}
+                  className="form-input text-sm flex-1"
+                  placeholder="Buscar por nombre..."
+                />
+                <button
+                  type="button"
+                  onClick={() => { setShowSiblingSearch(false); setSiblingQuery(""); setSiblingResults([]); }}
+                  className="btn-ghost text-xs px-3"
+                >
+                  Cancelar
+                </button>
+              </div>
+              {searchingSibling && <p className="text-xs text-dojo-muted">Buscando...</p>}
+              {!searchingSibling && siblingResults.length > 0 && (
+                <div className="rounded-lg border border-dojo-border overflow-hidden">
+                  {siblingResults.map(s => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => handleSelectSibling(s)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-dojo-darker text-dojo-white border-b border-dojo-border/30 last:border-0 transition-colors"
+                    >
+                      {s.fullName}
+                      {s.studentCode != null && (
+                        <span className="text-dojo-muted text-xs ml-1.5">#{s.studentCode}</span>
+                      )}
+                      {s.familyId && <span className="ml-2 text-xs badge-blue">Con familia</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!searchingSibling && siblingQuery.length >= 2 && siblingResults.length === 0 && (
+                <p className="text-xs text-dojo-muted">No se encontraron alumnos.</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 

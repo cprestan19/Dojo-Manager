@@ -216,6 +216,7 @@ model Student {
   fatherEmail String?
 
   address String? @db.Text
+  familyId  String?  @map("family_id")
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -241,6 +242,7 @@ model Student {
   @@index([dojoId, lastName, firstName])
   @@index([dojoId, fullName])
   @@index([dojoId, active, fullName])
+  @@index([familyId])
   @@map("students")
 }
 

@@ -21,6 +21,7 @@ export interface StudentRow {
   nationality: string;
   active:      boolean;
   photo:       string | null;           // URL Cloudinary (null si no tiene o es base64 legacy)
+  familyId:    string | null;
   beltHistory: { beltColor: string }[];
   payments:    { status: string; dueDate: string }[];
   portalUser:  { active: boolean } | null;
@@ -337,6 +338,11 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
                     : <span className="text-xs text-dojo-muted">Sin cinta</span>
                   }
                   {!s.active && <span className="flex items-center gap-1 text-xs text-red-400 font-semibold"><UserX size={10}/> Inactivo</span>}
+                  {s.familyId && (
+                    <span className="flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-sky-900/30 text-sky-400 border border-sky-800/40">
+                      <Users size={9}/> Familia
+                    </span>
+                  )}
                   <PortalBadge portalUser={s.portalUser} />
                   {s.active && payment && (
                     <span className={payment.status==="late"?"badge-red text-xs":payment.status==="pending"?"badge-yellow text-xs":"badge-green text-xs"}>
@@ -396,9 +402,14 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
                           : s.fullName.split(" ").slice(0,2).map(w=>w[0]).join("")}
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-semibold text-dojo-white">{s.fullName}</p>
                           {!s.active && <span className="flex items-center gap-1 text-xs text-red-400 font-semibold"><UserX size={10}/> Inactivo</span>}
+                          {s.familyId && (
+                            <span className="flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-sky-900/30 text-sky-400 border border-sky-800/40" title="Familia vinculada">
+                              <Users size={9}/> Familia
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-dojo-muted">{s.nationality} · {s.gender==="M"?"Masculino":"Femenino"}</p>
                       </div>

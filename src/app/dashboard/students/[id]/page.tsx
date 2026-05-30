@@ -9,6 +9,7 @@ import {
   MapPin, Building2, ChevronDown, ChevronUp, Users, Flag,
 } from "lucide-react";
 import { StudentQR } from "@/components/students/StudentQR";
+import { FamilyManager } from "@/components/students/FamilyManager";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { Modal } from "@/components/ui/Modal";
 import { calculateAge, formatDate, formatCurrency, BELT_COLORS, PAYMENT_STATUS_LABELS, MULTI_KATA_BELTS } from "@/lib/utils";
@@ -40,6 +41,7 @@ interface Student {
   motherName: string | null; motherPhone: string | null; motherEmail: string | null;
   fatherName: string | null; fatherPhone: string | null; fatherEmail: string | null;
   address: string | null;
+  familyId: string | null;
   active: boolean;
   portalUser: { id: string; active: boolean; email: string } | null;
   dojo: { name: string; phone: string | null; slug: string } | null;
@@ -1053,6 +1055,13 @@ export default function StudentDetailPage() {
           <StudentQR
             studentCode={student.studentCode}
             fullName={student.fullName}
+          />
+
+          {/* Family */}
+          <FamilyManager
+            studentId={student.id}
+            currentFamilyId={student.familyId}
+            studentName={student.fullName}
           />
 
           {/* Health */}

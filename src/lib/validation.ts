@@ -37,6 +37,7 @@ export const CreateStudentSchema = z.object({
   fatherPhone:         z.string().max(30).optional().nullable(),
   fatherEmail:         email.optional().nullable().or(z.literal("")),
   address:             z.string().max(500).optional().nullable(),
+  familyId:            z.string().max(100).optional().nullable(),
   inscription: z.object({
     inscriptionDate:   z.string(),
     annualPaymentDate: z.string().optional().nullable(),

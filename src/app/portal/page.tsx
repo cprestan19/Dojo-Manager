@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { formatDate, getBeltInfo } from "@/lib/utils";
 import {
   Award, CreditCard, Calendar, Fingerprint, PlayCircle,
-  Heart, Phone, User, Trophy, Star,
+  Heart, Phone, User, Trophy, Star, Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,6 +25,8 @@ export default async function PortalProfilePage() {
       motherName: true, motherPhone: true,
       fatherName: true, fatherPhone: true,
       address: true,
+      familyId: true,
+      dojoId: true,
       dojo: { select: { name: true, phone: true } },
       inscription: {
         select: {
@@ -58,6 +60,20 @@ export default async function PortalProfilePage() {
   });
 
   if (!student) return null;
+
+  // Fetch siblings in parallel — only if this student belongs to a family
+  const siblings = student.familyId
+    ? await prisma.student.findMany({
+        where: {
+          familyId: student.familyId,
+          dojoId:   student.dojoId,   // enforce tenant isolation
+          id: { not: student.id },
+          active: true,
+        },
+        select: { id: true, fullName: true, studentCode: true },
+        orderBy: { fullName: "asc" },
+      })
+    : [];
 
   const currentBelt = student.beltHistory[0]?.beltColor;
   const beltInfo    = currentBelt ? getBeltInfo(currentBelt) : null;
@@ -104,6 +120,24 @@ export default async function PortalProfilePage() {
         studentCode={student.studentCode}
         fullName={student.fullName}
       />
+
+      {/* ── Hermanos / Familia ── */}
+      {siblings.length > 0 && (
+        <div className="card border border-dojo-border/60">
+          <p className="section-title flex items-center gap-2 mb-4">
+            <Users size={13} /> Otros miembros de tu familia
+          </p>
+          <div className="space-y-4">
+            {siblings.map(s => (
+              <StudentQR
+                key={s.id}
+                studentCode={s.studentCode}
+                fullName={s.fullName}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Pagos pendientes ── */}
       {student.payments.length > 0 && (

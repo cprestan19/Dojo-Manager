@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
       id: true, fullName: true, firstName: true, lastName: true,
       birthDate: true, gender: true, nationality: true, active: true,
       photo: true,  // URL Cloudinary — segura en lista (es solo un string corto)
+      familyId: true,
       beltHistory: {
         orderBy: { changeDate: "desc" },
         take: 1,
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
         fatherPhone:         body.fatherPhone         ?? null,
         fatherEmail:         body.fatherEmail || null,
         address:             body.address             ?? null,
+        familyId:            body.familyId            ?? null,
       },
     });
 
