@@ -377,8 +377,8 @@ export default async function PortalProfilePage() {
         </div>
       )}
 
-      {/* ── Historial de Cintas ── */}
-      {student.beltHistory.length > 0 && (
+      {/* ── Historial de Cintas (solo sin familia — en familia va dentro del acordeón) ── */}
+      {familyMembers.length === 0 && student.beltHistory.length > 0 && (
         <div className="card">
           <div className="flex items-center justify-between mb-3">
             <p className="section-title flex items-center gap-2 mb-0"><Award size={13}/>Historial de Cintas</p>
@@ -411,8 +411,8 @@ export default async function PortalProfilePage() {
         </div>
       )}
 
-      {/* ── Katas de Competencia ── */}
-      {student.kataCompetitions.length > 0 && (
+      {/* ── Katas de Competencia (solo sin familia — en familia va dentro del acordeón) ── */}
+      {familyMembers.length === 0 && student.kataCompetitions.length > 0 && (
         <div className="card">
           <p className="section-title flex items-center gap-2 mb-3">
             <Star size={13} className="text-dojo-gold"/>Katas de Competencia
