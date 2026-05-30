@@ -6,18 +6,19 @@ import prisma from "@/lib/prisma";
 import { formatDate, getBeltInfo } from "@/lib/utils";
 import {
   Award, CreditCard, Calendar, Fingerprint, PlayCircle,
-  Heart, Phone, User, Trophy, Star, Users, ChevronDown, ChevronUp,
+  Heart, Phone, User, Trophy, Star,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { StudentQR } from "@/components/students/StudentQR";
+import { FamilyMemberAccordion, type FamilyMember } from "@/components/portal/FamilyMemberAccordion";
 
 export default async function PortalProfilePage() {
   const session   = await getServerSession(authOptions);
   const studentId = (session?.user as { studentId?: string | null })?.studentId!;
 
   const student = await prisma.student.findUnique({
-    where:   { id: studentId },
+    where:  { id: studentId },
     select: {
       id: true, fullName: true, photo: true, studentCode: true,
       birthDate: true, gender: true, nationality: true,
@@ -58,39 +59,120 @@ export default async function PortalProfilePage() {
         take:    3,
         select:  { id: true, amount: true, dueDate: true, status: true },
       },
+      studentSchedules: {
+        where:  { removedAt: null },
+        select: {
+          schedule: {
+            select: { name: true, days: true, startTime: true, endTime: true },
+          },
+        },
+      },
     },
   });
 
   if (!student) return null;
 
-  // Fetch siblings in parallel — only if this student belongs to a family
+  // Fetch siblings — only if this student belongs to a family
   const siblings = student.familyId
     ? await prisma.student.findMany({
         where: {
           familyId: student.familyId,
-          dojoId:   student.dojoId,   // enforce tenant isolation
-          id: { not: student.id },
-          active: true,
+          dojoId:   student.dojoId,
+          id:       { not: student.id },
+          active:   true,
         },
         select: {
           id: true, fullName: true, studentCode: true,
           photo: true, birthDate: true, gender: true,
           beltHistory: {
             orderBy: { changeDate: "desc" },
-            take: 1,
-            select: { beltColor: true, changeDate: true },
+            take: 5,
+            select: { beltColor: true, changeDate: true, isRanking: true, kata: { select: { name: true } } },
           },
           payments: {
-            where: { status: { in: ["pending", "late"] } },
+            where:   { status: { in: ["pending", "late"] } },
             orderBy: { dueDate: "asc" },
-            take: 3,
-            select: { id: true, amount: true, dueDate: true, status: true },
+            take:    3,
+            select:  { id: true, amount: true, dueDate: true, status: true },
+          },
+          kataCompetitions: {
+            orderBy: { date: "desc" },
+            take:    5,
+            select:  { id: true, date: true, tournament: true, result: true, kata: { select: { name: true } } },
+          },
+          studentSchedules: {
+            where:  { removedAt: null },
+            select: { schedule: { select: { name: true, days: true, startTime: true, endTime: true } } },
           },
         },
         orderBy: { fullName: "asc" },
       })
     : [];
 
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function parseDays(raw: string): string[] {
+    try { return JSON.parse(raw) as string[]; }
+    catch { return []; }
+  }
+
+  function buildMember(
+    s: {
+      id: string; fullName: string; studentCode: number | null; photo: string | null;
+      beltHistory: { beltColor: string; changeDate: Date; isRanking: boolean; kata?: { name: string } | null }[];
+      payments:    { id: string; amount: number; dueDate: Date; status: string }[];
+      kataCompetitions: { id: string; date: Date; tournament: string | null; result: string | null; kata?: { name: string } | null }[];
+      studentSchedules: { schedule: { name: string; days: string; startTime: string; endTime: string } }[];
+    },
+    isMain: boolean,
+  ): FamilyMember {
+    const belts = s.beltHistory.map(b => {
+      const info = getBeltInfo(b.beltColor);
+      return {
+        label:    info?.label ?? b.beltColor,
+        hex:      info?.hex   ?? "#888888",
+        date:     formatDate(b.changeDate),
+        isRanking: b.isRanking,
+        kataName:  b.kata?.name ?? null,
+      };
+    });
+
+    return {
+      id:               s.id,
+      fullName:         s.fullName,
+      studentCode:      s.studentCode,
+      photo:            s.photo,
+      isMain,
+      currentBeltLabel: belts[0]?.label ?? null,
+      currentBeltHex:   belts[0]?.hex   ?? null,
+      beltHistory:      belts,
+      payments: s.payments.map(p => ({
+        id:     p.id,
+        amount: p.amount,
+        dueDate: formatDate(p.dueDate),
+        status: p.status,
+      })),
+      kataCompetitions: s.kataCompetitions.map(k => ({
+        id:         k.id,
+        kataName:   k.kata?.name ?? null,
+        tournament: k.tournament,
+        result:     k.result,
+        date:       formatDate(k.date),
+      })),
+      schedules: s.studentSchedules.map(ss => ({
+        name:      ss.schedule.name,
+        days:      parseDays(ss.schedule.days),
+        startTime: ss.schedule.startTime,
+        endTime:   ss.schedule.endTime,
+      })),
+    };
+  }
+
+  // Build family members array when there are siblings
+  const familyMembers: FamilyMember[] = siblings.length > 0
+    ? [buildMember(student, true), ...siblings.map(s => buildMember(s, false))]
+    : [];
+
+  // ── Computed values for main student profile ──────────────────────────────
   const currentBelt = student.beltHistory[0]?.beltColor;
   const beltInfo    = currentBelt ? getBeltInfo(currentBelt) : null;
   const age = Math.floor((Date.now() - new Date(student.birthDate).getTime()) / (365.25 * 86400000));
@@ -131,10 +213,11 @@ export default async function PortalProfilePage() {
         </div>
       </div>
 
-      {/* ── QR + Familia ─────────────────────────────────────── */}
-      {siblings.length === 0 ? (
+      {/* ── Familia (acordeón) o QR simple ── */}
+      {familyMembers.length > 0 ? (
+        <FamilyMemberAccordion members={familyMembers} />
+      ) : (
         <>
-          {/* Sin familia: QR simple + pagos del alumno */}
           <StudentQR studentCode={student.studentCode} fullName={student.fullName} />
 
           {student.payments.length > 0 && (
@@ -158,158 +241,6 @@ export default async function PortalProfilePage() {
             </div>
           )}
         </>
-      ) : (
-        /* Con familia: resumen unificado de todos los miembros */
-        <div className="card space-y-0 p-0 overflow-hidden">
-          {/* Encabezado */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-dojo-border bg-dojo-darker/60">
-            <Users size={14} className="text-dojo-muted" />
-            <p className="text-xs font-bold text-dojo-muted uppercase tracking-wider">Resumen Familiar</p>
-          </div>
-
-          {/* Alumno principal */}
-          {(() => {
-            const mainPays = student.payments;
-            return (
-              <div className="p-4 border-b border-dojo-border">
-                {/* Header alumno */}
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-dojo-border overflow-hidden flex items-center justify-center text-sm font-bold text-dojo-gold shrink-0">
-                    {student.photo?.startsWith("http")
-                      ? <Image src={student.photo} alt="" width={48} height={48} className="object-cover w-full h-full" unoptimized />
-                      : student.fullName.split(" ").slice(0, 2).map(w => w[0]).join("")}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-dojo-white text-sm leading-tight">{student.fullName}</p>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-dojo-red/20 text-dojo-red border border-dojo-red/30">Tú</span>
-                    </div>
-                    {student.studentCode && (
-                      <span className="font-mono text-[11px] text-dojo-gold flex items-center gap-1 mt-0.5">
-                        <Fingerprint size={10} /> #{student.studentCode}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Cinta */}
-                {beltInfo ? (
-                  <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-dojo-darker border border-dojo-border/60">
-                    <Award size={13} className="text-dojo-muted shrink-0" />
-                    <span className="text-xs font-semibold" style={{ color: beltInfo.hex === "#FFFFFF" ? "#ccc" : beltInfo.hex }}>
-                      {beltInfo.label}
-                    </span>
-                    <span className="w-3 h-3 rounded-full shrink-0 ml-auto border border-white/20" style={{ backgroundColor: beltInfo.hex }} />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-dojo-darker border border-dojo-border/60">
-                    <Award size={13} className="text-dojo-muted" />
-                    <span className="text-xs text-dojo-muted">Sin cinta registrada</span>
-                  </div>
-                )}
-
-                {/* Pagos */}
-                {mainPays.length > 0 ? (
-                  <div className="rounded-lg border border-yellow-800/40 bg-yellow-900/10 px-3 py-2.5 mb-3">
-                    <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
-                      <CreditCard size={10} /> Pagos pendientes
-                    </p>
-                    <div className="space-y-1">
-                      {mainPays.map(p => (
-                        <div key={p.id} className="flex justify-between text-xs">
-                          <span className="text-dojo-muted">{formatDate(p.dueDate)}</span>
-                          <span className={p.status === "late" ? "text-red-400 font-semibold" : "text-yellow-400"}>
-                            ${p.amount.toFixed(2)} {p.status === "late" ? "· Atrasado" : "· Pendiente"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <Link href="/portal/payments" className="block mt-2 text-[10px] text-dojo-red hover:underline text-right">
-                      Ver historial →
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-green-800/40 bg-green-900/10 px-3 py-2 mb-3 flex items-center gap-2">
-                    <span className="text-green-400 text-xs font-semibold">✓ Al día en pagos</span>
-                  </div>
-                )}
-
-                {/* QR */}
-                <StudentQR studentCode={student.studentCode} fullName={student.fullName} />
-              </div>
-            );
-          })()}
-
-          {/* Hermanos */}
-          {siblings.map((s, idx) => {
-            const sibBelt     = s.beltHistory[0]?.beltColor;
-            const sibBeltInfo = sibBelt ? getBeltInfo(sibBelt) : null;
-            const isLast      = idx === siblings.length - 1;
-
-            return (
-              <div key={s.id} className={`p-4 ${!isLast ? "border-b border-dojo-border" : ""}`}>
-                {/* Header hermano */}
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-dojo-border overflow-hidden flex items-center justify-center text-sm font-bold text-dojo-gold shrink-0">
-                    {s.photo?.startsWith("http")
-                      ? <Image src={s.photo!} alt="" width={48} height={48} className="object-cover w-full h-full" unoptimized />
-                      : s.fullName.split(" ").slice(0, 2).map(w => w[0]).join("")}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-dojo-white text-sm leading-tight">{s.fullName}</p>
-                    {s.studentCode && (
-                      <span className="font-mono text-[11px] text-dojo-gold flex items-center gap-1 mt-0.5">
-                        <Fingerprint size={10} /> #{s.studentCode}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Cinta hermano */}
-                {sibBeltInfo ? (
-                  <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-dojo-darker border border-dojo-border/60">
-                    <Award size={13} className="text-dojo-muted shrink-0" />
-                    <span className="text-xs font-semibold" style={{ color: sibBeltInfo.hex === "#FFFFFF" ? "#ccc" : sibBeltInfo.hex }}>
-                      {sibBeltInfo.label}
-                    </span>
-                    <span className="w-3 h-3 rounded-full shrink-0 ml-auto border border-white/20" style={{ backgroundColor: sibBeltInfo.hex }} />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-dojo-darker border border-dojo-border/60">
-                    <Award size={13} className="text-dojo-muted" />
-                    <span className="text-xs text-dojo-muted">Sin cinta registrada</span>
-                  </div>
-                )}
-
-                {/* Pagos hermano */}
-                {s.payments.length > 0 ? (
-                  <div className="rounded-lg border border-yellow-800/40 bg-yellow-900/10 px-3 py-2.5 mb-3">
-                    <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
-                      <CreditCard size={10} /> Pagos pendientes
-                    </p>
-                    <div className="space-y-1">
-                      {s.payments.map(p => (
-                        <div key={p.id} className="flex justify-between text-xs">
-                          <span className="text-dojo-muted">{formatDate(p.dueDate)}</span>
-                          <span className={p.status === "late" ? "text-red-400 font-semibold" : "text-yellow-400"}>
-                            ${p.amount.toFixed(2)} {p.status === "late" ? "· Atrasado" : "· Pendiente"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-green-800/40 bg-green-900/10 px-3 py-2 mb-3 flex items-center gap-2">
-                    <span className="text-green-400 text-xs font-semibold">✓ Al día en pagos</span>
-                  </div>
-                )}
-
-                {/* QR hermano */}
-                <StudentQR studentCode={s.studentCode} fullName={s.fullName} />
-              </div>
-            );
-          })}
-        </div>
       )}
 
       {/* ── Datos personales ── */}
