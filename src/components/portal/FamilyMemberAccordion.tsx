@@ -53,10 +53,7 @@ const DAY_LABEL: Record<string, string> = {
 };
 
 export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) {
-  // First member (main student) starts expanded
-  const [openIds, setOpenIds] = useState<Set<string>>(
-    () => new Set(members[0]?.id ? [members[0].id] : [])
-  );
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());
 
   function toggle(id: string) {
     setOpenIds(prev => {
@@ -100,14 +97,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
 
               {/* Info resumen */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold text-dojo-white text-sm leading-tight">{m.fullName}</p>
-                  {m.isMain && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-dojo-red/20 text-dojo-red border border-dojo-red/30 shrink-0">
-                      Tú
-                    </span>
-                  )}
-                </div>
+                <p className="font-semibold text-dojo-white text-sm leading-tight">{m.fullName}</p>
                 {m.studentCode != null && (
                   <span className="font-mono text-[11px] text-dojo-gold flex items-center gap-1 mt-0.5">
                     <Fingerprint size={9} /> #{m.studentCode}
