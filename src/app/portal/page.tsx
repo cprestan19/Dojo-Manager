@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { formatDate, getBeltInfo } from "@/lib/utils";
 import {
   Award, CreditCard, Calendar, Fingerprint, PlayCircle,
-  Heart, Phone, User, Trophy, Star, Users,
+  Heart, Phone, User, Trophy, Star, Users, ChevronDown, ChevronUp,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -70,7 +70,21 @@ export default async function PortalProfilePage() {
           id: { not: student.id },
           active: true,
         },
-        select: { id: true, fullName: true, studentCode: true },
+        select: {
+          id: true, fullName: true, studentCode: true,
+          photo: true, birthDate: true, gender: true,
+          beltHistory: {
+            orderBy: { changeDate: "desc" },
+            take: 1,
+            select: { beltColor: true, changeDate: true },
+          },
+          payments: {
+            where: { status: { in: ["pending", "late"] } },
+            orderBy: { dueDate: "asc" },
+            take: 3,
+            select: { id: true, amount: true, dueDate: true, status: true },
+          },
+        },
         orderBy: { fullName: "asc" },
       })
     : [];
@@ -123,19 +137,70 @@ export default async function PortalProfilePage() {
 
       {/* ── Hermanos / Familia ── */}
       {siblings.length > 0 && (
-        <div className="card border border-dojo-border/60">
-          <p className="section-title flex items-center gap-2 mb-4">
+        <div className="space-y-4">
+          <p className="section-title flex items-center gap-2 text-dojo-muted px-1">
             <Users size={13} /> Otros miembros de tu familia
           </p>
-          <div className="space-y-4">
-            {siblings.map(s => (
-              <StudentQR
-                key={s.id}
-                studentCode={s.studentCode}
-                fullName={s.fullName}
-              />
-            ))}
-          </div>
+          {siblings.map(s => {
+            const sibBelt    = s.beltHistory[0]?.beltColor;
+            const sibBeltInfo = sibBelt ? getBeltInfo(sibBelt) : null;
+            const sibAge     = Math.floor((Date.now() - new Date(s.birthDate).getTime()) / (365.25 * 86400000));
+            const sibIsUrl   = s.photo?.startsWith("http");
+
+            return (
+              <div key={s.id} className="card border border-dojo-border/60 space-y-4">
+                {/* ── Header: avatar + nombre + cinta ── */}
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-dojo-border overflow-hidden flex items-center justify-center text-lg font-bold text-dojo-gold shrink-0">
+                    {sibIsUrl
+                      ? <Image src={s.photo!} alt="" width={64} height={64} className="object-cover w-full h-full" unoptimized />
+                      : s.fullName.split(" ").slice(0, 2).map(w => w[0]).join("")}
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="font-display text-base font-bold text-dojo-white leading-tight">{s.fullName}</h2>
+                    <p className="text-dojo-muted text-xs mt-0.5">{sibAge} años · {s.gender === "M" ? "Masculino" : "Femenino"}</p>
+                    {s.studentCode && (
+                      <span className="font-mono text-xs text-dojo-gold flex items-center gap-1 mt-0.5">
+                        <Fingerprint size={11} /> #{s.studentCode}
+                      </span>
+                    )}
+                    {sibBeltInfo && (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full mt-1"
+                        style={{ backgroundColor: sibBeltInfo.hex + "25", color: sibBeltInfo.hex === "#FFFFFF" ? "#ccc" : sibBeltInfo.hex, border: `1px solid ${sibBeltInfo.hex}40` }}>
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sibBeltInfo.hex }} />
+                        Cinta {sibBeltInfo.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Pagos pendientes ── */}
+                {s.payments.length > 0 && (
+                  <div className="rounded-lg border border-yellow-800/40 bg-yellow-900/10 px-3 py-2.5">
+                    <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <CreditCard size={11} /> Pagos pendientes
+                    </p>
+                    <div className="space-y-1.5">
+                      {s.payments.map(p => (
+                        <div key={p.id} className="flex justify-between text-xs">
+                          <span className="text-dojo-muted">{formatDate(p.dueDate)}</span>
+                          <span className={p.status === "late" ? "text-red-400 font-semibold" : "text-yellow-400"}>
+                            ${p.amount.toFixed(2)} {p.status === "late" ? "· Atrasado" : "· Pendiente"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── QR de identificación ── */}
+                <StudentQR
+                  studentCode={s.studentCode}
+                  fullName={s.fullName}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
 
