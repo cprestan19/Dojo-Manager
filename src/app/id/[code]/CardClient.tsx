@@ -193,12 +193,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             <img src={dojo.logo} alt={dojo.name} crossOrigin="anonymous"
               style={{ maxWidth: 103, maxHeight: 108, width: "auto", height: "auto", objectFit: "contain" }} />
           ) : (
-            /* Fallback mínimo cuando no hay logo configurado */
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <ToriiSVG size={38} color="#fff" />
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#fff", textAlign: "center", lineHeight: 1.1, maxWidth: 90 }}>{dojo.name}</div>
-              <div style={{ width: 36, height: 1.5, background: RED, borderRadius: 2 }} />
-            </div>
+            <ToriiSVG size={54} color="#fff" />
           )}
         </div>
 
