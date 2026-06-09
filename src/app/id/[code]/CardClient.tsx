@@ -112,20 +112,27 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             overflow: hidden !important;
           }
 
-          /* Wrapper del carnet: fijado en esquina superior-izquierda de la página */
+          /* Wrapper del carnet: centrado horizontalmente en la página, ancho = carnet escalado */
           .card-print-wrapper {
             position: fixed !important;
-            top: 0 !important; left: 0 !important;
-            width: 55mm !important; height: 85mm !important;
+            top: 0 !important; left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 53.74mm !important; height: 85mm !important;
             overflow: hidden !important;
             margin: 0 !important; padding: 0 !important;
           }
 
           /* Escala limitada por la altura: 1009px → 85mm (321.26px a 96dpi) → scale 0.3184
-             Ancho resultante: 638 × 0.3184 = 203.1px = 53.8mm (cabe en 55mm) */
+             Ancho resultante: 638 × 0.3184 = 203.1px = 53.74mm */
           .card-print-scale {
             transform-origin: top left !important;
             transform: scale(0.3184) !important;
+          }
+
+          /* Quitar sombra y bordes redondeados (generan franja gris al imprimir) */
+          .id-card-surface {
+            box-shadow: none !important;
+            border-radius: 0 !important;
           }
         }
       `}</style>
@@ -145,6 +152,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               ════════════════════════════════════════════════════════════════ */}
           <div
             ref={cardRef}
+            className="id-card-surface"
             style={{
               position: "relative",
               width: W, height: H,
