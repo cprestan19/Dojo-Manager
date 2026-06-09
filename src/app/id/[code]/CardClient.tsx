@@ -2,39 +2,40 @@
 
 import { useRef, useState } from "react";
 
-// 55×85mm a 7px/mm = 385×595px
-// Diseño basado en referencia visual: Carnet Final.png
-const W = 385;
-const H = 595;
-const RED  = "#D90416";
-const DARK = "#0A0A0A";
+// ─── Dimensiones CR80 a 300 DPI ───────────────────────────────────────────────
+// 54mm × 85.6mm → 638 × 1009 px  (300 DPI exacto)
+// Se renderiza a tamaño completo para html2canvas → PDF 300 DPI
+// En pantalla se escala al 60% con CSS transform
+const W  = 638;
+const H  = 1009;
+const DS = 0.60;  // display scale → 383 × 605 px en pantalla
 
-// Foto: desplazada ligeramente a la derecha para que el logo quede libre
-const PHOTO_D = 174;  // diámetro
-const PHOTO_X = 118;  // evita solapamiento con logo (logo ocupa x:10–108, foto desde x:118)
-const PHOTO_Y = 60;   // borde superior foto
+// ─── Paleta ───────────────────────────────────────────────────────────────────
+const RED      = "#CC0000";
+const RED_D    = "#990000";
+const BLACK    = "#000000";
+const BG       = "#F5F5F5";
 
-// QR section
-const QR_TOP  = 335;
-const QR_H    = 200;
+// ─── Layout (coordenadas en espacio 638 × 1009) ───────────────────────────────
+// Logo circular del dojo (izq, 22 % del ancho)
+const LOGO_D = 140;   // diámetro del círculo del logo
+const LOGO_X = 24;    // left edge
+const LOGO_Y = 24;    // top edge
 
-// Footer
-const FOOTER_TOP = 540;  // QR_TOP + QR_H + 5 = 540
+// Foto (centrada, ~47 % del ancho)
+const PD = 300;                           // diámetro
+const PX = Math.floor((W - PD) / 2);     // = 169 (centrado)
+const PY = 198;                           // top de la foto
 
-function ToriiSVG({ size = 38, color = "#fff" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={Math.round(size * 0.84)} viewBox="0 0 240 200" fill={color}>
-      <rect x="38"  y="68" width="14" height="132" rx="4" />
-      <rect x="188" y="68" width="14" height="132" rx="4" />
-      <path d="M10,72 Q120,28 230,72 L230,86 Q120,42 10,86 Z" />
-      <rect x="24"  y="86" width="192" height="10" rx="3" />
-      <rect x="44"  y="108" width="152" height="12" rx="4" />
-      <ellipse cx="45"  cy="68" rx="11" ry="7" />
-      <ellipse cx="195" cy="68" rx="11" ry="7" />
-    </svg>
-  );
-}
+// Textos
+const NT = PY + PD + 18;  // nombre top  = 516
+const TT = NT + 50 + 6;   // team top    = 572
+const QT = TT + 32 + 22;  // QR top      = 626
+const QH = 286;            // QR height
+const FT = QT + QH + 8;   // footer top  = 920
+// footer height: 1009 − 920 = 89 px ✓
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function Spinner() {
   return (
     <span style={{
@@ -46,9 +47,35 @@ function Spinner() {
   );
 }
 
+/** Patrón de rombos gris (watermark decorativo zona media-izquierda) */
+function DiamondWatermark() {
+  return (
+    <svg width="240" height="280" style={{ display: "block" }}>
+      <defs>
+        <pattern id="dmnd" x="0" y="0" width="34" height="34" patternUnits="userSpaceOnUse">
+          <polygon points="17,3 31,17 17,31 3,17" fill="none" stroke="#888" strokeWidth="1.2" />
+        </pattern>
+      </defs>
+      <rect width="240" height="280" fill="url(#dmnd)" />
+    </svg>
+  );
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 interface CardProps {
-  student: { fullName: string; studentCode: number; studentId: string; photo: string | null; beltColor: string; active: boolean };
-  dojo:    { name: string; logo: string | null; phone: string | null; slogan: string | null };
+  student: {
+    fullName: string;
+    studentCode: number;
+    studentId: string;
+    photo: string | null;
+    active: boolean;
+  };
+  dojo: {
+    name: string;
+    logo: string | null;
+    phone: string | null;
+    slogan: string | null;
+  };
   contact: { name: string | null; phone: string | null };
   qrDataUrl: string;
 }
@@ -57,8 +84,13 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   const cardRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
 
-  const initials = student.fullName.split(/\s+/).slice(0, 2).map(n => n[0]?.toUpperCase() ?? "").join("");
-  const teamName = `TEAM ${dojo.name.toUpperCase()}`;
+  const initials  = student.fullName.split(/\s+/).slice(0, 2).map(n => n[0]?.toUpperCase() ?? "").join("");
+  const teamLabel = `TEAM ${dojo.name.toUpperCase()}`;
+  const slogan    = dojo.slogan ?? "PERFECCIONA TU CARÁCTER CON DISCIPLINA Y CONSTANCIA";
+  const [sloganLine1, sloganLine2] = (() => {
+    const m = slogan.match(/^(.+?con)\s+(.+)$/i);
+    return m ? [m[1].toUpperCase(), m[2].toUpperCase()] : ["PERFECCIONA TU CARÁCTER CON", "DISCIPLINA Y CONSTANCIA"];
+  })();
 
   async function downloadPDF() {
     if (!cardRef.current || busy) return;
@@ -68,13 +100,20 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
         import("html2canvas"),
         import("jspdf"),
       ]);
+      // Captura a tamaño completo (638×1009) → 300 DPI exacto
       const canvas = await html2canvas(cardRef.current, {
-        scale: 4, useCORS: true, allowTaint: false, logging: false,
-        backgroundColor: "#FFFFFF", imageTimeout: 15000, width: W, height: H,
+        scale: 1,
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        backgroundColor: BG,
+        imageTimeout: 15000,
+        width: W,
+        height: H,
       });
       const imgData = canvas.toDataURL("image/jpeg", 0.98);
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [55, 85] });
-      pdf.addImage(imgData, "JPEG", 0, 0, 55, 85);
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [54, 85.6] });
+      pdf.addImage(imgData, "JPEG", 0, 0, 54, 85.6);
       pdf.save(`carnet-${student.studentId}.pdf`);
     } catch (err) {
       console.error(err);
@@ -88,348 +127,375 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
     <>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* ═══════════════════════════════════════════════════════
-          CARNET  385 × 595 px  (55 × 85 mm)
-          ═══════════════════════════════════════════════════════ */}
-      <div
-        ref={cardRef}
-        style={{
-          position: "relative",
-          width: W, height: H,
-          background: "#ffffff",
-          borderRadius: 14,
-          overflow: "hidden",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
-          fontFamily: "'Montserrat','Segoe UI',sans-serif",
-          flexShrink: 0,
-        }}
-      >
+      {/* ── Wrapper: ocupa el espacio visual escalado ─────────────────────── */}
+      <div style={{
+        width:  Math.round(W * DS),
+        height: Math.round(H * DS),
+        flexShrink: 0,
+        overflow: "visible",
+      }}>
+        {/* ── Escala visual sin afectar html2canvas ───────────────────────── */}
+        <div style={{ transformOrigin: "top left", transform: `scale(${DS})` }}>
 
-        {/* Fondo con gradiente sutil */}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(160deg,#f7f7f7 0%,#ffffff 55%,#f2f2f2 100%)",
-        }} />
+          {/* ════════════════════════════════════════════════════════════════
+              CARNET  638 × 1009 px  (54 × 85.6 mm @ 300 DPI)
+              ════════════════════════════════════════════════════════════════ */}
+          <div
+            ref={cardRef}
+            style={{
+              position: "relative",
+              width: W, height: H,
+              background: BG,
+              overflow: "hidden",
+              fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
+              borderRadius: 10,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+            }}
+          >
 
-        {/* NEGRO abstracto — esquina superior-izquierda */}
-        <div style={{
-          position: "absolute", top: 0, left: 0,
-          width: 185, height: 180,
-          background: DARK,
-          clipPath: "polygon(0 0,78% 0,58% 44%,42% 100%,0 100%)",
-          opacity: 0.93,
-        }} />
-        <div style={{
-          position: "absolute", top: 0, left: 0,
-          width: 118, height: 135,
-          background: DARK,
-          clipPath: "polygon(0 0,100% 0,72% 100%,0 100%)",
-        }} />
-        <div style={{
-          position: "absolute", top: 125, left: -8,
-          width: 16, height: 90,
-          background: DARK, opacity: 0.15, borderRadius: 4,
-          transform: "rotate(-7deg)",
-        }} />
-        {/* Anillos decorativos sobre el negro */}
-        <div style={{
-          position: "absolute", top: 3, left: 3,
-          width: 52, height: 52, borderRadius: "50%",
-          border: "1.5px solid rgba(255,255,255,0.09)",
-        }} />
-        <div style={{
-          position: "absolute", top: 14, left: 14,
-          width: 28, height: 28, borderRadius: "50%",
-          border: "1px solid rgba(255,255,255,0.07)",
-        }} />
+            {/* ── LAYER 1: Triángulos decorativos en las 4 esquinas ─────── */}
 
-        {/* ROJO — salpicaduras esquina superior-derecha */}
-        <div style={{
-          position: "absolute", top: 0, right: 0,
-          width: 230, height: 295,
-          background: RED,
-          clipPath: "polygon(100% 0,100% 66%,58% 44%,68% 94%,42% 100%,32% 76%,48% 52%,20% 30%,30% 0)",
-        }} />
-        <div style={{
-          position: "absolute", top: 0, right: 0,
-          width: 138, height: 168,
-          background: RED,
-          clipPath: "polygon(100% 0,100% 100%,28% 62%,48% 0)",
-          opacity: 0.78,
-        }} />
-        <div style={{
-          position: "absolute", top: 0, right: 0,
-          width: 72, height: 72, background: RED, opacity: 0.92,
-        }} />
-        {/* Gotas de tinta */}
-        <div style={{
-          position: "absolute", top: 205, right: 36,
-          width: 10, height: 23,
-          background: RED, borderRadius: "50% 50% 62% 62%",
-          transform: "rotate(-16deg)",
-        }} />
-        <div style={{
-          position: "absolute", top: 234, right: 54,
-          width: 7, height: 16,
-          background: RED, borderRadius: "50% 50% 62% 62%",
-          transform: "rotate(11deg)", opacity: 0.72,
-        }} />
-        <div style={{
-          position: "absolute", top: 263, right: 28,
-          width: 5, height: 11,
-          background: RED, borderRadius: "50% 50% 62% 62%",
-          transform: "rotate(-4deg)", opacity: 0.55,
-        }} />
-
-        {/* LOGO del dojo — esquina superior-izquierda, sobre el negro
-            maxWidth 103px asegura que no llega a PHOTO_X=118           */}
-        <div style={{
-          position: "absolute", top: 8, left: 10, zIndex: 10,
-          width: 103, height: 108,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          {dojo.logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={dojo.logo} alt={dojo.name} crossOrigin="anonymous"
-              style={{ maxWidth: 103, maxHeight: 108, width: "auto", height: "auto", objectFit: "contain" }} />
-          ) : (
-            <ToriiSVG size={54} color="#fff" />
-          )}
-        </div>
-
-        {/* FOTO — grande, centrada
-            PHOTO_Y=60  PHOTO_D=174  →  bottom=234                */}
-        {/* Anillo exterior decorativo */}
-        <div style={{
-          position: "absolute",
-          top: PHOTO_Y - 10, left: PHOTO_X - 10,
-          width: PHOTO_D + 20, height: PHOTO_D + 20,
-          borderRadius: "50%",
-          border: "2px solid rgba(217,4,22,0.22)",
-          zIndex: 8,
-        }} />
-        {/* Marco rojo prominente */}
-        <div style={{
-          position: "absolute",
-          top: PHOTO_Y - 6, left: PHOTO_X - 6,
-          width: PHOTO_D + 12, height: PHOTO_D + 12,
-          borderRadius: "50%",
-          border: `6px solid ${RED}`,
-          zIndex: 9,
-          boxShadow: `0 8px 32px rgba(217,4,22,0.38)`,
-        }} />
-        {/* Círculo con la foto */}
-        <div style={{
-          position: "absolute",
-          top: PHOTO_Y, left: PHOTO_X,
-          width: PHOTO_D, height: PHOTO_D,
-          borderRadius: "50%",
-          overflow: "hidden",
-          background: "#C8C8C8",
-          zIndex: 10,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          {student.photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={student.photo} alt={student.fullName} crossOrigin="anonymous"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          ) : (
-            <span style={{ fontSize: 62, fontWeight: 800, color: "#777" }}>{initials}</span>
-          )}
-        </div>
-
-        {/* BADGE ID — derecha, zona inferior de la foto
-            PHOTO_Y + 95 = 155                                     */}
-        <div style={{
-          position: "absolute",
-          top: PHOTO_Y + 95, right: 14,
-          zIndex: 11,
-          background: RED,
-          borderRadius: 9, padding: "9px 15px",
-          textAlign: "center",
-          boxShadow: "0 6px 20px rgba(217,4,22,0.50)",
-        }}>
-          <div style={{ fontSize: 7, fontWeight: 600, color: "rgba(255,255,255,0.72)", letterSpacing: "0.22em", textTransform: "uppercase" }}>ID</div>
-          <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", letterSpacing: "0.04em", marginTop: 1 }}>{student.studentId}</div>
-        </div>
-
-        {/* NOMBRE DEL ALUMNO
-            top = PHOTO_Y + PHOTO_D + 12 = 60+174+12 = 246        */}
-        <div style={{
-          position: "absolute",
-          top: PHOTO_Y + PHOTO_D + 12,
-          left: 14, right: 14,
-          zIndex: 10,
-          textAlign: "center",
-        }}>
-          <div style={{
-            fontSize: 27, fontWeight: 800, color: DARK,
-            letterSpacing: "0.4px", lineHeight: 1.1,
-            textTransform: "uppercase", wordBreak: "break-word",
-          }}>
-            {student.fullName}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, justifyContent: "center" }}>
-            <div style={{ height: 1.5, width: 28, background: RED, borderRadius: 2 }} />
-            <span style={{ fontSize: 8.5, fontWeight: 700, color: RED, letterSpacing: "0.38em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
-              {teamName}
-            </span>
-            <div style={{ height: 1.5, width: 28, background: RED, borderRadius: 2 }} />
-          </div>
-        </div>
-
-        {/* Kanji decorativo de fondo */}
-        <div style={{
-          position: "absolute", left: 14, top: 285,
-          writingMode: "vertical-rl" as const,
-          fontSize: 52, fontWeight: 900, color: DARK,
-          opacity: 0.045, letterSpacing: "0.04em",
-          userSelect: "none", pointerEvents: "none", zIndex: 3,
-        }}>道場夏月</div>
-
-        {/* SECCIÓN QR
-            QR_TOP=335, QR_H=200, bottom=535                      */}
-        <div style={{
-          position: "absolute",
-          top: QR_TOP, left: 0, right: 0, height: QR_H,
-          zIndex: 10,
-          display: "flex", alignItems: "stretch",
-          padding: "0 13px",
-          gap: 6,
-          boxSizing: "border-box" as const,
-        }}>
-          {/* Columna izq: kanji + lema */}
-          <div style={{
-            width: 40, flexShrink: 0,
-            display: "flex", flexDirection: "column",
-            alignItems: "center", justifyContent: "center",
-            gap: 8,
-          }}>
+            {/* Superior-izquierda: 30% ancho × 25% alto */}
             <div style={{
-              writingMode: "vertical-rl" as const, transform: "rotate(180deg)",
-              fontSize: 21, fontWeight: 900, color: DARK,
-              opacity: 0.28, letterSpacing: "0.06em", userSelect: "none",
-            }}>道場夏月</div>
-            <div style={{
-              writingMode: "vertical-lr" as const, transform: "rotate(180deg)",
-              fontSize: 5.5, fontWeight: 600, color: "#999",
-              letterSpacing: "0.30em", textTransform: "uppercase",
-              opacity: 0.8, whiteSpace: "nowrap",
-            }}>DISCIPLINA · RESPETO · CONSTANCIA</div>
-          </div>
+              position: "absolute", top: 0, left: 0, zIndex: 1,
+              width: 191, height: 252,
+              background: RED,
+              clipPath: "polygon(0 0, 0 100%, 100% 0)",
+            }} />
 
-          {/* QR Box con MARCO ROJO
-              Ancho: 385-13-13-40-6-6-34 = 273px
-              Imagen limitada a 158×158px
-              Check h: 4+10+158+5+10+8+4 = 199 < 200 ✓           */}
-          <div style={{
-            flex: 1,
-            background: "#ffffff",
-            border: `4px solid ${RED}`,
-            borderRadius: 13,
-            padding: "10px 10px 8px",
-            boxShadow: `0 4px 22px rgba(217,4,22,0.18)`,
-            display: "flex", flexDirection: "column",
-            alignItems: "center", justifyContent: "center",
-            gap: 5, overflow: "hidden",
-          }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={qrDataUrl}
-              alt="QR"
-              style={{
-                width: "100%",
-                maxWidth: 158, maxHeight: 158,
-                height: "auto", display: "block",
-              }}
-            />
-            <div style={{ fontSize: 5.5, color: "#ccc", letterSpacing: "0.18em", textTransform: "uppercase" }}>
-              escanear · scan · スキャン
+            {/* Superior-derecha: 15% ancho × 20% alto */}
+            <div style={{
+              position: "absolute", top: 0, right: 0, zIndex: 1,
+              width: 96, height: 202,
+              background: RED,
+              clipPath: "polygon(100% 0, 100% 100%, 0 0)",
+            }} />
+
+            {/* Inferior-izquierda: pequeño */}
+            <div style={{
+              position: "absolute", bottom: 0, left: 0, zIndex: 4,
+              width: 55, height: 88,
+              background: RED,
+              clipPath: "polygon(0 100%, 0 0, 100% 100%)",
+            }} />
+
+            {/* Inferior-derecha: 40% ancho × 30% alto */}
+            <div style={{
+              position: "absolute", bottom: 0, right: 0, zIndex: 4,
+              width: 255, height: 303,
+              background: RED,
+              clipPath: "polygon(100% 0, 100% 100%, 0 100%)",
+            }} />
+
+            {/* ── LAYER 2: Patrón de rombos gris (watermark) ───────────── */}
+            <div style={{
+              position: "absolute", left: 0, top: 520, zIndex: 2,
+              opacity: 0.18, pointerEvents: "none",
+            }}>
+              <DiamondWatermark />
             </div>
-          </div>
 
-          {/* Columna der: pill contacto */}
-          {(contact.name || contact.phone) ? (
-            <div style={{ width: 34, flexShrink: 0 }}>
+            {/* ── LAYER 3: Banner negro inferior (footer) ───────────────── */}
+            <div style={{
+              position: "absolute",
+              top: FT, left: 0, width: W, height: H - FT,
+              background: BLACK,
+              zIndex: 3,
+            }} />
+            {/* Texto del footer (sobre el negro, z=8) */}
+            <div style={{
+              position: "absolute",
+              top: FT, left: 0, width: W, height: H - FT,
+              zIndex: 8,
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              gap: 4,
+            }}>
               <div style={{
-                width: "100%", height: "100%",
-                background: "#fff",
-                border: `2px solid ${RED}`,
-                borderRadius: 999, padding: "10px 0",
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                gap: 5, boxSizing: "border-box" as const,
+                fontSize: 15, fontStyle: "italic", fontWeight: 400,
+                color: "#ffffff", letterSpacing: "0.12em",
+                textTransform: "uppercase", textAlign: "center",
+              }}>{sloganLine1}</div>
+              <div style={{
+                fontSize: 18, fontStyle: "italic", fontWeight: 700,
+                color: "#ffffff", letterSpacing: "0.10em",
+                textTransform: "uppercase", textAlign: "center",
+              }}>{sloganLine2}</div>
+            </div>
+
+            {/* ── LAYER 4: Logo del dojo — círculo, esquina superior-izq ── */}
+            <div style={{
+              position: "absolute",
+              top: LOGO_Y, left: LOGO_X,
+              width: LOGO_D, height: LOGO_D,
+              borderRadius: "50%",
+              border: `4px solid ${RED}`,
+              overflow: "hidden",
+              background: "#fff",
+              zIndex: 5,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: `0 0 0 2px #fff`,
+            }}>
+              {dojo.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={dojo.logo}
+                  alt={dojo.name}
+                  crossOrigin="anonymous"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                /* Fallback cuando no hay logo en Cloudinary */
+                <div style={{
+                  width: "100%", height: "100%", background: BLACK,
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center", gap: 2,
+                }}>
+                  {/* Torii mini */}
+                  <svg width="42" height="35" viewBox="0 0 240 200" fill="#fff">
+                    <rect x="38" y="68" width="14" height="132" rx="4"/>
+                    <rect x="188" y="68" width="14" height="132" rx="4"/>
+                    <path d="M10,72 Q120,28 230,72 L230,86 Q120,42 10,86 Z"/>
+                    <rect x="24" y="86" width="192" height="10" rx="3"/>
+                    <rect x="44" y="108" width="152" height="12" rx="4"/>
+                    <ellipse cx="45" cy="68" rx="11" ry="7"/>
+                    <ellipse cx="195" cy="68" rx="11" ry="7"/>
+                  </svg>
+                </div>
+              )}
+            </div>
+
+            {/* ── LAYER 5: Foto del alumno — círculo centrado ───────────── */}
+            {/* Anillo exterior decorativo */}
+            <div style={{
+              position: "absolute",
+              top: PY - 8, left: PX - 8,
+              width: PD + 16, height: PD + 16,
+              borderRadius: "50%",
+              border: `2px solid rgba(204,0,0,0.22)`,
+              zIndex: 5,
+            }} />
+            {/* Borde rojo sólido 4px */}
+            <div style={{
+              position: "absolute",
+              top: PY - 4, left: PX - 4,
+              width: PD + 8, height: PD + 8,
+              borderRadius: "50%",
+              border: `4px solid ${RED}`,
+              zIndex: 6,
+              boxShadow: `0 6px 28px rgba(204,0,0,0.30)`,
+            }} />
+            {/* Foto */}
+            <div style={{
+              position: "absolute",
+              top: PY, left: PX,
+              width: PD, height: PD,
+              borderRadius: "50%",
+              overflow: "hidden",
+              background: "#CCCCCC",
+              zIndex: 7,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              {student.photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={student.photo}
+                  alt={student.fullName}
+                  crossOrigin="anonymous"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <span style={{ fontSize: 90, fontWeight: 800, color: "#888" }}>{initials}</span>
+              )}
+            </div>
+
+            {/* ── LAYER 6: Nombre del alumno ────────────────────────────── */}
+            <div style={{
+              position: "absolute",
+              top: NT, left: 20, right: 20,
+              zIndex: 7, textAlign: "center",
+            }}>
+              <div style={{
+                fontSize: 38, fontWeight: 800, color: BLACK,
+                letterSpacing: "0.5px", lineHeight: 1.1,
+                textTransform: "uppercase", wordBreak: "break-word",
               }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill={RED}>
-                  <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
-                </svg>
-                {contact.name && (
-                  <div style={{
-                    writingMode: "vertical-lr" as const, transform: "rotate(180deg)",
-                    fontSize: 7, fontWeight: 700, color: DARK,
-                    lineHeight: 1.2, textAlign: "center",
-                    maxHeight: 105, overflow: "hidden",
-                  }}>{contact.name}</div>
-                )}
-                {contact.phone && (
-                  <div style={{
-                    writingMode: "vertical-lr" as const, transform: "rotate(180deg)",
-                    fontSize: 7, fontWeight: 500, color: "#555",
-                    maxHeight: 60, overflow: "hidden",
-                  }}>{contact.phone}</div>
-                )}
-                <svg width="12" height="12" viewBox="0 0 24 24" fill={RED}>
-                  <circle cx="12" cy="4" r="2.5"/>
-                  <path d="M15,9H9c-1.1,0-2,.9-2,2v5h2v-4h1v10h2v-5h1v5h2V12h1v4h2v-5C19,9.9,16.1,9,15,9z"/>
-                </svg>
+                {student.fullName}
               </div>
             </div>
-          ) : (
-            <div style={{ width: 34, flexShrink: 0 }} />
-          )}
-        </div>
 
-        {/* FOOTER
-            FOOTER_TOP=540, height=55, bottom=595 ✓               */}
-        <div style={{
-          position: "absolute",
-          top: FOOTER_TOP, left: 0, right: 0, height: H - FOOTER_TOP,
-          zIndex: 10,
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center",
-          borderTop: "1.5px solid #e0e0e0",
-          gap: 2,
-        }}>
-          <ToriiSVG size={18} color={DARK} />
-          <div style={{ fontSize: 6.5, color: "#aaa", letterSpacing: "0.16em", textTransform: "uppercase", marginTop: 1 }}>
-            PERFECCIONA TU CARÁCTER CON
-          </div>
-          <div style={{ fontSize: 10, fontWeight: 800, color: RED, letterSpacing: "0.20em", textTransform: "uppercase" }}>
-            DISCIPLINA Y CONSTANCIA
-          </div>
-        </div>
+            {/* ── LAYER 7: Línea TEAM ───────────────────────────────────── */}
+            <div style={{
+              position: "absolute",
+              top: TT, left: 20, right: 20,
+              zIndex: 7,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              gap: 12,
+            }}>
+              <div style={{ flex: 1, height: 1.5, background: RED, borderRadius: 2 }} />
+              <span style={{
+                fontSize: 14, fontWeight: 700, color: RED,
+                letterSpacing: "0.42em", textTransform: "uppercase",
+                whiteSpace: "nowrap",
+              }}>{teamLabel}</span>
+              <div style={{ flex: 1, height: 1.5, background: RED, borderRadius: 2 }} />
+            </div>
 
-      </div>{/* fin card */}
+            {/* ── LAYER 8: Zona QR — 3 columnas ─────────────────────────── */}
+            {/* QT=626, QH=286, bottom=912                                  */}
+            <div style={{
+              position: "absolute",
+              top: QT, left: 0, right: 0, height: QH,
+              zIndex: 7,
+              display: "flex", alignItems: "stretch",
+              padding: "0 16px",
+              gap: 8,
+              boxSizing: "border-box" as const,
+            }}>
 
-      {/* Botón descarga */}
+              {/* Columna izquierda 20%: Kanji + lema vertical */}
+              <div style={{
+                width: "20%", flexShrink: 0,
+                display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center",
+                gap: 10,
+              }}>
+                <div style={{
+                  writingMode: "vertical-rl" as const,
+                  transform: "rotate(180deg)",
+                  fontSize: 46, fontWeight: 900,
+                  color: RED, letterSpacing: "0.06em",
+                  userSelect: "none",
+                }}>道場夏月</div>
+                <div style={{
+                  writingMode: "vertical-lr" as const,
+                  transform: "rotate(180deg)",
+                  fontSize: 9, fontWeight: 600,
+                  color: "#999", letterSpacing: "0.32em",
+                  textTransform: "uppercase", whiteSpace: "nowrap",
+                  opacity: 0.85,
+                }}>DISCIPLINA · RESPETO · CONSTANCIA</div>
+              </div>
+
+              {/* Columna central 55%: QR con borde rojo */}
+              {/* Ancho col ≈ (638-32) × 0.55 = 333px                      */}
+              {/* QR image: 333-4-24-24 = 281px, ≤ QH-4-24-8-18-24 = 208  */}
+              {/* Usamos maxWidth/maxHeight=210 para que encaje en alto      */}
+              <div style={{
+                flex: "0 0 55%",
+                background: "#ffffff",
+                border: `2px solid ${RED}`,
+                borderRadius: 12,
+                padding: "12px 12px 10px",
+                boxShadow: `0 4px 22px rgba(204,0,0,0.15)`,
+                display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center",
+                gap: 8, overflow: "hidden",
+              }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrDataUrl}
+                  alt="QR"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    maxWidth: 210, maxHeight: 210,
+                    height: "auto",
+                  }}
+                />
+                <div style={{
+                  fontSize: 9, color: "#ccc",
+                  letterSpacing: "0.20em", textTransform: "uppercase",
+                  textAlign: "center",
+                }}>escanear · scan · スキャン</div>
+              </div>
+
+              {/* Columna derecha 25%: pastilla de contacto */}
+              <div style={{
+                flex: "0 0 25%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {(contact.name || contact.phone) ? (
+                  <div style={{
+                    width: "88%", height: "100%",
+                    border: `2px solid ${RED}`,
+                    borderRadius: 20,
+                    padding: "12px 0",
+                    display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center",
+                    gap: 8, boxSizing: "border-box" as const,
+                    background: "#fff",
+                  }}>
+                    {/* Nombre del tutor (texto vertical) */}
+                    {contact.name && (
+                      <div style={{
+                        writingMode: "vertical-lr" as const,
+                        transform: "rotate(180deg)",
+                        fontSize: 13, fontWeight: 700, color: BLACK,
+                        lineHeight: 1.2, textAlign: "center",
+                        maxHeight: 120, overflow: "hidden",
+                      }}>{contact.name}</div>
+                    )}
+                    {/* Teléfono (texto vertical) */}
+                    {contact.phone && (
+                      <div style={{
+                        writingMode: "vertical-lr" as const,
+                        transform: "rotate(180deg)",
+                        fontSize: 13, fontWeight: 500, color: "#444",
+                        maxHeight: 80, overflow: "hidden",
+                      }}>{contact.phone}</div>
+                    )}
+                    {/* Ícono de teléfono en círculo */}
+                    <div style={{
+                      width: 32, height: 32, borderRadius: "50%",
+                      border: `2px solid ${RED}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                    }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill={RED}>
+                        <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                      </svg>
+                    </div>
+                  </div>
+                ) : (
+                  /* Si no hay contacto: decoración de kanji pequeño */
+                  <div style={{
+                    writingMode: "vertical-rl" as const,
+                    fontSize: 22, color: RED,
+                    opacity: 0.18, userSelect: "none",
+                  }}>道場</div>
+                )}
+              </div>
+
+            </div>{/* fin zona QR */}
+
+          </div>{/* fin card */}
+        </div>{/* fin scale */}
+      </div>{/* fin wrapper */}
+
+      {/* ── Botón descarga ────────────────────────────────────────────────── */}
       <button
         onClick={() => void downloadPDF()}
         disabled={busy}
         style={{
           display: "flex", alignItems: "center", gap: 12,
-          background: busy ? "#a00010" : RED, color: "#fff",
-          border: "none", borderRadius: 14, padding: "14px 36px",
-          fontSize: 15, fontWeight: 700, cursor: busy ? "not-allowed" : "pointer",
-          letterSpacing: "0.04em", fontFamily: "'Montserrat',sans-serif",
-          boxShadow: "0 8px 24px rgba(217,4,22,0.4)", transition: "background 0.2s",
+          background: busy ? RED_D : RED, color: "#fff",
+          border: "none", borderRadius: 12, padding: "14px 36px",
+          fontSize: 15, fontWeight: 700,
+          cursor: busy ? "not-allowed" : "pointer",
+          letterSpacing: "0.04em",
+          fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
+          boxShadow: "0 8px 24px rgba(204,0,0,0.40)",
+          transition: "background 0.2s", flexShrink: 0,
         }}
       >
         {busy ? (
-          <><Spinner /> Generando PDF...</>
+          <><Spinner /> Generando PDF (300 DPI)...</>
         ) : (
           <>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              stroke="currentColor" strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
             </svg>
             Descargar Carnet PDF
@@ -437,8 +503,12 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
         )}
       </button>
 
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", textAlign: "center", maxWidth: 320 }}>
-        Comparte este enlace o escanea el QR para verificar el carnet desde cualquier cámara.
+      <p style={{
+        fontSize: 12, color: "rgba(255,255,255,0.4)",
+        textAlign: "center", maxWidth: 340,
+        fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
+      }}>
+        Carnet CR80 · 54 × 85.6 mm · 300 DPI — Comparte el enlace o escanea el QR
       </p>
     </>
   );
