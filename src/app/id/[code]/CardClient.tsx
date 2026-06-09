@@ -362,7 +362,6 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               }}>
                 <div style={{
                   writingMode: "vertical-rl" as const,
-                  transform: "rotate(180deg)",
                   fontSize: 46, fontWeight: 900,
                   color: RED, letterSpacing: "0.06em",
                   userSelect: "none",
