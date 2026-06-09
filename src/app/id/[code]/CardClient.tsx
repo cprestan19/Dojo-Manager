@@ -365,7 +365,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                   fontSize: 62, fontWeight: 900,
                   color: RED, letterSpacing: "0.06em",
                   userSelect: "none", whiteSpace: "nowrap",
-                  marginTop: 140,
+                  marginTop: 200,
                 }}>道場夏月</div>
                 <div style={{
                   writingMode: "vertical-lr" as const,
