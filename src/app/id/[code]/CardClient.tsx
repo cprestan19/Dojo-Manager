@@ -17,11 +17,6 @@ const BLACK    = "#000000";
 const BG       = "#F5F5F5";
 
 // ─── Layout (coordenadas en espacio 638 × 1009) ───────────────────────────────
-// Logo circular del dojo (izq, 22 % del ancho)
-const LOGO_D = 140;   // diámetro del círculo del logo
-const LOGO_X = 24;    // left edge
-const LOGO_Y = 24;    // top edge
-
 // Foto (centrada, ~58 % del ancho — cerca del 60 % del spec)
 const PD = 420;                           // diámetro
 const PX = Math.floor((W - PD) / 2);     // = 119 (centrado)
@@ -224,30 +219,6 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                 color: "#ffffff", letterSpacing: "0.10em",
                 textTransform: "uppercase", textAlign: "center",
               }}>{sloganLine2}</div>
-            </div>
-
-            {/* ── LAYER 4: Logo del dojo — círculo, esquina superior-izq ── */}
-            <div style={{
-              position: "absolute",
-              top: LOGO_Y, left: LOGO_X,
-              width: LOGO_D, height: LOGO_D,
-              borderRadius: "50%",
-              border: `4px solid ${RED}`,
-              overflow: "hidden",
-              background: "#fff",
-              zIndex: 5,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: `0 0 0 2px #fff`,
-            }}>
-              {dojo.logo && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={dojo.logo}
-                  alt={dojo.name}
-                  crossOrigin="anonymous"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              )}
             </div>
 
             {/* ── LAYER 5: Foto del alumno — círculo centrado ───────────── */}
