@@ -95,57 +95,33 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   async function downloadPDF() {
     if (!cardRef.current || busy) return;
     setBusy(true);
-    let clone: HTMLElement | null = null;
     try {
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas"),
+      const [{ toPng }, { jsPDF }] = await Promise.all([
+        import("html-to-image"),
         import("jspdf"),
       ]);
 
-      // Clonar el carnet al body sin ningún padre con transforms
-      // Esto garantiza que html2canvas calcule posiciones correctamente
-      clone = cardRef.current.cloneNode(true) as HTMLElement;
-      clone.style.cssText = [
-        "position:fixed",
-        `width:${W}px`,
-        `height:${H}px`,
-        "top:0",
-        `left:-${W + 40}px`,
-        "transform:none",
-        "z-index:-1",
-        "overflow:hidden",
-      ].join(";");
-      document.body.appendChild(clone);
-
-      // Esperar a que fuentes e imágenes estén listas
+      // Esperar fuentes antes de capturar
       await document.fonts.ready;
-      await new Promise(r => setTimeout(r, 200));
 
-      const canvas = await html2canvas(clone, {
-        scale: 1,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        backgroundColor: BG,
-        imageTimeout: 15000,
+      // html-to-image soporta writingMode, clipPath, SVG y transforms
+      // Captura el elemento a tamaño real (638×1009) con pixel ratio 1
+      const dataUrl = await toPng(cardRef.current, {
         width: W,
         height: H,
-        scrollX: 0,
-        scrollY: 0,
+        pixelRatio: 1,
+        backgroundColor: BG,
+        fetchRequestInit: { mode: "cors" },
+        style: { transform: "none", transformOrigin: "top left" },
       });
 
-      document.body.removeChild(clone);
-      clone = null;
-
-      const imgData = canvas.toDataURL("image/jpeg", 0.98);
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [54, 85.6] });
-      pdf.addImage(imgData, "JPEG", 0, 0, 54, 85.6);
+      pdf.addImage(dataUrl, "PNG", 0, 0, 54, 85.6);
       pdf.save(`carnet-${student.studentId}.pdf`);
     } catch (err) {
       console.error(err);
       alert("Error al generar el PDF. Intenta de nuevo.");
     } finally {
-      if (clone) document.body.removeChild(clone);
       setBusy(false);
     }
   }
