@@ -396,7 +396,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               }}>
                 {(contact.name || contact.phone) ? (
                   <div style={{
-                    width: "70%", height: "auto",
+                    width: "50%", height: "auto",
                     border: `2px solid ${RED}`,
                     borderRadius: 20,
                     padding: "4px 2px",
