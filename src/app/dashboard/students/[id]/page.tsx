@@ -7,7 +7,7 @@ import {
   ArrowLeft, Edit, Award, CreditCard, Phone,
   Heart, Calendar, Plus, Shield, Trophy, Fingerprint, Trash2, Pencil, Star,
   ClipboardList, LogIn, LogOut, UserX, UserCheck, KeyRound, PlayCircle, Video,
-  MapPin, Building2, ChevronDown, ChevronUp, Users, Flag,
+  MapPin, Building2, ChevronDown, ChevronUp, Users, Flag, IdCard,
 } from "lucide-react";
 import { StudentQR } from "@/components/students/StudentQR";
 import { FamilyManager } from "@/components/students/FamilyManager";
@@ -1054,6 +1054,17 @@ export default function StudentDetailPage() {
             >
               <Trash2 size={15}/> {deleting ? "Eliminando..." : "Eliminar"}
             </button>
+          )}
+          {student.studentCode && (
+            <Link
+              href={`/id/${student.studentCode}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-ghost flex items-center gap-1.5 text-sm"
+              title="Ver carnet digital"
+            >
+              <IdCard size={16}/> Carnet
+            </Link>
           )}
           <Link href={`/dashboard/students/${id}/edit`} className="btn-secondary">
             <Edit size={16}/> Editar

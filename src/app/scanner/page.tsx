@@ -96,9 +96,12 @@ export default function ScannerPage() {
     const currentSchedule = scheduleRef.current;
     const scheduleParam   = currentSchedule ? `&scheduleId=${currentSchedule.id}` : "";
 
-    // El QR contiene solo el número del alumno (ej. "1000").
-    // El API acepta: número puro → busca por studentCode.
-    const resolvedId = decodedText.trim();
+    // El QR puede contener: número puro (1000), cuid, o URL del carnet (/id/1000).
+    // Extraer solo el ID en los tres casos para pasarlo a /api/scan.
+    let rawId = decodedText.trim();
+    const urlMatch = rawId.match(/\/id\/(\d+)\s*$/);
+    if (urlMatch) rawId = urlMatch[1];
+    const resolvedId = rawId;
 
     try {
       const scanRes  = await fetch(`/api/scan?id=${encodeURIComponent(resolvedId)}${scheduleParam}`);
