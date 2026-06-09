@@ -95,18 +95,33 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   async function downloadPDF() {
     if (!cardRef.current || busy) return;
     setBusy(true);
+    let clone: HTMLElement | null = null;
     try {
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas"),
         import("jspdf"),
       ]);
 
-      // Desactivar el scale del padre para que html2canvas capture
-      // el carnet a su tamaño real (638×1009) sin distorsión de coordenadas
-      const scaleParent = cardRef.current.parentElement as HTMLElement | null;
-      if (scaleParent) scaleParent.style.transform = "none";
+      // Clonar el carnet al body sin ningún padre con transforms
+      // Esto garantiza que html2canvas calcule posiciones correctamente
+      clone = cardRef.current.cloneNode(true) as HTMLElement;
+      clone.style.cssText = [
+        "position:fixed",
+        `width:${W}px`,
+        `height:${H}px`,
+        "top:0",
+        `left:-${W + 40}px`,
+        "transform:none",
+        "z-index:-1",
+        "overflow:hidden",
+      ].join(";");
+      document.body.appendChild(clone);
 
-      const canvas = await html2canvas(cardRef.current, {
+      // Esperar a que fuentes e imágenes estén listas
+      await document.fonts.ready;
+      await new Promise(r => setTimeout(r, 200));
+
+      const canvas = await html2canvas(clone, {
         scale: 1,
         useCORS: true,
         allowTaint: false,
@@ -115,10 +130,12 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
         imageTimeout: 15000,
         width: W,
         height: H,
+        scrollX: 0,
+        scrollY: 0,
       });
 
-      // Restaurar el scale visual
-      if (scaleParent) scaleParent.style.transform = `scale(${DS})`;
+      document.body.removeChild(clone);
+      clone = null;
 
       const imgData = canvas.toDataURL("image/jpeg", 0.98);
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [54, 85.6] });
@@ -126,11 +143,9 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
       pdf.save(`carnet-${student.studentId}.pdf`);
     } catch (err) {
       console.error(err);
-      // Asegurar que el scale se restaura aunque falle
-      if (cardRef.current?.parentElement)
-        cardRef.current.parentElement.style.transform = `scale(${DS})`;
       alert("Error al generar el PDF. Intenta de nuevo.");
     } finally {
+      if (clone) document.body.removeChild(clone);
       setBusy(false);
     }
   }
