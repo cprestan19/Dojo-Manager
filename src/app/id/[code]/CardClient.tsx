@@ -9,10 +9,10 @@ const H = 595;
 const RED  = "#D90416";
 const DARK = "#0A0A0A";
 
-// Foto grande centrada
-const PHOTO_D = 174;                            // diámetro
-const PHOTO_X = Math.floor((W - PHOTO_D) / 2); // = 105 (centrado)
-const PHOTO_Y = 60;                             // borde superior foto
+// Foto: desplazada ligeramente a la derecha para que el logo quede libre
+const PHOTO_D = 174;  // diámetro
+const PHOTO_X = 118;  // evita solapamiento con logo (logo ocupa x:10–108, foto desde x:118)
+const PHOTO_Y = 60;   // borde superior foto
 
 // QR section
 const QR_TOP  = 335;
@@ -181,26 +181,24 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
           transform: "rotate(-4deg)", opacity: 0.55,
         }} />
 
-        {/* LOGO del dojo — arriba-izquierda sobre el negro */}
+        {/* LOGO del dojo — esquina superior-izquierda, sobre el negro
+            maxWidth 103px asegura que no llega a PHOTO_X=118           */}
         <div style={{
           position: "absolute", top: 8, left: 10, zIndex: 10,
-          maxWidth: 150, display: "flex", flexDirection: "column",
-          alignItems: "flex-start",
+          width: 103, height: 108,
+          display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           {dojo.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={dojo.logo} alt={dojo.name} crossOrigin="anonymous"
-              style={{ height: 95, width: "auto", maxWidth: 148, objectFit: "contain" }} />
+              style={{ maxWidth: 103, maxHeight: 108, width: "auto", height: "auto", objectFit: "contain" }} />
           ) : (
-            <>
-              <ToriiSVG size={40} color="#fff" />
-              <div style={{ marginTop: 2 }}>
-                <div style={{ fontSize: 7.5, fontWeight: 600, color: "rgba(255,255,255,0.72)", letterSpacing: "0.22em", textTransform: "uppercase" }}>DOJO</div>
-                <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>{dojo.name}</div>
-                <div style={{ marginTop: 4, width: 46, height: 1.5, background: RED, borderRadius: 2 }} />
-                <div style={{ fontSize: 6, fontWeight: 600, color: "rgba(255,255,255,0.6)", letterSpacing: "0.32em", marginTop: 3, textTransform: "uppercase" }}>KARATE DO</div>
-              </div>
-            </>
+            /* Fallback mínimo cuando no hay logo configurado */
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <ToriiSVG size={38} color="#fff" />
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#fff", textAlign: "center", lineHeight: 1.1, maxWidth: 90 }}>{dojo.name}</div>
+              <div style={{ width: 36, height: 1.5, background: RED, borderRadius: 2 }} />
+            </div>
           )}
         </div>
 
