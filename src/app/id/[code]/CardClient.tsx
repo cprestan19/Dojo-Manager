@@ -386,11 +386,9 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                 background: "#ffffff",
                 border: `2px solid ${RED}`,
                 borderRadius: 12,
-                padding: "6px 12px 4px",
+                padding: 0,
                 boxShadow: `0 4px 22px rgba(204,0,0,0.15)`,
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                gap: 6, overflow: "hidden",
+                overflow: "hidden",
               }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -399,15 +397,10 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                   style={{
                     display: "block",
                     width: "100%",
-                    maxWidth: 228, maxHeight: 228,
-                    height: "auto",
+                    height: "100%",
+                    objectFit: "contain",
                   }}
                 />
-                <div style={{
-                  fontSize: 9, color: "#ccc",
-                  letterSpacing: "0.20em", textTransform: "uppercase",
-                  textAlign: "center",
-                }}>escanear · scan · スキャン</div>
               </div>
 
               {/* Columna derecha 25%: pastilla de contacto */}
