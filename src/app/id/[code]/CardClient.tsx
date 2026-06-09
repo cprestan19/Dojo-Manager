@@ -409,7 +409,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                         transform: "rotate(180deg)",
                         fontSize: 18, fontWeight: 700, color: BLACK,
                         lineHeight: 1.2, textAlign: "center",
-                        maxHeight: 140, overflow: "hidden",
+                        maxHeight: 200, overflow: "hidden",
                       }}>{contact.name}</div>
                     )}
                     {/* Teléfono (texto vertical) */}
@@ -418,7 +418,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                         writingMode: "vertical-lr" as const,
                         transform: "rotate(180deg)",
                         fontSize: 18, fontWeight: 500, color: "#444",
-                        maxHeight: 100, overflow: "hidden",
+                        maxHeight: 130, overflow: "hidden",
                       }}>{contact.phone}</div>
                     )}
                     {/* Ícono WhatsApp */}
