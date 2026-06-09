@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { Montserrat } from "next/font/google";
 import prisma from "@/lib/prisma";
 import CardClient from "./CardClient";
@@ -44,8 +45,12 @@ export default async function StudentCardPage({ params }: Params) {
   const dojoLogoUrl = student.dojo.logo?.startsWith("http") ? student.dojo.logo : null;
 
   // QR que apunta a esta misma página (para que cualquier cámara abra el carnet)
-  const base    = (process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "");
-  const cardUrl = `${base}/id/${student.studentCode}`;
+  // Usa NEXTAUTH_URL si está disponible; si no, deriva la URL del host de la petición
+  const reqHeaders = await headers();
+  const host       = reqHeaders.get("host") ?? "";
+  const proto      = host.startsWith("localhost") ? "http" : "https";
+  const base       = (process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "") || `${proto}://${host}`;
+  const cardUrl    = `${base}/id/${student.studentCode}`;
   const qrDataUrl = await QRCode.toDataURL(cardUrl, {
     width: 420,
     margin: 2,
