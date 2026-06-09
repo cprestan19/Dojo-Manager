@@ -29,7 +29,7 @@ const PY = 121;                           // top de la foto
 
 // Textos
 const NT = PY + PD + 12;  // nombre top  = 550
-const TT = NT + 44 + 5;   // team top    = 616
+const TT = NT + 44 + 22;  // team top    (+17px)
 const QT = TT + 26 + 42;  // QR top      (+30 extra)
 const QH = 262;            // QR height
 const FT = QT + QH + 6;   // footer top  = 922
