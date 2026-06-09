@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
 // ─── Dimensiones CR80 a 300 DPI ───────────────────────────────────────────────
 // 54mm × 85.6mm → 638 × 1009 px  (300 DPI exacto)
@@ -12,7 +12,6 @@ const DS = 0.60;  // display scale → 383 × 605 px en pantalla
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 const RED      = "#CC0000";
-const RED_D    = "#990000";
 const BLACK    = "#000000";
 const BG       = "#F5F5F5";
 
@@ -34,18 +33,6 @@ const QT = TT + 25;        // QR top
 const QH = 310;            // QR height
 const FT = QT + QH + 6;   // footer top
 // footer height: 1009 − FT ≈ 110 px ✓
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function Spinner() {
-  return (
-    <span style={{
-      display: "inline-block", width: 18, height: 18,
-      border: "3px solid rgba(255,255,255,0.3)",
-      borderTopColor: "#fff", borderRadius: "50%",
-      animation: "spin 0.8s linear infinite",
-    }} />
-  );
-}
 
 /** Patrón de rombos gris (watermark decorativo zona media-izquierda) */
 function DiamondWatermark() {
@@ -82,7 +69,6 @@ interface CardProps {
 
 export default function CardClient({ student, dojo, contact, qrDataUrl }: CardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [busy, setBusy] = useState(false);
 
   const initials  = student.fullName.split(/\s+/).slice(0, 2).map(n => n[0]?.toUpperCase() ?? "").join("");
   const teamLabel = `TEAM ${dojo.name.toUpperCase()}`;
@@ -92,39 +78,8 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
     return m ? [m[1].toUpperCase(), m[2].toUpperCase()] : ["PERFECCIONA TU CARÁCTER CON", "DISCIPLINA Y CONSTANCIA"];
   })();
 
-  async function downloadPDF() {
-    if (!cardRef.current || busy) return;
-    setBusy(true);
-    try {
-      const [{ toPng }, { jsPDF }] = await Promise.all([
-        import("html-to-image"),
-        import("jspdf"),
-      ]);
-
-      // Esperar fuentes antes de capturar
-      await document.fonts.ready;
-
-      // html-to-image soporta writingMode, clipPath, SVG y transforms
-      // Captura el elemento a tamaño real (638×1009) con pixel ratio 1
-      const dataUrl = await toPng(cardRef.current, {
-        width: W,
-        height: H,
-        pixelRatio: 1,
-        backgroundColor: BG,
-        skipFonts: true,       // evita leer reglas de hojas cross-origin (Google Fonts)
-        fetchRequestInit: { mode: "cors" },
-        style: { transform: "none", transformOrigin: "top left" },
-      });
-
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [54, 85.6] });
-      pdf.addImage(dataUrl, "PNG", 0, 0, 54, 85.6);
-      pdf.save(`carnet-${student.studentId}.pdf`);
-    } catch (err) {
-      console.error(err);
-      alert("Error al generar el PDF. Intenta de nuevo.");
-    } finally {
-      setBusy(false);
-    }
+  function printCard() {
+    window.print();
   }
 
   return (
@@ -132,17 +87,36 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&family=Kosugi+Maru&display=swap');
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media print {
+          @page { size: 54mm 85.6mm; margin: 0; }
+          html, body {
+            width: 54mm !important; height: 85.6mm !important;
+            margin: 0 !important; padding: 0 !important;
+            background: white !important; overflow: hidden !important;
+          }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .no-print { display: none !important; }
+          .card-print-wrapper {
+            width: 54mm !important; height: 85.6mm !important;
+            overflow: hidden !important;
+          }
+          .card-print-scale {
+            transform-origin: top left !important;
+            transform: scale(0.3199) !important;
+          }
+        }
       `}</style>
 
       {/* ── Wrapper: ocupa el espacio visual escalado ─────────────────────── */}
-      <div style={{
+      <div className="card-print-wrapper" style={{
         width:  Math.round(W * DS),
         height: Math.round(H * DS),
         flexShrink: 0,
         overflow: "visible",
       }}>
-        {/* ── Escala visual sin afectar html2canvas ───────────────────────── */}
-        <div style={{ transformOrigin: "top left", transform: `scale(${DS})` }}>
+        {/* ── Escala visual ────────────────────────────────────────────────── */}
+        <div className="card-print-scale" style={{ transformOrigin: "top left", transform: `scale(${DS})` }}>
 
           {/* ════════════════════════════════════════════════════════════════
               CARNET  638 × 1009 px  (54 × 85.6 mm @ 300 DPI)
@@ -456,42 +430,35 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
         </div>{/* fin scale */}
       </div>{/* fin wrapper */}
 
-      {/* ── Botón descarga ────────────────────────────────────────────────── */}
+      {/* ── Botón imprimir / guardar PDF ─────────────────────────────────── */}
       <button
-        onClick={() => void downloadPDF()}
-        disabled={busy}
+        className="no-print"
+        onClick={printCard}
         style={{
           display: "flex", alignItems: "center", gap: 12,
-          background: busy ? RED_D : RED, color: "#fff",
+          background: RED, color: "#fff",
           border: "none", borderRadius: 12, padding: "14px 36px",
           fontSize: 15, fontWeight: 700,
-          cursor: busy ? "not-allowed" : "pointer",
-          letterSpacing: "0.04em",
+          cursor: "pointer", letterSpacing: "0.04em",
           fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
           boxShadow: "0 8px 24px rgba(204,0,0,0.40)",
-          transition: "background 0.2s", flexShrink: 0,
+          flexShrink: 0,
         }}
       >
-        {busy ? (
-          <><Spinner /> Generando PDF (300 DPI)...</>
-        ) : (
-          <>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.5"
-              strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-            </svg>
-            Descargar Carnet PDF
-          </>
-        )}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/>
+        </svg>
+        Imprimir / Guardar PDF
       </button>
 
-      <p style={{
+      <p className="no-print" style={{
         fontSize: 12, color: "rgba(255,255,255,0.4)",
         textAlign: "center", maxWidth: 340,
         fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
       }}>
-        Carnet CR80 · 54 × 85.6 mm · 300 DPI — Comparte el enlace o escanea el QR
+        Selecciona &quot;Guardar como PDF&quot; en el diálogo de impresión · CR80 54 × 85.6 mm
       </p>
     </>
   );
