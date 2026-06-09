@@ -296,12 +296,12 @@ export function PlanManager() {
                   <label className="form-label">Precio mensual (USD) <span className="text-red-400">*</span></label>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     step="0.01"
                     value={form.monthlyPrice}
                     onChange={e => setForm(f => ({ ...f, monthlyPrice: e.target.value }))}
                     className="form-input"
-                    placeholder="39"
+                    placeholder="0"
                     required
                   />
                 </div>
@@ -309,7 +309,7 @@ export function PlanManager() {
                   <label className="form-label">Precio anual (USD) <span className="text-red-400">*</span></label>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     step="0.01"
                     value={form.annualPrice}
                     onChange={e => setForm(f => ({ ...f, annualPrice: e.target.value }))}
