@@ -126,20 +126,24 @@ export async function PUT(req: NextRequest, { params }: Params) {
       },
     });
 
-    // Sincronizar email del usuario portal si cambió el correo del acudiente
+    // Sincronizar email del usuario portal solo si el portal fue creado con el email del acudiente
+    // (no aplica a familias donde el email del portal fue configurado diferente a propósito)
     if (before?.portalUser) {
-      const newPrimaryEmail = (body.motherEmail?.trim() || body.fatherEmail?.trim()) ?? "";
-      if (newPrimaryEmail && newPrimaryEmail !== before.portalUser.email) {
-        // Verificar que el nuevo email no esté en uso por otro usuario
-        const conflict = await prisma.user.findFirst({
-          where: { email: newPrimaryEmail, id: { not: before.portalUser.id } },
-          select: { id: true },
-        });
-        if (!conflict) {
-          await prisma.user.update({
-            where: { id: before.portalUser.id },
-            data:  { email: newPrimaryEmail },
+      const oldGuardianEmails = [before.motherEmail?.trim(), before.fatherEmail?.trim()].filter(Boolean);
+      const portalEmailMatchedGuardian = oldGuardianEmails.includes(before.portalUser.email);
+      if (portalEmailMatchedGuardian) {
+        const newPrimaryEmail = (body.motherEmail?.trim() || body.fatherEmail?.trim()) ?? "";
+        if (newPrimaryEmail && newPrimaryEmail !== before.portalUser.email) {
+          const conflict = await prisma.user.findFirst({
+            where: { email: newPrimaryEmail, id: { not: before.portalUser.id } },
+            select: { id: true },
           });
+          if (!conflict) {
+            await prisma.user.update({
+              where: { id: before.portalUser.id },
+              data:  { email: newPrimaryEmail },
+            });
+          }
         }
       }
     }
