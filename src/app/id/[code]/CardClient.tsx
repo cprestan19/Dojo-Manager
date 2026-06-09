@@ -100,7 +100,12 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
         import("html2canvas"),
         import("jspdf"),
       ]);
-      // Captura a tamaño completo (638×1009) → 300 DPI exacto
+
+      // Desactivar el scale del padre para que html2canvas capture
+      // el carnet a su tamaño real (638×1009) sin distorsión de coordenadas
+      const scaleParent = cardRef.current.parentElement as HTMLElement | null;
+      if (scaleParent) scaleParent.style.transform = "none";
+
       const canvas = await html2canvas(cardRef.current, {
         scale: 1,
         useCORS: true,
@@ -111,12 +116,19 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
         width: W,
         height: H,
       });
+
+      // Restaurar el scale visual
+      if (scaleParent) scaleParent.style.transform = `scale(${DS})`;
+
       const imgData = canvas.toDataURL("image/jpeg", 0.98);
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [54, 85.6] });
       pdf.addImage(imgData, "JPEG", 0, 0, 54, 85.6);
       pdf.save(`carnet-${student.studentId}.pdf`);
     } catch (err) {
       console.error(err);
+      // Asegurar que el scale se restaura aunque falle
+      if (cardRef.current?.parentElement)
+        cardRef.current.parentElement.style.transform = `scale(${DS})`;
       alert("Error al generar el PDF. Intenta de nuevo.");
     } finally {
       setBusy(false);
