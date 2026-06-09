@@ -121,11 +121,11 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             margin: 0 !important; padding: 0 !important;
           }
 
-          /* Escala: 638px → 55mm (207.87px a 96dpi) → scale 0.3259
-             Altura resultante: 1009 × 0.3259 = 329px = 86.7mm → clip con overflow hidden */
+          /* Escala limitada por la altura: 1009px → 85mm (321.26px a 96dpi) → scale 0.3184
+             Ancho resultante: 638 × 0.3184 = 203.1px = 53.8mm (cabe en 55mm) */
           .card-print-scale {
             transform-origin: top left !important;
-            transform: scale(0.3259) !important;
+            transform: scale(0.3184) !important;
           }
         }
       `}</style>
