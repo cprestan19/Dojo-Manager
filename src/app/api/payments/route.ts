@@ -216,6 +216,45 @@ async function _PATCH(req: NextRequest) {
   return NextResponse.json({ processed: latePayments.length, emailsSent: sent });
 }
 
-export const POST = withReadOnlyGuard(_POST);
-export const PUT = withReadOnlyGuard(_PUT);
+async function _DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  if (role !== "admin" && role !== "sysadmin")
+    return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
+
+  const body = await req.json().catch(() => null);
+  if (!body?.id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
+
+  const payment = await prisma.payment.findUnique({
+    where:  { id: body.id as string },
+    select: { id: true, student: { select: { dojoId: true, fullName: true } }, amount: true, type: true, status: true },
+  });
+
+  if (!payment || payment.student.dojoId !== dojoId)
+    return NextResponse.json({ error: "Pago no encontrado" }, { status: 404 });
+
+  await prisma.payment.delete({ where: { id: payment.id } });
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  await logAudit({
+    action:       "PAYMENT_DELETED",
+    module:       AUDIT_MODULE.PAYMENTS,
+    resourceType: "Payment",
+    resourceId:   payment.id,
+    dojoId,
+    ip,
+    details:      JSON.stringify({ amount: payment.amount, type: payment.type, status: payment.status, student: payment.student.fullName }),
+  });
+
+  return NextResponse.json({ ok: true });
+}
+
+export const POST  = withReadOnlyGuard(_POST);
+export const PUT   = withReadOnlyGuard(_PUT);
 export const PATCH = withReadOnlyGuard(_PATCH);
+export const DELETE = withReadOnlyGuard(_DELETE);

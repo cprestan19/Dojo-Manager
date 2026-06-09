@@ -745,6 +745,7 @@ export default function StudentDetailPage() {
   const [payModal,        setPayModal]        = useState(false);
   const [editPayTarget,   setEditPayTarget]   = useState<Payment | null>(null);
   const [markingPay,      setMarkingPay]      = useState<string | null>(null);
+  const [deletingPay,     setDeletingPay]     = useState<string | null>(null);
   const [togglingActive,  setTogglingActive]  = useState(false);
   const [deleting,        setDeleting]        = useState(false);
   const [accessLoading,   setAccessLoading]   = useState(false);
@@ -793,6 +794,24 @@ export default function StudentDetailPage() {
       body: JSON.stringify({ id: paymentId, status: "paid", paidDate: new Date().toISOString() }),
     });
     setMarkingPay(null);
+    fetchStudent();
+  }
+
+  async function deletePayment(paymentId: string, amount: number, type: string) {
+    const label = type === "monthly" ? "mensualidad" : type === "biweekly" ? "pago quincenal" : "anualidad";
+    if (!confirm(`¿Eliminar esta ${label} de ${formatCurrency(amount)}? Esta acción no se puede deshacer.`)) return;
+    setDeletingPay(paymentId);
+    const res = await fetch("/api/payments", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: paymentId }),
+    });
+    setDeletingPay(null);
+    if (!res.ok) {
+      const d = await res.json() as { error?: string };
+      alert(d.error ?? "Error al eliminar el pago");
+      return;
+    }
     fetchStudent();
   }
 
@@ -1340,6 +1359,16 @@ export default function StudentDetailPage() {
                                   title="Editar pago"
                                 >
                                   <Pencil size={11}/> Editar
+                                </button>
+                              )}
+                              {canEdit && (
+                                <button
+                                  onClick={() => deletePayment(p.id, p.amount, p.type)}
+                                  disabled={deletingPay === p.id}
+                                  className="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1 whitespace-nowrap disabled:opacity-50"
+                                  title="Eliminar pago"
+                                >
+                                  <Trash2 size={11}/> {deletingPay === p.id ? "..." : "Eliminar"}
                                 </button>
                               )}
                             </div>
