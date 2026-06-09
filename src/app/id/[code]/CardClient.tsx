@@ -350,7 +350,6 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                   fontSize: 62, fontWeight: 900,
                   color: RED, letterSpacing: "0.06em",
                   userSelect: "none", whiteSpace: "nowrap",
-                  marginTop: 247,
                   fontFamily: "'Kosugi Maru', sans-serif",
                 }}>道場夏月</div>
               </div>
