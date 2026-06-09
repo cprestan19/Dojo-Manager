@@ -89,21 +89,43 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
         @keyframes spin { to { transform: rotate(360deg); } }
 
         @media print {
-          @page { size: 54mm 85.6mm; margin: 0; }
+          @page { size: 55mm 85mm; margin: 0; }
+
           html, body {
-            width: 54mm !important; height: 85.6mm !important;
+            width: 55mm !important; height: 85mm !important;
             margin: 0 !important; padding: 0 !important;
             background: white !important; overflow: hidden !important;
           }
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .no-print { display: none !important; }
-          .card-print-wrapper {
-            width: 54mm !important; height: 85.6mm !important;
+
+          /* Anular el layout del main (flex + padding + bg oscuro de page.tsx) */
+          main {
+            display: block !important;
+            min-height: unset !important;
+            background: white !important;
+            padding: 0 !important; margin: 0 !important;
+            width: 55mm !important; height: 85mm !important;
             overflow: hidden !important;
           }
+
+          /* Wrapper del carnet: fijado en esquina superior-izquierda de la página */
+          .card-print-wrapper {
+            position: fixed !important;
+            top: 0 !important; left: 0 !important;
+            width: 55mm !important; height: 85mm !important;
+            overflow: hidden !important;
+            margin: 0 !important; padding: 0 !important;
+          }
+
+          /* Escala: 638px → 55mm (207.87px a 96dpi) → scale 0.3259
+             Altura resultante: 1009 × 0.3259 = 329px = 86.7mm → clip con overflow hidden */
           .card-print-scale {
             transform-origin: top left !important;
-            transform: scale(0.3199) !important;
+            transform: scale(0.3259) !important;
           }
         }
       `}</style>
