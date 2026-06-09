@@ -353,14 +353,6 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                   marginTop: 247,
                   fontFamily: "'Kosugi Maru', sans-serif",
                 }}>道場夏月</div>
-                <div style={{
-                  writingMode: "vertical-lr" as const,
-                  transform: "rotate(180deg)",
-                  fontSize: 9, fontWeight: 600,
-                  color: "#999", letterSpacing: "0.32em",
-                  textTransform: "uppercase", whiteSpace: "nowrap",
-                  opacity: 0.85,
-                }}>DISCIPLINA · RESPETO · CONSTANCIA</div>
               </div>
 
               {/* Columna central 55%: QR con borde rojo */}
@@ -438,6 +430,24 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               </div>
 
             </div>{/* fin zona QR */}
+
+            {/* ── Lema vertical — borde izquierdo ──────────────────────── */}
+            <div style={{
+              position: "absolute",
+              left: 4, top: QT,
+              height: QH,
+              zIndex: 8,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <div style={{
+                writingMode: "vertical-lr" as const,
+                transform: "rotate(180deg)",
+                fontSize: 9, fontWeight: 600,
+                color: "#999", letterSpacing: "0.32em",
+                textTransform: "uppercase", whiteSpace: "nowrap",
+                opacity: 0.85,
+              }}>DISCIPLINA · RESPETO · CONSTANCIA</div>
+            </div>
 
           </div>{/* fin card */}
         </div>{/* fin scale */}
