@@ -87,10 +87,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const t0   = Date.now();
     const body = await req.json();
 
-    // Snapshot del estado anterior para el log
+    // Snapshot del estado anterior para el log (incluye portal user para sync de email)
     const before = await prisma.student.findUnique({
       where:  { id, dojoId },
-      select: { fullName: true, active: true, cedula: true, fepakaId: true },
+      select: {
+        fullName: true, active: true, cedula: true, fepakaId: true,
+        motherEmail: true, fatherEmail: true,
+        portalUser: { select: { id: true, email: true } },
+      },
     });
 
     const student = await prisma.student.update({
@@ -121,6 +125,24 @@ export async function PUT(req: NextRequest, { params }: Params) {
         active:              body.active ?? true,
       },
     });
+
+    // Sincronizar email del usuario portal si cambió el correo del acudiente
+    if (before?.portalUser) {
+      const newPrimaryEmail = (body.motherEmail?.trim() || body.fatherEmail?.trim()) ?? "";
+      if (newPrimaryEmail && newPrimaryEmail !== before.portalUser.email) {
+        // Verificar que el nuevo email no esté en uso por otro usuario
+        const conflict = await prisma.user.findFirst({
+          where: { email: newPrimaryEmail, id: { not: before.portalUser.id } },
+          select: { id: true },
+        });
+        if (!conflict) {
+          await prisma.user.update({
+            where: { id: before.portalUser.id },
+            data:  { email: newPrimaryEmail },
+          });
+        }
+      }
+    }
 
     if (body.inscription) {
       const ins = body.inscription;
