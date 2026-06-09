@@ -397,13 +397,9 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                 {(contact.name || contact.phone) ? (
                   <div style={{
                     width: "60%", height: "auto",
-                    border: `2px solid ${RED}`,
-                    borderRadius: 20,
-                    padding: "3px 1px",
                     display: "flex", flexDirection: "column",
                     alignItems: "center", justifyContent: "center",
-                    gap: 8, boxSizing: "border-box" as const,
-                    background: "#fff",
+                    gap: 8,
                   }}>
                     {/* Nombre del tutor (texto vertical) */}
                     {contact.name && (
@@ -424,17 +420,11 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                         maxHeight: 80, overflow: "hidden",
                       }}>{contact.phone}</div>
                     )}
-                    {/* Ícono de teléfono en círculo */}
-                    <div style={{
-                      width: 32, height: 32, borderRadius: "50%",
-                      border: `2px solid ${RED}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0,
-                    }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill={RED}>
-                        <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
-                      </svg>
-                    </div>
+                    {/* Ícono WhatsApp */}
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                      <circle cx="16" cy="16" r="16" fill="#25D366"/>
+                      <path d="M23.5 8.5A10.44 10.44 0 0 0 16 5.5C10.75 5.5 6.5 9.75 6.5 15a9.44 9.44 0 0 0 1.27 4.75L6.5 26.5l6.93-1.82A9.5 9.5 0 0 0 16 25.5c5.25 0 9.5-4.25 9.5-9.5a9.44 9.44 0 0 0-2-5.5zm-7.5 14.62a7.88 7.88 0 0 1-4.02-1.1l-.29-.17-3 .79.8-2.93-.19-.3A7.88 7.88 0 0 1 8.12 15c0-4.35 3.53-7.88 7.88-7.88S23.88 10.65 23.88 15 20.35 23.12 16 23.12zm4.33-5.9c-.24-.12-1.4-.69-1.61-.77-.22-.08-.38-.12-.54.12-.16.24-.62.77-.76.93-.14.16-.28.18-.52.06-.24-.12-1-.37-1.91-1.18-.7-.63-1.18-1.4-1.32-1.64-.14-.24-.01-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.52.1.46-.07 1.4-.57 1.6-1.12.2-.55.2-1.02.14-1.12-.06-.1-.22-.16-.46-.28z" fill="#fff"/>
+                    </svg>
                   </div>
                 ) : (
                   /* Si no hay contacto: decoración de kanji pequeño */
