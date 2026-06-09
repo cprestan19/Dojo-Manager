@@ -361,10 +361,10 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                 gap: 10,
               }}>
                 <div style={{
-                  writingMode: "vertical-rl" as const,
+                  transform: "rotate(-90deg)",
                   fontSize: 46, fontWeight: 900,
                   color: RED, letterSpacing: "0.06em",
-                  userSelect: "none",
+                  userSelect: "none", whiteSpace: "nowrap",
                 }}>道場夏月</div>
                 <div style={{
                   writingMode: "vertical-lr" as const,
