@@ -29,11 +29,11 @@ const PY = 121;                           // top de la foto
 
 // Textos
 const NT = PY + PD + 12;  // nombre top  = 550
-const TT = NT + 44 + 22;  // team top    (+17px)
-const QT = TT + 26 + 42;  // QR top      (+30 extra)
-const QH = 262;            // QR height
-const FT = QT + QH + 6;   // footer top  = 922
-// footer height: 1009 − 922 = 87 px ✓
+const TT = NT + 110;       // team top: 110px bajo NT cubre hasta 2-3 líneas de nombre
+const QT = TT + 20;        // QR top
+const QH = 240;            // QR height
+const FT = QT + QH + 6;   // footer top
+// footer height: 1009 − FT ≈ 110 px ✓
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function Spinner() {
