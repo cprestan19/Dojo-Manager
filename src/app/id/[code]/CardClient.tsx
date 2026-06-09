@@ -257,32 +257,70 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             </div>
           </div>
 
-          {/* ── Foto centrada ── */}
+          {/* ── Foto centrada con logo en esquina ── */}
           <div style={{ display: "flex", justifyContent: "center", margin: "14px 0 20px" }}>
-            <div style={{
-              width: 196,
-              height: 196,
-              borderRadius: "50%",
-              border: `8px solid ${RED}`,
-              overflow: "hidden",
-              boxShadow: "0 15px 40px rgba(0,0,0,0.28)",
-              background: "#D9D9D9",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}>
-              {student.photo ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={student.photo}
-                  alt={student.fullName}
-                  crossOrigin="anonymous"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                <span style={{ fontSize: 64, fontWeight: 800, color: "#888" }}>{initials}</span>
-              )}
+            <div style={{ position: "relative", width: 250, height: 250, flexShrink: 0 }}>
+
+              {/* Foto circular */}
+              <div style={{
+                width: 250,
+                height: 250,
+                borderRadius: "50%",
+                border: `8px solid ${RED}`,
+                overflow: "hidden",
+                boxShadow: "0 18px 48px rgba(0,0,0,0.30)",
+                background: "#D9D9D9",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}>
+                {student.photo ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={student.photo}
+                    alt={student.fullName}
+                    crossOrigin="anonymous"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 72, fontWeight: 800, color: "#888" }}>{initials}</span>
+                )}
+              </div>
+
+              {/* Logo del dojo — badge esquina inferior derecha */}
+              <div style={{
+                position: "absolute",
+                bottom: 8,
+                right: 8,
+                width: 58,
+                height: 58,
+                borderRadius: "50%",
+                background: "#FFFFFF",
+                border: `3px solid ${RED}`,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.22)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+                padding: dojo.logo ? 4 : 0,
+              }}>
+                {dojo.logo ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={dojo.logo}
+                    alt={dojo.name}
+                    crossOrigin="anonymous"
+                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                  />
+                ) : (
+                  <span style={{
+                    fontSize: 16, fontWeight: 900,
+                    color: RED, letterSpacing: "-0.5px",
+                  }}>
+                    {dojo.name.split(/\s+/).filter(w => w.length > 2).slice(0, 2).map(w => w[0].toUpperCase()).join("")}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
