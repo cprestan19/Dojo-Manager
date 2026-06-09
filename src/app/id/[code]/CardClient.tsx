@@ -31,7 +31,7 @@ const PY = 91;                            // top de la foto
 const NT = PY + PD + 12;  // nombre top  = 550
 const TT = NT + 93;        // team top: subido 17px
 const QT = TT + 45;        // QR top  (bajado)
-const QH = 285;            // QR height (más grande)
+const QH = 310;            // QR height
 const FT = QT + QH + 6;   // footer top
 // footer height: 1009 − FT ≈ 110 px ✓
 
