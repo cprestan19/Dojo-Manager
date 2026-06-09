@@ -41,7 +41,9 @@ export default async function StudentCardPage({ params }: Params) {
 
   // Solo URLs de Cloudinary — nunca base64 (todas las imágenes deben estar en Cloudinary)
   const photoUrl    = student.photo?.startsWith("http")     ? student.photo     : null;
-  const dojoLogoUrl = student.dojo.logo?.startsWith("http") ? student.dojo.logo : null;
+  const dojoLogoUrl = student.dojo.logo?.startsWith("http")
+    ? student.dojo.logo
+    : "https://res.cloudinary.com/dkkoivmt6/image/upload/v1777640589/dojo-manager/cmo53x2wm000jfcpzvk3kttxg/logos/qedojyejr9fc0rcl3twp.png";
 
   // QR que apunta a esta misma página (para que cualquier cámara abra el carnet)
   const base    = (process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "");

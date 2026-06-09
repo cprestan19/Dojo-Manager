@@ -236,7 +236,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               display: "flex", alignItems: "center", justifyContent: "center",
               boxShadow: `0 0 0 2px #fff`,
             }}>
-              {dojo.logo ? (
+              {dojo.logo && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={dojo.logo}
@@ -244,24 +244,6 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                   crossOrigin="anonymous"
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
-              ) : (
-                /* Fallback cuando no hay logo en Cloudinary */
-                <div style={{
-                  width: "100%", height: "100%", background: BLACK,
-                  display: "flex", flexDirection: "column",
-                  alignItems: "center", justifyContent: "center", gap: 2,
-                }}>
-                  {/* Torii mini */}
-                  <svg width="42" height="35" viewBox="0 0 240 200" fill="#fff">
-                    <rect x="38" y="68" width="14" height="132" rx="4"/>
-                    <rect x="188" y="68" width="14" height="132" rx="4"/>
-                    <path d="M10,72 Q120,28 230,72 L230,86 Q120,42 10,86 Z"/>
-                    <rect x="24" y="86" width="192" height="10" rx="3"/>
-                    <rect x="44" y="108" width="152" height="12" rx="4"/>
-                    <ellipse cx="45" cy="68" rx="11" ry="7"/>
-                    <ellipse cx="195" cy="68" rx="11" ry="7"/>
-                  </svg>
-                </div>
               )}
             </div>
 
