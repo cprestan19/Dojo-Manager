@@ -396,10 +396,10 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               }}>
                 {(contact.name || contact.phone) ? (
                   <div style={{
-                    width: "88%", height: "100%",
+                    width: "88%", height: "auto",
                     border: `2px solid ${RED}`,
                     borderRadius: 20,
-                    padding: "12px 0",
+                    padding: "16px 8px",
                     display: "flex", flexDirection: "column",
                     alignItems: "center", justifyContent: "center",
                     gap: 8, boxSizing: "border-box" as const,
