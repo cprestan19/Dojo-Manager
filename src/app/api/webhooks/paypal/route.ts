@@ -73,32 +73,132 @@ export async function POST(req: NextRequest) {
     const { event_type, resource } = event;
 
     switch (event_type) {
+      // ── Activación inicial (primer pago aprobado) ─────────────────────────
       case "BILLING.SUBSCRIPTION.ACTIVATED": {
         const subId = resource.id as string;
-        const sub = await prisma.subscription.findFirst({
-          where: { paypalSubscriptionId: subId },
-        });
+        const sub = await prisma.subscription.findFirst({ where: { paypalSubscriptionId: subId } });
         if (!sub) break;
 
-        const now  = new Date();
-        const end  = sub.cycle === "MONTHLY" ? addDays(now, 30) : addDays(now, 365);
+        const now = new Date();
+        const end = sub.cycle === "MONTHLY" ? addDays(now, 30) : addDays(now, 365);
         await prisma.subscription.update({
           where: { id: sub.id },
           data:  { status: SubscriptionStatus.ACTIVE, currentPeriodStart: now, currentPeriodEnd: end },
         });
+
+        // Registrar factura del primer pago
+        const lastPayment = (resource.billing_info as Record<string, unknown> | undefined)
+          ?.last_payment as { amount?: { currency_code?: string; value?: string } } | undefined;
+        const amount   = parseFloat(lastPayment?.amount?.value ?? "0");
+        const currency = lastPayment?.amount?.currency_code ?? "USD";
+        if (amount > 0) {
+          await prisma.invoice.create({
+            data: {
+              subscriptionId: sub.id,
+              dojoId:         sub.dojoId,
+              amount,
+              currency,
+              status:         InvoiceStatus.PAID,
+              gateway:        PaymentGateway.PAYPAL,
+              gatewayInvoiceId: `activated-${subId}-${now.getTime()}`,
+              paidAt:         now,
+            },
+          });
+        }
         await logAudit({ action: "SUBSCRIPTION_ACTIVATED", module: AUDIT_MODULE.SYSADMIN, resourceType: "Subscription", resourceId: sub.id, dojoId: sub.dojoId });
         break;
       }
 
-      case "BILLING.SUBSCRIPTION.CANCELLED": {
+      // ── Reactivación tras suspensión ──────────────────────────────────────
+      case "BILLING.SUBSCRIPTION.RE-ACTIVATED": {
         const subId = resource.id as string;
         const sub = await prisma.subscription.findFirst({ where: { paypalSubscriptionId: subId } });
         if (!sub) break;
-        await prisma.subscription.update({ where: { id: sub.id }, data: { status: SubscriptionStatus.CANCELED } });
-        await logAudit({ action: "SUBSCRIPTION_CANCELED", module: AUDIT_MODULE.SYSADMIN, resourceType: "Subscription", resourceId: sub.id, dojoId: sub.dojoId });
+
+        const now = new Date();
+        const end = sub.cycle === "MONTHLY" ? addDays(now, 30) : addDays(now, 365);
+        await prisma.subscription.update({
+          where: { id: sub.id },
+          data:  { status: SubscriptionStatus.ACTIVE, currentPeriodStart: now, currentPeriodEnd: end },
+        });
+        await logAudit({ action: "SUBSCRIPTION_REACTIVATED", module: AUDIT_MODULE.SYSADMIN, resourceType: "Subscription", resourceId: sub.id, dojoId: sub.dojoId });
         break;
       }
 
+      // ── Renovación mensual exitosa (UPDATED con next_billing_time avanzado) ─
+      case "BILLING.SUBSCRIPTION.UPDATED": {
+        const subId = resource.id as string;
+        const sub = await prisma.subscription.findFirst({ where: { paypalSubscriptionId: subId } });
+        if (!sub || sub.status !== SubscriptionStatus.ACTIVE) break;
+
+        const billingInfo = resource.billing_info as Record<string, unknown> | undefined;
+        const nextBilling = billingInfo?.next_billing_time as string | undefined;
+        const lastPayment = billingInfo?.last_payment as
+          { amount?: { currency_code?: string; value?: string }; time?: string } | undefined;
+
+        if (!lastPayment?.amount?.value || !nextBilling) break;
+
+        const paidAt  = lastPayment.time ? new Date(lastPayment.time) : new Date();
+        const amount  = parseFloat(lastPayment.amount.value);
+        const currency = lastPayment.amount.currency_code ?? "USD";
+        const gatewayInvoiceId = `renewal-${subId}-${paidAt.getTime()}`;
+
+        // Deduplicar — evitar doble registro si el evento llega dos veces
+        const already = await prisma.invoice.findFirst({
+          where: { gatewayInvoiceId, gateway: PaymentGateway.PAYPAL },
+          select: { id: true },
+        });
+        if (!already && amount > 0) {
+          const newEnd = new Date(nextBilling);
+          await prisma.invoice.create({
+            data: {
+              subscriptionId: sub.id,
+              dojoId:         sub.dojoId,
+              amount,
+              currency,
+              status:         InvoiceStatus.PAID,
+              gateway:        PaymentGateway.PAYPAL,
+              gatewayInvoiceId,
+              paidAt,
+            },
+          });
+          await prisma.subscription.update({
+            where: { id: sub.id },
+            data:  { currentPeriodEnd: newEnd },
+          });
+          await logAudit({ action: "INVOICE_PAID", module: AUDIT_MODULE.SYSADMIN, resourceType: "Invoice", dojoId: sub.dojoId });
+        }
+        break;
+      }
+
+      // ── Pago fallido ──────────────────────────────────────────────────────
+      case "BILLING.SUBSCRIPTION.PAYMENT.FAILED": {
+        const subId = resource.id as string;
+        const sub = await prisma.subscription.findFirst({ where: { paypalSubscriptionId: subId } });
+        if (!sub) break;
+
+        const billingInfo = resource.billing_info as Record<string, unknown> | undefined;
+        const lastFailedPayment = billingInfo?.last_failed_payment as
+          { amount?: { currency_code?: string; value?: string } } | undefined;
+        const amount   = parseFloat(lastFailedPayment?.amount?.value ?? "0");
+        const currency = lastFailedPayment?.amount?.currency_code ?? "USD";
+
+        await prisma.invoice.create({
+          data: {
+            subscriptionId: sub.id,
+            dojoId:         sub.dojoId,
+            amount,
+            currency,
+            status:         InvoiceStatus.FAILED,
+            gateway:        PaymentGateway.PAYPAL,
+          },
+        });
+        await prisma.subscription.update({ where: { id: sub.id }, data: { status: SubscriptionStatus.PAST_DUE } });
+        await logAudit({ action: "INVOICE_FAILED", module: AUDIT_MODULE.SYSADMIN, resourceType: "Invoice", dojoId: sub.dojoId });
+        break;
+      }
+
+      // ── Suspensión ────────────────────────────────────────────────────────
       case "BILLING.SUBSCRIPTION.SUSPENDED": {
         const subId = resource.id as string;
         const sub = await prisma.subscription.findFirst({ where: { paypalSubscriptionId: subId } });
@@ -108,52 +208,13 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      case "PAYMENT.SALE.COMPLETED": {
-        const agreementId = resource.billing_agreement_id as string | undefined;
-        if (!agreementId) break;
-        const sub = await prisma.subscription.findFirst({ where: { paypalSubscriptionId: agreementId } });
+      // ── Cancelación ───────────────────────────────────────────────────────
+      case "BILLING.SUBSCRIPTION.CANCELLED": {
+        const subId = resource.id as string;
+        const sub = await prisma.subscription.findFirst({ where: { paypalSubscriptionId: subId } });
         if (!sub) break;
-        // Deduplicate: skip if invoice with this gatewayInvoiceId already exists
-        const gatewayInvoiceId = resource.id as string;
-        const already = await prisma.invoice.findFirst({
-          where: { gatewayInvoiceId, gateway: PaymentGateway.PAYPAL },
-          select: { id: true },
-        });
-        if (!already) {
-          await prisma.invoice.create({
-            data: {
-              subscriptionId:   sub.id,
-              dojoId:           sub.dojoId,
-              amount:           parseFloat((resource.amount as { total: string })?.total ?? "0"),
-              currency:         (resource.amount as { currency: string })?.currency ?? "USD",
-              status:           InvoiceStatus.PAID,
-              gateway:          PaymentGateway.PAYPAL,
-              gatewayInvoiceId,
-              paidAt:           new Date(),
-            },
-          });
-          await logAudit({ action: "INVOICE_PAID", module: AUDIT_MODULE.SYSADMIN, resourceType: "Invoice", dojoId: sub.dojoId });
-        }
-        break;
-      }
-
-      case "PAYMENT.SALE.DENIED": {
-        const agreementId = resource.billing_agreement_id as string | undefined;
-        if (!agreementId) break;
-        const sub = await prisma.subscription.findFirst({ where: { paypalSubscriptionId: agreementId } });
-        if (!sub) break;
-        await prisma.invoice.create({
-          data: {
-            subscriptionId: sub.id,
-            dojoId:         sub.dojoId,
-            amount:         parseFloat((resource.amount as { total: string })?.total ?? "0"),
-            currency:       (resource.amount as { currency: string })?.currency ?? "USD",
-            status:         InvoiceStatus.FAILED,
-            gateway:        PaymentGateway.PAYPAL,
-          },
-        });
-        await prisma.subscription.update({ where: { id: sub.id }, data: { status: SubscriptionStatus.PAST_DUE } });
-        await logAudit({ action: "INVOICE_FAILED", module: AUDIT_MODULE.SYSADMIN, resourceType: "Invoice", dojoId: sub.dojoId });
+        await prisma.subscription.update({ where: { id: sub.id }, data: { status: SubscriptionStatus.CANCELED } });
+        await logAudit({ action: "SUBSCRIPTION_CANCELED", module: AUDIT_MODULE.SYSADMIN, resourceType: "Subscription", resourceId: sub.id, dojoId: sub.dojoId });
         break;
       }
     }
