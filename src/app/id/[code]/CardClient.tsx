@@ -30,7 +30,7 @@ const PY = 121;                           // top de la foto
 // Textos
 const NT = PY + PD + 12;  // nombre top  = 550
 const TT = NT + 44 + 5;   // team top    = 616
-const QT = TT + 26 + 12;  // QR top      = 654
+const QT = TT + 26 + 42;  // QR top      (+30 extra)
 const QH = 262;            // QR height
 const FT = QT + QH + 6;   // footer top  = 922
 // footer height: 1009 − 922 = 87 px ✓
@@ -386,11 +386,11 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                 background: "#ffffff",
                 border: `2px solid ${RED}`,
                 borderRadius: 12,
-                padding: "12px 12px 10px",
+                padding: "6px 12px 4px",
                 boxShadow: `0 4px 22px rgba(204,0,0,0.15)`,
                 display: "flex", flexDirection: "column",
                 alignItems: "center", justifyContent: "center",
-                gap: 8, overflow: "hidden",
+                gap: 6, overflow: "hidden",
               }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -399,7 +399,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                   style={{
                     display: "block",
                     width: "100%",
-                    maxWidth: 210, maxHeight: 210,
+                    maxWidth: 228, maxHeight: 228,
                     height: "auto",
                   }}
                 />
