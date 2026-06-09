@@ -400,7 +400,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                     width: "100%", height: "auto",
                     display: "flex", flexDirection: "column",
                     alignItems: "center", justifyContent: "center",
-                    gap: 10, marginRight: -10,
+                    gap: 10, marginRight: -10, marginTop: 60,
                   }}>
                     {/* Nombre del tutor (texto vertical) */}
                     {contact.name && (
