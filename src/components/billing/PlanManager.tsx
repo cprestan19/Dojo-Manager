@@ -126,8 +126,8 @@ export function PlanManager() {
       setSaving(false);
       return;
     }
-    if (payload.monthlyPrice < 1 || payload.annualPrice < 1) {
-      setError("Los precios deben ser mayores a 0.");
+    if (payload.monthlyPrice < 0 || payload.annualPrice < 0) {
+      setError("Los precios no pueden ser negativos.");
       setSaving(false);
       return;
     }

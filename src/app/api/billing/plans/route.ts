@@ -47,6 +47,9 @@ export async function POST(req: NextRequest) {
     if (!name || monthlyPrice == null || annualPrice == null) {
       return NextResponse.json({ error: "name, monthlyPrice y annualPrice son requeridos" }, { status: 400 });
     }
+    if (monthlyPrice < 0 || annualPrice < 0) {
+      return NextResponse.json({ error: "Los precios no pueden ser negativos" }, { status: 400 });
+    }
 
     const plan = await prisma.plan.create({
       data: {
