@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { CreateStudentSchema, validationError } from "@/lib/validation";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { withReadOnlyGuard } from "@/lib/billing/readOnlyGuard";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -13,6 +14,9 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+
+  if (role === "student") return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
@@ -62,7 +66,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(sanitized);
 }
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -71,6 +75,29 @@ export async function POST(req: NextRequest) {
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   try {
+    // ── Verificar límite de alumnos del plan ──────────────────────────────
+    const sub = await prisma.subscription.findUnique({
+      where:  { dojoId },
+      select: { status: true, plan: { select: { name: true, maxStudents: true } } },
+    });
+
+    // COMPLIMENTARY y sin suscripción nunca tienen límite
+    if (sub?.plan?.maxStudents != null && sub.status !== "COMPLIMENTARY") {
+      const activeCount = await prisma.student.count({
+        where: { dojoId, active: true },
+      });
+      if (activeCount >= sub.plan.maxStudents) {
+        return NextResponse.json({
+          error:    "STUDENT_LIMIT_REACHED",
+          message:  `Tu plan ${sub.plan.name} permite hasta ${sub.plan.maxStudents} alumnos activos. Actualiza tu plan para continuar agregando alumnos.`,
+          planName: sub.plan.name,
+          limit:    sub.plan.maxStudents,
+          current:  activeCount,
+        }, { status: 403 });
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     const raw = await req.json().catch(() => null);
     if (!raw) return NextResponse.json({ error: "Cuerpo de solicitud inválido" }, { status: 400 });
 
@@ -129,3 +156,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Error interno al crear el alumno" }, { status: 500 });
   }
 }
+
+export const POST = withReadOnlyGuard(_POST);

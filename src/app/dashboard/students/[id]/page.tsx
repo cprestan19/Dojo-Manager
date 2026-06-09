@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   ArrowLeft, Edit, Award, CreditCard, Phone,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import { StudentQR } from "@/components/students/StudentQR";
 import { FamilyManager } from "@/components/students/FamilyManager";
+import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { Modal } from "@/components/ui/Modal";
 import { calculateAge, formatDate, formatCurrency, BELT_COLORS, PAYMENT_STATUS_LABELS, MULTI_KATA_BELTS } from "@/lib/utils";
@@ -431,7 +433,7 @@ function AddPaymentModal({ studentId, monthlyAmount, onClose, onSaved }: {
   studentId: string; monthlyAmount: number; onClose: () => void; onSaved: () => void;
 }) {
   const [type,     setType]    = useState("monthly");
-  const [amount,   setAmount]  = useState(String(monthlyAmount || ""));
+  const [amount,   setAmount]  = useState(String(monthlyAmount ?? 0));
   const [dueDate,  setDue]     = useState(new Date().toISOString().split("T")[0]);
   const [paidDate, setPaid]    = useState(new Date().toISOString().split("T")[0]);
   const [status,   setStatus]  = useState("paid");
@@ -464,7 +466,7 @@ function AddPaymentModal({ studentId, monthlyAmount, onClose, onSaved }: {
           <label className="form-label">Monto (USD)</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
-            <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
+            <input type="number" step="0.01" min="0" value={amount} onChange={e => setAmount(e.target.value)}
               className="form-input pl-7" placeholder="0.00" />
           </div>
         </div>
@@ -725,6 +727,10 @@ function EventStatusBadge({ status }: { status: string }) {
 export default function StudentDetailPage() {
   const { id }   = useParams<{ id: string }>();
   const router   = useRouter();
+  const { data: session } = useSession();
+  const role     = (session?.user as { role?: string })?.role ?? "";
+  const canEdit  = role === "admin" || role === "sysadmin";
+
   const [student,      setStudent]    = useState<Student | null>(null);
   const [loading,      setLoading]    = useState(true);
   const [events,       setEvents]     = useState<TournamentEvent[]>([]);
@@ -737,6 +743,7 @@ export default function StudentDetailPage() {
   const [editKataComp,    setEditKataComp]    = useState<KataComp | null>(null);
   const [deletingKataComp,setDeletingKataComp]= useState<string | null>(null);
   const [payModal,        setPayModal]        = useState(false);
+  const [editPayTarget,   setEditPayTarget]   = useState<Payment | null>(null);
   const [markingPay,      setMarkingPay]      = useState<string | null>(null);
   const [togglingActive,  setTogglingActive]  = useState(false);
   const [deleting,        setDeleting]        = useState(false);
@@ -1300,7 +1307,7 @@ export default function StudentDetailPage() {
                       <th className="text-left text-xs text-dojo-muted px-2 py-2 uppercase">Vencimiento</th>
                       <th className="text-left text-xs text-dojo-muted px-2 py-2 uppercase">Pago</th>
                       <th className="text-left text-xs text-dojo-muted px-2 py-2 uppercase">Estado</th>
-                      <th className="text-right text-xs text-dojo-muted px-2 py-2 uppercase">Acción</th>
+                      <th className="text-right text-xs text-dojo-muted px-2 py-2 uppercase">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1309,22 +1316,33 @@ export default function StudentDetailPage() {
                       return (
                         <tr key={p.id} className="border-b border-dojo-border/40 hover:bg-dojo-border/10">
                           <td className="px-2 py-2 capitalize text-dojo-white">
-                            {p.type === "monthly" ? "Mensualidad" : "Anualidad"}
+                            {p.type === "monthly" ? "Mensualidad" : p.type === "biweekly" ? "Quincenal" : "Anualidad"}
                           </td>
                           <td className="px-2 py-2 text-dojo-gold font-semibold">{formatCurrency(p.amount)}</td>
                           <td className="px-2 py-2 text-dojo-muted">{formatDate(p.dueDate)}</td>
                           <td className="px-2 py-2 text-dojo-muted">{p.paidDate ? formatDate(p.paidDate) : "—"}</td>
                           <td className="px-2 py-2"><span className={st.className}>{st.label}</span></td>
                           <td className="px-2 py-2 text-right">
-                            {p.status !== "paid" && (
-                              <button
-                                onClick={() => markAsPaid(p.id)}
-                                disabled={markingPay === p.id}
-                                className="text-xs text-green-400 hover:text-green-300 transition-colors disabled:opacity-50"
-                              >
-                                {markingPay === p.id ? "..." : "Marcar pagado"}
-                              </button>
-                            )}
+                            <div className="flex items-center justify-end gap-3">
+                              {p.status !== "paid" && (
+                                <button
+                                  onClick={() => markAsPaid(p.id)}
+                                  disabled={markingPay === p.id}
+                                  className="text-xs text-green-400 hover:text-green-300 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                >
+                                  {markingPay === p.id ? "..." : "✓ Pagado"}
+                                </button>
+                              )}
+                              {canEdit && (
+                                <button
+                                  onClick={() => setEditPayTarget(p)}
+                                  className="text-xs text-dojo-muted hover:text-dojo-white transition-colors flex items-center gap-1 whitespace-nowrap"
+                                  title="Editar pago"
+                                >
+                                  <Pencil size={11}/> Editar
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1420,7 +1438,8 @@ export default function StudentDetailPage() {
             )}
           </div>
 
-          {/* ── Eventos / Torneos ─────────────────────────────────────── */}
+          {/* ── Eventos / Torneos — oculto (se gestiona desde /dashboard/events) ── */}
+          {false && (
           <div className="card">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-9 h-9 rounded-xl bg-dojo-gold/10 flex items-center justify-center shrink-0">
@@ -1449,6 +1468,7 @@ export default function StudentDetailPage() {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 
@@ -1485,6 +1505,31 @@ export default function StudentDetailPage() {
           onClose={() => setPayModal(false)}
           onSaved={fetchStudent}
         />
+      </Modal>
+
+      {/* Modal editar pago */}
+      <Modal
+        open={!!editPayTarget}
+        onClose={() => setEditPayTarget(null)}
+        title="Editar Pago"
+        size="md"
+      >
+        {editPayTarget && (
+          <EditPaymentModal
+            payment={{
+              id:          editPayTarget.id,
+              type:        editPayTarget.type,
+              amount:      editPayTarget.amount,
+              dueDate:     editPayTarget.dueDate,
+              paidDate:    editPayTarget.paidDate,
+              status:      editPayTarget.status,
+              note:        editPayTarget.note,
+              studentName: student?.fullName,
+            }}
+            onClose={() => setEditPayTarget(null)}
+            onSaved={fetchStudent}
+          />
+        )}
       </Modal>
     </div>
   );

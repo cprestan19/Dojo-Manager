@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Calendar, Plus, Edit2, Trash2, X, Save, Image as ImageIcon,
-  MapPin, Clock, CalendarCheck, Eye, Smartphone,
+  MapPin, Clock, CalendarCheck, Eye, Smartphone, Users, CheckCircle2,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 
@@ -16,19 +16,30 @@ interface DojoEvent {
   endDate:     string;
 }
 
-// Forma del objeto que se pasa al preview (puede venir del form o de un evento guardado)
 interface PreviewData {
   title:       string;
   description: string;
   location:    string;
   imageUrl:    string;
-  startDate:   string; // ISO o datetime-local
+  startDate:   string;
   endDate:     string;
+}
+
+interface RsvpAttendee {
+  rsvpId: string; studentId: string; fullName: string;
+  photo: string | null; belt: string | null;
+  note: string | null; createdAt: string;
+}
+interface RsvpData {
+  eventId: string; eventTitle: string;
+  attending: RsvpAttendee[];
+  notAttending: { rsvpId: string; studentId: string; fullName: string; createdAt: string }[];
+  attendingCount: number; notAttendingCount: number;
 }
 
 type Tab = "active" | "past";
 
-/* ── Helpers de formato ──────────────────────────────────────── */
+/* ── Helpers ─────────────────────────────────────────────────── */
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric" });
 }
@@ -44,7 +55,6 @@ function formatDateRange(start: string, end: string) {
 }
 function toIso(val: string): string {
   if (!val) return new Date().toISOString();
-  // Si ya es ISO (tiene Z o +) lo usa directo, si no lo parsea
   return isNaN(Date.parse(val)) ? new Date().toISOString() : new Date(val).toISOString();
 }
 function toDateTimeLocal(iso: string) {
@@ -55,7 +65,7 @@ function toDateTimeLocal(iso: string) {
 
 const EMPTY_FORM = { title: "", description: "", location: "", imageUrl: "", startDate: "", endDate: "" };
 
-/* ── Vista previa del evento (portal view) ───────────────────── */
+/* ── Vista previa (portal view) ──────────────────────────────── */
 function EventPreviewCard({ data }: { data: PreviewData }) {
   const start = toIso(data.startDate);
   const end   = toIso(data.endDate);
@@ -92,13 +102,12 @@ function EventPreviewCard({ data }: { data: PreviewData }) {
   );
 }
 
-/* ── Modal de vista previa con frame de teléfono ─────────────── */
+/* ── Modal vista previa (frame teléfono) ─────────────────────── */
 function PreviewModal({ data, onClose }: { data: PreviewData | null; onClose: () => void }) {
   if (!data) return null;
   return (
     <Modal open={!!data} onClose={onClose} title="Vista previa" size="md">
       <div className="space-y-4">
-        {/* Subtítulo */}
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-dojo-border/20 border border-dojo-border/40">
           <Smartphone size={14} className="text-dojo-red shrink-0" />
           <p className="text-xs text-dojo-muted">
@@ -106,16 +115,11 @@ function PreviewModal({ data, onClose }: { data: PreviewData | null; onClose: ()
           </p>
         </div>
 
-        {/* Frame tipo teléfono */}
         <div className="mx-auto" style={{ maxWidth: "340px" }}>
           <div className="rounded-[2rem] border-[3px] border-dojo-border bg-dojo-darker overflow-hidden shadow-xl">
-
-            {/* Barra superior del teléfono */}
             <div className="h-6 bg-dojo-dark flex items-center justify-center">
               <div className="w-16 h-1.5 bg-dojo-border/60 rounded-full" />
             </div>
-
-            {/* Simulación header del portal */}
             <div className="bg-dojo-dark border-b border-dojo-border px-3 py-2 flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <div className="w-5 h-5 rounded-full bg-dojo-border/60" />
@@ -126,8 +130,6 @@ function PreviewModal({ data, onClose }: { data: PreviewData | null; onClose: ()
               </div>
               <div className="h-1.5 w-8 bg-dojo-border/40 rounded" />
             </div>
-
-            {/* Simulación tabs del portal */}
             <div className="bg-dojo-dark border-b border-dojo-border">
               <div className="flex overflow-x-auto">
                 {["Perfil","Pagos","Horarios","Asist.","Videos","Eventos"].map(t => (
@@ -143,14 +145,11 @@ function PreviewModal({ data, onClose }: { data: PreviewData | null; onClose: ()
                 ))}
               </div>
             </div>
-
-            {/* Contenido del evento */}
             <div className="bg-dojo-darker p-3 overflow-auto" style={{ height: "420px" }}>
               <p className="text-[9px] font-bold text-dojo-muted uppercase tracking-widest mb-2 flex items-center gap-1">
                 <Calendar size={9} /> Próximos eventos
               </p>
               <EventPreviewCard data={data} />
-              {/* Card vacía para dar contexto de lista */}
               <div className="mt-2 rounded-xl border border-dojo-border/30 bg-dojo-card/30 h-12 flex items-center justify-center">
                 <div className="space-y-1 w-full px-3">
                   <div className="h-2 bg-dojo-border/30 rounded w-3/4" />
@@ -158,8 +157,6 @@ function PreviewModal({ data, onClose }: { data: PreviewData | null; onClose: ()
                 </div>
               </div>
             </div>
-
-            {/* Barra inferior del teléfono */}
             <div className="h-4 bg-dojo-dark flex items-center justify-center">
               <div className="w-10 h-1 bg-dojo-border/60 rounded-full" />
             </div>
@@ -173,6 +170,181 @@ function PreviewModal({ data, onClose }: { data: PreviewData | null; onClose: ()
         </div>
       </div>
     </Modal>
+  );
+}
+
+/* ── Card de evento con tabs inline ──────────────────────────── */
+function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting }: {
+  ev:        DojoEvent;
+  isPast:    boolean;
+  onEdit:    () => void;
+  onDelete:  () => void;
+  onPreview: () => void;
+  deleting:  boolean;
+}) {
+  const [activeTab,   setActiveTab]   = useState<"info" | "attendees">("info");
+  const [rsvpData,    setRsvpData]    = useState<RsvpData | null>(null);
+  const [rsvpLoading, setRsvpLoading] = useState(false);
+  const fetched = useRef(false);
+
+  function loadAttendees() {
+    if (fetched.current) return;
+    fetched.current = true;
+    setRsvpLoading(true);
+    fetch(`/api/events/${ev.id}/rsvp`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: RsvpData | null) => { if (d) setRsvpData(d); })
+      .catch(() => {})
+      .finally(() => setRsvpLoading(false));
+  }
+
+  function switchToAttendees() {
+    setActiveTab("attendees");
+    loadAttendees();
+  }
+
+  return (
+    <div className="card p-0 overflow-hidden">
+      <div className="flex flex-col md:flex-row">
+
+        {/* Flyer — mismo ancho proporcional que el portal (max-w-2xl → ~288px en desktop) */}
+        <div className="w-full md:w-72 md:shrink-0 md:border-r md:border-dojo-border/40">
+          {ev.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={ev.imageUrl}
+              alt={ev.title}
+              className="w-full h-auto block md:h-full md:object-cover md:object-top"
+            />
+          ) : (
+            <div className="w-full h-36 md:h-full bg-dojo-border/20 flex items-center justify-center">
+              <ImageIcon size={32} className="text-dojo-muted opacity-30" />
+            </div>
+          )}
+        </div>
+
+        {/* Columna derecha */}
+        <div className="flex-1 min-w-0 flex flex-col">
+
+          {/* Tabs — arriba */}
+          <div className="flex shrink-0 border-b border-dojo-border/40">
+            <button
+              onClick={() => setActiveTab("info")}
+              className={`flex-1 py-2.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 border-b-2 -mb-px ${
+                activeTab === "info"
+                  ? "border-dojo-red text-dojo-white"
+                  : "border-transparent text-dojo-muted hover:text-dojo-white"
+              }`}
+            >
+              <Calendar size={12} /> Detalles
+            </button>
+            <button
+              onClick={switchToAttendees}
+              className={`flex-1 py-2.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 border-b-2 -mb-px ${
+                activeTab === "attendees"
+                  ? "border-dojo-red text-dojo-white"
+                  : "border-transparent text-dojo-muted hover:text-dojo-white"
+              }`}
+            >
+              <Users size={12} />
+              Confirmados
+              {rsvpData && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                  rsvpData.attendingCount > 0
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-dojo-border/40 text-dojo-muted"
+                }`}>
+                  {rsvpData.attendingCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Contenido del tab */}
+          <div className="flex-1">
+            {activeTab === "info" ? (
+              <div className="p-4 space-y-2.5 h-full flex flex-col">
+                <div className="flex items-start justify-between gap-2 flex-1">
+                  <div className="space-y-2 flex-1 min-w-0">
+                    <div className="flex items-start gap-2">
+                      <p className="font-semibold text-dojo-white text-base leading-tight flex-1">{ev.title}</p>
+                      {isPast && <span className="badge-gold text-xs shrink-0">Finalizado</span>}
+                    </div>
+                    {ev.description && (
+                      <p className="text-dojo-muted text-sm line-clamp-3">{ev.description}</p>
+                    )}
+                    <div className="flex flex-wrap gap-3 text-xs text-dojo-muted">
+                      <span className="flex items-center gap-1">
+                        <Clock size={12} className="text-dojo-red shrink-0" />
+                        {formatDate(ev.startDate)} — {formatDate(ev.endDate)}
+                      </span>
+                      {ev.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin size={12} className="text-dojo-red shrink-0" /> {ev.location}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div className="flex items-center gap-1 pt-2 border-t border-dojo-border/40 mt-auto">
+                  <button onClick={onPreview}
+                    className="btn-ghost py-1.5 px-2 text-dojo-muted hover:text-dojo-red flex items-center gap-1.5 text-xs">
+                    <Eye size={13} /> <span className="hidden sm:inline">Vista previa</span>
+                  </button>
+                  <button onClick={onEdit}
+                    className="btn-ghost py-1.5 px-2 text-dojo-muted hover:text-dojo-white flex items-center gap-1.5 text-xs">
+                    <Edit2 size={13} /> <span className="hidden sm:inline">Editar</span>
+                  </button>
+                  <button onClick={onDelete} disabled={deleting}
+                    className="btn-ghost py-1.5 px-2 text-dojo-muted hover:text-red-400 flex items-center gap-1.5 text-xs disabled:opacity-40">
+                    <Trash2 size={13} /> <span className="hidden sm:inline">Eliminar</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4">
+                {rsvpLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="w-5 h-5 rounded-full border-2 border-dojo-red border-t-transparent animate-spin" />
+                  </div>
+                ) : !rsvpData || rsvpData.attendingCount === 0 ? (
+                  <div className="text-center py-10 space-y-2">
+                    <Users size={26} className="mx-auto text-dojo-muted opacity-40" />
+                    <p className="text-dojo-muted text-sm">Ningún alumno ha confirmado participación aún.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-dojo-muted flex items-center gap-1 mb-3">
+                      <CheckCircle2 size={11} className="text-green-400" />
+                      {rsvpData.attendingCount} confirmado{rsvpData.attendingCount !== 1 ? "s" : ""}
+                    </p>
+                    {rsvpData.attending.map((a, i) => (
+                      <div key={a.rsvpId} className="flex items-center gap-2.5 bg-dojo-darker border border-dojo-border/60 rounded-lg px-3 py-2">
+                        <span className="text-[10px] text-dojo-muted w-4 shrink-0">{i + 1}.</span>
+                        {a.photo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={a.photo} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-dojo-border flex items-center justify-center text-[11px] font-bold text-dojo-gold shrink-0">
+                            {a.fullName[0]?.toUpperCase() ?? "?"}
+                          </div>
+                        )}
+                        <p className="text-dojo-white text-sm font-medium truncate flex-1">{a.fullName}</p>
+                        <span className="text-[10px] text-dojo-muted shrink-0">
+                          {new Date(a.createdAt).toLocaleDateString("es-PA", { day: "2-digit", month: "short" })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -221,7 +393,6 @@ export default function EventsPage() {
     setModal(true);
   }
 
-  // Vista previa desde la lista de eventos
   function openPreview(ev: DojoEvent) {
     setPreview({
       title:       ev.title,
@@ -233,7 +404,6 @@ export default function EventsPage() {
     });
   }
 
-  // Vista previa desde el modal de creación/edición
   function openFormPreview() {
     setPreview({
       title:       form.title       || "Sin título",
@@ -319,7 +489,7 @@ export default function EventsPage() {
         </button>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs principales */}
       <div className="flex gap-1 bg-dojo-dark border border-dojo-border rounded-lg p-1 w-fit">
         {(["active", "past"] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)}
@@ -332,7 +502,7 @@ export default function EventsPage() {
         ))}
       </div>
 
-      {/* List */}
+      {/* Lista */}
       {loading ? (
         <div className="flex justify-center py-16">
           <div className="w-8 h-8 rounded-full border-4 border-dojo-red border-t-transparent animate-spin" />
@@ -352,59 +522,15 @@ export default function EventsPage() {
       ) : (
         <div className="space-y-3">
           {events.map(ev => (
-            <div key={ev.id} className="card p-0 overflow-hidden">
-              {/* Imagen a ancho completo, proporción natural */}
-              {ev.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={ev.imageUrl} alt={ev.title} className="w-full h-auto block" />
-              ) : (
-                <div className="w-full bg-dojo-border/20 flex items-center justify-center py-8 border-b border-dojo-border/40">
-                  <ImageIcon size={32} className="text-dojo-muted opacity-30" />
-                </div>
-              )}
-
-              {/* Info + acciones */}
-              <div className="flex items-start gap-0">
-                <div className="flex-1 p-4 space-y-2 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold text-dojo-white text-base leading-tight">{ev.title}</p>
-                    {tab === "past" && (
-                      <span className="badge-gold text-xs shrink-0">Finalizado</span>
-                    )}
-                  </div>
-                  {ev.description && (
-                    <p className="text-dojo-muted text-sm line-clamp-2">{ev.description}</p>
-                  )}
-                  <div className="flex flex-wrap gap-3 text-xs text-dojo-muted">
-                    <span className="flex items-center gap-1">
-                      <Clock size={12} />
-                      {formatDate(ev.startDate)} — {formatDate(ev.endDate)}
-                    </span>
-                    {ev.location && (
-                      <span className="flex items-center gap-1">
-                        <MapPin size={12} /> {ev.location}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Acciones */}
-                <div className="flex flex-col items-center justify-start gap-1 px-3 pt-3 border-l border-dojo-border/40 shrink-0">
-                  <button onClick={() => openPreview(ev)}
-                    className="btn-ghost p-2 text-dojo-muted hover:text-dojo-red" title="Vista previa">
-                    <Eye size={15} />
-                  </button>
-                  <button onClick={() => openEdit(ev)}
-                    className="btn-ghost p-2 text-dojo-muted hover:text-dojo-white" title="Editar">
-                    <Edit2 size={15} />
-                  </button>
-                  <button onClick={() => handleDelete(ev.id)} disabled={deleting === ev.id}
-                    className="btn-ghost p-2 text-dojo-muted hover:text-red-400" title="Eliminar">
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-            </div>
+            <EventCard
+              key={ev.id}
+              ev={ev}
+              isPast={tab === "past"}
+              onEdit={() => openEdit(ev)}
+              onDelete={() => handleDelete(ev.id)}
+              onPreview={() => openPreview(ev)}
+              deleting={deleting === ev.id}
+            />
           ))}
         </div>
       )}
@@ -490,12 +616,10 @@ export default function EventsPage() {
           )}
 
           <div className="flex items-center justify-between gap-3 pt-1 flex-wrap">
-            {/* Vista previa desde el formulario */}
             <button type="button" onClick={openFormPreview}
               className="flex items-center gap-2 text-sm text-dojo-muted hover:text-dojo-red transition-colors">
               <Eye size={15} /> Vista previa
             </button>
-
             <div className="flex gap-3">
               <button onClick={() => setModal(false)} className="btn-secondary">
                 <X size={16} /> Cancelar

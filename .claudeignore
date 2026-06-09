@@ -1,0 +1,10 @@
+node_modules
+.next
+.turbo
+.git
+public
+prisma/migrations
+*.log
+*.lock
+yarn.lock
+package-lock.json

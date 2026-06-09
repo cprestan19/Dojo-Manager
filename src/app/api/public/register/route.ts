@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { randomInt } from "crypto";
 import { sendEmail } from "@/lib/email";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
+import { getOrCreateDefaultPlan, createTrialSubscription } from "@/lib/billing/subscription";
 
 function slugify(text: string): string {
   return text
@@ -173,7 +174,8 @@ export async function POST(req: NextRequest) {
     // Validaciones básicas
     if (!senseiName?.trim()) return NextResponse.json({ error: "El nombre del Sensei es requerido" }, { status: 400 });
     if (!dojoName?.trim())   return NextResponse.json({ error: "El nombre del dojo es requerido" }, { status: 400 });
-    if (!email?.trim() || !email.includes("@")) return NextResponse.json({ error: "Email inválido" }, { status: 400 });
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!email?.trim() || !emailRegex.test(email.trim())) return NextResponse.json({ error: "Email inválido" }, { status: 400 });
     if (!phone?.trim())      return NextResponse.json({ error: "El teléfono es requerido" }, { status: 400 });
 
     const cleanEmail = email.trim().toLowerCase();
@@ -219,8 +221,14 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    // Obtener el dojo recién creado para el audit log
+    // Obtener el dojo recién creado para el audit log y trial
     const newDojo = await prisma.dojo.findUnique({ where: { slug }, select: { id: true } });
+
+    // Iniciar trial de 14 días automáticamente
+    if (newDojo) {
+      const defaultPlan = await getOrCreateDefaultPlan();
+      await createTrialSubscription(newDojo.id, defaultPlan.id);
+    }
 
     // Audit log con IP, país y dispositivo
     const ip      = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()

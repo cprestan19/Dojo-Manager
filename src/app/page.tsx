@@ -111,29 +111,46 @@ function FloatCard({ icon, title, sub, accent }: { icon: string; title: string; 
 }
 
 /* ── Pricing plans ───────────────────────────────────────────── */
-const PLANS = [
-  {
-    name:"Bronce", emoji:"🥉", price:"$0", period:"gratis para siempre",
-    color:"#78716C", highlight:false, badge:null, limit:"Hasta 15 alumnos",
-    features:["15 alumnos activos","Fichas completas de alumnos","Asistencia QR desde tu celular","Gestión de pagos y mensualidades","Recordatorios automáticos de mora","Portal del alumno (pagos + videos)","Historial de cintas y rangos","1 administrador"],
+
+// Visual config por nombre de plan — precios y features vienen de la BD
+type PlanVisual = {
+  emoji:    string;
+  color:    string;
+  highlight: boolean;
+  badge:    string | null;
+  missing:  string[];      // features que el plan NO tiene (se muestran tachados)
+  cta:      string;
+  ctaLink:  string;
+};
+
+const PLAN_VISUAL: Record<string, PlanVisual> = {
+  "Bronce": {
+    emoji:"🥉", color:"#78716C", highlight:false, badge:null,
     missing:["Página web del dojo","Módulo de torneos Pro","CRM de prospectos","Reportes avanzados"],
     cta:"Crear cuenta gratis", ctaLink:"/register",
   },
-  {
-    name:"Silver", emoji:"🥈", price:"$29", period:"/mes",
-    color:"#94A3B8", highlight:false, badge:null, limit:"Hasta 40 alumnos",
-    features:["40 alumnos activos","Todo lo del plan Bronce","🌐 Página web gratis para tu dojo","Torneos Kumite y Kata básicos","Brackets automáticos","CRM de prospectos","Reportes y estadísticas","3 administradores","Soporte prioritario"],
+  "Silver": {
+    emoji:"🥈", color:"#94A3B8", highlight:false, badge:null,
     missing:["Torneo Pro con streaming"],
     cta:"Empezar con Silver", ctaLink:"/register",
   },
-  {
-    name:"Gold", emoji:"🥇", price:"$90", period:"/mes",
-    color:GOLD, highlight:true, badge:"Más completo", limit:"Alumnos ilimitados",
-    features:["Alumnos ilimitados","Todo lo del plan Silver","🏆 Torneos Profesionales","Streaming en vivo YouTube/OBS","Tatamis, jueces y árbitros","Inscripciones federativas online","Overlay profesional para transmisión","Programa y cronograma del evento","Admins ilimitados","Soporte 24/7"],
+  "Gold": {
+    emoji:"🥇", color:GOLD, highlight:true, badge:"Más completo",
     missing:[],
     cta:"Empezar con Gold", ctaLink:"/register",
   },
-];
+};
+
+const PLAN_VISUAL_DEFAULT: PlanVisual = {
+  emoji:"⭐", color:PRIMARY, highlight:false, badge:null,
+  missing:[], cta:"Comenzar", ctaLink:"/register",
+};
+
+interface DbPlan {
+  id: string; name: string; description: string | null;
+  monthlyPrice: number; annualPrice: number;
+  maxStudents: number | null; features: string;
+}
 
 const FAQS = [
   { q:"¿Necesito equipo especial para el control de asistencia?", a:"No. El scanner QR funciona desde la cámara de cualquier smartphone. El alumno muestra su código desde su portal y en menos de 1 segundo queda registrado. Sin lectores, sin tablets adicionales, sin costo extra." },
@@ -159,6 +176,7 @@ export default function LandingPage() {
   const [openFaq,   setOpenFaq]   = useState<number | null>(null);
   const [dojoCount, setDojoCount] = useState(120);
   const [lang,      setLang]      = useState<"es"|"en">("es");
+  const [dbPlans,   setDbPlans]   = useState<DbPlan[]>([]);
 
   // FIX: useRef evita que el contador reinicie en re-renders
   const countedRef = useRef(false);
@@ -168,6 +186,14 @@ export default function LandingPage() {
     const target = 120; let c = 0;
     const t = setInterval(() => { c++; setDojoCount(c); if (c >= target) clearInterval(t); }, 18);
     return () => clearInterval(t);
+  }, []);
+
+  // Fetch planes desde la BD — se cachean en CDN 5 min
+  useEffect(() => {
+    fetch("/api/public/plans")
+      .then(r => r.ok ? r.json() : [])
+      .then((data: DbPlan[]) => { if (Array.isArray(data) && data.length) setDbPlans(data); })
+      .catch(() => {});
   }, []);
 
   const es = lang === "es";
@@ -857,59 +883,69 @@ export default function LandingPage() {
             </p>
           </Reveal>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:20, alignItems:"stretch" }}>
-            {PLANS.map((plan,i) => (
-              <Reveal key={plan.name} delay={i*100}>
-                <div style={{
-                  borderRadius:24, padding:28, display:"flex", flexDirection:"column", height:"100%",
-                  position:"relative", background: plan.highlight ? CARD : BG,
-                  border:`2px solid ${plan.highlight ? plan.color : BORDER}`,
-                  boxShadow: plan.highlight ? `0 0 60px ${plan.color}30` : "none",
-                }}>
-                  {plan.badge && (
-                    <div style={{ position:"absolute", top:-14, left:"50%", transform:"translateX(-50%)",
-                      padding:"4px 18px", borderRadius:100, background:plan.color,
-                      fontSize:11, fontWeight:900, color:"#fff", whiteSpace:"nowrap" }}>
-                      {plan.badge}
-                    </div>
-                  )}
-                  <div style={{ marginBottom:20 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
-                      <span style={{ fontSize:24 }}>{plan.emoji}</span>
-                      <span style={{ fontWeight:900, fontSize:18, color:plan.color }}>{plan.name}</span>
-                    </div>
-                    <div style={{ display:"flex", alignItems:"flex-end", gap:4, marginBottom:4 }}>
-                      <span style={{ fontSize:44, fontWeight:900, color: plan.highlight ? plan.color : "#eef0f8", lineHeight:1 }}>{plan.price}</span>
-                      <span style={{ color:"rgba(255,255,255,.35)", fontSize:14, marginBottom:6 }}>{plan.period}</span>
-                    </div>
-                    <p style={{ fontSize:12, color:"rgba(255,255,255,.28)", fontWeight:600 }}>{plan.limit}</p>
-                  </div>
-                  <ul style={{ flex:1, marginBottom:24, listStyle:"none" }}>
-                    {plan.features.map(f=>(
-                      <li key={f} style={{ display:"flex", alignItems:"flex-start", gap:10, fontSize:13,
-                        color:"rgba(255,255,255,.72)", marginBottom:10 }}>
-                        <Check size={13} color={plan.color} style={{flexShrink:0,marginTop:2}}/>{f}
-                      </li>
-                    ))}
-                    {plan.missing.map(f=>(
-                      <li key={f} style={{ display:"flex", alignItems:"flex-start", gap:10, fontSize:13,
-                        color:"rgba(255,255,255,.2)", marginBottom:10, textDecoration:"line-through" }}>
-                        <X size={13} color="rgba(255,255,255,.15)" style={{flexShrink:0,marginTop:2}}/>{f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Link href={plan.ctaLink} style={{
-                    display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-                    padding:"14px", borderRadius:14, fontWeight:700, fontSize:14,
-                    color: plan.highlight ? "#fff" : plan.color,
-                    background: plan.highlight ? plan.color : "transparent",
-                    border: plan.highlight ? "none" : `1.5px solid ${plan.color}60`,
-                    transition:"all .2s",
+            {dbPlans.map((plan, i) => {
+              const visual   = PLAN_VISUAL[plan.name] ?? PLAN_VISUAL_DEFAULT;
+              const isFree   = plan.monthlyPrice === 0;
+              const price    = isFree ? "$0" : `$${plan.monthlyPrice}`;
+              const period   = isFree ? "gratis para siempre" : "/mes";
+              const limit    = plan.maxStudents ? `Hasta ${plan.maxStudents} alumnos` : "Alumnos ilimitados";
+              let features: string[] = [];
+              try { features = JSON.parse(plan.features) as string[]; } catch { /* ignore */ }
+
+              return (
+                <Reveal key={plan.id} delay={i * 100}>
+                  <div style={{
+                    borderRadius:24, padding:28, display:"flex", flexDirection:"column", height:"100%",
+                    position:"relative", background: visual.highlight ? CARD : BG,
+                    border:`2px solid ${visual.highlight ? visual.color : BORDER}`,
+                    boxShadow: visual.highlight ? `0 0 60px ${visual.color}30` : "none",
                   }}>
-                    {plan.cta} <ArrowRight size={14}/>
-                  </Link>
-                </div>
-              </Reveal>
-            ))}
+                    {visual.badge && (
+                      <div style={{ position:"absolute", top:-14, left:"50%", transform:"translateX(-50%)",
+                        padding:"4px 18px", borderRadius:100, background:visual.color,
+                        fontSize:11, fontWeight:900, color:"#fff", whiteSpace:"nowrap" }}>
+                        {visual.badge}
+                      </div>
+                    )}
+                    <div style={{ marginBottom:20 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+                        <span style={{ fontSize:24 }}>{visual.emoji}</span>
+                        <span style={{ fontWeight:900, fontSize:18, color:visual.color }}>{plan.name}</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"flex-end", gap:4, marginBottom:4 }}>
+                        <span style={{ fontSize:44, fontWeight:900, color: visual.highlight ? visual.color : "#eef0f8", lineHeight:1 }}>{price}</span>
+                        <span style={{ color:"rgba(255,255,255,.35)", fontSize:14, marginBottom:6 }}>{period}</span>
+                      </div>
+                      <p style={{ fontSize:12, color:"rgba(255,255,255,.28)", fontWeight:600 }}>{limit}</p>
+                    </div>
+                    <ul style={{ flex:1, marginBottom:24, listStyle:"none" }}>
+                      {features.map(f => (
+                        <li key={f} style={{ display:"flex", alignItems:"flex-start", gap:10, fontSize:13,
+                          color:"rgba(255,255,255,.72)", marginBottom:10 }}>
+                          <Check size={13} color={visual.color} style={{flexShrink:0,marginTop:2}}/>{f}
+                        </li>
+                      ))}
+                      {visual.missing.map(f => (
+                        <li key={f} style={{ display:"flex", alignItems:"flex-start", gap:10, fontSize:13,
+                          color:"rgba(255,255,255,.2)", marginBottom:10, textDecoration:"line-through" }}>
+                          <X size={13} color="rgba(255,255,255,.15)" style={{flexShrink:0,marginTop:2}}/>{f}
+                        </li>
+                      ))}
+                    </ul>
+                    <Link href={visual.ctaLink} style={{
+                      display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                      padding:"14px", borderRadius:14, fontWeight:700, fontSize:14,
+                      color: visual.highlight ? "#fff" : visual.color,
+                      background: visual.highlight ? visual.color : "transparent",
+                      border: visual.highlight ? "none" : `1.5px solid ${visual.color}60`,
+                      transition:"all .2s",
+                    }}>
+                      {visual.cta} <ArrowRight size={14}/>
+                    </Link>
+                  </div>
+                </Reveal>
+              );
+            })}
           </div>
           <Reveal delay={300}>
             <div style={{ marginTop:36, padding:24, borderRadius:16,

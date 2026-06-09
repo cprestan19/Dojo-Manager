@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/utils";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { CreatePaymentSchema, UpdatePaymentSchema, validationError } from "@/lib/validation";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { withReadOnlyGuard } from "@/lib/billing/readOnlyGuard";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(payments);
 }
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(payment, { status: 201 });
 }
 
-export async function PUT(req: NextRequest) {
+async function _PUT(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -111,12 +112,16 @@ export async function PUT(req: NextRequest) {
   const { id, ...data } = parsed.data;
 
   const t0      = Date.now();
-  const before  = await prisma.payment.findFirst({ where: { id, student: { dojoId } }, select: { status: true, amount: true } });
+  const before  = await prisma.payment.findFirst({
+    where:  { id, student: { dojoId } },
+    select: { status: true, amount: true, dueDate: true },
+  });
   const payment = await prisma.payment.update({
     where: { id, student: { dojoId } },
     data: {
       ...(data.status   !== undefined ? { status: data.status } : {}),
       ...(data.paidDate !== undefined ? { paidDate: data.paidDate ? new Date(data.paidDate) : null } : {}),
+      ...(data.dueDate  !== undefined ? { dueDate:  new Date(data.dueDate)  } : {}),
       ...(data.amount   !== undefined ? { amount: data.amount } : {}),
       ...(data.note     !== undefined ? { note: data.note ?? null } : {}),
     },
@@ -135,15 +140,15 @@ export async function PUT(req: NextRequest) {
     resourceId:   id,
     statusCode:   200,
     details:      JSON.stringify({
-      before: before ? { status: before.status, amount: before.amount } : null,
-      after:  { status: payment.status, amount: payment.amount },
+      before: before ? { status: before.status, amount: before.amount, dueDate: before.dueDate } : null,
+      after:  { status: payment.status, amount: payment.amount, dueDate: payment.dueDate },
     }),
   });
 
   return NextResponse.json(payment);
 }
 
-export async function PATCH(req: NextRequest) {
+async function _PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -151,6 +156,7 @@ export async function PATCH(req: NextRequest) {
   if (role !== "admin" && role !== "sysadmin")
     return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const dojoInfo = dojoId ? await prisma.dojo.findUnique({
     where: { id: dojoId },
@@ -209,3 +215,7 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ processed: latePayments.length, emailsSent: sent });
 }
+
+export const POST = withReadOnlyGuard(_POST);
+export const PUT = withReadOnlyGuard(_PUT);
+export const PATCH = withReadOnlyGuard(_PATCH);

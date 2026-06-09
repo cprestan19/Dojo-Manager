@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
 
   const { role, dojoId: sessionDojoId } = session.user as SessionUser;
 
+  if (role === "student") return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+
   // ── Sysadmin sin contexto de dojo: solo alertas de seguridad ──────
   if (role === "sysadmin") {
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // últimos 7 días
@@ -83,7 +85,10 @@ export async function GET(req: NextRequest) {
   const now = new Date();
 
   // Ejecutar queries en paralelo — antes eran 3 roundtrips secuenciales
-  const [latePaymentsAgg, latePaymentsList, newLeads, students] = await Promise.all([
+  // RSVPs de los últimos 2 días (confirmaciones de participación en eventos)
+  const rsvpSince = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+
+  const [latePaymentsAgg, latePaymentsList, newLeads, students, recentRsvps] = await Promise.all([
     // ── 1a. Late payments: aggregate ─────────────────────────────
     prisma.payment.aggregate({
       where: { student: { dojoId }, status: "late" },
@@ -121,6 +126,23 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { fullName: "asc" },
     }),
+
+    // ── 3. RSVPs recientes — participaciones confirmadas por alumnos/padres
+    prisma.eventRSVP.findMany({
+      where: {
+        status:    "attending",
+        createdAt: { gte: rsvpSince },
+        event:     { dojoId },
+      },
+      orderBy: { createdAt: "desc" },
+      take:    20,
+      select: {
+        id:        true,
+        createdAt: true,
+        student: { select: { id: true, fullName: true } },
+        event:   { select: { id: true, title: true, startDate: true } },
+      },
+    }),
   ]);
 
   // Compute current status for each student
@@ -135,16 +157,29 @@ export async function GET(req: NextRequest) {
   const alertStudents = withStatus.filter(s => s.computedStatus === "ALERTA");
   const riskStudents  = withStatus.filter(s => s.computedStatus === "RIESGO");
 
-  // ── 3. Totals ──────────────────────────────────────────────────
+  // ── 4. Totals ──────────────────────────────────────────────────
   const total =
     latePaymentsAgg._count +
     alertStudents.length +
     riskStudents.length +
-    (newLeads ?? 0);
+    (newLeads ?? 0) +
+    recentRsvps.length;
 
   return NextResponse.json({
     total,
     leads: { count: newLeads ?? 0 },
+    rsvps: {
+      count: recentRsvps.length,
+      items: recentRsvps.map(r => ({
+        id:          r.id,
+        studentId:   r.student.id,
+        studentName: r.student.fullName,
+        eventId:     r.event.id,
+        eventTitle:  r.event.title,
+        eventDate:   r.event.startDate.toISOString(),
+        confirmedAt: r.createdAt.toISOString(),
+      })),
+    },
     latePayments: {
       count:    latePaymentsAgg._count,
       amount:   latePaymentsAgg._sum.amount ?? 0,

@@ -4,7 +4,15 @@ import Link from "next/link";
 import {
   Users, Plus, Search, Edit, Eye, ChevronRight, UserX,
   ChevronUp, ChevronDown, ChevronsUpDown, MonitorSmartphone,
+  AlertTriangle,
 } from "lucide-react";
+
+interface BillingStatus {
+  studentLimit:   number | null;
+  activeStudents: number | null;
+  atStudentLimit: boolean;
+  plan:           { name: string } | null;
+}
 import { getBeltInfo, BELT_COLORS } from "@/lib/utils";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { calculateAge, formatDate } from "@/lib/utils";
@@ -82,6 +90,14 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
   const [search,        setSearch]        = useState("");
   const [activeFilter,  setActiveFilter]  = useState<ActiveFilter>("active");
   const [beltFilter,    setBeltFilter]    = useState("");
+  const [billing,       setBilling]       = useState<BillingStatus | null>(null);
+
+  useEffect(() => {
+    fetch("/api/billing/status")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: BillingStatus | null) => { if (d) setBilling(d); })
+      .catch(() => {});
+  }, []);
   const [portalFilter,  setPortalFilter]  = useState<PortalFilter>("all");
   const [sortField,     setSortField]     = useState<SortField>("name");
   const [sortDir,       setSortDir]       = useState<SortDir>("asc");
@@ -201,11 +217,57 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
             title="Ver actividad del portal de alumnos">
             <MonitorSmartphone size={16} /> Portal
           </Link>
-          <Link href="/dashboard/students/new" className="btn-primary">
-            <Plus size={18} /> Nuevo Alumno
-          </Link>
+          {billing?.atStudentLimit ? (
+            <Link
+              href="/dashboard/billing"
+              className="btn-secondary flex items-center gap-2 text-amber-400 border-amber-700/50 hover:border-amber-600"
+              title={`Límite del plan ${billing.plan?.name ?? ""} alcanzado`}
+            >
+              <AlertTriangle size={16} />
+              Límite alcanzado
+            </Link>
+          ) : (
+            <Link href="/dashboard/students/new" className="btn-primary">
+              <Plus size={18} /> Nuevo Alumno
+            </Link>
+          )}
         </div>
       </div>
+
+      {/* Banner de límite de alumnos */}
+      {billing?.studentLimit != null && billing.activeStudents != null && (() => {
+        const pct = billing.activeStudents / billing.studentLimit;
+        const atLimit   = billing.atStudentLimit;
+        const nearLimit = !atLimit && pct >= 0.8; // 80% del límite
+        if (!atLimit && !nearLimit) return null;
+        return (
+          <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm ${
+            atLimit
+              ? "bg-red-900/20 border-red-800/50 text-red-300"
+              : "bg-amber-900/20 border-amber-800/40 text-amber-300"
+          }`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertTriangle size={15} className="shrink-0" />
+              <span>
+                {atLimit
+                  ? <>Has llegado al límite de tu plan <strong>{billing.plan?.name}</strong>: <strong>{billing.activeStudents}/{billing.studentLimit}</strong> alumnos activos. Para agregar más alumnos, actualiza tu plan.</>
+                  : <>Llevas <strong>{billing.activeStudents}/{billing.studentLimit}</strong> alumnos en tu plan <strong>{billing.plan?.name}</strong>. Pronto alcanzarás el límite.</>
+                }
+              </span>
+            </div>
+            <Link
+              href="/dashboard/billing"
+              className={`shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
+                atLimit
+                  ? "bg-red-700/40 hover:bg-red-700/60 text-red-200"
+                  : "bg-amber-700/40 hover:bg-amber-700/60 text-amber-200"
+              }`}
+            >
+              Ver planes →
+            </Link>
+          </div>
+        );
+      })()}
 
       {/* Fila de filtros */}
       <div className="flex flex-wrap items-center gap-3">

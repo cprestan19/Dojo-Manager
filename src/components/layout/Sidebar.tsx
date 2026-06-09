@@ -15,6 +15,7 @@ import {
   BarChart2, Settings, LogOut, Shield, Building2, ClipboardList, ExternalLink,
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
   Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Upload,
+  Receipt, LayoutList,
 } from "lucide-react";
 
 interface NavItem {
@@ -219,6 +220,52 @@ export function Sidebar() {
               </button>
             </div>
           </div>
+        )}
+
+        {/* Sección superadmin — solo sysadmin */}
+        {isSysadmin && (
+          <>
+            <Link
+              href="/dashboard/superadmin/billing"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
+                pathname.startsWith("/dashboard/superadmin/billing")
+                  ? "bg-dojo-nav-active text-white"
+                  : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+              )}
+            >
+              <Receipt size={18} />
+              Pagos SaaS
+            </Link>
+            <Link
+              href="/dashboard/superadmin/plans"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
+                pathname.startsWith("/dashboard/superadmin/plans")
+                  ? "bg-dojo-nav-active text-white"
+                  : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+              )}
+            >
+              <LayoutList size={18} />
+              Planes
+            </Link>
+          </>
+        )}
+
+        {/* Facturación — solo admin/sysadmin */}
+        {(role === "admin" || role === "sysadmin") && (
+          <Link
+            href="/dashboard/billing"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
+              pathname === "/dashboard/billing" || pathname.startsWith("/dashboard/billing/")
+                ? "bg-dojo-nav-active text-white"
+                : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+            )}
+          >
+            <Receipt size={18} />
+            Facturación
+          </Link>
         )}
 
         {/* Configuración — grupo expandible */}

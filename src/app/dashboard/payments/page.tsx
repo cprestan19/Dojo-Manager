@@ -1,8 +1,10 @@
 ﻿"use client";
 import { useState, useEffect, useCallback } from "react";
-import { CreditCard, Search, Bell, CheckCircle, Filter, AlertTriangle, X, Send, Mail, CalendarPlus, FileText } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { CreditCard, Search, Bell, CheckCircle, Filter, AlertTriangle, X, Send, Mail, CalendarPlus, FileText, Pencil } from "lucide-react";
 import { formatDate, formatCurrency, PAYMENT_STATUS_LABELS } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
+import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
 
 interface Payment {
   id: string; type: string; amount: number;
@@ -281,6 +283,10 @@ function GenerateModal({
 }
 
 export default function PaymentsPage() {
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string })?.role ?? "";
+  const canEdit = role === "admin" || role === "sysadmin";
+
   const [payments,     setPayments]     = useState<Payment[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [search,       setSearch]       = useState("");
@@ -297,6 +303,7 @@ export default function PaymentsPage() {
   const [showGenerate,     setShowGenerate]     = useState(false);
   const [generating,       setGenerating]       = useState(false);
   const [generateResult,   setGenerateResult]   = useState<{ created: number; skipped: number } | null>(null);
+  const [editTarget,       setEditTarget]       = useState<Payment | null>(null);
 
   const fetch_ = useCallback(async () => {
     setLoading(true);
@@ -504,6 +511,14 @@ export default function PaymentsPage() {
                     <FileText size={12}/> Recibo
                   </button>
                 )}
+                {canEdit && (
+                  <button
+                    onClick={() => setEditTarget(p)}
+                    className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1 text-dojo-muted hover:text-dojo-white"
+                  >
+                    <Pencil size={12}/> Editar
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -575,6 +590,15 @@ export default function PaymentsPage() {
                           <CheckCircle size={11} className="text-yellow-500"/>
                         </span>
                       )}
+                      {canEdit && (
+                        <button
+                          onClick={() => setEditTarget(p)}
+                          className="flex items-center gap-1 text-xs text-dojo-muted hover:text-dojo-white transition-colors whitespace-nowrap"
+                          title="Editar pago"
+                        >
+                          <Pencil size={12}/> Editar
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -617,6 +641,31 @@ export default function PaymentsPage() {
           generating={generating}
           result={generateResult}
         />
+      </Modal>
+
+      {/* Modal editar pago */}
+      <Modal
+        open={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        title="Editar Pago"
+        size="md"
+      >
+        {editTarget && (
+          <EditPaymentModal
+            payment={{
+              id:          editTarget.id,
+              type:        editTarget.type,
+              amount:      editTarget.amount,
+              dueDate:     editTarget.dueDate,
+              paidDate:    editTarget.paidDate,
+              status:      editTarget.status,
+              note:        editTarget.note,
+              studentName: editTarget.student.fullName,
+            }}
+            onClose={() => setEditTarget(null)}
+            onSaved={() => { void fetch_(); }}
+          />
+        )}
       </Modal>
     </div>
   );

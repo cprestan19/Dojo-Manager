@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { withReadOnlyGuard } from "@/lib/billing/readOnlyGuard";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -11,6 +12,9 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+
+  if (role === "student") return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
@@ -40,7 +44,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -97,3 +101,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Error interno al crear el torneo" }, { status: 500 });
   }
 }
+
+export const POST = withReadOnlyGuard(_POST);

@@ -2,8 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useEffect, useState } from "react";
-import { User, CreditCard, Clock, ClipboardList, LogOut, Video, Calendar, Radio } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { User, CreditCard, Clock, ClipboardList, LogOut, Video, Calendar, Radio, X, Bell } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 import Image from "next/image";
 
@@ -17,6 +17,14 @@ interface Props {
   };
 }
 
+interface PortalNotifications {
+  total:      number;
+  newEvents:  number;
+  newVideos:  number;
+  events:     { id: string; title: string; startDate: string }[];
+  videos:     { id: string; title: string; beltColor: string }[];
+}
+
 const BASE_TABS = [
   { href: "/portal",            label: "Perfil",      icon: User          },
   { href: "/portal/payments",   label: "Pagos",       icon: CreditCard    },
@@ -26,14 +34,20 @@ const BASE_TABS = [
   { href: "/portal/events",     label: "Eventos",     icon: Calendar      },
 ];
 
+const STORAGE_KEY = "portal_notif_seen_at";
+
 export default function PortalNav({ student }: Props) {
   const pathname  = usePathname();
   const belt      = student.beltHistory[0]?.beltColor;
   const beltInfo  = belt ? getBeltInfo(belt) : null;
   const initials  = student.fullName.split(" ").slice(0, 2).map(w => w[0]).join("");
 
-  const [hasLive, setHasLive] = useState(false);
+  const [hasLive,  setHasLive]  = useState(false);
+  const [notifs,   setNotifs]   = useState<PortalNotifications | null>(null);
+  const [showAlert,setShowAlert]= useState(false);
+  const [dismissed,setDismissed]= useState(false);
 
+  // ── Live tatamis check ──────────────────────────────────────────
   useEffect(() => {
     fetch("/api/portal/live-tatamis")
       .then(r => r.ok ? r.json() : { tatamis: [] })
@@ -48,13 +62,52 @@ export default function PortalNav({ student }: Props) {
     return () => clearInterval(iv);
   }, []);
 
+  // ── Portal notifications ────────────────────────────────────────
+  const checkNotifications = useCallback(() => {
+    const since = localStorage.getItem(STORAGE_KEY) ?? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    fetch(`/api/portal/notifications?since=${encodeURIComponent(since)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: PortalNotifications | null) => {
+        if (data && data.total > 0) {
+          setNotifs(data);
+          setShowAlert(true);
+        }
+      })
+      .catch(() => null);
+  }, []);
+
+  useEffect(() => {
+    checkNotifications();
+  }, [checkNotifications]);
+
+  function dismiss() {
+    localStorage.setItem(STORAGE_KEY, new Date().toISOString());
+    setShowAlert(false);
+    setDismissed(true);
+  }
+
+  // When navigating to events/videos tab, mark as seen for that section
+  useEffect(() => {
+    if (pathname === "/portal/events" || pathname === "/portal/videos") {
+      localStorage.setItem(STORAGE_KEY, new Date().toISOString());
+      setShowAlert(false);
+    }
+  }, [pathname]);
+
   const tabs = [
-    ...BASE_TABS,
-    { href: "/portal/live", label: "En Vivo", icon: Radio, badge: hasLive },
+    ...BASE_TABS.map(t => ({
+      ...t,
+      badge: hasLive && t.href === "/portal/live" ? true : false,
+      notif:
+        (t.href === "/portal/events" && (notifs?.newEvents ?? 0) > 0 && !dismissed) ||
+        (t.href === "/portal/videos" && (notifs?.newVideos ?? 0) > 0 && !dismissed),
+    })),
+    { href: "/portal/live", label: "En Vivo", icon: Radio, badge: hasLive, notif: false },
   ];
 
   return (
     <>
+      {/* ── Header ───────────────────────────────────────────────── */}
       <header className="bg-dojo-dark border-b border-dojo-border px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-dojo-border overflow-hidden flex items-center justify-center text-sm font-bold text-dojo-gold shrink-0">
@@ -86,17 +139,46 @@ export default function PortalNav({ student }: Props) {
         </div>
       </header>
 
+      {/* ── Alerta de novedades ───────────────────────────────────── */}
+      {showAlert && notifs && notifs.total > 0 && (
+        <div className="bg-dojo-dark border-b border-dojo-gold/30 px-4 py-2.5 flex items-start gap-3 shrink-0">
+          <Bell size={15} className="text-dojo-gold shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-dojo-gold leading-tight">
+              {notifs.total === 1
+                ? "Hay 1 novedad nueva de tu dojo"
+                : `Hay ${notifs.total} novedades nuevas de tu dojo`}
+            </p>
+            <p className="text-[11px] text-dojo-muted mt-0.5 leading-tight">
+              {[
+                notifs.newEvents > 0 && `${notifs.newEvents} evento${notifs.newEvents > 1 ? "s" : ""} nuevo${notifs.newEvents > 1 ? "s" : ""}`,
+                notifs.newVideos > 0 && `${notifs.newVideos} video${notifs.newVideos > 1 ? "s" : ""} nuevo${notifs.newVideos > 1 ? "s" : ""}`,
+              ].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+          <button
+            onClick={dismiss}
+            className="p-1 text-dojo-muted hover:text-dojo-white transition-colors shrink-0"
+            title="Descartar"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
+      {/* ── Nav tabs ─────────────────────────────────────────────── */}
       <nav className="bg-dojo-dark border-b border-dojo-border shrink-0">
-        <div className="flex">
+        <div className="flex overflow-x-auto">
           {tabs.map(t => {
             const Icon   = t.icon;
             const active = pathname === t.href || pathname.startsWith(t.href + "/");
-            const badge  = "badge" in t ? t.badge : false;
+            const hasRed = "badge" in t ? t.badge : false;
+            const hasGold = "notif" in t ? t.notif : false;
             return (
               <Link
                 key={t.href}
                 href={t.href}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors border-b-2 relative ${
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors border-b-2 relative min-w-[52px] ${
                   active
                     ? "border-dojo-red text-dojo-red"
                     : "border-transparent text-dojo-muted hover:text-dojo-white"
@@ -104,8 +186,13 @@ export default function PortalNav({ student }: Props) {
               >
                 <span className="relative">
                   <Icon size={18} />
-                  {badge && (
+                  {/* Punto rojo — En Vivo activo */}
+                  {hasRed && (
                     <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  )}
+                  {/* Punto dorado — contenido nuevo del sensei */}
+                  {!hasRed && hasGold && (
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-dojo-gold animate-pulse" />
                   )}
                 </span>
                 {t.label}

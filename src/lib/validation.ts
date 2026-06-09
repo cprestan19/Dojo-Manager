@@ -52,7 +52,7 @@ export const CreateStudentSchema = z.object({
 export const CreatePaymentSchema = z.object({
   studentId: cuid,
   type:      z.enum(["monthly", "annual"]),
-  amount:    z.number().positive("El monto debe ser positivo").max(99_999, "Monto fuera de rango"),
+  amount:    z.number().min(0, "El monto no puede ser negativo").max(99_999, "Monto fuera de rango"),
   dueDate:   z.string().refine(v => !isNaN(new Date(v).getTime()), "Fecha de vencimiento inválida"),
   paidDate:  z.string().optional().nullable(),
   status:    z.enum(["pending", "paid", "late"]).default("pending"),
@@ -63,7 +63,8 @@ export const UpdatePaymentSchema = z.object({
   id:       cuid,
   status:   z.enum(["pending", "paid", "late"]).optional(),
   paidDate: z.string().optional().nullable(),
-  amount:   z.number().positive().max(99_999).optional(),
+  dueDate:  z.string().optional(),
+  amount:   z.number().min(0).max(99_999).optional(),
   note:     z.string().max(500).optional().nullable(),
 });
 

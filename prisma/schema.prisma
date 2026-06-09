@@ -51,6 +51,7 @@ model Dojo {
   organizations           DojoOrganization[]
   externalClubs           ExternalClub[]
   externalAthletes        ExternalAthlete[]
+  subscription            Subscription?
 
   @@map("dojos")
 }
@@ -237,6 +238,7 @@ model Student {
   kataCompetitions          KataCompetition[]
   tournamentParticipations  TournamentParticipant[]
   tournamentRegistrations   TournamentRegistration[]
+  eventRsvps                EventRSVP[]
 
   @@index([dojoId, active])
   @@index([dojoId, lastName, firstName])
@@ -1089,9 +1091,30 @@ model Event {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt      @map("updated_at")
 
+  rsvps       EventRSVP[]
+
   @@index([dojoId])
   @@index([dojoId, endDate])
   @@map("events")
+}
+
+// ── RSVP de eventos ──────────────────────────────────────────────────────────
+model EventRSVP {
+  id        String   @id @default(cuid())
+  eventId   String   @map("event_id")
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  studentId String   @map("student_id")
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status    String   @default("attending")  // "attending" | "not_attending"
+  note      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  @@unique([eventId, studentId])
+  @@index([eventId])
+  @@index([eventId, status])
+  @@index([studentId])
+  @@map("event_rsvps")
 }
 
 // ── Tienda del dojo ──────────────────────────────────────────
@@ -1170,4 +1193,102 @@ model TournamentEventParticipant {
   @@index([eventId, arrived])
   @@index([eventId, kataResult])
   @@map("tournament_event_participants")
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// BILLING — Planes, Suscripciones y Facturas
+// ════════════════════════════════════════════════════════════════════════════
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  READ_ONLY
+  COMPLIMENTARY   // acceso completo permanente sin pago
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
+}
+
+enum PaymentGateway {
+  PAYPAL
+  MERCADOPAGO
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Plan {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  monthlyPrice    Float    @map("monthly_price")
+  annualPrice     Float    @map("annual_price")
+  maxStudents     Int?     @map("max_students")
+  features        String                          // JSON array de strings
+  isActive        Boolean  @default(true)         @map("is_active")
+  paypalProductId String?  @map("paypal_product_id")
+  createdAt       DateTime @default(now())        @map("created_at")
+
+  subscriptions   Subscription[]
+
+  @@index([isActive])
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  dojoId               String             @unique @map("dojo_id")
+  dojo                 Dojo               @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  planId               String             @map("plan_id")
+  plan                 Plan               @relation(fields: [planId], references: [id])
+  status               SubscriptionStatus @default(TRIAL)
+  cycle                BillingCycle       @default(MONTHLY)
+  trialEndsAt          DateTime           @map("trial_ends_at")
+  currentPeriodStart   DateTime?          @map("current_period_start")
+  currentPeriodEnd     DateTime?          @map("current_period_end")
+  gateway              PaymentGateway?
+  paypalSubscriptionId String?            @map("paypal_subscription_id")
+  paypalCustomerId     String?            @map("paypal_customer_id")
+  mpSubscriptionId     String?            @map("mp_subscription_id")
+  mpCustomerId         String?            @map("mp_customer_id")
+  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
+  // Acceso especial otorgado por sysadmin
+  grantedBy            String?            @map("granted_by")   // email del sysadmin
+  grantedAt            DateTime?          @map("granted_at")   // fecha del otorgamiento
+  grantNote            String?            @map("grant_note")   // motivo/nota interna
+  createdAt            DateTime           @default(now())  @map("created_at")
+  updatedAt            DateTime           @updatedAt       @map("updated_at")
+
+  invoices             Invoice[]
+
+  @@index([status])
+  @@index([trialEndsAt])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id               String         @id @default(cuid())
+  subscriptionId   String         @map("subscription_id")
+  subscription     Subscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  dojoId           String         @map("dojo_id")
+  amount           Float
+  currency         String         @default("USD")
+  status           InvoiceStatus  @default(PENDING)
+  gateway          PaymentGateway
+  gatewayInvoiceId String?        @map("gateway_invoice_id")
+  paidAt           DateTime?      @map("paid_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  @@index([subscriptionId])
+  @@index([dojoId])
+  @@index([status])
+  @@map("invoices")
 }

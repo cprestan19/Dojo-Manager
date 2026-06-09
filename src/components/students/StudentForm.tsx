@@ -228,7 +228,12 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
     try { body = text ? JSON.parse(text) : {}; } catch { /* non-JSON response */ }
 
     if (!res.ok) {
-      setError((body.error as string) ?? `Error ${res.status} al guardar el alumno`);
+      if (body.error === "STUDENT_LIMIT_REACHED") {
+        const b = body as { message: string; planName: string; limit: number; current: number };
+        setError(`__LIMIT__${JSON.stringify({ message: b.message, planName: b.planName, limit: b.limit, current: b.current })}`);
+      } else {
+        setError((body.error as string) ?? `Error ${res.status} al guardar el alumno`);
+      }
       return;
     }
 
@@ -263,11 +268,38 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
         </button>
       </div>
 
-      {error && (
-        <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-red-300 text-sm mb-4">
-          {error}
-        </div>
-      )}
+      {error && (() => {
+        if (error.startsWith("__LIMIT__")) {
+          let info = { message: "", planName: "", limit: 0, current: 0 };
+          try { info = JSON.parse(error.slice(9)) as typeof info; } catch { /* ignore */ }
+          return (
+            <div className="bg-amber-900/30 border border-amber-700 rounded-xl p-4 mb-4 space-y-2">
+              <p className="text-amber-300 font-semibold text-sm flex items-center gap-2">
+                🚫 Límite de alumnos alcanzado
+              </p>
+              <p className="text-amber-200/80 text-sm">
+                Tu plan <strong>{info.planName}</strong> permite hasta{" "}
+                <strong>{info.limit} alumnos activos</strong>.
+                Actualmente tienes <strong>{info.current}</strong>.
+              </p>
+              <p className="text-amber-200/60 text-xs">
+                Para agregar más alumnos, actualiza tu plan.
+              </p>
+              <a
+                href="/dashboard/billing"
+                className="inline-flex items-center gap-2 mt-1 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-colors"
+              >
+                Ver planes →
+              </a>
+            </div>
+          );
+        }
+        return (
+          <div className="bg-red-900/30 border border-red-800 rounded-lg p-3 text-red-300 text-sm mb-4">
+            {error}
+          </div>
+        );
+      })()}
 
       {/* ── DATOS PERSONALES ── */}
       <Section title="Datos Personales" icon={User}>

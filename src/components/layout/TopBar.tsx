@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Bell, ChevronDown, LogOut, KeyRound,
   CreditCard, UserX, AlertTriangle, X, ExternalLink,
-  ChevronRight, ShieldAlert,
+  ChevronRight, ShieldAlert, CalendarCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -84,11 +84,16 @@ function TodayDate() {
 interface LateItem { id: string; studentId: string; studentName: string; amount: number; dueDate: string; daysLate: number }
 interface AbsenceItem { id: string; fullName: string; daysSince: number | null; status: "ALERTA" | "RIESGO" }
 interface SecurityItem { id: string; userEmail: string | null; dojoId: string | null; ip: string | null; details: string | null; createdAt: string }
+interface RsvpItem {
+  id: string; studentId: string; studentName: string;
+  eventId: string; eventTitle: string; eventDate: string; confirmedAt: string;
+}
 interface Notifications {
   total: number;
   securityAlerts?: { count: number; items: SecurityItem[]; sysadminLogins: SecurityItem[] };
   latePayments: { count: number; amount: number; items: LateItem[] };
   attendance: { alert: { count: number; students: AbsenceItem[] }; risk: { count: number; students: AbsenceItem[] } };
+  rsvps?: { count: number; items: RsvpItem[] };
 }
 
 function fmtCurrency(n: number) {
@@ -101,7 +106,8 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
   const hasLate    = data.latePayments.count > 0;
   const hasAlert   = data.attendance.alert.count > 0;
   const hasRisk    = data.attendance.risk.count > 0;
-  const hasNothing = !hasSecurity && !hasLate && !hasAlert && !hasRisk;
+  const hasRsvps   = (data.rsvps?.count ?? 0) > 0;
+  const hasNothing = !hasSecurity && !hasLate && !hasAlert && !hasRisk && !hasRsvps;
 
   return (
     <div className="absolute right-0 top-full mt-2 w-80 bg-dojo-dark border border-dojo-border rounded-2xl shadow-2xl z-50 overflow-hidden">
@@ -183,6 +189,38 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
                 Ver todos los pagos atrasados →
               </Link>
             )}
+          </div>
+        )}
+
+        {/* ── RSVPs recientes — participaciones confirmadas ── */}
+        {hasRsvps && data.rsvps && (
+          <div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-green-900/20 border-b border-dojo-border/40">
+              <CalendarCheck size={13} className="text-green-400 shrink-0" />
+              <p className="text-xs font-bold text-green-400 uppercase tracking-wider">
+                Confirmaciones de eventos ({data.rsvps.count})
+              </p>
+            </div>
+            {data.rsvps.items.map(r => (
+              <Link key={r.id} href={`/dashboard/events`} onClick={onClose}
+                className="flex items-center gap-3 px-4 py-2.5 hover:bg-dojo-border/20 transition-colors border-b border-dojo-border/20">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                  style={{ background: "#22C55E20", color: "#22C55E" }}>
+                  {r.studentName.split(" ").slice(0,2).map((w: string) => w[0]).join("")}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-dojo-sidebar-text truncate">{r.studentName}</p>
+                  <p className="text-[10px] text-dojo-sidebar-muted truncate">✓ {r.eventTitle}</p>
+                </div>
+                <span className="text-[10px] text-dojo-muted shrink-0">
+                  {new Date(r.confirmedAt).toLocaleDateString("es-PA", { day:"2-digit", month:"short" })}
+                </span>
+              </Link>
+            ))}
+            <Link href="/dashboard/events" onClick={onClose}
+              className="block px-4 py-2 text-xs text-center text-green-400 hover:underline border-b border-dojo-border/20">
+              Ver todos los eventos →
+            </Link>
           </div>
         )}
 

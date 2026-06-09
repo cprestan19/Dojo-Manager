@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
+import { getOrCreateDefaultPlan, createTrialSubscription } from "@/lib/billing/subscription";
 
 type SessionUser = { role?: string; id?: string; email?: string };
 
@@ -16,10 +17,12 @@ export async function GET() {
   if (role !== "sysadmin") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
   const dojos = await prisma.dojo.findMany({
-    include: {
+    select: {
+      id: true, name: true, slug: true, email: true, phone: true,
+      active: true, createdAt: true, updatedAt: true,
+      // logo y loginBgImage excluidos — son base64 de varios KB/MB
       _count: {
         select: {
-          // Solo contar usuarios admin/user ACTIVOS — excluir students y cuentas desactivadas
           users:    { where: { role: { not: "student" }, active: true } },
           students: true,
         },
@@ -50,6 +53,10 @@ export async function POST(req: NextRequest) {
   const dojo = await prisma.dojo.create({
     data: { name: body.name, slug, logo: body.logo ?? null },
   });
+
+  // Iniciar trial de 14 días automáticamente
+  const defaultPlan = await getOrCreateDefaultPlan();
+  await createTrialSubscription(dojo.id, defaultPlan.id);
 
   const adminEmail     = `admin@${slug}.com`;
   const hashedPassword = await bcrypt.hash(adminPassword, 12);
