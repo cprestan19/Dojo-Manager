@@ -9,9 +9,10 @@ interface StudentQRProps {
 }
 
 function buildQRText(p: StudentQRProps): string {
-  // QR contiene solo el código numérico único del alumno.
-  // El scanner lo envía directamente al API sin ningún parsing.
-  return String(p.studentCode ?? "0");
+  // QR contiene la URL completa del carnet para que la cámara del celular lo abra.
+  // El scanner de asistencia extrae el código del patrón /id/XXXX automáticamente.
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+  return `${base}/id/${p.studentCode ?? "0"}`;
 }
 
 export function StudentQR(props: StudentQRProps) {
