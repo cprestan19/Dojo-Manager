@@ -399,7 +399,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                     width: "70%", height: "auto",
                     border: `2px solid ${RED}`,
                     borderRadius: 20,
-                    padding: "8px 4px",
+                    padding: "4px 2px",
                     display: "flex", flexDirection: "column",
                     alignItems: "center", justifyContent: "center",
                     gap: 8, boxSizing: "border-box" as const,
