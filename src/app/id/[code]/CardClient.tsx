@@ -126,7 +126,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&family=Kosugi+Maru&display=swap');
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
@@ -351,7 +351,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                   color: RED, letterSpacing: "0.06em",
                   userSelect: "none", whiteSpace: "nowrap",
                   marginTop: 200,
-                  fontFamily: "'Noto Sans JP', sans-serif",
+                  fontFamily: "'Kosugi Maru', sans-serif",
                 }}>道場夏月</div>
                 <div style={{
                   writingMode: "vertical-lr" as const,
