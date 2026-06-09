@@ -25,10 +25,10 @@ const LOGO_Y = 24;    // top edge
 // Foto (centrada, ~58 % del ancho — cerca del 60 % del spec)
 const PD = 370;                           // diámetro
 const PX = Math.floor((W - PD) / 2);     // = 134 (centrado)
-const PY = 185;                           // top de la foto
+const PY = 168;                           // top de la foto
 
 // Textos
-const NT = PY + PD + 12;  // nombre top  = 567
+const NT = PY + PD + 12;  // nombre top  = 550
 const TT = NT + 44 + 5;   // team top    = 616
 const QT = TT + 26 + 12;  // QR top      = 654
 const QH = 262;            // QR height
