@@ -22,18 +22,18 @@ const LOGO_D = 140;   // diámetro del círculo del logo
 const LOGO_X = 24;    // left edge
 const LOGO_Y = 24;    // top edge
 
-// Foto (centrada, ~47 % del ancho)
-const PD = 300;                           // diámetro
-const PX = Math.floor((W - PD) / 2);     // = 169 (centrado)
-const PY = 198;                           // top de la foto
+// Foto (centrada, ~58 % del ancho — cerca del 60 % del spec)
+const PD = 370;                           // diámetro
+const PX = Math.floor((W - PD) / 2);     // = 134 (centrado)
+const PY = 185;                           // top de la foto
 
 // Textos
-const NT = PY + PD + 18;  // nombre top  = 516
-const TT = NT + 50 + 6;   // team top    = 572
-const QT = TT + 32 + 22;  // QR top      = 626
-const QH = 286;            // QR height
-const FT = QT + QH + 8;   // footer top  = 920
-// footer height: 1009 − 920 = 89 px ✓
+const NT = PY + PD + 12;  // nombre top  = 567
+const TT = NT + 44 + 5;   // team top    = 616
+const QT = TT + 26 + 12;  // QR top      = 654
+const QH = 262;            // QR height
+const FT = QT + QH + 6;   // footer top  = 922
+// footer height: 1009 − 922 = 87 px ✓
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function Spinner() {
