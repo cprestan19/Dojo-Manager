@@ -111,6 +111,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
         height: H,
         pixelRatio: 1,
         backgroundColor: BG,
+        skipFonts: true,       // evita leer reglas de hojas cross-origin (Google Fonts)
         fetchRequestInit: { mode: "cors" },
         style: { transform: "none", transformOrigin: "top left" },
       });
