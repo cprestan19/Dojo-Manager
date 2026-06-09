@@ -400,16 +400,16 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                     width: "100%", height: "auto",
                     display: "flex", flexDirection: "column",
                     alignItems: "center", justifyContent: "center",
-                    gap: 10,
+                    gap: 10, marginRight: -10,
                   }}>
                     {/* Nombre del tutor (texto vertical) */}
                     {contact.name && (
                       <div style={{
                         writingMode: "vertical-lr" as const,
                         transform: "rotate(180deg)",
-                        fontSize: 17, fontWeight: 700, color: BLACK,
+                        fontSize: 21, fontWeight: 700, color: BLACK,
                         lineHeight: 1.2, textAlign: "center",
-                        maxHeight: 140, overflow: "hidden",
+                        maxHeight: 150, overflow: "hidden",
                       }}>{contact.name}</div>
                     )}
                     {/* Teléfono (texto vertical) */}
@@ -417,12 +417,12 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                       <div style={{
                         writingMode: "vertical-lr" as const,
                         transform: "rotate(180deg)",
-                        fontSize: 17, fontWeight: 500, color: "#444",
-                        maxHeight: 100, overflow: "hidden",
+                        fontSize: 21, fontWeight: 500, color: "#444",
+                        maxHeight: 110, overflow: "hidden",
                       }}>{contact.phone}</div>
                     )}
                     {/* Ícono WhatsApp */}
-                    <svg width="44" height="44" viewBox="0 0 32 32" fill="none">
+                    <svg width="54" height="54" viewBox="0 0 32 32" fill="none">
                       <circle cx="16" cy="16" r="16" fill="#25D366"/>
                       <path d="M23.5 8.5A10.44 10.44 0 0 0 16 5.5C10.75 5.5 6.5 9.75 6.5 15a9.44 9.44 0 0 0 1.27 4.75L6.5 26.5l6.93-1.82A9.5 9.5 0 0 0 16 25.5c5.25 0 9.5-4.25 9.5-9.5a9.44 9.44 0 0 0-2-5.5zm-7.5 14.62a7.88 7.88 0 0 1-4.02-1.1l-.29-.17-3 .79.8-2.93-.19-.3A7.88 7.88 0 0 1 8.12 15c0-4.35 3.53-7.88 7.88-7.88S23.88 10.65 23.88 15 20.35 23.12 16 23.12zm4.33-5.9c-.24-.12-1.4-.69-1.61-.77-.22-.08-.38-.12-.54.12-.16.24-.62.77-.76.93-.14.16-.28.18-.52.06-.24-.12-1-.37-1.91-1.18-.7-.63-1.18-1.4-1.32-1.64-.14-.24-.01-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.52.1.46-.07 1.4-.57 1.6-1.12.2-.55.2-1.02.14-1.12-.06-.1-.22-.16-.46-.28z" fill="#fff"/>
                     </svg>
