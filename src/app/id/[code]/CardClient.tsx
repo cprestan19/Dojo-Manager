@@ -25,7 +25,7 @@ const LOGO_Y = 24;    // top edge
 // Foto (centrada, ~58 % del ancho — cerca del 60 % del spec)
 const PD = 370;                           // diámetro
 const PX = Math.floor((W - PD) / 2);     // = 134 (centrado)
-const PY = 138;                           // top de la foto
+const PY = 121;                           // top de la foto
 
 // Textos
 const NT = PY + PD + 12;  // nombre top  = 550
