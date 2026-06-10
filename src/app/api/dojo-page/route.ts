@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { withPaidPlanGuard } from "@/lib/billing/featureGuard";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(page ?? null);
 }
 
-export async function PUT(req: NextRequest) {
+export const PUT = withPaidPlanGuard(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -81,4 +82,4 @@ export async function PUT(req: NextRequest) {
     console.error("[dojo-page] PUT error:", err);
     return NextResponse.json({ error: "Error al guardar la página. Reinicia el servidor e intenta de nuevo." }, { status: 500 });
   }
-}
+});

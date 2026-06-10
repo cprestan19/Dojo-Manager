@@ -34,7 +34,6 @@ export async function isDojoReadOnly(dojoId: string): Promise<boolean> {
 
   if (sub.status === SubscriptionStatus.READ_ONLY) return true;
   if (sub.status === SubscriptionStatus.PAST_DUE)  return true;
-  if (sub.status === SubscriptionStatus.TRIAL && sub.trialEndsAt < new Date()) return true;
 
   return false;
 }
@@ -82,11 +81,14 @@ export async function checkExpiredTrials(): Promise<number> {
 
   if (expired.length === 0) return 0;
 
+  // El período de prueba solo determina la duración del banner/onboarding.
+  // Al vencer, el dojo continúa operando con su plan actual (Bronce gratuito
+  // por defecto) — la única restricción real es el límite de alumnos del plan.
   await prisma.subscription.updateMany({
     where: {
       id: { in: expired.map(s => s.id) },
     },
-    data: { status: SubscriptionStatus.READ_ONLY },
+    data: { status: SubscriptionStatus.ACTIVE },
   });
 
   await Promise.allSettled(
@@ -97,7 +99,7 @@ export async function checkExpiredTrials(): Promise<number> {
         resourceType: "Subscription",
         resourceId:   s.id,
         dojoId:       s.dojoId,
-        details:      "Trial expired — moved to READ_ONLY",
+        details:      "Trial expired — moved to ACTIVE (continúa con su plan)",
       }),
     ),
   );

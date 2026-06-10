@@ -7,6 +7,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useDojo } from "@/lib/hooks/useDojo";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { usePlanFeatures } from "@/lib/hooks/usePlanFeatures";
 import { useLocale } from "@/lib/hooks/useLocale";
 import { NAV_KEYS } from "@/lib/permissions";
 import type { NavKey } from "@/lib/permissions";
@@ -59,6 +60,7 @@ export function Sidebar() {
   const role  = (session?.user as { role?: string })?.role ?? "user";
   const dojo  = useDojo();
   const perms = usePermissions();
+  const { hasPaidFeatures } = usePlanFeatures();
   const { t } = useLocale();
 
   const navItems     = NAV_DEFS.map(d => ({ ...d, label: (t.nav as Record<string,string>)[d.labelKey] ?? d.labelKey }));
@@ -70,9 +72,13 @@ export function Sidebar() {
   const isSysadmin   = role === "sysadmin";
   const hasProAccess = isSysadmin || !!dojo?.tournamentPro;
 
-  const visible = navItems.filter(i => perms.has(i.permKey));
+  // Torneos, Tienda y Página pública — solo planes pagos (Silver/Gold)
+  const PAID_PLAN_KEYS = new Set<NavKey>([NAV_KEYS.TOURNAMENT_EVENTS, NAV_KEYS.STORE, NAV_KEYS.PUBLIC_PAGE]);
+  const planAllowed = (key: NavKey) => hasPaidFeatures || !PAID_PLAN_KEYS.has(key);
 
-  const visibleSettings = settingsItems.filter(i => perms.has(i.permKey));
+  const visible = navItems.filter(i => perms.has(i.permKey) && planAllowed(i.permKey));
+
+  const visibleSettings = settingsItems.filter(i => perms.has(i.permKey) && planAllowed(i.permKey));
 
   const roleLabel =
     role === "sysadmin" ? "Super Admin" :

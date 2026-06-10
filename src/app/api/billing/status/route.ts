@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
         studentLimit:     null,
         activeStudents:   null,
         atStudentLimit:   false,
+        hasPaidFeatures:  true,
       });
     }
 
@@ -40,8 +41,7 @@ export async function GET(req: NextRequest) {
     const readOnly   =
       !isComplimentary && (
         sub.status === SubscriptionStatus.READ_ONLY ||
-        sub.status === SubscriptionStatus.PAST_DUE  ||
-        (isInTrial && sub.trialEndsAt < new Date())
+        sub.status === SubscriptionStatus.PAST_DUE
       );
     let daysRemaining: number | null = null;
 
@@ -77,6 +77,8 @@ export async function GET(req: NextRequest) {
       studentLimit:     maxStudents,
       activeStudents,
       atStudentLimit:   maxStudents != null && activeStudents != null && activeStudents >= maxStudents,
+      // Torneos, Tienda y Página pública — solo planes pagos (Silver/Gold)
+      hasPaidFeatures:  isComplimentary || (sub.plan?.monthlyPrice ?? 0) > 0,
     });
   } catch (err) {
     console.error("GET /api/billing/status error:", err);

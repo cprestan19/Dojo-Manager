@@ -21,6 +21,8 @@ import { DEFAULT_PERMISSIONS, SYSADMIN_NO_DOJO_PERMS } from "@/lib/permissions";
 interface AppCtx {
   dojo:         DojoInfo | null;
   perms:        Set<NavKey>;
+  /** Funciones de Torneos, Tienda y Página pública — solo planes pagos (Silver/Gold) */
+  hasPaidFeatures: boolean;
   /** Call after entering/exiting a dojo as sysadmin to refresh nav items */
   refreshPerms: () => void;
   /** Call after saving dojo settings (logo, name…) so the sidebar updates immediately */
@@ -30,6 +32,7 @@ interface AppCtx {
 const AppContext = createContext<AppCtx>({
   dojo:         null,
   perms:        new Set(DEFAULT_PERMISSIONS.user),
+  hasPaidFeatures: true,
   refreshPerms: () => {},
   refreshDojo:  () => {},
 });
@@ -49,6 +52,7 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
 
   const [dojo,  setDojo]  = useState<DojoInfo | null>(null);
   const [perms, setPerms] = useState<Set<NavKey>>(() => getInitialPerms(role));
+  const [hasPaidFeatures, setHasPaidFeatures] = useState(true);
 
   useEffect(() => {
     setPerms(getInitialPerms(role));
@@ -99,8 +103,19 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { fetchPerms(); }, [fetchPerms]);
 
+  // Funciones exclusivas de planes pagos (Torneos, Tienda, Página pública)
+  useEffect(() => {
+    if (!userId) return;
+    fetch("/api/billing/status")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { hasPaidFeatures?: boolean } | null) => {
+        if (d && typeof d.hasPaidFeatures === "boolean") setHasPaidFeatures(d.hasPaidFeatures);
+      })
+      .catch(() => {});
+  }, [userId, role]);
+
   return (
-    <AppContext.Provider value={{ dojo, perms, refreshPerms: fetchPerms, refreshDojo: fetchDojo }}>
+    <AppContext.Provider value={{ dojo, perms, hasPaidFeatures, refreshPerms: fetchPerms, refreshDojo: fetchDojo }}>
       {children}
     </AppContext.Provider>
   );

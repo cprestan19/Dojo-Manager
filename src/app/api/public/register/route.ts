@@ -94,10 +94,10 @@ async function sendWelcomeEmail(to: string, senseiName: string, dojoName: string
       <!-- Límites del plan -->
       <div style="background:#fff8e1;border:1px solid #F59E0B;border-radius:10px;padding:16px 20px;margin-top:24px;">
         <p style="margin:0 0 8px;font-weight:bold;color:#92400E;font-size:14px;">📋 Plan Bronce — Límites actuales</p>
-        <p style="margin:0 0 4px;font-size:13px;color:#555;">✓ Hasta <strong>15 alumnos</strong> activos</p>
+        <p style="margin:0 0 4px;font-size:13px;color:#555;">✓ Hasta <strong>20 alumnos</strong> activos</p>
         <p style="margin:0 0 4px;font-size:13px;color:#555;">✓ Control de asistencia QR, pagos y recordatorios automáticos</p>
         <p style="margin:0 0 12px;font-size:13px;color:#555;">✓ Portal del alumno con videos de katas</p>
-        <p style="margin:0 0 4px;font-size:12px;color:#92400E;"><strong>¿Más de 15 alumnos?</strong> → Plan Silver (hasta 40) — $29/mes</p>
+        <p style="margin:0 0 4px;font-size:12px;color:#92400E;"><strong>¿Más de 20 alumnos?</strong> → Plan Silver (hasta 40) — $29/mes</p>
         <p style="margin:0;font-size:12px;color:#92400E;"><strong>¿Torneos + streaming + alumnos ilimitados?</strong> → Plan Gold — $59/mes</p>
       </div>
     </div>

@@ -126,7 +126,7 @@ type PlanVisual = {
 const PLAN_VISUAL: Record<string, PlanVisual> = {
   "Bronce": {
     emoji:"🥉", color:"#78716C", highlight:false, badge:null,
-    missing:["Página web del dojo","Módulo de torneos Pro","CRM de prospectos","Reportes avanzados"],
+    missing:["Página web del dojo","Tienda en línea","Asistencia a torneos","Módulo de torneos Pro","CRM de prospectos","Reportes avanzados"],
     cta:"Crear cuenta gratis", ctaLink:"/register",
   },
   "Silver": {
@@ -352,8 +352,8 @@ export default function LandingPage() {
 
           {/* FIX: precio visible debajo de los CTAs */}
           <p style={{ textAlign:"center", fontSize:13, color:"rgba(255,255,255,.32)", marginBottom:56 }}>
-            ✓ {es ? "Plan gratuito para hasta 15 alumnos · Sin tarjeta de crédito requerida"
-                   : "Free plan for up to 15 students · No credit card required"}
+            ✓ {es ? "Plan gratuito para hasta 20 alumnos · Sin tarjeta de crédito requerida"
+                   : "Free plan for up to 20 students · No credit card required"}
           </p>
 
           <Reveal>

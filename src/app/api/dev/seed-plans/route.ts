@@ -10,12 +10,12 @@ const SECRET = "dojomasterplanes2024";
 const PLANS = [
   {
     name:         "Bronce",
-    description:  "Plan gratuito para dojos pequeños — hasta 15 alumnos",
+    description:  "Plan gratuito para dojos pequeños — hasta 20 alumnos",
     monthlyPrice: 0,
     annualPrice:  0,
-    maxStudents:  15,
+    maxStudents:  20,
     features: [
-      "Hasta 15 alumnos activos",
+      "Hasta 20 alumnos activos",
       "Control de asistencia con QR",
       "Gestión de pagos y mensualidades",
       "Recordatorios automáticos por correo",

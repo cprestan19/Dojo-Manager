@@ -283,7 +283,7 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
                 Actualmente tienes <strong>{info.current}</strong>.
               </p>
               <p className="text-amber-200/60 text-xs">
-                Para agregar más alumnos, actualiza tu plan.
+                Para agregar más alumnos, adquiere el Plan Silver o Gold.
               </p>
               <a
                 href="/dashboard/billing"

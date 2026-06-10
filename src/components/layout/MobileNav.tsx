@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { usePlanFeatures } from "@/lib/hooks/usePlanFeatures";
 import { useDojo } from "@/lib/hooks/useDojo";
 import { NAV_KEYS } from "@/lib/permissions";
 import type { NavKey } from "@/lib/permissions";
@@ -100,6 +101,7 @@ export function MobileNav() {
   const router            = useRouter();
   const { data: session } = useSession();
   const perms             = usePermissions();
+  const { hasPaidFeatures } = usePlanFeatures();
   const dojo              = useDojo();
 
   const [open,         setOpen]         = useState(false);
@@ -120,9 +122,13 @@ export function MobileNav() {
     role === "admin"    ? "Administrador" :
     role === "user"     ? "Usuario" : role;
 
-  const visibleDrawer = drawerItems.filter(i => perms.has(i.permKey));
-  const visibleSettings = settingsItems.filter(i => perms.has(i.permKey));
-  const visibleQuick    = quickItems.filter(i => perms.has(i.permKey)).slice(0, 5);
+  // Torneos, Tienda y Página pública — solo planes pagos (Silver/Gold)
+  const PAID_PLAN_KEYS = new Set<NavKey>([NAV_KEYS.TOURNAMENT_EVENTS, NAV_KEYS.STORE, NAV_KEYS.PUBLIC_PAGE]);
+  const planAllowed = (key: NavKey) => hasPaidFeatures || !PAID_PLAN_KEYS.has(key);
+
+  const visibleDrawer = drawerItems.filter(i => perms.has(i.permKey) && planAllowed(i.permKey));
+  const visibleSettings = settingsItems.filter(i => perms.has(i.permKey) && planAllowed(i.permKey));
+  const visibleQuick    = quickItems.filter(i => perms.has(i.permKey) && planAllowed(i.permKey)).slice(0, 5);
 
   function getBackTo(): string | null {
     if (pathname === "/dashboard") return null;
