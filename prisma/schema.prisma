@@ -35,6 +35,7 @@ model Dojo {
   // Colores de marca para el carnet digital del alumno (hex). null = paleta roja/negra por defecto.
   cardPrimaryColor   String? @map("card_primary_color")
   cardSecondaryColor String? @map("card_secondary_color")
+  cardTertiaryColor  String? @map("card_tertiary_color")
 
   users           User[]
   students        Student[]

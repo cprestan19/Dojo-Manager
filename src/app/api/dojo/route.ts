@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       createdAt: true, updatedAt: true,
       reminderToleranceDays: true, lateInterestPct: true,
       autoRemindersEnabled: true,
-      cardPrimaryColor: true, cardSecondaryColor: true,
+      cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true,
       logo:         true,              // siempre — es URL corta de Cloudinary
       loginBgImage: includeLoginBg,    // solo cuando Settings lo pide
     },
@@ -82,7 +82,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
-  for (const key of ["cardPrimaryColor", "cardSecondaryColor"] as const) {
+  for (const key of ["cardPrimaryColor", "cardSecondaryColor", "cardTertiaryColor"] as const) {
     if (body[key] != null && !HEX_COLOR_RE.test(body[key])) {
       return NextResponse.json({ error: `${key} debe ser un color hexadecimal válido (#RRGGBB)` }, { status: 400 });
     }
@@ -105,6 +105,7 @@ export async function PUT(req: NextRequest) {
       locale:                body.locale === "en" ? "en" : body.locale === "es" ? "es" : undefined,
       cardPrimaryColor:   "cardPrimaryColor"   in body ? (body.cardPrimaryColor   ?? null) : undefined,
       cardSecondaryColor: "cardSecondaryColor" in body ? (body.cardSecondaryColor ?? null) : undefined,
+      cardTertiaryColor:  "cardTertiaryColor"  in body ? (body.cardTertiaryColor  ?? null) : undefined,
     },
     select: {
       id: true, name: true, slug: true, ownerName: true,
@@ -112,7 +113,7 @@ export async function PUT(req: NextRequest) {
       locale: true, tournamentPro: true,
       reminderToleranceDays: true, lateInterestPct: true,
       autoRemindersEnabled: true, logo: true,
-      cardPrimaryColor: true, cardSecondaryColor: true,
+      cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true,
     },
   });
 

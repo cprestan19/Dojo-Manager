@@ -11,7 +11,14 @@ const DS = 0.60;  // display scale → 383 × 605 px en pantalla
 // ─── Paleta por defecto (dojos sin colores propios configurados) ──────────────
 const DEFAULT_RED   = "#CC0000";
 const DEFAULT_BLACK = "#000000";
+const DEFAULT_GOLD  = "#D4AF37";
 const BG            = "#F5F5F5";
+
+// Carnet por defecto para dojos nuevos/existentes (todos excepto Dojo Natsuki)
+const DEFAULT_SLOGAN_NEW = "DISCIPLINA, RESPETO Y CONSTANCIA";
+
+// El carnet del Dojo Natsuki queda hardcodeado con su diseño actual (kanji incluido)
+const NATSUKI_SLUG = "dojo-natsuki";
 
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
 
@@ -73,20 +80,28 @@ interface CardProps {
   };
   dojo: {
     id: string;
+    slug: string;
     name: string;
     logo: string | null;
     slogan: string | null;
     primaryColor: string | null;
     secondaryColor: string | null;
+    tertiaryColor: string | null;
   };
   contact: { name: string | null; phone: string | null };
   qrDataUrl: string;
 }
 
 export default function CardClient({ student, dojo, contact, qrDataUrl }: CardProps) {
-  // Colores de marca del dojo, con fallback a la paleta roja/negra por defecto
+  // Colores de marca del dojo, con fallback a la paleta roja/negra/dorada por defecto
   const RED   = dojo.primaryColor   && HEX_RE.test(dojo.primaryColor)   ? dojo.primaryColor   : DEFAULT_RED;
   const BLACK = dojo.secondaryColor && HEX_RE.test(dojo.secondaryColor) ? dojo.secondaryColor : DEFAULT_BLACK;
+  const GOLD  = dojo.tertiaryColor  && HEX_RE.test(dojo.tertiaryColor)  ? dojo.tertiaryColor  : DEFAULT_GOLD;
+
+  // El carnet del Dojo Natsuki se mantiene exactamente como está (hardcodeado).
+  // Todos los demás dojos (nuevos y existentes) usan el diseño actualizado:
+  // sin kanji, slogan completo en el footer y acento con el tercer color.
+  const isNatsuki = dojo.slug === NATSUKI_SLUG;
 
   // Variante de layout determinística por dojo: alterna forma de foto,
   // posición del logo y orientación de las esquinas decorativas.
@@ -109,11 +124,15 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
 
   const initials  = student.fullName.split(/\s+/).slice(0, 2).map(n => n[0]?.toUpperCase() ?? "").join("");
   const teamLabel = `TEAM ${dojo.name.toUpperCase()}`;
-  const slogan    = dojo.slogan ?? "PERFECCIONA TU CARÁCTER CON DISCIPLINA Y CONSTANCIA";
+
+  // Slogan del footer — Natsuki conserva el formato de 2 líneas hardcodeado;
+  // el resto de dojos muestra el slogan configurado completo (o el default nuevo)
+  const natsukiSlogan = dojo.slogan ?? "PERFECCIONA TU CARÁCTER CON DISCIPLINA Y CONSTANCIA";
   const [sloganLine1, sloganLine2] = (() => {
-    const m = slogan.match(/^(.+?con)\s+(.+)$/i);
+    const m = natsukiSlogan.match(/^(.+?con)\s+(.+)$/i);
     return m ? [m[1].toUpperCase(), m[2].toUpperCase()] : ["PERFECCIONA TU CARÁCTER CON", "DISCIPLINA Y CONSTANCIA"];
   })();
+  const sloganText = (dojo.slogan?.trim() || DEFAULT_SLOGAN_NEW).toUpperCase();
 
   function printCard() {
     window.print();
@@ -230,16 +249,30 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               alignItems: "center", justifyContent: "center",
               gap: 4,
             }}>
-              <div style={{
-                fontSize: 15, fontStyle: "italic", fontWeight: 400,
-                color: "#ffffff", letterSpacing: "0.12em",
-                textTransform: "uppercase", textAlign: "center",
-              }}>{sloganLine1}</div>
-              <div style={{
-                fontSize: 18, fontStyle: "italic", fontWeight: 700,
-                color: "#ffffff", letterSpacing: "0.10em",
-                textTransform: "uppercase", textAlign: "center",
-              }}>{sloganLine2}</div>
+              {isNatsuki ? (
+                <>
+                  <div style={{
+                    fontSize: 15, fontStyle: "italic", fontWeight: 400,
+                    color: "#ffffff", letterSpacing: "0.12em",
+                    textTransform: "uppercase", textAlign: "center",
+                  }}>{sloganLine1}</div>
+                  <div style={{
+                    fontSize: 18, fontStyle: "italic", fontWeight: 700,
+                    color: "#ffffff", letterSpacing: "0.10em",
+                    textTransform: "uppercase", textAlign: "center",
+                  }}>{sloganLine2}</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ width: 50, height: 3, borderRadius: 2, background: GOLD, marginBottom: 6 }} />
+                  <div style={{
+                    fontSize: 15, fontStyle: "italic", fontWeight: 700,
+                    color: "#ffffff", letterSpacing: "0.08em", lineHeight: 1.35,
+                    textTransform: "uppercase", textAlign: "center",
+                    padding: "0 36px", maxWidth: W - 48,
+                  }}>{sloganText}</div>
+                </>
+              )}
             </div>
 
             {/* ── LAYER 4: Logo del dojo — círculo, esquina superior (izq. o der. según variante) ── */}
@@ -354,20 +387,28 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               boxSizing: "border-box" as const,
             }}>
 
-              {/* Columna izquierda 20%: Kanji + lema vertical */}
+              {/* Columna izquierda 20%: Kanji (solo Natsuki) o barra decorativa con el 3er color */}
               <div style={{
                 width: "20%", flexShrink: 0,
                 display: "flex", flexDirection: "column",
                 alignItems: "center", justifyContent: "center",
                 gap: 10,
               }}>
-                <div style={{
-                  transform: "rotate(-90deg)",
-                  fontSize: 62, fontWeight: 900,
-                  color: RED, letterSpacing: "0.06em",
-                  userSelect: "none", whiteSpace: "nowrap",
-                  fontFamily: "'Kosugi Maru', sans-serif",
-                }}>道場夏月</div>
+                {isNatsuki ? (
+                  <div style={{
+                    transform: "rotate(-90deg)",
+                    fontSize: 62, fontWeight: 900,
+                    color: RED, letterSpacing: "0.06em",
+                    userSelect: "none", whiteSpace: "nowrap",
+                    fontFamily: "'Kosugi Maru', sans-serif",
+                  }}>道場夏月</div>
+                ) : (
+                  <div style={{
+                    width: 32, height: 240, borderRadius: 16,
+                    background: `linear-gradient(180deg, ${GOLD} 0%, ${RED} 100%)`,
+                    boxShadow: `0 6px 24px ${hexToRgba(GOLD, 0.30)}`,
+                  }} />
+                )}
               </div>
 
               {/* Columna central 55%: QR con borde de color */}
@@ -434,13 +475,19 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                       <path d="M23.5 8.5A10.44 10.44 0 0 0 16 5.5C10.75 5.5 6.5 9.75 6.5 15a9.44 9.44 0 0 0 1.27 4.75L6.5 26.5l6.93-1.82A9.5 9.5 0 0 0 16 25.5c5.25 0 9.5-4.25 9.5-9.5a9.44 9.44 0 0 0-2-5.5zm-7.5 14.62a7.88 7.88 0 0 1-4.02-1.1l-.29-.17-3 .79.8-2.93-.19-.3A7.88 7.88 0 0 1 8.12 15c0-4.35 3.53-7.88 7.88-7.88S23.88 10.65 23.88 15 20.35 23.12 16 23.12zm4.33-5.9c-.24-.12-1.4-.69-1.61-.77-.22-.08-.38-.12-.54.12-.16.24-.62.77-.76.93-.14.16-.28.18-.52.06-.24-.12-1-.37-1.91-1.18-.7-.63-1.18-1.4-1.32-1.64-.14-.24-.01-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.52.1.46-.07 1.4-.57 1.6-1.12.2-.55.2-1.02.14-1.12-.06-.1-.22-.16-.46-.28z" fill="#fff"/>
                     </svg>
                   </div>
-                ) : (
-                  /* Si no hay contacto: decoración de kanji pequeño */
+                ) : isNatsuki ? (
+                  /* Si no hay contacto: decoración de kanji pequeño (solo Natsuki) */
                   <div style={{
                     writingMode: "vertical-rl" as const,
                     fontSize: 22, color: RED,
                     opacity: 0.18, userSelect: "none",
                   }}>道場</div>
+                ) : (
+                  /* Si no hay contacto: acento circular con el 3er color */
+                  <div style={{
+                    width: 46, height: 46, borderRadius: "50%",
+                    background: GOLD, opacity: 0.22,
+                  }} />
                 )}
               </div>
 

@@ -26,7 +26,7 @@ export default async function StudentCardPage({ params }: Params) {
       fatherName:  true,
       fatherPhone: true,
       dojo: {
-        select: { id: true, name: true, logo: true, slogan: true, cardPrimaryColor: true, cardSecondaryColor: true },
+        select: { id: true, slug: true, name: true, logo: true, slogan: true, cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true },
       },
     },
   });
@@ -75,11 +75,13 @@ export default async function StudentCardPage({ params }: Params) {
         student={{ fullName: student.fullName, photo: photoUrl }}
         dojo={{
           id: student.dojo.id,
+          slug: student.dojo.slug,
           name: student.dojo.name,
           logo: dojoLogoUrl,
           slogan: student.dojo.slogan,
           primaryColor: student.dojo.cardPrimaryColor,
           secondaryColor: student.dojo.cardSecondaryColor,
+          tertiaryColor: student.dojo.cardTertiaryColor,
         }}
         contact={contact}
         qrDataUrl={qrDataUrl}
