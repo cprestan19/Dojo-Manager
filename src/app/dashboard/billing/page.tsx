@@ -72,9 +72,6 @@ export default async function BillingPage() {
   const isComplimentary = sub?.status === SubscriptionStatus.COMPLIMENTARY;
   const isInTrial       = sub?.status === SubscriptionStatus.TRIAL;
   const isActive        = sub?.status === SubscriptionStatus.ACTIVE;
-  const daysRemaining   = isInTrial && sub?.trialEndsAt
-    ? Math.max(0, Math.ceil((sub.trialEndsAt.getTime() - Date.now()) / 86_400_000))
-    : null;
 
   const StatusIcon = sub?.status ? (STATUS_ICON[sub.status] ?? CreditCard) : CreditCard;
   // No mostrar planes si tiene acceso especial o está activo
@@ -109,18 +106,6 @@ export default async function BillingPage() {
             </span>
           )}
         </div>
-
-        {/* Trial warning */}
-        {isInTrial && daysRemaining !== null && (
-          <div className="bg-blue-900/20 border border-blue-800/40 rounded-xl px-4 py-3">
-            <p className="text-blue-300 font-medium text-sm">
-              Período de prueba: {daysRemaining} día{daysRemaining !== 1 ? "s" : ""} restante{daysRemaining !== 1 ? "s" : ""}.
-            </p>
-            <p className="text-blue-400/70 text-xs mt-1">
-              Suscríbete antes de que termine para no perder acceso.
-            </p>
-          </div>
-        )}
 
         {/* Read-only warning */}
         {readOnly && (
