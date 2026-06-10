@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { Shield, Plus, Save, X, Eye, EyeOff, Edit2, Trash2, UserX, UserCheck, Camera, Loader2, KeyRound } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { formatDate } from "@/lib/utils";
@@ -35,12 +36,18 @@ type ModalMode = "create" | "edit" | "password";
 
 const emptyForm = () => ({
   name: "", email: "", password: "", role: "user", active: true, photo: null as string | null,
+  dojoId: "" as string,
 });
 
 export default function UsersPage() {
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  const isSysadmin = role === "sysadmin";
+
   const [users,      setUsers]     = useState<User[]>([]);
   const [loading,    setLoading]   = useState(true);
   const [roles,      setRoles]     = useState<RoleOption[]>(SYSTEM_ROLES);
+  const [dojos,      setDojos]     = useState<DojoOption[]>([]);
   const [filterRole, setFilterRole]= useState<string>("");
   const [mode,       setMode]      = useState<ModalMode>("create");
   const [modal,      setModal]     = useState(false);
@@ -83,13 +90,22 @@ export default function UsersPage() {
 
   useEffect(() => { fetch_(); }, [fetch_]);
 
+  // Sysadmin: cargar lista de dojos para poder asignar el nuevo usuario
+  useEffect(() => {
+    if (!isSysadmin) return;
+    fetch("/api/dojos")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: DojoOption[] | null) => { if (Array.isArray(d)) setDojos(d); })
+      .catch(() => {});
+  }, [isSysadmin]);
+
   function openCreate() {
     setForm(emptyForm()); setEditId(null); setMode("create");
     setError(""); setPhotoErr(""); setModal(true);
   }
 
   function openEdit(u: User) {
-    setForm({ name: u.name, email: u.email, password: "", role: u.role, active: u.active, photo: u.photo });
+    setForm({ name: u.name, email: u.email, password: "", role: u.role, active: u.active, photo: u.photo, dojoId: u.dojoId ?? "" });
     setEditId(u.id); setMode("edit");
     setError(""); setPhotoErr(""); setModal(true);
   }
@@ -134,10 +150,12 @@ export default function UsersPage() {
     let res: Response;
 
     if (mode === "create") {
+      const body: Record<string, unknown> = { name: form.name, email: form.email, password: form.password, role: form.role, photo: form.photo };
+      if (isSysadmin && form.dojoId) body.dojoId = form.dojoId;
       res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name, email: form.email, password: form.password, role: form.role, photo: form.photo }),
+        body: JSON.stringify(body),
       });
     } else if (mode === "edit") {
       const body: Record<string, unknown> = { name: form.name, email: form.email, role: form.role, photo: form.photo };
@@ -458,6 +476,22 @@ export default function UsersPage() {
                   <option key={r.roleName} value={r.roleName}>{r.roleLabel}</option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* Dojo — solo sysadmin, al crear */}
+          {isSysadmin && mode === "create" && (
+            <div>
+              <label className="form-label">Dojo</label>
+              <select value={form.dojoId} onChange={e => setForm(p => ({ ...p, dojoId: e.target.value }))} className="form-input">
+                <option value="">— Sin dojo (acceso global) —</option>
+                {dojos.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-dojo-muted mt-1">
+                Asigna el usuario a un dojo para iniciar sesión como él y revisar errores reportados por ese cliente.
+              </p>
             </div>
           )}
 

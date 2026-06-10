@@ -24,7 +24,7 @@ export function BillingBanner() {
 
   if (status.isReadOnly) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-500 text-white text-sm font-medium shadow-lg">
+      <div className="sticky top-0 left-0 right-0 z-50 flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-500 text-white text-sm font-medium shadow-lg">
         <div className="flex items-center gap-2 min-w-0">
           <AlertTriangle size={16} className="shrink-0" />
           <span className="truncate">
@@ -43,7 +43,7 @@ export function BillingBanner() {
 
   if (status.isInTrial && status.daysRemaining !== null) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-3 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium shadow-lg">
+      <div className="sticky top-0 left-0 right-0 z-50 flex items-center justify-between gap-3 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium shadow-lg">
         <div className="flex items-center gap-2 min-w-0">
           <Info size={16} className="shrink-0" />
           <span className="truncate">
