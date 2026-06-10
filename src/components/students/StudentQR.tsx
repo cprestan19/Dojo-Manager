@@ -5,20 +5,23 @@ import QRCode from "qrcode";
 
 interface StudentQRProps {
   studentCode: number | null;
+  cardToken: string | null;
   fullName: string;
 }
 
 function buildQRText(p: StudentQRProps): string {
-  // QR contiene la URL completa del carnet para que la cámara del celular lo abra.
-  // El scanner de asistencia extrae el código del patrón /id/XXXX automáticamente.
+  // QR contiene la URL completa del carnet (token impredecible) para que la
+  // cámara del celular lo abra. El scanner de asistencia extrae el código
+  // del patrón /id/<token> automáticamente.
   const base = typeof window !== "undefined" ? window.location.origin : "";
-  return `${base}/id/${p.studentCode ?? "0"}`;
+  return `${base}/id/${p.cardToken ?? ""}`;
 }
 
 export function StudentQR(props: StudentQRProps) {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!props.cardToken) return;
     let cancelled = false;
     QRCode.toDataURL(buildQRText(props), {
       width: 200,
@@ -27,7 +30,7 @@ export function StudentQR(props: StudentQRProps) {
       errorCorrectionLevel: "M",
     }).then((url) => { if (!cancelled) setQrUrl(url); });
     return () => { cancelled = true; };
-  }, [props.studentCode]);
+  }, [props.cardToken]);
 
   function handleDownload() {
     if (!qrUrl) return;

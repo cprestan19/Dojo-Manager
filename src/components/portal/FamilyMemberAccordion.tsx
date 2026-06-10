@@ -14,6 +14,7 @@ export interface FamilyMember {
   id:          string;
   fullName:    string;
   studentCode: number | null;
+  cardToken:   string | null;
   photo:       string | null;
   isMain:      boolean;
   // Belt
@@ -375,7 +376,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
                 )}
 
                 {/* 10. QR */}
-                <StudentQR studentCode={m.studentCode} fullName={m.fullName} />
+                <StudentQR studentCode={m.studentCode} cardToken={m.cardToken} fullName={m.fullName} />
               </div>
             )}
           </div>

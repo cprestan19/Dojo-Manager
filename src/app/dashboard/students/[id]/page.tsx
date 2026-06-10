@@ -35,7 +35,7 @@ interface Payment {
 }
 interface Student {
   id: string; fullName: string; firstName: string; lastName: string; photo: string | null;
-  studentCode: number | null; cedula: string | null;
+  studentCode: number | null; cardToken: string | null; cedula: string | null;
   fepakaId: string | null; ryoBukaiId: string | null;
   birthDate: string; gender: string; nationality: string;
   condition: string | null; bloodType: string | null;
@@ -1055,9 +1055,9 @@ export default function StudentDetailPage() {
               <Trash2 size={15}/> {deleting ? "Eliminando..." : "Eliminar"}
             </button>
           )}
-          {student.studentCode && (
+          {student.cardToken && (
             <Link
-              href={`/id/${student.studentCode}`}
+              href={`/id/${student.cardToken}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-ghost flex items-center gap-1.5 text-sm"
@@ -1091,6 +1091,7 @@ export default function StudentDetailPage() {
           {/* QR / ID Card */}
           <StudentQR
             studentCode={student.studentCode}
+            cardToken={student.cardToken}
             fullName={student.fullName}
           />
 

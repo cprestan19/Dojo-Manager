@@ -33,6 +33,8 @@ export default function SettingsPage() {
   const [logo,          setLogo]          = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError,     setLogoError]     = useState("");
+  const [cardPrimaryColor,   setCardPrimaryColor]   = useState("#CC0000");
+  const [cardSecondaryColor, setCardSecondaryColor] = useState("#000000");
   const [saving,        setSaving]        = useState(false);
   const [saved,         setSaved]         = useState(false);
   const [loading,       setLoading]       = useState(true);
@@ -90,6 +92,8 @@ export default function SettingsPage() {
           setAutoRemindersEnabled(data.autoRemindersEnabled ?? false);
           setLoginBgImage(data.loginBgImage ?? null);
           setLocale(data.locale ?? "es");
+          setCardPrimaryColor(data.cardPrimaryColor ?? "#CC0000");
+          setCardSecondaryColor(data.cardSecondaryColor ?? "#000000");
         }
         setLoading(false);
       });
@@ -129,6 +133,8 @@ export default function SettingsPage() {
         lateInterestPct:       interestPct,
         autoRemindersEnabled,
         locale,
+        cardPrimaryColor,
+        cardSecondaryColor,
       }),
     });
     if (res.ok) {
@@ -289,6 +295,47 @@ export default function SettingsPage() {
                   {slogan && <p className="text-dojo-muted text-xs italic">{slogan}</p>}
                 </div>
               </div>
+            </div>
+
+            {/* Colores del carnet digital */}
+            <div className="space-y-3 pt-2 border-t border-dojo-border">
+              <label className="form-label">Colores del Carnet Digital</label>
+              <p className="text-dojo-muted text-xs">
+                Se usan en el carnet de identificación de los alumnos (/id). Cada dojo puede tener su propia paleta.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <span className="text-xs text-dojo-muted">Color primario (acentos, marco)</span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={cardPrimaryColor}
+                      onChange={e => setCardPrimaryColor(e.target.value)}
+                      className="w-12 h-10 rounded-lg border border-dojo-border bg-transparent cursor-pointer"
+                    />
+                    <span className="font-mono text-sm text-dojo-white">{cardPrimaryColor.toUpperCase()}</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <span className="text-xs text-dojo-muted">Color secundario (banner inferior)</span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={cardSecondaryColor}
+                      onChange={e => setCardSecondaryColor(e.target.value)}
+                      className="w-12 h-10 rounded-lg border border-dojo-border bg-transparent cursor-pointer"
+                    />
+                    <span className="font-mono text-sm text-dojo-white">{cardSecondaryColor.toUpperCase()}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setCardPrimaryColor("#CC0000"); setCardSecondaryColor("#000000"); }}
+                className="btn-ghost text-sm"
+              >
+                Restablecer colores por defecto
+              </button>
             </div>
           </div>
 

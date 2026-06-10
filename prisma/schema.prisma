@@ -32,6 +32,10 @@ model Dojo {
   locale        String  @default("es")        @map("locale")       // "es" | "en"
   tournamentPro Boolean @default(false)       @map("tournament_pro") // Módulo Torneo Pro activado
 
+  // Colores de marca para el carnet digital del alumno (hex). null = paleta roja/negra por defecto.
+  cardPrimaryColor   String? @map("card_primary_color")
+  cardSecondaryColor String? @map("card_secondary_color")
+
   users           User[]
   students        Student[]
   katas           Kata[]
@@ -187,6 +191,7 @@ model User {
 model Student {
   id          String   @id @default(cuid())
   studentCode Int?     @unique
+  cardToken   String?  @unique @map("card_token") // token impredecible para /id/[code] (carnet público)
 
   dojoId    String   @map("dojo_id")
   dojo      Dojo     @relation(fields: [dojoId], references: [id])

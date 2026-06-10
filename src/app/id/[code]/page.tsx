@@ -13,27 +13,20 @@ export const dynamic = "force-dynamic";
 
 export default async function StudentCardPage({ params }: Params) {
   const { code } = await params;
-  const numCode = parseInt(code, 10);
-  if (isNaN(numCode)) notFound();
 
+  // El carnet público se busca por cardToken (token impredecible),
+  // no por studentCode (secuencial y por lo tanto enumerable).
   const student = await prisma.student.findFirst({
-    where: { studentCode: numCode },
+    where: { cardToken: code },
     select: {
       fullName:    true,
-      studentCode: true,
       photo:       true,
-      active:      true,
       motherName:  true,
       motherPhone: true,
       fatherName:  true,
       fatherPhone: true,
-      beltHistory: {
-        orderBy: { changeDate: "desc" },
-        take: 1,
-        select: { beltColor: true },
-      },
       dojo: {
-        select: { name: true, slug: true, logo: true, phone: true, slogan: true },
+        select: { id: true, name: true, logo: true, slogan: true, cardPrimaryColor: true, cardSecondaryColor: true },
       },
     },
   });
@@ -50,7 +43,7 @@ export default async function StudentCardPage({ params }: Params) {
   const host       = reqHeaders.get("host") ?? "";
   const proto      = host.startsWith("localhost") ? "http" : "https";
   const base       = (process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "") || `${proto}://${host}`;
-  const cardUrl    = `${base}/id/${student.studentCode}`;
+  const cardUrl    = `${base}/id/${code}`;
   const qrDataUrl = await QRCode.toDataURL(cardUrl, {
     width: 420,
     margin: 2,
@@ -63,14 +56,6 @@ export default async function StudentCardPage({ params }: Params) {
     name:  student.motherName?.trim()  || student.fatherName?.trim()  || null,
     phone: student.motherPhone?.trim() || student.fatherPhone?.trim() || null,
   };
-
-  // Cinta más reciente
-  const beltColor = student.beltHistory[0]?.beltColor ?? "blanca";
-
-  // Código del dojo: iniciales de palabras >2 letras, máx 2 palabras
-  const words    = student.dojo.name.split(/\s+/).filter(w => w.length > 2);
-  const dojoCode = words.slice(0, 2).map(w => w[0].toUpperCase()).join("") || "DJ";
-  const studentId = `${dojoCode}-${String(student.studentCode).padStart(4, "0")}`;
 
   return (
     <main
@@ -87,8 +72,15 @@ export default async function StudentCardPage({ params }: Params) {
       }}
     >
       <CardClient
-        student={{ fullName: student.fullName, studentCode: student.studentCode ?? 0, studentId, photo: photoUrl, beltColor, active: student.active }}
-        dojo={{ name: student.dojo.name, logo: dojoLogoUrl, phone: student.dojo.phone, slogan: student.dojo.slogan }}
+        student={{ fullName: student.fullName, photo: photoUrl }}
+        dojo={{
+          id: student.dojo.id,
+          name: student.dojo.name,
+          logo: dojoLogoUrl,
+          slogan: student.dojo.slogan,
+          primaryColor: student.dojo.cardPrimaryColor,
+          secondaryColor: student.dojo.cardSecondaryColor,
+        }}
         contact={contact}
         qrDataUrl={qrDataUrl}
       />

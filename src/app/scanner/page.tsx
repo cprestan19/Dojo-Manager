@@ -96,10 +96,10 @@ export default function ScannerPage() {
     const currentSchedule = scheduleRef.current;
     const scheduleParam   = currentSchedule ? `&scheduleId=${currentSchedule.id}` : "";
 
-    // El QR puede contener: número puro (1000), cuid, o URL del carnet (/id/1000).
+    // El QR puede contener: número puro (1000), cuid, cardToken, o URL del carnet (/id/<token>).
     // Extraer solo el ID en los tres casos para pasarlo a /api/scan.
     let rawId = decodedText.trim();
-    const urlMatch = rawId.match(/\/id\/(\d+)\s*$/);
+    const urlMatch = rawId.match(/\/id\/([^/?#\s]+)\s*$/);
     if (urlMatch) rawId = urlMatch[1];
     const resolvedId = rawId;
 

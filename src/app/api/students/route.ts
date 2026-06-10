@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -113,6 +114,7 @@ async function _POST(req: NextRequest) {
       data: {
         dojoId,
         studentCode,
+        cardToken:           randomUUID(),
         fullName:            body.fullName,
         firstName:           body.firstName,
         lastName:            body.lastName,

@@ -20,7 +20,7 @@ export default async function PortalProfilePage() {
   const student = await prisma.student.findUnique({
     where:  { id: studentId },
     select: {
-      id: true, fullName: true, photo: true, studentCode: true,
+      id: true, fullName: true, photo: true, studentCode: true, cardToken: true,
       birthDate: true, gender: true, nationality: true,
       cedula: true, address: true,
       fepakaId: true, ryoBukaiId: true,
@@ -81,7 +81,7 @@ export default async function PortalProfilePage() {
           active:   true,
         },
         select: {
-          id: true, fullName: true, studentCode: true,
+          id: true, fullName: true, studentCode: true, cardToken: true,
           photo: true, birthDate: true, gender: true, nationality: true,
           cedula: true, address: true,
           bloodType: true, condition: true,
@@ -135,7 +135,7 @@ export default async function PortalProfilePage() {
   }
 
   type StudentLike = {
-    id: string; fullName: string; studentCode: number | null; photo: string | null;
+    id: string; fullName: string; studentCode: number | null; cardToken: string | null; photo: string | null;
     birthDate: Date; gender: string; nationality: string; cedula: string | null; address: string | null;
     bloodType: string | null; condition: string | null;
     hasPrivateInsurance: boolean; insuranceName: string | null; insuranceNumber: string | null;
@@ -163,7 +163,7 @@ export default async function PortalProfilePage() {
       : 0;
 
     return {
-      id: s.id, fullName: s.fullName, studentCode: s.studentCode, photo: s.photo, isMain,
+      id: s.id, fullName: s.fullName, studentCode: s.studentCode, cardToken: s.cardToken, photo: s.photo, isMain,
       currentBeltLabel: belts[0]?.label ?? null,
       currentBeltHex:   belts[0]?.hex   ?? null,
       beltHistory:      belts,
@@ -238,7 +238,7 @@ export default async function PortalProfilePage() {
       ) : (
         <>
           {/* QR */}
-          <StudentQR studentCode={student.studentCode} fullName={student.fullName} />
+          <StudentQR studentCode={student.studentCode} cardToken={student.cardToken} fullName={student.fullName} />
 
           {/* Pagos */}
           {student.payments.length > 0 && (

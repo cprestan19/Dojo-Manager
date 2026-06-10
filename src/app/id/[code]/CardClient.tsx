@@ -1,24 +1,41 @@
 "use client";
 
-import { useRef } from "react";
-
 // ─── Dimensiones CR80 a 300 DPI ───────────────────────────────────────────────
 // 54mm × 85.6mm → 638 × 1009 px  (300 DPI exacto)
-// Se renderiza a tamaño completo para html2canvas → PDF 300 DPI
+// Impresión nativa via window.print() con @media print a 300 DPI
 // En pantalla se escala al 60% con CSS transform
 const W  = 638;
 const H  = 1009;
 const DS = 0.60;  // display scale → 383 × 605 px en pantalla
 
-// ─── Paleta ───────────────────────────────────────────────────────────────────
-const RED      = "#CC0000";
-const BLACK    = "#000000";
-const BG       = "#F5F5F5";
+// ─── Paleta por defecto (dojos sin colores propios configurados) ──────────────
+const DEFAULT_RED   = "#CC0000";
+const DEFAULT_BLACK = "#000000";
+const BG            = "#F5F5F5";
+
+const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+
+/** Convierte un color hex (#RRGGBB) a rgba() con la opacidad indicada */
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Hash simple y determinístico de un string → entero positivo */
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
 
 // ─── Layout (coordenadas en espacio 638 × 1009) ───────────────────────────────
-// Logo circular del dojo (izq, 22 % del ancho)
+// Logo circular del dojo (22 % del ancho)
 const LOGO_D = 140;   // diámetro del círculo del logo
-const LOGO_X = 24;    // left edge
+const LOGO_X = 24;    // distancia al borde (izq. o der. según variante)
 const LOGO_Y = 24;    // top edge
 
 // Foto (centrada, ~58 % del ancho — cerca del 60 % del spec)
@@ -52,23 +69,43 @@ function DiamondWatermark() {
 interface CardProps {
   student: {
     fullName: string;
-    studentCode: number;
-    studentId: string;
     photo: string | null;
-    active: boolean;
   };
   dojo: {
+    id: string;
     name: string;
     logo: string | null;
-    phone: string | null;
     slogan: string | null;
+    primaryColor: string | null;
+    secondaryColor: string | null;
   };
   contact: { name: string | null; phone: string | null };
   qrDataUrl: string;
 }
 
 export default function CardClient({ student, dojo, contact, qrDataUrl }: CardProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
+  // Colores de marca del dojo, con fallback a la paleta roja/negra por defecto
+  const RED   = dojo.primaryColor   && HEX_RE.test(dojo.primaryColor)   ? dojo.primaryColor   : DEFAULT_RED;
+  const BLACK = dojo.secondaryColor && HEX_RE.test(dojo.secondaryColor) ? dojo.secondaryColor : DEFAULT_BLACK;
+
+  // Variante de layout determinística por dojo: alterna forma de foto,
+  // posición del logo y orientación de las esquinas decorativas.
+  const variantB     = hashString(dojo.id) % 2 === 1;
+  const photoRadius: string | number = variantB ? 32 : "50%";
+  const logoPos = variantB ? { right: LOGO_X } : { left: LOGO_X };
+  const corners = variantB
+    ? {
+        tl: { top: 0, left: 0, width: 96,  height: 202, clipPath: "polygon(0 0, 0 100%, 100% 0)" },
+        tr: { top: 0, right: 0, width: 191, height: 252, clipPath: "polygon(100% 0, 100% 100%, 0 0)" },
+        bl: { bottom: 0, left: 0, width: 255, height: 303, clipPath: "polygon(0 0, 0 100%, 100% 100%)" },
+        br: { bottom: 0, right: 0, width: 55,  height: 88,  clipPath: "polygon(100% 100%, 100% 0, 0 100%)" },
+      }
+    : {
+        tl: { top: 0, left: 0, width: 191, height: 252, clipPath: "polygon(0 0, 0 100%, 100% 0)" },
+        tr: { top: 0, right: 0, width: 96,  height: 202, clipPath: "polygon(100% 0, 100% 100%, 0 0)" },
+        bl: { bottom: 0, left: 0, width: 55,  height: 88,  clipPath: "polygon(0 100%, 0 0, 100% 100%)" },
+        br: { bottom: 0, right: 0, width: 255, height: 303, clipPath: "polygon(100% 0, 100% 100%, 0 100%)" },
+      };
 
   const initials  = student.fullName.split(/\s+/).slice(0, 2).map(n => n[0]?.toUpperCase() ?? "").join("");
   const teamLabel = `TEAM ${dojo.name.toUpperCase()}`;
@@ -151,7 +188,6 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               CARNET  638 × 1009 px  (54 × 85.6 mm @ 300 DPI)
               ════════════════════════════════════════════════════════════════ */}
           <div
-            ref={cardRef}
             className="id-card-surface"
             style={{
               position: "relative",
@@ -164,39 +200,11 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             }}
           >
 
-            {/* ── LAYER 1: Triángulos decorativos en las 4 esquinas ─────── */}
-
-            {/* Superior-izquierda: 30% ancho × 25% alto */}
-            <div style={{
-              position: "absolute", top: 0, left: 0, zIndex: 1,
-              width: 191, height: 252,
-              background: RED,
-              clipPath: "polygon(0 0, 0 100%, 100% 0)",
-            }} />
-
-            {/* Superior-derecha: 15% ancho × 20% alto */}
-            <div style={{
-              position: "absolute", top: 0, right: 0, zIndex: 1,
-              width: 96, height: 202,
-              background: RED,
-              clipPath: "polygon(100% 0, 100% 100%, 0 0)",
-            }} />
-
-            {/* Inferior-izquierda: pequeño */}
-            <div style={{
-              position: "absolute", bottom: 0, left: 0, zIndex: 4,
-              width: 55, height: 88,
-              background: RED,
-              clipPath: "polygon(0 100%, 0 0, 100% 100%)",
-            }} />
-
-            {/* Inferior-derecha: 40% ancho × 30% alto */}
-            <div style={{
-              position: "absolute", bottom: 0, right: 0, zIndex: 4,
-              width: 255, height: 303,
-              background: RED,
-              clipPath: "polygon(100% 0, 100% 100%, 0 100%)",
-            }} />
+            {/* ── LAYER 1: Triángulos decorativos en las 4 esquinas (orientación según variante del dojo) ── */}
+            <div style={{ position: "absolute", zIndex: 1, background: RED, ...corners.tl }} />
+            <div style={{ position: "absolute", zIndex: 1, background: RED, ...corners.tr }} />
+            <div style={{ position: "absolute", zIndex: 4, background: RED, ...corners.bl }} />
+            <div style={{ position: "absolute", zIndex: 4, background: RED, ...corners.br }} />
 
             {/* ── LAYER 2: Patrón de rombos gris (watermark) ───────────── */}
             <div style={{
@@ -234,10 +242,10 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               }}>{sloganLine2}</div>
             </div>
 
-            {/* ── LAYER 4: Logo del dojo — círculo, esquina superior-izq ── */}
+            {/* ── LAYER 4: Logo del dojo — círculo, esquina superior (izq. o der. según variante) ── */}
             <div style={{
               position: "absolute",
-              top: LOGO_Y, left: LOGO_X,
+              top: LOGO_Y, ...logoPos,
               width: LOGO_D, height: LOGO_D,
               borderRadius: "50%",
               border: `4px solid ${RED}`,
@@ -258,32 +266,32 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               )}
             </div>
 
-            {/* ── LAYER 5: Foto del alumno — círculo centrado ───────────── */}
+            {/* ── LAYER 5: Foto del alumno — círculo o cuadro redondeado según variante ── */}
             {/* Anillo exterior decorativo */}
             <div style={{
               position: "absolute",
               top: PY - 8, left: PX - 8,
               width: PD + 16, height: PD + 16,
-              borderRadius: "50%",
-              border: `2px solid rgba(204,0,0,0.22)`,
+              borderRadius: photoRadius,
+              border: `2px solid ${hexToRgba(RED, 0.22)}`,
               zIndex: 5,
             }} />
-            {/* Borde rojo sólido 4px */}
+            {/* Borde sólido 4px */}
             <div style={{
               position: "absolute",
               top: PY - 4, left: PX - 4,
               width: PD + 8, height: PD + 8,
-              borderRadius: "50%",
+              borderRadius: photoRadius,
               border: `4px solid ${RED}`,
               zIndex: 6,
-              boxShadow: `0 6px 28px rgba(204,0,0,0.30)`,
+              boxShadow: `0 6px 28px ${hexToRgba(RED, 0.30)}`,
             }} />
             {/* Foto */}
             <div style={{
               position: "absolute",
               top: PY, left: PX,
               width: PD, height: PD,
-              borderRadius: "50%",
+              borderRadius: photoRadius,
               overflow: "hidden",
               background: "#CCCCCC",
               zIndex: 7,
@@ -362,7 +370,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                 }}>道場夏月</div>
               </div>
 
-              {/* Columna central 55%: QR con borde rojo */}
+              {/* Columna central 55%: QR con borde de color */}
               {/* Ancho col ≈ (638-32) × 0.55 = 333px                      */}
               {/* QR image: 333-4-24-24 = 281px, ≤ QH-4-24-8-18-24 = 208  */}
               {/* Usamos maxWidth/maxHeight=210 para que encaje en alto      */}
@@ -372,7 +380,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                 border: `2px solid ${RED}`,
                 borderRadius: 12,
                 padding: 0,
-                boxShadow: `0 4px 22px rgba(204,0,0,0.15)`,
+                boxShadow: `0 4px 22px ${hexToRgba(RED, 0.15)}`,
                 overflow: "hidden",
               }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -471,7 +479,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
           fontSize: 15, fontWeight: 700,
           cursor: "pointer", letterSpacing: "0.04em",
           fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
-          boxShadow: "0 8px 24px rgba(204,0,0,0.40)",
+          boxShadow: `0 8px 24px ${hexToRgba(RED, 0.40)}`,
           flexShrink: 0,
         }}
       >

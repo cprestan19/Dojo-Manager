@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
 
-  // Resolver studentCode numérico → SIEMPRE filtrando por dojoId del usuario autenticado
+  // Resolver studentCode numérico o cardToken → SIEMPRE filtrando por dojoId del usuario autenticado
   let resolvedId = id;
   if (/^\d+$/.test(id)) {
     const byCode = await prisma.student.findFirst({
@@ -29,6 +29,12 @@ export async function GET(req: NextRequest) {
       select: { id: true },
     });
     if (byCode) resolvedId = byCode.id;
+  } else {
+    const byToken = await prisma.student.findFirst({
+      where: { OR: [{ id }, { cardToken: id }], dojoId },
+      select: { id: true },
+    });
+    if (byToken) resolvedId = byToken.id;
   }
 
   // Nunca devolver datos de un alumno de otro dojo
