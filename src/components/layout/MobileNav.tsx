@@ -122,8 +122,8 @@ export function MobileNav() {
     role === "admin"    ? "Administrador" :
     role === "user"     ? "Usuario" : role;
 
-  // Torneos, Tienda y Página pública — solo planes pagos (Silver/Gold)
-  const PAID_PLAN_KEYS = new Set<NavKey>([NAV_KEYS.TOURNAMENT_EVENTS, NAV_KEYS.STORE, NAV_KEYS.PUBLIC_PAGE]);
+  // Torneos, Tienda, Página pública y Prospectos — solo planes pagos (Silver/Gold)
+  const PAID_PLAN_KEYS = new Set<NavKey>([NAV_KEYS.TOURNAMENT_EVENTS, NAV_KEYS.STORE, NAV_KEYS.PUBLIC_PAGE, NAV_KEYS.LEADS]);
   const planAllowed = (key: NavKey) => hasPaidFeatures || !PAID_PLAN_KEYS.has(key);
 
   const visibleDrawer = drawerItems.filter(i => perms.has(i.permKey) && planAllowed(i.permKey));
