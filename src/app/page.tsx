@@ -6,7 +6,7 @@ import {
   BarChart2, QrCode, Shield, Star, Check, ChevronDown,
   MessageCircle, ArrowRight, Zap, Clock, X, Menu,
   Smartphone, Bell, Video, Lock, Wifi, Calendar,
-  ChevronRight, TrendingUp, Mail,
+  ChevronRight, TrendingUp, Mail, IdCard,
 } from "lucide-react";
 // FIX: eliminados imports no usados: Play, Gift, Sparkles, ClipboardList
 
@@ -146,6 +146,17 @@ const PLAN_VISUAL_DEFAULT: PlanVisual = {
   missing:[], cta:"Comenzar", ctaLink:"/register",
 };
 
+// Patrón estático tipo QR para el mockup del carnet digital (7×7, decorativo)
+const QR_PATTERN = [
+  1,1,1,0,1,1,1,
+  1,0,1,0,0,0,1,
+  1,1,1,0,1,1,1,
+  0,0,0,1,0,0,1,
+  1,1,0,1,1,0,1,
+  1,0,1,0,1,1,0,
+  1,1,1,0,1,0,1,
+];
+
 interface DbPlan {
   id: string; name: string; description: string | null;
   monthlyPrice: number; annualPrice: number;
@@ -177,6 +188,7 @@ export default function LandingPage() {
   const [dojoCount, setDojoCount] = useState(120);
   const [lang,      setLang]      = useState<"es"|"en">("es");
   const [dbPlans,   setDbPlans]   = useState<DbPlan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
 
   // FIX: useRef evita que el contador reinicie en re-renders
   const countedRef = useRef(false);
@@ -193,7 +205,8 @@ export default function LandingPage() {
     fetch("/api/public/plans")
       .then(r => r.ok ? r.json() : [])
       .then((data: DbPlan[]) => { if (Array.isArray(data) && data.length) setDbPlans(data); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setPlansLoading(false));
   }, []);
 
   const es = lang === "es";
@@ -323,12 +336,12 @@ export default function LandingPage() {
                 : <>The software your<br/><span style={{color:PRIMARY}}>dojo needed.</span></>}
           </h1>
 
-          <p style={{ textAlign:"center", color:"rgba(255,255,255,.52)", maxWidth:680, margin:"0 auto 12px",
+          <p style={{ textAlign:"center", color:"rgba(255,255,255,.68)", maxWidth:680, margin:"0 auto 12px",
             fontSize:"clamp(.95rem,2.4vw,1.18rem)", lineHeight:1.7, fontWeight:400 }}>
             {es ? "Alumnos, pagos, asistencia QR, torneos profesionales y tu propia página web — todo en un solo lugar, desde tu celular."
                 : "Students, payments, QR attendance, professional tournaments and your own website — all in one place, from your phone."}
           </p>
-          <p style={{ textAlign:"center", fontSize:13, color:"rgba(255,255,255,.28)", marginBottom:36 }}>
+          <p style={{ textAlign:"center", fontSize:13, color:"rgba(255,255,255,.45)", marginBottom:36 }}>
             {es ? "Sin hardware extra · Sin contratos · Sin complicaciones"
                 : "No extra hardware · No contracts · No complexity"}
           </p>
@@ -351,7 +364,7 @@ export default function LandingPage() {
           </div>
 
           {/* FIX: precio visible debajo de los CTAs */}
-          <p style={{ textAlign:"center", fontSize:13, color:"rgba(255,255,255,.32)", marginBottom:56 }}>
+          <p style={{ textAlign:"center", fontSize:13, color:"rgba(255,255,255,.58)", marginBottom:56 }}>
             ✓ {es ? "Plan gratuito para hasta 20 alumnos · Sin tarjeta de crédito requerida"
                    : "Free plan for up to 20 students · No credit card required"}
           </p>
@@ -394,11 +407,11 @@ export default function LandingPage() {
       <div style={{ borderTop:"1px solid rgba(255,255,255,.05)", borderBottom:"1px solid rgba(255,255,255,.05)",
         padding:"20px 24px", background:BG2, marginTop:48 }}>
         <p style={{ textAlign:"center", fontSize:11, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase",
-          color:"rgba(255,255,255,.18)", marginBottom:14 }}>
+          color:"rgba(255,255,255,.32)", marginBottom:14 }}>
           {es?"Presente en":"Present in"}
         </p>
         <div style={{ display:"flex", justifyContent:"center", flexWrap:"wrap", gap:"8px 40px",
-          color:"rgba(255,255,255,.28)", fontSize:14, fontWeight:600 }}>
+          color:"rgba(255,255,255,.42)", fontSize:14, fontWeight:600 }}>
           {["🇵🇦 Panamá","🇨🇷 Costa Rica","🇲🇽 México","🇨🇴 Colombia","🇻🇪 Venezuela","🇩🇴 Rep. Dominicana","🇸🇻 El Salvador","🇧🇴 Bolivia"]
             .map(c=><span key={c}>{c}</span>)}
         </div>
@@ -429,7 +442,7 @@ export default function LandingPage() {
                   ? ["Lista de alumnos en cuaderno sin actualizar","No sabes quién te debe hasta semanas después","Asistencia en papel que se pierde","Sin página web, pierdes prospectos","Torneos con hojas y WhatsApp = caos","Tus alumnos no saben cuándo ni cuánto deben","3 apps distintas que nunca sincronizan"]
                   : ["Student list in a notebook no one updates","Don't know who owes you until weeks pass","Paper attendance that gets lost","No website, losing leads","Tournaments with paper = chaos","Students don't know what they owe","3 apps that never sync"]
                 ).map(p=>(
-                  <div key={p} style={{ display:"flex", alignItems:"flex-start", gap:10, fontSize:14, color:"rgba(255,255,255,.45)", marginBottom:10 }}>
+                  <div key={p} style={{ display:"flex", alignItems:"flex-start", gap:10, fontSize:14, color:"rgba(255,255,255,.6)", marginBottom:10 }}>
                     <X size={13} color="#f87171" style={{ flexShrink:0, marginTop:2 }}/>{p}
                   </div>
                 ))}
@@ -467,7 +480,7 @@ export default function LandingPage() {
               fontSize:"clamp(1.8rem,4.5vw,3rem)", marginBottom:12, color:"#eef0f8" }}>
               {es?"Construido para artes marciales":"Built for martial arts"}
             </h2>
-            <p style={{ textAlign:"center", color:"rgba(255,255,255,.42)", fontSize:17, maxWidth:540, margin:"0 auto 80px" }}>
+            <p style={{ textAlign:"center", color:"rgba(255,255,255,.6)", fontSize:17, maxWidth:540, margin:"0 auto 80px" }}>
               {es?"No es un software genérico de gimnasio. Cada función existe por un motivo.":"Not a generic gym app. Every feature has a purpose."}
             </p>
           </Reveal>
@@ -486,7 +499,7 @@ export default function LandingPage() {
                   lineHeight:1.15, marginBottom:16, color:"#eef0f8" }}>
                   {es?"Asistencia con QR\ndesde tu celular":"QR Attendance\nfrom your phone"}
                 </h3>
-                <p style={{ color:"rgba(255,255,255,.52)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
+                <p style={{ color:"rgba(255,255,255,.68)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
                   {es
                     ? "Cada alumno tiene un código QR único. El scanner funciona desde la cámara de cualquier smartphone — sin lector, sin tablet, sin costo extra. 1 segundo por alumno."
                     : "Each student has a unique QR code. The scanner works from any smartphone camera — no reader, no tablet, no extra cost. 1 second per student."}
@@ -542,7 +555,7 @@ export default function LandingPage() {
                     <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px",
                       borderRadius:10, marginTop:8, background:"rgba(245,158,11,.08)", border:"1px solid rgba(245,158,11,.25)" }}>
                       <Bell size={14} color={GOLD}/>
-                      <p style={{ fontSize:12, color:"rgba(255,255,255,.55)" }}>
+                      <p style={{ fontSize:12, color:"rgba(255,255,255,.65)" }}>
                         Recordatorio enviado automáticamente a <strong style={{color:"rgba(255,255,255,.8)"}}>Juan</strong> y <strong style={{color:"rgba(255,255,255,.8)"}}>Luis</strong>
                       </p>
                     </div>
@@ -559,7 +572,7 @@ export default function LandingPage() {
                   lineHeight:1.15, marginBottom:16, color:"#eef0f8" }}>
                   {es?"Pagos y recordatorios\nsin perseguir a nadie":"Payments and reminders\nwithout chasing anyone"}
                 </h3>
-                <p style={{ color:"rgba(255,255,255,.52)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
+                <p style={{ color:"rgba(255,255,255,.68)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
                   {es
                     ? "Genera mensualidades con un clic para todos tus alumnos. Los recordatorios de mora se envían solos por correo — configura la tolerancia de días y el sistema trabaja por ti."
                     : "Generate monthly payments in one click for all students. Late payment reminders send themselves by email — set the tolerance days and the system works for you."}
@@ -596,7 +609,7 @@ export default function LandingPage() {
                   lineHeight:1.15, marginBottom:16, color:"#eef0f8" }}>
                   {es?"Tus alumnos,\ninformados y motivados":"Your students,\ninformed and motivated"}
                 </h3>
-                <p style={{ color:"rgba(255,255,255,.52)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
+                <p style={{ color:"rgba(255,255,255,.68)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
                   {es
                     ? "Cada alumno accede a su portal: historial de pagos, asistencia, cintas obtenidas y los videos de las katas de cada cinta que ya logró. Tú subes los videos, ellos aprenden en casa."
                     : "Each student accesses their portal: payment history, attendance, belts earned and kata videos for each belt they've already achieved. You upload the videos, they learn at home."}
@@ -626,7 +639,7 @@ export default function LandingPage() {
                   lineHeight:1.15, marginBottom:16, color:"#eef0f8" }}>
                   {es?"Torneos profesionales\ncon streaming en vivo":"Professional tournaments\nwith live streaming"}
                 </h3>
-                <p style={{ color:"rgba(255,255,255,.52)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
+                <p style={{ color:"rgba(255,255,255,.68)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
                   {es
                     ? "Brackets automáticos de Kumite y Kata, múltiples tatamis, jueces en vivo y transmisión directa a YouTube. Organiza torneos de nivel federativo desde tu panel."
                     : "Auto Kumite and Kata brackets, multiple mats, live judges and direct streaming to YouTube. Run federation-level tournaments from your dashboard."}
@@ -702,7 +715,7 @@ export default function LandingPage() {
                   lineHeight:1.15, marginBottom:16, color:"#eef0f8" }}>
                   {es?"Tu dojo en internet,\ngratis con tu plan":"Your dojo online,\nfree with your plan"}
                 </h3>
-                <p style={{ color:"rgba(255,255,255,.52)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
+                <p style={{ color:"rgba(255,255,255,.68)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
                   {es
                     ? "Una página web profesional de tu dojo, incluida sin costo adicional. Con logo, horarios, galería, perfil del Sensei, tienda y formulario de clase gratuita para captar nuevos alumnos."
                     : "A professional website for your dojo, included at no extra cost. Logo, schedules, gallery, Sensei profile, store and free class form to attract new students."}
@@ -716,6 +729,72 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </Reveal>
+
+          {/* ── F6: Carnet Digital QR ── */}
+          <Reveal>
+            <div className="feat-grid" style={{ marginBottom:0, marginTop:96 }}>
+              <div>
+                <div style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"6px 14px",
+                  borderRadius:100, fontSize:12, fontWeight:700, background:`${GOLD}22`, color:GOLD,
+                  marginBottom:20 }}>
+                  <IdCard size={13}/> {es?"Incluido en Silver y Gold":"Included in Silver & Gold"}
+                </div>
+                <h3 style={{ fontFamily:"'Cinzel',serif", fontWeight:900, fontSize:"clamp(1.5rem,3vw,2.2rem)",
+                  lineHeight:1.15, marginBottom:16, color:"#eef0f8" }}>
+                  {es?"Carnet digital con QR\npara cada alumno":"Digital ID card with QR\nfor every student"}
+                </h3>
+                <p style={{ color:"rgba(255,255,255,.68)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
+                  {es
+                    ? "Genera un carnet profesional con foto, nombre, equipo y un código QR único — listo para imprimir o compartir digitalmente. El alumno lo presenta para marcar su asistencia en segundos."
+                    : "Generate a professional ID card with photo, name, team and a unique QR code — ready to print or share digitally. Students show it to check in within seconds."}
+                </p>
+                {(es
+                  ? ["Diseño con los colores y logo de tu dojo","Listo para imprimir en formato tarjeta CR80","QR para marcar asistencia desde el scanner","Acceso público mediante link único y seguro","Datos del acudiente incluidos en el carnet"]
+                  : ["Designed with your dojo's colors and logo","Ready to print in CR80 card format","QR for attendance check-in from the scanner","Secure public access via unique link","Guardian contact info included on the card"]
+                ).map(i=>(
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:8, fontSize:14, color:"rgba(255,255,255,.6)", marginBottom:8 }}>
+                    <Check size={13} color={GOLD} style={{flexShrink:0}}/>{i}
+                  </div>
+                ))}
+              </div>
+              <Reveal delay={150}>
+                <div style={{ display:"flex", justifyContent:"center" }}>
+                  <div style={{ width:240, borderRadius:16, overflow:"hidden", background:"#F5F5F5",
+                    boxShadow:`0 32px 80px rgba(0,0,0,.6), 0 0 40px ${GOLD}15`,
+                    border:`1.5px solid ${GOLD}30`, position:"relative" }}>
+                    <div style={{ position:"absolute", top:0, left:0, width:60, height:60, background:PRIMARY, clipPath:"polygon(0 0, 0 100%, 100% 0)" }}/>
+                    <div style={{ position:"absolute", top:0, right:0, width:60, height:60, background:PRIMARY, clipPath:"polygon(100% 0, 100% 100%, 0 0)" }}/>
+                    <div style={{ padding:"32px 20px 16px", textAlign:"center", position:"relative", zIndex:1 }}>
+                      <div style={{ width:88, height:88, borderRadius:"50%", background:"#ddd", margin:"0 auto 12px",
+                        border:`4px solid ${PRIMARY}`, display:"flex", alignItems:"center", justifyContent:"center",
+                        fontSize:28, fontWeight:900, color:"#888" }}>
+                        AM
+                      </div>
+                      <div style={{ fontSize:15, fontWeight:800, color:"#111", textTransform:"uppercase", marginBottom:6 }}>
+                        Ana Moreno
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:16 }}>
+                        <div style={{ flex:1, height:1.5, background:PRIMARY, maxWidth:30 }}/>
+                        <span style={{ fontSize:9, fontWeight:700, color:PRIMARY, letterSpacing:".3em" }}>TEAM DOJO</span>
+                        <div style={{ flex:1, height:1.5, background:PRIMARY, maxWidth:30 }}/>
+                      </div>
+                      <div style={{ width:104, height:104, margin:"0 auto", background:"#fff", borderRadius:8,
+                        border:`2px solid ${PRIMARY}`, padding:8, display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+                        {QR_PATTERN.map((on, idx) => (
+                          <div key={idx} style={{ background: on ? "#0A0A0A" : "transparent", borderRadius:1 }}/>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ background:"#0A0A0A", padding:"10px 16px", textAlign:"center" }}>
+                      <div style={{ fontSize:9, fontWeight:700, color:"#fff", letterSpacing:".15em", textTransform:"uppercase" }}>
+                        {es?"Disciplina · Respeto · Constancia":"Discipline · Respect · Consistency"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
             </div>
           </Reveal>
         </div>
@@ -811,7 +890,7 @@ export default function LandingPage() {
                     </div>
                     <div style={{ fontSize:11, fontWeight:900, color:"rgba(255,255,255,.18)", marginBottom:8, letterSpacing:".14em" }}>{s.n}</div>
                     <h3 style={{ fontWeight:800, fontSize:18, marginBottom:12, color:"#eef0f8" }}>{s.title}</h3>
-                    <p style={{ color:"rgba(255,255,255,.42)", fontSize:14, lineHeight:1.7 }}>{s.desc}</p>
+                    <p style={{ color:"rgba(255,255,255,.6)", fontSize:14, lineHeight:1.7 }}>{s.desc}</p>
                   </div>
                 </Reveal>
               );
@@ -856,7 +935,7 @@ export default function LandingPage() {
                     </div>
                     <div>
                       <div style={{ fontWeight:700, fontSize:13, color:"#eef0f8" }}>{t.name}</div>
-                      <div style={{ fontSize:11, color:"rgba(255,255,255,.35)", marginTop:2 }}>{t.role}</div>
+                      <div style={{ fontSize:11, color:"rgba(255,255,255,.48)", marginTop:2 }}>{t.role}</div>
                     </div>
                   </div>
                 </div>
@@ -878,11 +957,24 @@ export default function LandingPage() {
               fontSize:"clamp(1.8rem,5vw,3.2rem)", marginBottom:12, color:"#eef0f8" }}>
               {es?"Transparente y sin sorpresas":"Simple and transparent"}
             </h2>
-            <p style={{ textAlign:"center", color:"rgba(255,255,255,.42)", fontSize:17, marginBottom:64 }}>
+            <p style={{ textAlign:"center", color:"rgba(255,255,255,.6)", fontSize:17, marginBottom:64 }}>
               {es?"Empieza gratis. Crece cuando necesites. Cancela cuando quieras.":"Start free. Scale when you need. Cancel anytime."}
             </p>
           </Reveal>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:20, alignItems:"stretch" }}>
+            {plansLoading && dbPlans.length === 0 && [0,1,2].map(i => (
+              <div key={i} style={{
+                borderRadius:24, padding:28, height:380,
+                background:BG, border:`2px solid ${BORDER}`,
+                animation:"pulse 1.6s infinite",
+              }}>
+                <div style={{ width:"60%", height:18, borderRadius:6, background:BORDER, marginBottom:20 }}/>
+                <div style={{ width:"40%", height:38, borderRadius:6, background:BORDER, marginBottom:24 }}/>
+                {[0,1,2,3,4].map(j => (
+                  <div key={j} style={{ width:`${85 - j*8}%`, height:12, borderRadius:6, background:BORDER, marginBottom:14 }}/>
+                ))}
+              </div>
+            ))}
             {dbPlans.map((plan, i) => {
               const visual   = PLAN_VISUAL[plan.name] ?? PLAN_VISUAL_DEFAULT;
               const isFree   = plan.monthlyPrice === 0;
@@ -916,7 +1008,7 @@ export default function LandingPage() {
                         <span style={{ fontSize:44, fontWeight:900, color: visual.highlight ? visual.color : "#eef0f8", lineHeight:1 }}>{price}</span>
                         <span style={{ color:"rgba(255,255,255,.35)", fontSize:14, marginBottom:6 }}>{period}</span>
                       </div>
-                      <p style={{ fontSize:12, color:"rgba(255,255,255,.28)", fontWeight:600 }}>{limit}</p>
+                      <p style={{ fontSize:12, color:"rgba(255,255,255,.45)", fontWeight:600 }}>{limit}</p>
                     </div>
                     <ul style={{ flex:1, marginBottom:24, listStyle:"none" }}>
                       {features.map(f => (
@@ -927,7 +1019,7 @@ export default function LandingPage() {
                       ))}
                       {visual.missing.map(f => (
                         <li key={f} style={{ display:"flex", alignItems:"flex-start", gap:10, fontSize:13,
-                          color:"rgba(255,255,255,.2)", marginBottom:10, textDecoration:"line-through" }}>
+                          color:"rgba(255,255,255,.32)", marginBottom:10, textDecoration:"line-through" }}>
                           <X size={13} color="rgba(255,255,255,.15)" style={{flexShrink:0,marginTop:2}}/>{f}
                         </li>
                       ))}
@@ -950,19 +1042,67 @@ export default function LandingPage() {
           <Reveal delay={300}>
             <div style={{ marginTop:36, padding:24, borderRadius:16,
               border:"1px solid rgba(255,255,255,.06)", textAlign:"center", background:BG }}>
-              <p style={{ fontSize:14, color:"rgba(255,255,255,.42)" }}>
+              <p style={{ fontSize:14, color:"rgba(255,255,255,.6)" }}>
                 {es?"¿No sabes cuál elegir?":"Not sure which to choose?"}{" "}
                 <a href={WA} target="_blank" rel="noopener noreferrer"
                   style={{ color:PRIMARY, fontWeight:700 }}>
                   {es?"Escríbenos por WhatsApp":"Chat with us on WhatsApp"}
                 </a>
               </p>
-              <p style={{ fontSize:11, color:"rgba(255,255,255,.2)", marginTop:8 }}>
+              <p style={{ fontSize:11, color:"rgba(255,255,255,.38)", marginTop:8 }}>
                 {es?"Todos los planes incluyen soporte técnico. Precios en USD. Consulta disponibilidad por país."
                   :"All plans include technical support. USD pricing. Check availability in your country."}
               </p>
             </div>
           </Reveal>
+        </div>
+      </section>
+
+      {/* ══ ¿POR QUÉ ES GRATIS? ═════════════════════════════════ */}
+      <section style={{ padding:"96px 32px" }}>
+        <div style={{ maxWidth:1000, margin:"0 auto" }}>
+          <Reveal>
+            <p style={{ textAlign:"center", fontSize:11, fontWeight:700, letterSpacing:".2em",
+              textTransform:"uppercase", color:PRIMARY, marginBottom:12 }}>
+              {es?"Sin letra pequeña":"No fine print"}
+            </p>
+            <h2 style={{ textAlign:"center", fontFamily:"'Cinzel',serif", fontWeight:900,
+              fontSize:"clamp(1.6rem,4vw,2.6rem)", marginBottom:16, color:"#eef0f8" }}>
+              {es?"¿Por qué el Plan Bronce es gratis?":"Why is the Bronze Plan free?"}
+            </h2>
+            <p style={{ textAlign:"center", color:"rgba(255,255,255,.6)", fontSize:17, maxWidth:560, margin:"0 auto 64px" }}>
+              {es?"No es una prueba de 14 días ni un anzuelo. Así es como funciona:":"It's not a 14-day trial or a bait. Here's how it works:"}
+            </p>
+          </Reveal>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))", gap:20 }}>
+            {(es
+              ? [
+                  { icon:Shield,     title:"Gratis para siempre",        desc:"Hasta 20 alumnos, sin tarjeta de crédito y sin límite de tiempo. No es una prueba: es un plan real que podés usar indefinidamente." },
+                  { icon:TrendingUp, title:"Así financiamos el desarrollo", desc:"Los dojos que crecen y necesitan más (página web, alumnos ilimitados, Torneos Pro) pasan a Silver o Gold. Eso paga el desarrollo continuo de la plataforma para todos." },
+                  { icon:Lock,       title:"Tus datos son tuyos",         desc:"Sin contratos de permanencia. Podés exportar la información de tus alumnos cuando quieras, te quedes con nosotros o no." },
+                ]
+              : [
+                  { icon:Shield,     title:"Free forever",       desc:"Up to 20 students, no credit card, no time limit. It's not a trial — it's a real plan you can use indefinitely." },
+                  { icon:TrendingUp, title:"How we fund development", desc:"Dojos that grow and need more (website, unlimited students, Tournament Pro) move to Silver or Gold. That funds ongoing development for everyone." },
+                  { icon:Lock,       title:"Your data is yours", desc:"No long-term contracts. Export your students' information anytime, whether you stay with us or not." },
+                ]
+            ).map((item,i) => {
+              const Icon = item.icon;
+              return (
+                <Reveal key={item.title} delay={i*120}>
+                  <div style={{ textAlign:"center", padding:36, borderRadius:24,
+                    background:CARD, border:"1px solid rgba(255,255,255,.05)" }}>
+                    <div style={{ width:64, height:64, borderRadius:18, margin:"0 auto 20px",
+                      display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(16,185,129,.15)" }}>
+                      <Icon size={26} color="#34d399"/>
+                    </div>
+                    <h3 style={{ fontWeight:800, fontSize:18, marginBottom:12, color:"#eef0f8" }}>{item.title}</h3>
+                    <p style={{ color:"rgba(255,255,255,.6)", fontSize:14, lineHeight:1.7 }}>{item.desc}</p>
+                  </div>
+                </Reveal>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -999,7 +1139,7 @@ export default function LandingPage() {
                   transition:"max-height .35s ease",
                 }}>
                   <div style={{ padding:"0 22px 20px", borderTop:"1px solid rgba(255,255,255,.05)" }}>
-                    <p style={{ paddingTop:14, fontSize:14, color:"rgba(255,255,255,.52)", lineHeight:1.75 }}>{faq.a}</p>
+                    <p style={{ paddingTop:14, fontSize:14, color:"rgba(255,255,255,.65)", lineHeight:1.75 }}>{faq.a}</p>
                   </div>
                 </div>
               </div>
@@ -1022,7 +1162,7 @@ export default function LandingPage() {
               {es ? <>Tu dojo merece<br/><span style={{color:PRIMARY}}>la mejor herramienta.</span></>
                   : <>Your dojo deserves<br/><span style={{color:PRIMARY}}>the best tool.</span></>}
             </h2>
-            <p style={{ color:"rgba(255,255,255,.48)", fontSize:17, maxWidth:540, margin:"0 auto 40px", lineHeight:1.7 }}>
+            <p style={{ color:"rgba(255,255,255,.65)", fontSize:17, maxWidth:540, margin:"0 auto 40px", lineHeight:1.7 }}>
               {es ? "Únete a los dojos que ya dejaron el Excel y los cuadernos atrás. Empieza gratis hoy — sin tarjeta, sin instalaciones."
                   : "Join the dojos that already left Excel and notebooks behind. Start free today — no card, no setup."}
             </p>
@@ -1043,7 +1183,7 @@ export default function LandingPage() {
                 <MessageCircle size={18}/> {es?"WhatsApp":"WhatsApp"}
               </a>
             </div>
-            <p style={{ fontSize:13, color:"rgba(255,255,255,.2)" }}>
+            <p style={{ fontSize:13, color:"rgba(255,255,255,.38)" }}>
               {es?"Sin contrato · Cancela cuando quieras · Soporte incluido"
                 :"No contract · Cancel anytime · Support included"}
             </p>
@@ -1061,7 +1201,7 @@ export default function LandingPage() {
                 <img src="/logo.png" alt="Dojo Master" width={32} height={32} style={{ borderRadius:8, objectFit:"contain" }}/>
                 <span style={{ fontWeight:900, fontSize:16 }}>Dojo Master</span>
               </div>
-              <p style={{ color:"rgba(255,255,255,.28)", fontSize:13, lineHeight:1.65, maxWidth:220 }}>
+              <p style={{ color:"rgba(255,255,255,.45)", fontSize:13, lineHeight:1.65, maxWidth:220 }}>
                 El software completo para gestionar tu dojo de karate y artes marciales.
               </p>
               <a href={WA} target="_blank" rel="noopener noreferrer" style={{
@@ -1073,16 +1213,16 @@ export default function LandingPage() {
             </div>
             {[
               { title:"Producto",  links:[["Funciones","#funciones"],["Planes","#planes"],["Preguntas","#faq"]] },
-              { title:"Módulos",   links:[["Alumnos","#"],["Pagos","#"],["Asistencia QR","#"],["Torneos","#"],["Página web","#"],["Portal alumno","#"]] },
+              { title:"Módulos",   links:[["Alumnos","#funciones"],["Pagos","#funciones"],["Asistencia QR","#funciones"],["Torneos","#funciones"],["Página web","#funciones"],["Portal alumno","#funciones"]] },
             ].map(col=>(
               <div key={col.title}>
                 <p style={{ fontWeight:700, fontSize:11, letterSpacing:".12em", textTransform:"uppercase",
                   color:"rgba(255,255,255,.5)", marginBottom:14 }}>{col.title}</p>
                 {col.links.map(([l,h])=>(
-                  <a key={l} href={h} style={{ display:"block", fontSize:13, color:"rgba(255,255,255,.32)",
+                  <a key={l} href={h} style={{ display:"block", fontSize:13, color:"rgba(255,255,255,.45)",
                     marginBottom:8, transition:"color .2s" }}
-                    onMouseEnter={e=>e.currentTarget.style.color="rgba(255,255,255,.65)"}
-                    onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.32)"}>{l}</a>
+                    onMouseEnter={e=>e.currentTarget.style.color="rgba(255,255,255,.8)"}
+                    onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,.45)"}>{l}</a>
                 ))}
               </div>
             ))}
@@ -1090,26 +1230,26 @@ export default function LandingPage() {
               <p style={{ fontWeight:700, fontSize:11, letterSpacing:".12em", textTransform:"uppercase",
                 color:"rgba(255,255,255,.5)", marginBottom:14 }}>Contacto</p>
               <a href={WA} target="_blank" rel="noopener noreferrer"
-                style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"rgba(255,255,255,.32)", marginBottom:10 }}>
+                style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"rgba(255,255,255,.45)", marginBottom:10 }}>
                 <MessageCircle size={13}/> WhatsApp soporte
               </a>
               <a href="mailto:admin@dojomasteronline.com"
-                style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"rgba(255,255,255,.32)", marginBottom:20 }}>
+                style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"rgba(255,255,255,.45)", marginBottom:20 }}>
                 <Mail size={13}/> admin@dojomasteronline.com
               </a>
               <p style={{ fontWeight:700, fontSize:11, letterSpacing:".12em", textTransform:"uppercase",
                 color:"rgba(255,255,255,.5)", marginBottom:10 }}>Acceso</p>
-              <Link href="/login" style={{ fontSize:13, color:"rgba(255,255,255,.32)" }}>
+              <Link href="/login" style={{ fontSize:13, color:"rgba(255,255,255,.45)" }}>
                 Iniciar sesión →
               </Link>
             </div>
           </div>
           <div style={{ borderTop:"1px solid rgba(255,255,255,.06)", paddingTop:24,
             display:"flex", flexWrap:"wrap", justifyContent:"space-between", gap:12 }}>
-            <p style={{ fontSize:13, color:"rgba(255,255,255,.2)" }}>
+            <p style={{ fontSize:13, color:"rgba(255,255,255,.35)" }}>
               © {new Date().getFullYear()} Dojo Master · Todos los derechos reservados
             </p>
-            <p style={{ fontSize:12, color:"rgba(255,255,255,.14)" }}>
+            <p style={{ fontSize:12, color:"rgba(255,255,255,.3)" }}>
               Hecho con 🥋 para Senseis del mundo entero
             </p>
           </div>
