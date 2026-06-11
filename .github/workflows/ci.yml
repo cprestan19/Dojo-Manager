@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+      NEXTAUTH_SECRET: "ci-test-secret"
+      ENCRYPTION_KEY: "eNjAGAEpCkXJS7ci+PTxxGoMfSmVzW83GZ515GJqeT8="
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Lint (informational)
+        run: npm run lint
+        continue-on-error: true

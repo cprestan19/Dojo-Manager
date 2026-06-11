@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getEffectiveDojoId } from "@/lib/sysadmin-context";
 import { isDojoReadOnly } from "@/lib/billing/subscription";
 
-type RouteHandler = (req: NextRequest, ctx: unknown) => Promise<NextResponse> | NextResponse;
+type RouteHandler = (req: NextRequest, ctx?: unknown) => Promise<NextResponse> | NextResponse;
 
 const BYPASS_PATHS = ["/api/auth", "/api/billing", "/api/webhooks", "/api/cron"];
 

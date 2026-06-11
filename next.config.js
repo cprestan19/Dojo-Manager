@@ -33,9 +33,8 @@ const nextConfig = {
   },
 
   typescript: {
-    // true = Next.js ignores TS errors during `next build`.
-    // Enforce separately with: npx tsc --noEmit (must pass in CI before deploy).
-    ignoreBuildErrors: true,
+    // `npm run typecheck` (tsc --noEmit) pasa limpio y corre en CI — exigirlo también en build.
+    ignoreBuildErrors: false,
   },
 
   images: {
@@ -100,4 +99,14 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+const { withSentryConfig } = require("@sentry/nextjs");
+
+module.exports = withSentryConfig(nextConfig, {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  widenClientFileUpload: true,
+  // Sin SENTRY_AUTH_TOKEN, el plugin omite la subida de source maps sin fallar el build.
+  treeshake: { removeDebugLogging: true },
+});
