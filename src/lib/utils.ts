@@ -71,6 +71,18 @@ export const PAYMENT_STATUS_LABELS: Record<string, { label: string; className: s
   late:    { label: "Atrasado",  className: "badge-red"    },
 };
 
+export const PAYMENT_TYPE_LABELS: Record<string, string> = {
+  monthly:     "Mensualidad",
+  biweekly:    "Quincenal",
+  annual:      "Anualidad",
+  affiliation: "Afiliación",
+  other:       "Otro",
+};
+
+export function getPaymentTypeLabel(type: string): string {
+  return PAYMENT_TYPE_LABELS[type] ?? type;
+}
+
 export const TOURNAMENT_STATUS = {
   draft:               { label: "Borrador",               color: "#8892A4", bg: "bg-gray-700/30",   text: "text-gray-400",   border: "border-gray-600/50"   },
   registration_open:   { label: "Inscripciones Abiertas", color: "#27AE60", bg: "bg-green-900/30",  text: "text-green-400",  border: "border-green-700/50"  },

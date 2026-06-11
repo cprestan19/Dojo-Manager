@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { formatDate, formatCurrency, PAYMENT_STATUS_LABELS } from "@/lib/utils";
+import { formatDate, formatCurrency, PAYMENT_STATUS_LABELS, getPaymentTypeLabel } from "@/lib/utils";
 
 export default async function PortalPaymentsPage() {
   const session   = await getServerSession(authOptions);
@@ -44,7 +44,7 @@ export default async function PortalPaymentsPage() {
                 <div key={p.id} className="flex items-center justify-between px-4 py-3">
                   <div>
                     <p className="text-sm text-dojo-white font-medium">
-                      {p.type === "monthly" ? "Mensualidad" : "Anualidad"}
+                      {getPaymentTypeLabel(p.type)}
                     </p>
                     <p className="text-xs text-dojo-muted">Vence: {formatDate(p.dueDate)}</p>
                     {p.paidDate && <p className="text-xs text-green-400">Pagado: {formatDate(p.paidDate)}</p>}

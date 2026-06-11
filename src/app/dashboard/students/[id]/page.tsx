@@ -14,7 +14,7 @@ import { FamilyManager } from "@/components/students/FamilyManager";
 import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { Modal } from "@/components/ui/Modal";
-import { calculateAge, formatDate, formatCurrency, BELT_COLORS, PAYMENT_STATUS_LABELS, MULTI_KATA_BELTS } from "@/lib/utils";
+import { calculateAge, formatDate, formatCurrency, BELT_COLORS, PAYMENT_STATUS_LABELS, MULTI_KATA_BELTS, getPaymentTypeLabel } from "@/lib/utils";
 import Image from "next/image";
 
 interface Kata { id: string; name: string; beltColor: string; }
@@ -458,7 +458,9 @@ function AddPaymentModal({ studentId, monthlyAmount, onClose, onSaved }: {
         <label className="form-label">Tipo de Pago</label>
         <select value={type} onChange={e => setType(e.target.value)} className="form-input">
           <option value="monthly">Mensualidad</option>
-          <option value="annual">Anualidad / Inscripción</option>
+          <option value="annual">Anualidad</option>
+          <option value="affiliation">Afiliación</option>
+          <option value="other">Otros</option>
         </select>
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -798,7 +800,7 @@ export default function StudentDetailPage() {
   }
 
   async function deletePayment(paymentId: string, amount: number, type: string) {
-    const label = type === "monthly" ? "mensualidad" : type === "biweekly" ? "pago quincenal" : "anualidad";
+    const label = getPaymentTypeLabel(type).toLowerCase();
     if (!confirm(`¿Eliminar esta ${label} de ${formatCurrency(amount)}? Esta acción no se puede deshacer.`)) return;
     setDeletingPay(paymentId);
     const res = await fetch("/api/payments", {
@@ -1347,7 +1349,7 @@ export default function StudentDetailPage() {
                       return (
                         <tr key={p.id} className="border-b border-dojo-border/40 hover:bg-dojo-border/10">
                           <td className="px-2 py-2 capitalize text-dojo-white">
-                            {p.type === "monthly" ? "Mensualidad" : p.type === "biweekly" ? "Quincenal" : "Anualidad"}
+                            {getPaymentTypeLabel(p.type)}
                           </td>
                           <td className="px-2 py-2 text-dojo-gold font-semibold">{formatCurrency(p.amount)}</td>
                           <td className="px-2 py-2 text-dojo-muted">{formatDate(p.dueDate)}</td>

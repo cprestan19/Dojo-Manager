@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { CreditCard, Search, Bell, CheckCircle, Filter, AlertTriangle, X, Send, Mail, CalendarPlus, FileText, Pencil } from "lucide-react";
-import { formatDate, formatCurrency, PAYMENT_STATUS_LABELS } from "@/lib/utils";
+import { formatDate, formatCurrency, PAYMENT_STATUS_LABELS, getPaymentTypeLabel } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
 import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
 
@@ -457,6 +457,8 @@ export default function PaymentsPage() {
           <option value="monthly">Mensualidades</option>
           <option value="biweekly">Quincenales</option>
           <option value="annual">Anualidades</option>
+          <option value="affiliation">Afiliaciones</option>
+          <option value="other">Otros</option>
         </select>
       </div>
 
@@ -474,7 +476,7 @@ export default function PaymentsPage() {
                 <div className="min-w-0">
                   <p className="font-semibold text-dojo-white truncate">{p.student.fullName}</p>
                   <p className="text-xs text-dojo-muted mt-0.5">
-                    {p.type === "monthly" ? "Mensualidad" : p.type === "biweekly" ? "Quincenal" : "Anualidad"} · Vence {formatDate(p.dueDate)}
+                    {getPaymentTypeLabel(p.type)} · Vence {formatDate(p.dueDate)}
                   </p>
                 </div>
                 <span className={`${st.className} shrink-0`}>{st.label}</span>
@@ -551,7 +553,7 @@ export default function PaymentsPage() {
                     {p.student.fullName}
                   </td>
                   <td className="px-4 py-3 text-dojo-muted capitalize">
-                    {p.type === "monthly" ? "Mensualidad" : p.type === "biweekly" ? "Quincenal" : "Anualidad"}
+                    {getPaymentTypeLabel(p.type)}
                   </td>
                   <td className="px-4 py-3 text-dojo-gold font-bold">{formatCurrency(p.amount)}</td>
                   <td className="px-4 py-3 text-dojo-muted">{formatDate(p.dueDate)}</td>

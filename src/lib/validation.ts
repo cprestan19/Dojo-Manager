@@ -51,7 +51,7 @@ export const CreateStudentSchema = z.object({
 // ── Payments ─────────────────────────────────────────────────
 export const CreatePaymentSchema = z.object({
   studentId: cuid,
-  type:      z.enum(["monthly", "annual"]),
+  type:      z.enum(["monthly", "annual", "affiliation", "other"]),
   amount:    z.number().min(0, "El monto no puede ser negativo").max(99_999, "Monto fuera de rango"),
   dueDate:   z.string().refine(v => !isNaN(new Date(v).getTime()), "Fecha de vencimiento inválida"),
   paidDate:  z.string().optional().nullable(),

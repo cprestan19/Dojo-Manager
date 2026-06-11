@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { getPaymentTypeLabel } from "@/lib/utils";
 
 export interface PaymentForEdit {
   id:       string;
@@ -18,12 +19,6 @@ interface Props {
   onClose:  () => void;
   onSaved:  () => void;
 }
-
-const TYPE_LABEL: Record<string, string> = {
-  monthly:  "Mensualidad",
-  biweekly: "Quincenal",
-  annual:   "Anualidad / Inscripción",
-};
 
 export function EditPaymentModal({ payment, onClose, onSaved }: Props) {
   const [amount,   setAmount]  = useState(String(payment.amount));
@@ -80,7 +75,7 @@ export function EditPaymentModal({ payment, onClose, onSaved }: Props) {
           <p className="text-dojo-white font-semibold">{payment.studentName}</p>
         )}
         <p className="text-xs text-dojo-muted">
-          {TYPE_LABEL[payment.type] ?? payment.type}
+          {getPaymentTypeLabel(payment.type)}
         </p>
       </div>
 
