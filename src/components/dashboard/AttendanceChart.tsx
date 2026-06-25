@@ -81,14 +81,28 @@ export function AttendanceChart() {
     return () => observer.disconnect();
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     const r = await fetch(`/api/attendance/weekly?weekOffset=${weekOffset}`);
     if (r.ok) setData(await r.json());
-    setLoading(false);
+    if (!silent) setLoading(false);
   }, [weekOffset]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Silent background polling — only for current week, only when tab is visible
+  useEffect(() => {
+    if (weekOffset !== 0) return;
+    const poll = () => {
+      if (document.visibilityState === "visible") load(true);
+    };
+    const id = setInterval(poll, 30_000);
+    document.addEventListener("visibilitychange", poll);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", poll);
+    };
+  }, [weekOffset, load]);
 
   return (
     <div className="card flex flex-col gap-4 min-h-[260px]">

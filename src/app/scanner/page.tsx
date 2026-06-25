@@ -227,7 +227,7 @@ export default function ScannerPage() {
 
   useEffect(() => {
     if (!result) { setCountdown(0); return; }
-    const autoSecs = (result.type === "success") ? 5 : 3;
+    const autoSecs = (result.type === "success") ? 4 : 3;
     setCountdown(autoSecs);
     const interval = setInterval(() => {
       setCountdown(prev => {
