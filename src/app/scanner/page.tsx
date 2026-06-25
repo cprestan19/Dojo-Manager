@@ -532,10 +532,13 @@ export default function ScannerPage() {
         </p>
         <button
           onClick={toggleCamera}
-          className="p-1.5 rounded-lg hover:bg-dojo-border transition-colors shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dojo-border hover:bg-dojo-border/70 transition-colors shrink-0"
           title={facingMode === "environment" ? "Cambiar a cámara frontal" : "Cambiar a cámara trasera"}
         >
-          <SwitchCamera size={18} className="text-dojo-muted" />
+          <SwitchCamera size={16} className="text-dojo-white" />
+          <span className="text-xs text-dojo-white font-medium hidden xs:inline">
+            {facingMode === "environment" ? "Frontal" : "Trasera"}
+          </span>
         </button>
       </div>
 
