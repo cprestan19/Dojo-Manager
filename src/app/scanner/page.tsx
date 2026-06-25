@@ -290,17 +290,6 @@ export default function ScannerPage() {
     setManualLoading(false);
   }
 
-  async function toggleCamera() {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
-      } catch { /* ignore */ }
-      scannerRef.current = null;
-    }
-    setFacingMode(prev => prev === "environment" ? "user" : "environment");
-  }
-
   function goToScan(schedule: Schedule | null) {
     setSelectedSchedule(schedule);
     scheduleRef.current = schedule;
@@ -388,23 +377,43 @@ export default function ScannerPage() {
             <p className="font-display text-dojo-white text-xl font-bold">
               {selectedSchedule?.name ?? "Marcación Libre"}
             </p>
-            {cameraError ? (
+            {cameraError && (
               <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-yellow-900/40 border border-yellow-700/50 max-w-xs mx-auto">
                 <AlertTriangle size={16} className="text-yellow-400 shrink-0 mt-0.5" />
                 <p className="text-yellow-200 text-sm leading-snug">{cameraError}</p>
               </div>
-            ) : (
-              <>
-                <p className="text-dojo-muted text-sm leading-relaxed max-w-xs">
-                  Para escanear el código QR del alumno necesitamos acceso a la
-                  <span className="text-dojo-white font-medium"> cámara</span> del dispositivo.
-                  Puedes cambiar entre frontal y trasera una vez activa.
-                </p>
-                <p className="text-dojo-muted/60 text-xs">
-                  Solo se usará para leer códigos QR — no se graba ni almacena nada.
-                </p>
-              </>
             )}
+            <p className="text-dojo-muted/60 text-xs">
+              Solo se usará para leer códigos QR — no se graba ni almacena nada.
+            </p>
+          </div>
+
+          {/* Camera selector */}
+          <div className="w-full max-w-xs space-y-2">
+            <p className="text-dojo-muted text-xs uppercase tracking-wider font-semibold">Selecciona la cámara</p>
+            <div className="flex rounded-2xl overflow-hidden border border-dojo-border bg-dojo-dark">
+              <button
+                type="button"
+                onClick={() => setFacingMode("environment")}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold font-display tracking-wide transition-all duration-200 ${
+                  facingMode === "environment" ? "bg-dojo-red text-white" : "text-dojo-muted hover:text-dojo-white"
+                }`}
+              >
+                <SwitchCamera size={16} />
+                Trasera
+              </button>
+              <div className="w-px bg-dojo-border" />
+              <button
+                type="button"
+                onClick={() => setFacingMode("user")}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold font-display tracking-wide transition-all duration-200 ${
+                  facingMode === "user" ? "bg-dojo-red text-white" : "text-dojo-muted hover:text-dojo-white"
+                }`}
+              >
+                <SwitchCamera size={16} className="scale-x-[-1]" />
+                Frontal
+              </button>
+            </div>
           </div>
 
           {/* Main CTA */}
@@ -415,7 +424,7 @@ export default function ScannerPage() {
               style={{ background: "#C0392B", color: "#fff", boxShadow: "0 4px 20px rgba(192,57,43,0.4)" }}
             >
               <QrCode size={22} />
-              {cameraError ? "Reintentar" : "Activar Cámara"}
+              {cameraError ? "Reintentar" : "Escanear"}
             </button>
 
             <button
@@ -530,16 +539,6 @@ export default function ScannerPage() {
         <p className="font-display text-dojo-white text-sm font-bold flex-1 truncate">
           {selectedSchedule?.name ?? "Marcación Libre"}
         </p>
-        <button
-          onClick={toggleCamera}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dojo-border hover:bg-dojo-border/70 transition-colors shrink-0"
-          title={facingMode === "environment" ? "Cambiar a cámara frontal" : "Cambiar a cámara trasera"}
-        >
-          <SwitchCamera size={16} className="text-dojo-white" />
-          <span className="text-xs text-dojo-white font-medium hidden xs:inline">
-            {facingMode === "environment" ? "Frontal" : "Trasera"}
-          </span>
-        </button>
       </div>
 
       <div className="px-4 pt-4 pb-2 shrink-0">
