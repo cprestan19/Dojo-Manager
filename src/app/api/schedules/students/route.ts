@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -10,13 +10,13 @@ type SessionUser = { dojoId?: string; role?: string };
 // Returns all active students that belong to the session's dojo (dojoId from JWT — never from client).
 // The optional ?scheduleId param is accepted but ignored server-side;
 // the client uses it only to decide which students to pre-select in the UI.
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { dojoId } = session.user as SessionUser;
-  // NOTE: role needed for sysadmin context — check SessionUser type
-  if (!dojoId) return NextResponse.json({ error: "Sin dojo" }, { status: 403 });
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
+  if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const students = await prisma.student.findMany({
     where: { dojoId, active: true },
@@ -47,7 +47,7 @@ export async function GET() {
   const result = students.map(s => {
     const ageMs   = now.getTime() - new Date(s.birthDate).getTime();
     const age     = Math.floor(ageMs / (1000 * 60 * 60 * 24 * 365.25));
-    const belt    = s.beltHistory[0]?.beltColor ?? "blanco";
+    const belt    = s.beltHistory[0]?.beltColor ?? "blanca";
     const current = s.studentSchedules[0] ?? null;
     const fullName = s.fullName || `${s.firstName} ${s.lastName}`.trim();
     return {

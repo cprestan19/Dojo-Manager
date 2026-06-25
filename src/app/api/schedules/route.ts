@@ -17,7 +17,30 @@ export async function GET(req: NextRequest) {
 
   const schedules = await prisma.schedule.findMany({
     where: { dojoId },
-    include: { _count: { select: { attendances: true } } },
+    include: {
+      _count: { select: { attendances: true, studentSchedules: true } },
+      studentSchedules: {
+        where: { removedAt: null },
+        select: {
+          student: {
+            select: {
+              id: true,
+              fullName: true,
+              beltHistory: {
+                orderBy: { changeDate: "desc" },
+                take: 1,
+                select: { beltColor: true },
+              },
+              attendances: {
+                orderBy: { markedAt: "desc" },
+                take: 2,
+                select: { type: true, markedAt: true },
+              },
+            },
+          },
+        },
+      },
+    },
     orderBy: { startTime: "asc" },
   });
 
