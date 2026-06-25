@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
   headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFC0392B" } };
   headerRow.alignment = { horizontal: "center" };
 
+  const TZ = "America/Panama";
   for (const a of attendances) {
     const dt = new Date(a.markedAt);
     const belt = a.student.beltHistory[0]?.beltColor ?? "";
@@ -75,8 +76,8 @@ export async function GET(req: NextRequest) {
       name:      a.student.fullName,
       belt:      belt.charAt(0).toUpperCase() + belt.slice(1).replace(/-/g, " "),
       type:      a.type === "entry" ? "Entrada" : "Salida",
-      date:      dt.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "numeric" }),
-      time:      dt.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" }),
+      date:      dt.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ }),
+      time:      dt.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: TZ }),
       schedule:  a.schedule?.name ?? "",
       note:      a.note ?? "",
       corrected: a.corrected ? "Sí" : "No",
