@@ -15,12 +15,14 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
     steps: [
       "Las tarjetas superiores muestran alumnos activos, pagos cobrados y pendientes.",
       "El gráfico de asistencia muestra el porcentaje diario de la semana seleccionada. Usa las flechas para navegar semanas.",
+      "Pasa el cursor sobre un punto del gráfico para ver el detalle: entradas, salidas y desglose por horario de clase.",
       "La lista 'Alumnos Recientes' muestra los últimos registrados.",
       "Si ves una alerta de pagos o ausencias, haz clic para ver el detalle.",
     ],
     tips: [
       "Las alertas de pago y ausencia también aparecen en la campana 🔔 del header.",
       "El gráfico se actualiza en tiempo real al registrar asistencia.",
+      "El tooltip del gráfico muestra cuántos alumnos únicos marcaron entrada (verde) y salida (rojo) cada día, más el desglose por turno.",
     ],
   },
 
@@ -48,16 +50,18 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
     emoji:       "📋",
     description: "Registro y consulta de entradas y salidas del dojo.",
     steps: [
-      "Las marcaciones se registran automáticamente al escanear el QR del alumno.",
-      "Usa el rango de fechas para consultar cualquier período.",
-      "Filtra por tipo (Entrada/Salida) o por horario específico.",
-      "Para corregir una marcación errónea, haz clic en el ícono ✏ de esa fila.",
-      "Exporta el listado filtrado a CSV con el botón 'Exportar CSV'.",
+      "Las marcaciones se registran automáticamente al escanear el QR del alumno desde el Scanner.",
+      "Las tarjetas superiores muestran el total de marcaciones, entradas y salidas del período.",
+      "Usa el rango de fechas para consultar cualquier período. Por defecto muestra el día de hoy.",
+      "Filtra por tipo (Entrada/Salida) o por horario específico para ver solo las marcaciones de una clase.",
+      "Para corregir una marcación errónea, haz clic en el ícono ✏ — puedes cambiar el tipo, la fecha/hora y el horario asociado.",
+      "Exporta el listado filtrado a Excel (.xlsx) con el botón 'Exportar Excel'. El archivo incluye código, alumno, cinta, tipo, fecha, hora, horario, nota y estado.",
     ],
     tips: [
-      "El Scanner QR está disponible desde el botón del header o el sidebar.",
+      "El Scanner QR está disponible desde el botón 'Scanner' del header o el sidebar.",
       "Las marcaciones corregidas quedan marcadas como 'Corregida' con tu usuario para auditoría.",
-      "Puedes abrir el scanner en otra pantalla/tablet mientras consultas aquí.",
+      "La fecha y hora de cada marcación se registra automáticamente al escanear — no se puede adelantar ni cambiar desde el scanner.",
+      "El archivo Excel tiene headers con formato, autofiltro y está listo para imprimir o analizar.",
     ],
   },
 
@@ -75,6 +79,29 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
     tips: [
       "Configura la tolerancia de días y el interés por mora en Configuración → General.",
       "Activa los recordatorios automáticos en Configuración → Correo para ahorrar tiempo.",
+    ],
+  },
+
+  "/dashboard/schedules": {
+    title:       "Horarios de Clases",
+    emoji:       "🕐",
+    description: "Gestión de los horarios de clase del dojo y asignación de alumnos a cada turno.",
+    steps: [
+      "Cada horario aparece como una fila colapsable. Haz clic en la fila para expandirla y ver los alumnos asignados.",
+      "La fila muestra: nombre del horario, días de clase, hora, cantidad de alumnos y estado (Activo/Inactivo).",
+      "Al expandir un horario, ves la lista de alumnos con su cinta, última entrada y última salida registrada.",
+      "Usa 'Agregar alumnos' para asignar nuevos alumnos al horario. Los asignados aparecen primero en la lista.",
+      "El toggle 'Todos / Asignados / Sin asignar' filtra la lista para encontrar alumnos rápidamente.",
+      "Para quitar un alumno del horario, haz clic en el ícono ✕ junto a su nombre en la vista expandida.",
+      "Activa el check 'Disponible para clase de prueba' si quieres que ese horario aparezca como opción en el formulario de clase gratuita de tu página pública.",
+      "Edita o elimina un horario con los botones ✏ y 🗑 de la fila.",
+    ],
+    tips: [
+      "Eliminar un horario NO borra las marcaciones de asistencia de los alumnos — sus registros se conservan siempre.",
+      "Los horarios marcados como 'Prueba' (badge dorado) son los únicos que aparecen como opción en el formulario de clase gratuita de tu página web.",
+      "Si no marcas ningún horario como 'disponible para prueba', el formulario de clase gratuita no mostrará selector de horario.",
+      "La columna 'Horario actual' en el picker indica si el alumno ya está asignado a este horario, a otro, o a ninguno.",
+      "Puedes filtrar por cinta en el picker para asignar alumnos de un nivel específico a un horario.",
     ],
   },
 
@@ -328,6 +355,7 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
       "UBICACIÓN: Escribe la dirección del dojo. Aparece con un botón 'Ver en Google Maps' y otro de WhatsApp.",
       "TIENDA: Activa el toggle 'Mostrar tienda' si quieres que los productos aparezcan. Los productos se gestionan desde el menú Tienda.",
       "SECCIONES VISIBLES: Activa o desactiva: Horarios, Formulario de clase gratuita, Contacto, Tienda.",
+      "HORARIOS DE PRUEBA: Para que el formulario de clase gratuita muestre un selector de horario, ve a Horarios de Clases y activa el check 'Disponible para clase de prueba' en los horarios que ofreces para pruebas.",
       "COLOR DE ACENTO: Elige el color principal de tu marca. Aplica a botones, títulos y detalles de toda la página.",
       "Haz clic en 'Guardar cambios' y usa 'Ver vista previa' para revisar antes de compartir.",
     ],
@@ -335,7 +363,8 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
       "El botón 'Entrar' en el nav de la página pública permite a tus alumnos y usuarios acceder a su portal exclusivo.",
       "El WhatsApp, email, teléfono e Instagram se configuran en Configuración → General.",
       "Los horarios de la página pública son los creados en el módulo Horarios del dashboard.",
-      "Las solicitudes de clase gratuita llegan a Prospectos en el dashboard — con nombre, teléfono y horario sugerido.",
+      "Las solicitudes de clase gratuita llegan a Prospectos en el dashboard — con nombre, teléfono y horario seleccionado.",
+      "El formulario de clase gratuita solo muestra los horarios marcados como 'Disponible para prueba' en el módulo Horarios de Clases.",
       "La galería tiene lightbox: los visitantes hacen clic en una foto y se abre en pantalla completa.",
       "El botón sticky 'Clase Gratuita' aparece en la parte inferior del celular para los visitantes móviles.",
       "Los testimonios muestran 5 estrellas y la foto del alumno o su inicial si no tiene foto.",
