@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight,
 } from "lucide-react";
 
-interface Schedule { id: string; name: string; days: string; startTime: string; endTime: string; description: string | null }
+interface Schedule { id: string; name: string; days: string; startTime: string; endTime: string; description: string | null; availableForTrial?: boolean }
 interface DojoPageData {
   published: boolean; heroTitle: string | null; heroSubtitle: string | null;
   heroImage: string | null; aboutText: string | null; aboutImage: string | null;
@@ -35,6 +35,7 @@ interface DojoData {
 interface TrialForm {
   childName: string; childAge: string;
   parentName: string; parentPhone: string; parentEmail: string; message: string;
+  scheduleId: string;
 }
 
 interface StoreProduct {
@@ -46,7 +47,7 @@ interface DojoOrganization {
   id: string; name: string; logoUrl: string | null;
 }
 
-const EMPTY_FORM: TrialForm = { childName: "", childAge: "", parentName: "", parentPhone: "", parentEmail: "", message: "" };
+const EMPTY_FORM: TrialForm = { childName: "", childAge: "", parentName: "", parentPhone: "", parentEmail: "", message: "", scheduleId: "" };
 
 function parseDays(raw: string): string {
   try {
@@ -224,6 +225,7 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
     finally { setSubmitting(false); }
   }
 
+  const trialSchedules = dojo.schedules.filter(s => s.availableForTrial);
   const heroTitle    = dojoPage.heroTitle    ?? dojo.name;
   const heroSubtitle = dojoPage.heroSubtitle ?? dojo.slogan ?? "Arte marcial · Disciplina · Vida";
 
@@ -785,6 +787,26 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
                       placeholder="Ej. 8" required style={{ fontSize: "16px" }}
                     />
                   </div>
+                  {trialSchedules.length > 0 && (
+                    <div className="col-span-2">
+                      <label className="text-xs font-semibold text-white/50 uppercase tracking-wider block mb-1.5">
+                        Horario de preferencia
+                      </label>
+                      <select
+                        value={form.scheduleId}
+                        onChange={e => setForm(p => ({ ...p, scheduleId: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-white/30"
+                        style={{ fontSize: "16px" }}
+                      >
+                        <option value="" className="bg-gray-900">Seleccionar horario...</option>
+                        {trialSchedules.map(s => (
+                          <option key={s.id} value={s.id} className="bg-gray-900">
+                            {s.name} — {parseDays(s.days)} — {s.startTime} a {s.endTime}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="text-xs font-semibold text-white/50 uppercase tracking-wider block mb-1.5">
                       Nombre del padre/madre *

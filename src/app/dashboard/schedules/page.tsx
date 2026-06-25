@@ -27,6 +27,7 @@ interface Schedule {
   endTime: string;
   description: string | null;
   active: boolean;
+  availableForTrial: boolean;
   _count: { attendances: number; studentSchedules: number };
   studentSchedules: StudentAssignment[];
 }
@@ -50,6 +51,7 @@ interface FormState {
   endTime: string;
   description: string;
   active: boolean;
+  availableForTrial: boolean;
   studentIds: string[];
 }
 
@@ -68,7 +70,7 @@ const ALL_DAYS = [
 /* ── Helpers ── */
 
 function emptyForm(): FormState {
-  return { name: "", days: [], startTime: "08:00", endTime: "09:00", description: "", active: true, studentIds: [] };
+  return { name: "", days: [], startTime: "08:00", endTime: "09:00", description: "", active: true, availableForTrial: false, studentIds: [] };
 }
 
 function parseDays(raw: string): string[] {
@@ -172,9 +174,10 @@ export default function SchedulesPage() {
       days:        parseDays(s.days),
       startTime:   s.startTime,
       endTime:     s.endTime,
-      description: s.description ?? "",
-      active:      s.active,
-      studentIds:  [],
+      description:       s.description ?? "",
+      active:            s.active,
+      availableForTrial: s.availableForTrial,
+      studentIds:        [],
     });
     setModal(true);
     fetch(`/api/schedules/students?scheduleId=${s.id}`)
@@ -541,6 +544,11 @@ export default function SchedulesPage() {
                     {s.active ? "Activo" : "Inactivo"}
                   </span>
 
+                  {/* Trial badge */}
+                  {s.availableForTrial && (
+                    <span className="badge-gold shrink-0 hidden sm:inline-flex">Prueba</span>
+                  )}
+
                   {/* Spacer */}
                   <span className="flex-1" />
 
@@ -734,17 +742,32 @@ export default function SchedulesPage() {
             />
           </div>
 
-          <div className="flex items-center gap-3 p-3 bg-dojo-dark rounded-lg border border-dojo-border">
-            <input
-              type="checkbox"
-              id="sch-active"
-              checked={form.active}
-              onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
-              className="w-4 h-4 accent-dojo-red"
-            />
-            <label htmlFor="sch-active" className="text-sm text-dojo-white cursor-pointer">
-              Horario activo
-            </label>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 p-3 bg-dojo-dark rounded-lg border border-dojo-border">
+              <input
+                type="checkbox"
+                id="sch-active"
+                checked={form.active}
+                onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
+                className="w-4 h-4 accent-dojo-red"
+              />
+              <label htmlFor="sch-active" className="text-sm text-dojo-white cursor-pointer">
+                Horario activo
+              </label>
+            </div>
+            <div className="flex items-center gap-3 p-3 bg-dojo-dark rounded-lg border border-dojo-border">
+              <input
+                type="checkbox"
+                id="sch-trial"
+                checked={form.availableForTrial}
+                onChange={e => setForm(f => ({ ...f, availableForTrial: e.target.checked }))}
+                className="w-4 h-4 accent-dojo-gold"
+              />
+              <label htmlFor="sch-trial" className="text-sm text-dojo-white cursor-pointer">
+                Disponible para clase de prueba
+              </label>
+              <span className="text-[11px] text-dojo-muted ml-auto">Aparece en la página pública del dojo</span>
+            </div>
           </div>
 
           {renderStudentPicker()}

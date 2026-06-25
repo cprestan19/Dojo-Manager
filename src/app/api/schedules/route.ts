@@ -67,8 +67,9 @@ export async function POST(req: NextRequest) {
         days:        JSON.stringify(body.days),
         startTime:   body.startTime,
         endTime:     body.endTime,
-        description: body.description ?? null,
-        active:      body.active ?? true,
+        description:       body.description ?? null,
+        active:            body.active ?? true,
+        availableForTrial: body.availableForTrial ?? false,
       },
       include: { _count: { select: { attendances: true } } },
     });

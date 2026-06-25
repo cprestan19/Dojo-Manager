@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       logo: true,
       schedules: {
         where:   { active: true },
-        select:  { id: true, name: true, days: true, startTime: true, endTime: true, description: true },
+        select:  { id: true, name: true, days: true, startTime: true, endTime: true, description: true, availableForTrial: true },
         orderBy: { name: "asc" },
       },
       organizations: {
