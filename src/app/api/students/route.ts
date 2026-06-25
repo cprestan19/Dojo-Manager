@@ -7,6 +7,7 @@ import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-contex
 import { CreateStudentSchema, validationError } from "@/lib/validation";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { withReadOnlyGuard } from "@/lib/billing/readOnlyGuard";
+import { formatStudentName } from "@/lib/utils";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -106,40 +107,46 @@ async function _POST(req: NextRequest) {
     if (!parsed.success) return validationError(parsed.error);
     const body = parsed.data;
 
-    const maxCodeResult = await prisma.student.aggregate({ _max: { studentCode: true } });
-    const studentCode   = (maxCodeResult._max.studentCode ?? 999) + 1;
-
     const t0      = Date.now();
-    const student = await prisma.student.create({
-      data: {
-        dojoId,
-        studentCode,
-        cardToken:           randomUUID(),
-        fullName:            body.fullName,
-        firstName:           body.firstName,
-        lastName:            body.lastName,
-        cedula:              body.cedula              ?? null,
-        fepakaId:            body.fepakaId    ? body.fepakaId.toUpperCase()    : null,
-        ryoBukaiId:          body.ryoBukaiId  ? body.ryoBukaiId.toUpperCase()  : null,
-        photo:               body.photo               ?? null,
-        birthDate:           new Date(body.birthDate),
-        gender:              body.gender,
-        nationality:         body.nationality,
-        condition:           body.condition           ?? null,
-        bloodType:           body.bloodType || null,
-        hasPrivateInsurance: body.hasPrivateInsurance ?? false,
-        insuranceName:       body.insuranceName       ?? null,
-        insuranceNumber:     body.insuranceNumber     ?? null,
-        motherName:          body.motherName          ?? null,
-        motherPhone:         body.motherPhone         ?? null,
-        motherEmail:         body.motherEmail || null,
-        fatherName:          body.fatherName          ?? null,
-        fatherPhone:         body.fatherPhone         ?? null,
-        fatherEmail:         body.fatherEmail || null,
-        address:             body.address             ?? null,
-        familyId:            body.familyId            ?? null,
-      },
-    });
+    const student = await prisma.$transaction(async (tx) => {
+      const maxCodeResult = await tx.student.aggregate({ _max: { studentCode: true } });
+      const studentCode   = (maxCodeResult._max.studentCode ?? 999) + 1;
+
+      const formattedFullName  = formatStudentName(body.fullName);
+      const formattedFirst    = formatStudentName(body.firstName);
+      const formattedLast     = formatStudentName(body.lastName);
+
+      return tx.student.create({
+        data: {
+          dojoId,
+          studentCode,
+          cardToken:           randomUUID(),
+          fullName:            formattedFullName,
+          firstName:           formattedFirst,
+          lastName:            formattedLast,
+          cedula:              body.cedula              ?? null,
+          fepakaId:            body.fepakaId    ? body.fepakaId.toUpperCase()    : null,
+          ryoBukaiId:          body.ryoBukaiId  ? body.ryoBukaiId.toUpperCase()  : null,
+          photo:               body.photo               ?? null,
+          birthDate:           new Date(body.birthDate),
+          gender:              body.gender,
+          nationality:         body.nationality,
+          condition:           body.condition           ?? null,
+          bloodType:           body.bloodType || null,
+          hasPrivateInsurance: body.hasPrivateInsurance ?? false,
+          insuranceName:       body.insuranceName       ?? null,
+          insuranceNumber:     body.insuranceNumber     ?? null,
+          motherName:          body.motherName          ?? null,
+          motherPhone:         body.motherPhone         ?? null,
+          motherEmail:         body.motherEmail || null,
+          fatherName:          body.fatherName          ?? null,
+          fatherPhone:         body.fatherPhone         ?? null,
+          fatherEmail:         body.fatherEmail || null,
+          address:             body.address             ?? null,
+          familyId:            body.familyId            ?? null,
+        },
+      });
+    }, { isolationLevel: "Serializable" });
 
     const ctx = buildAuditCtx(session, req, { startTime: t0, dojoId });
     await logAudit({

@@ -15,6 +15,25 @@ export function formatDate(date: Date | string, fmt = "dd/MM/yyyy"): string {
   return format(new Date(date), fmt, { locale: es });
 }
 
+const NAME_LOWERCASE_PARTICLES = new Set(["de", "del", "la", "las", "los", "el", "y", "e"]);
+
+export function toTitleCase(str: string): string {
+  return str
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w, i) =>
+      i > 0 && NAME_LOWERCASE_PARTICLES.has(w)
+        ? w
+        : w.charAt(0).toUpperCase() + w.slice(1),
+    )
+    .join(" ");
+}
+
+export function formatStudentName(fullName: string): string {
+  return toTitleCase(fullName.trim());
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-PA", {
     style: "currency",

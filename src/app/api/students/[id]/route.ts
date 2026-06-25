@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { deleteResource } from "@/lib/cloudinary";
+import { formatStudentName } from "@/lib/utils";
 
 // Extrae el publicId de una URL de Cloudinary para poder borrarla
 function extractCloudinaryPublicId(url: string): string | null {
@@ -97,12 +98,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
       },
     });
 
+    const rawFullName = String(body.fullName ?? (body.firstName + " " + (body.lastName ?? "")).trim());
     const student = await prisma.student.update({
       where: { id, dojoId },
       data: {
-        fullName:            String(body.fullName ?? (body.firstName + " " + (body.lastName ?? "")).trim()),
-        firstName:           body.firstName,
-        lastName:            body.lastName,
+        fullName:            formatStudentName(rawFullName),
+        firstName:           body.firstName ? formatStudentName(body.firstName) : body.firstName,
+        lastName:            body.lastName  ? formatStudentName(body.lastName)  : body.lastName,
         cedula:              body.cedula ?? null,
         fepakaId:            body.fepakaId    ? String(body.fepakaId).toUpperCase()    : null,
         ryoBukaiId:          body.ryoBukaiId  ? String(body.ryoBukaiId).toUpperCase()  : null,
@@ -216,9 +218,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   // Limpiar datos huérfanos antes del DELETE principal
   await prisma.$transaction(async (tx) => {
     // 1. TournamentEventParticipant — sin FK formal, quedarían huérfanos
-    await tx.$executeRawUnsafe(
-      `DELETE FROM tournament_event_participants WHERE student_id = $1`, id,
-    );
+    await tx.$executeRaw`DELETE FROM tournament_event_participants WHERE student_id = ${id}`;
 
     // 2. TournamentParticipant — onDelete: Restrict bloquearía el DELETE del alumno
     await tx.tournamentParticipant.deleteMany({ where: { studentId: id } });

@@ -12,6 +12,11 @@ const VARS = [
 ];
 
 export async function GET() {
+  if (process.env.NODE_ENV === "production") {
+    const allSet = VARS.every((k) => !!(process.env[k]?.trim()));
+    return NextResponse.json({ ok: allSet }, { status: allSet ? 200 : 500 });
+  }
+
   const status: Record<string, boolean> = {};
   for (const key of VARS) {
     status[key] = !!(process.env[key]?.trim());

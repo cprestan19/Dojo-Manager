@@ -17,6 +17,7 @@ import {
   VALID_BLOOD_TYPES,
 } from "@/lib/student-import";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { formatStudentName } from "@/lib/utils";
 
 type SessionUser = { role?: string; dojoId?: string | null; id?: string; email?: string };
 
@@ -69,7 +70,8 @@ export async function POST(req: NextRequest) {
   const cedulaSet = new Set(existingStudents.map(s => s.cedula!.trim()));
   const cedulaToId = new Map(existingStudents.map(s => [s.cedula!.trim(), s.id]));
 
-  // Obtener studentCode máximo
+  // Obtener studentCode máximo — se re-calcula dentro de cada transacción individual
+  // para evitar race conditions, pero usamos este valor como punto de partida optimista
   const maxCode = await prisma.student.aggregate({ _max: { studentCode: true }, where: { dojoId } });
   let nextCode  = Math.max((maxCode._max.studentCode ?? 999) + 1, 1000);
 
@@ -163,9 +165,10 @@ export async function POST(req: NextRequest) {
     const inscDate    = parseDate(getCell(row, "inscriptionDate")) ?? new Date();
     const firstNameRaw = getCell(row, "firstName");
     const lastNameRaw  = getCell(row, "lastName");
-    const parts     = fullName.trim().split(/\s+/);
-    const firstName = firstNameRaw ?? parts[0] ?? fullName.trim();
-    const lastName  = lastNameRaw  ?? parts.slice(1).join(" ") ?? "";
+    const formattedFullName = formatStudentName(fullName);
+    const parts     = formattedFullName.split(/\s+/);
+    const firstName = formatStudentName(firstNameRaw ?? parts[0] ?? formattedFullName);
+    const lastName  = formatStudentName(lastNameRaw  ?? parts.slice(1).join(" ") ?? "");
 
     // ── Modo actualización: cédula existente → actualizar campos ────────────
     if (cedulaSet.has(cedulaTrim)) {
@@ -180,7 +183,7 @@ export async function POST(req: NextRequest) {
         await prisma.student.update({
           where: { id: existingId },
           data: {
-            fullName:    fullName.trim(),
+            fullName:    formattedFullName,
             firstName,
             lastName,
             ...(birthDate  ? { birthDate }        : {}),
@@ -200,7 +203,7 @@ export async function POST(req: NextRequest) {
             ...(getCell(row, "address")     ? { address:     getCell(row, "address")     } : {}),
           },
         });
-        rows.push({ status: "created", row: physicalRow, fullName: fullName.trim(), cedula: cedulaTrim, studentCode: 0 });
+        rows.push({ status: "created", row: physicalRow, fullName: formattedFullName, cedula: cedulaTrim, studentCode: 0 });
       } catch (err) {
         rows.push({ status: "error", row: physicalRow, fullName, cedula: cedulaTrim,
           reason: `Error al actualizar: ${err instanceof Error ? err.message.slice(0, 80) : "desconocido"}` });
@@ -216,7 +219,7 @@ export async function POST(req: NextRequest) {
           data: {
             dojoId,
             studentCode,
-            fullName:    fullName.trim(),
+            fullName:    formattedFullName,
             firstName,
             lastName,
             cedula:      cedulaTrim,
@@ -271,7 +274,7 @@ export async function POST(req: NextRequest) {
       });
 
       cedulaSet.add(cedulaTrim); // evitar duplicados dentro del mismo archivo
-      rows.push({ status: "created", row: physicalRow, fullName: fullName.trim(), cedula: cedulaTrim, studentCode });
+      rows.push({ status: "created", row: physicalRow, fullName: formattedFullName, cedula: cedulaTrim, studentCode });
 
     } catch (err) {
       nextCode--; // devolver el código si falló

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { QrCode, Download } from "lucide-react";
 import QRCode from "qrcode";
+import { toTitleCase } from "@/lib/utils";
 
 interface StudentQRProps {
   studentCode: number | null;
@@ -34,10 +35,63 @@ export function StudentQR(props: StudentQRProps) {
 
   function handleDownload() {
     if (!qrUrl) return;
-    const a = document.createElement("a");
-    a.href = qrUrl;
-    a.download = `qr-${props.fullName.replace(/\s+/g, "-")}.png`;
-    a.click();
+
+    const img = new Image();
+    img.onload = () => {
+      const sidePad = 16;
+      const topPad = 16;
+      const textGap = -4;
+      const lineHeight = 18;
+      const canvasWidth = img.width + sidePad * 2;
+      const maxTextWidth = img.width;
+
+      const parts = toTitleCase(props.fullName).split(" ");
+      const mid = Math.ceil(parts.length / 2);
+      const firstLine = parts.slice(0, mid).join(" ");
+      const secondLine = parts.slice(mid).join(" ");
+      const idLine = `ID: #${props.studentCode ?? "—"}`;
+
+      const lines = secondLine ? 3 : 2;
+      const canvasHeight = topPad + img.height + textGap + lineHeight * lines + 12;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      const ctx = canvas.getContext("2d")!;
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      ctx.drawImage(img, sidePad, topPad);
+
+      ctx.fillStyle = "#0F0F1A";
+      ctx.textAlign = "center";
+
+      let fontSize = 14;
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      const longestLine = firstLine.length > secondLine.length ? firstLine : secondLine;
+      while (ctx.measureText(longestLine).width > maxTextWidth && fontSize > 9) {
+        fontSize--;
+        ctx.font = `bold ${fontSize}px sans-serif`;
+      }
+
+      let y = topPad + img.height + textGap + lineHeight;
+      ctx.fillText(firstLine, canvasWidth / 2, y, maxTextWidth);
+
+      if (secondLine) {
+        y += lineHeight;
+        ctx.fillText(secondLine, canvasWidth / 2, y, maxTextWidth);
+      }
+
+      ctx.font = `${Math.max(fontSize - 2, 9)}px sans-serif`;
+      y += lineHeight;
+      ctx.fillText(idLine, canvasWidth / 2, y, maxTextWidth);
+
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `qr-${props.fullName.replace(/\s+/g, "-")}.png`;
+      a.click();
+    };
+    img.src = qrUrl;
   }
 
   return (

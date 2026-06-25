@@ -3,6 +3,10 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export async function POST() {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not available" }, { status: 404 });
+  }
+
   try {
     // 1. Crear dojo por defecto
     const dojo = await prisma.dojo.upsert({

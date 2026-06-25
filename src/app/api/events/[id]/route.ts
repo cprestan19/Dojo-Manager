@@ -21,32 +21,37 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
-  const { id } = await params;
-  const existing = await resolveEvent(id, dojoId);
-  if (!existing) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
+  try {
+    const { id } = await params;
+    const existing = await resolveEvent(id, dojoId);
+    if (!existing) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
 
-  const { title, description, location, imageUrl, startDate, endDate } = await req.json();
+    const { title, description, location, imageUrl, startDate, endDate } = await req.json();
 
-  if (!title?.trim())
-    return NextResponse.json({ error: "El título es requerido" }, { status: 400 });
-  if (!startDate || !endDate)
-    return NextResponse.json({ error: "Las fechas son requeridas" }, { status: 400 });
-  if (new Date(endDate) <= new Date(startDate))
-    return NextResponse.json({ error: "La fecha de fin debe ser posterior al inicio" }, { status: 400 });
+    if (!title?.trim())
+      return NextResponse.json({ error: "El título es requerido" }, { status: 400 });
+    if (!startDate || !endDate)
+      return NextResponse.json({ error: "Las fechas son requeridas" }, { status: 400 });
+    if (new Date(endDate) <= new Date(startDate))
+      return NextResponse.json({ error: "La fecha de fin debe ser posterior al inicio" }, { status: 400 });
 
-  const updated = await prisma.event.update({
-    where: { id },
-    data: {
-      title:       title.trim(),
-      description: description?.trim() || null,
-      location:    location?.trim()    || null,
-      imageUrl:    imageUrl            || null,
-      startDate:   new Date(startDate),
-      endDate:     new Date(endDate),
-    },
-  });
+    const updated = await prisma.event.update({
+      where: { id },
+      data: {
+        title:       title.trim(),
+        description: description?.trim() || null,
+        location:    location?.trim()    || null,
+        imageUrl:    imageUrl            || null,
+        startDate:   new Date(startDate),
+        endDate:     new Date(endDate),
+      },
+    });
 
-  return NextResponse.json(updated);
+    return NextResponse.json(updated);
+  } catch (err) {
+    console.error("[events PUT]", err);
+    return NextResponse.json({ error: "Error al actualizar evento" }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -60,10 +65,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
-  const { id } = await params;
-  const existing = await resolveEvent(id, dojoId);
-  if (!existing) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
+  try {
+    const { id } = await params;
+    const existing = await resolveEvent(id, dojoId);
+    if (!existing) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
 
-  await prisma.event.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+    await prisma.event.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[events DELETE]", err);
+    return NextResponse.json({ error: "Error al eliminar evento" }, { status: 500 });
+  }
 }

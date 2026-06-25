@@ -163,11 +163,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     // category: la columna existe en BD (db:push OK), pero el cliente Prisma cacheado
     // puede no conocerla aún. Usamos SQL directo para no depender del servidor reiniciado.
     if (body.category !== undefined) {
-      await prisma.$executeRawUnsafe(
-        `UPDATE tournament_event_participants SET category = $1 WHERE id = $2`,
-        body.category?.trim() || null,
-        participantId,
-      );
+      const categoryVal = body.category?.trim() || null;
+      await prisma.$executeRaw`UPDATE tournament_event_participants SET category = ${categoryVal} WHERE id = ${participantId}`;
     }
 
     // ── Auditoría ────────────────────────────────────────────────────────────

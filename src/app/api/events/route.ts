@@ -43,26 +43,31 @@ export async function POST(req: NextRequest) {
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
-  const { title, description, location, imageUrl, startDate, endDate } = await req.json();
+  try {
+    const { title, description, location, imageUrl, startDate, endDate } = await req.json();
 
-  if (!title?.trim())
-    return NextResponse.json({ error: "El título es requerido" }, { status: 400 });
-  if (!startDate || !endDate)
-    return NextResponse.json({ error: "Las fechas son requeridas" }, { status: 400 });
-  if (new Date(endDate) <= new Date(startDate))
-    return NextResponse.json({ error: "La fecha de fin debe ser posterior al inicio" }, { status: 400 });
+    if (!title?.trim())
+      return NextResponse.json({ error: "El título es requerido" }, { status: 400 });
+    if (!startDate || !endDate)
+      return NextResponse.json({ error: "Las fechas son requeridas" }, { status: 400 });
+    if (new Date(endDate) <= new Date(startDate))
+      return NextResponse.json({ error: "La fecha de fin debe ser posterior al inicio" }, { status: 400 });
 
-  const event = await prisma.event.create({
-    data: {
-      dojoId,
-      title:       title.trim(),
-      description: description?.trim() || null,
-      location:    location?.trim()    || null,
-      imageUrl:    imageUrl            || null,
-      startDate:   new Date(startDate),
-      endDate:     new Date(endDate),
-    },
-  });
+    const event = await prisma.event.create({
+      data: {
+        dojoId,
+        title:       title.trim(),
+        description: description?.trim() || null,
+        location:    location?.trim()    || null,
+        imageUrl:    imageUrl            || null,
+        startDate:   new Date(startDate),
+        endDate:     new Date(endDate),
+      },
+    });
 
-  return NextResponse.json(event, { status: 201 });
+    return NextResponse.json(event, { status: 201 });
+  } catch (err) {
+    console.error("[events POST]", err);
+    return NextResponse.json({ error: "Error al crear evento" }, { status: 500 });
+  }
 }

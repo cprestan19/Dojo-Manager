@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 // Call: POST /api/dev/seed-plans  with header  x-seed-secret: dojomasterplanes2024
 // Safe to leave deployed — does nothing if plans already exist.
 
-const SECRET = "dojomasterplanes2024";
+const SECRET = process.env.SEED_PLANS_SECRET ?? "";
 
 const PLANS = [
   {

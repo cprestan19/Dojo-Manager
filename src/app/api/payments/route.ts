@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
       student: { select: { fullName: true, firstName: true, lastName: true, motherName: true, motherEmail: true, fatherName: true, fatherEmail: true } },
     },
     orderBy: { dueDate: "desc" },
+    take: 1000,
   });
 
   return NextResponse.json(payments);

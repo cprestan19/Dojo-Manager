@@ -18,22 +18,27 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (role !== "admin" && role !== "sysadmin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-  const body = await req.json();
+  try {
+    const body = await req.json();
 
-  const schedule = await prisma.schedule.update({
-    where: { id, dojoId },
-    data: {
-      name:        body.name,
-      days:        JSON.stringify(body.days),
-      startTime:   body.startTime,
-      endTime:     body.endTime,
-      description: body.description ?? null,
-      active:      body.active ?? true,
-    },
-    include: { _count: { select: { attendances: true } } },
-  });
+    const schedule = await prisma.schedule.update({
+      where: { id, dojoId },
+      data: {
+        name:        body.name,
+        days:        JSON.stringify(body.days),
+        startTime:   body.startTime,
+        endTime:     body.endTime,
+        description: body.description ?? null,
+        active:      body.active ?? true,
+      },
+      include: { _count: { select: { attendances: true } } },
+    });
 
-  return NextResponse.json(schedule);
+    return NextResponse.json(schedule);
+  } catch (err) {
+    console.error("[schedules PUT]", err);
+    return NextResponse.json({ error: "Error al actualizar horario" }, { status: 500 });
+  }
 }
 
 export async function DELETE( req: NextRequest, { params }: Params) {
@@ -47,6 +52,11 @@ export async function DELETE( req: NextRequest, { params }: Params) {
   if (role !== "admin" && role !== "sysadmin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-  await prisma.schedule.delete({ where: { id, dojoId } });
-  return NextResponse.json({ ok: true });
+  try {
+    await prisma.schedule.delete({ where: { id, dojoId } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[schedules DELETE]", err);
+    return NextResponse.json({ error: "Error al eliminar horario" }, { status: 500 });
+  }
 }

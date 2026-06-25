@@ -18,25 +18,30 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (role !== "admin" && role !== "sysadmin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-  const body = await req.json();
-  const correctedBy = session.user?.email ?? null;
+  try {
+    const body = await req.json();
+    const correctedBy = session.user?.email ?? null;
 
-  const attendance = await prisma.attendance.update({
-    where: {
-      id,
-      student: { dojoId },
-    },
-    data: {
-      type:        body.type,
-      markedAt:    body.markedAt ? new Date(body.markedAt) : undefined,
-      scheduleId:  body.scheduleId ?? null,
-      note:        body.note      ?? null,
-      corrected:   true,
-      correctedBy,
-    },
-  });
+    const attendance = await prisma.attendance.update({
+      where: {
+        id,
+        student: { dojoId },
+      },
+      data: {
+        type:        body.type,
+        markedAt:    body.markedAt ? new Date(body.markedAt) : undefined,
+        scheduleId:  body.scheduleId ?? null,
+        note:        body.note      ?? null,
+        corrected:   true,
+        correctedBy,
+      },
+    });
 
-  return NextResponse.json(attendance);
+    return NextResponse.json(attendance);
+  } catch (err) {
+    console.error("[attendance PUT]", err);
+    return NextResponse.json({ error: "Error al actualizar asistencia" }, { status: 500 });
+  }
 }
 
 export async function DELETE( req: NextRequest, { params }: Params) {
@@ -50,12 +55,17 @@ export async function DELETE( req: NextRequest, { params }: Params) {
   if (role !== "admin" && role !== "sysadmin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-  await prisma.attendance.delete({
-    where: {
-      id,
-      student: { dojoId },
-    },
-  });
+  try {
+    await prisma.attendance.delete({
+      where: {
+        id,
+        student: { dojoId },
+      },
+    });
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[attendance DELETE]", err);
+    return NextResponse.json({ error: "Error al eliminar asistencia" }, { status: 500 });
+  }
 }

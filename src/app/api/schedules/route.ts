@@ -34,20 +34,25 @@ export async function POST(req: NextRequest) {
   if (role !== "admin" && role !== "sysadmin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-  const body = await req.json();
+  try {
+    const body = await req.json();
 
-  const schedule = await prisma.schedule.create({
-    data: {
-      dojoId,
-      name:        body.name,
-      days:        JSON.stringify(body.days),
-      startTime:   body.startTime,
-      endTime:     body.endTime,
-      description: body.description ?? null,
-      active:      body.active ?? true,
-    },
-    include: { _count: { select: { attendances: true } } },
-  });
+    const schedule = await prisma.schedule.create({
+      data: {
+        dojoId,
+        name:        body.name,
+        days:        JSON.stringify(body.days),
+        startTime:   body.startTime,
+        endTime:     body.endTime,
+        description: body.description ?? null,
+        active:      body.active ?? true,
+      },
+      include: { _count: { select: { attendances: true } } },
+    });
 
-  return NextResponse.json(schedule, { status: 201 });
+    return NextResponse.json(schedule, { status: 201 });
+  } catch (err) {
+    console.error("[schedules POST]", err);
+    return NextResponse.json({ error: "Error al crear horario" }, { status: 500 });
+  }
 }
