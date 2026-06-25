@@ -46,8 +46,8 @@ function toDateTimeLocal(iso: string) {
 }
 function exportExcel(dateFrom: string, dateTo: string, typeFilter: string, scheduleFilter: string) {
   const p = new URLSearchParams();
-  if (dateFrom)                 p.set("dateFrom",    `${dateFrom}T00:00:00`);
-  if (dateTo)                   p.set("dateTo",      `${dateTo}T23:59:59`);
+  if (dateFrom)                 p.set("dateFrom",    `${dateFrom}T00:00:00-05:00`);
+  if (dateTo)                   p.set("dateTo",      `${dateTo}T23:59:59-05:00`);
   if (typeFilter !== "all")     p.set("type",         typeFilter);
   if (scheduleFilter !== "all") p.set("scheduleId",   scheduleFilter);
   window.open(`/api/attendance/export?${p}`, "_blank");
@@ -96,8 +96,8 @@ export default function AttendancePage() {
   const loadAttendances = useCallback(async () => {
     setLoading(true);
     const p = new URLSearchParams();
-    if (dateFrom)                 p.set("dateFrom",  `${dateFrom}T00:00:00`);
-    if (dateTo)                   p.set("dateTo",    `${dateTo}T23:59:59`);
+    if (dateFrom)                 p.set("dateFrom",  `${dateFrom}T00:00:00-05:00`);
+    if (dateTo)                   p.set("dateTo",    `${dateTo}T23:59:59-05:00`);
     if (typeFilter !== "all")     p.set("type",       typeFilter);
     if (scheduleFilter !== "all") p.set("scheduleId", scheduleFilter);
     const r = await fetch(`/api/attendance?${p}`);
