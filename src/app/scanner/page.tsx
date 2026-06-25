@@ -163,11 +163,37 @@ export default function ScannerPage() {
             const side = Math.floor(Math.min(w, h) * 0.72);
             return { width: side, height: side };
           },
-          disableFlip: false,
+          // Para cámara frontal desactivamos el flip interno de html5-qrcode (está
+          // roto en v2.3.8: aplica el transform pero no redibuja el frame antes de
+          // volver a escanear, por lo que los píxeles nunca cambian). En su lugar
+          // parcheamos drawImage directamente para que cada frame quede espejado.
+          disableFlip: facingMode === "user",
         },
         (decoded) => { handleScan(decoded); },
         () => { /* scan failures are normal between frames — ignore */ },
-      ).catch((err: unknown) => {
+      ).then(() => {
+        // Parche de cámara frontal: reemplaza drawImage en el canvas interno de
+        // html5-qrcode para escribir cada frame espejado horizontalmente, de modo
+        // que el decoder QR reciba la imagen en la orientación correcta.
+        if (facingMode !== "user" || cancelled) return;
+        setTimeout(() => {
+          if (cancelled) return;
+          const canvas = document.querySelector<HTMLCanvasElement>("#qr-reader canvas");
+          if (!canvas) return;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return;
+          const origDraw = ctx.drawImage.bind(ctx);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (ctx as any).drawImage = function(this: unknown, ...args: any[]) {
+            ctx.save();
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (origDraw as any)(...args);
+            ctx.restore();
+          };
+        }, 100);
+      }).catch((err: unknown) => {
         if (cancelled) return;
         const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
 
