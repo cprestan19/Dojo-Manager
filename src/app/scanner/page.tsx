@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import {
   LogIn, LogOut, QrCode, AlertTriangle, XCircle,
-  Clock, ChevronRight, ArrowLeft, ChevronDown, Search,
+  Clock, ChevronRight, ArrowLeft, ChevronDown, Search, SwitchCamera,
 } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 import Image from "next/image";
@@ -52,6 +52,7 @@ export default function ScannerPage() {
   const [manualLoading,    setManualLoading]    = useState(false);
   const [dojoInfo,      setDojoInfo]      = useState<{ name: string; logo: string | null } | null>(null);
   const [cameraError,   setCameraError]   = useState("");
+  const [facingMode,    setFacingMode]    = useState<"environment" | "user">("environment");
 
   const scannerRef      = useRef<Html5QrcodeType | null>(null);
   const isProcessingRef = useRef(false);
@@ -155,7 +156,7 @@ export default function ScannerPage() {
       scannerRef.current = qr;
 
       qr.start(
-        { facingMode: "environment" },
+        { facingMode },
         {
           fps: 10,
           qrbox: (w: number, h: number) => {
@@ -196,7 +197,7 @@ export default function ScannerPage() {
           .finally(() => { scannerRef.current = null; });
       }
     };
-  }, [view, handleScan]);
+  }, [view, handleScan, facingMode]);
 
   useEffect(() => {
     if (!result) { setCountdown(0); return; }
@@ -287,6 +288,17 @@ export default function ScannerPage() {
 
     isProcessingRef.current = false;
     setManualLoading(false);
+  }
+
+  async function toggleCamera() {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current.clear();
+      } catch { /* ignore */ }
+      scannerRef.current = null;
+    }
+    setFacingMode(prev => prev === "environment" ? "user" : "environment");
   }
 
   function goToScan(schedule: Schedule | null) {
@@ -385,7 +397,8 @@ export default function ScannerPage() {
               <>
                 <p className="text-dojo-muted text-sm leading-relaxed max-w-xs">
                   Para escanear el código QR del alumno necesitamos acceso a la
-                  <span className="text-dojo-white font-medium"> cámara trasera</span> del dispositivo.
+                  <span className="text-dojo-white font-medium"> cámara</span> del dispositivo.
+                  Puedes cambiar entre frontal y trasera una vez activa.
                 </p>
                 <p className="text-dojo-muted/60 text-xs">
                   Solo se usará para leer códigos QR — no se graba ni almacena nada.
@@ -517,6 +530,13 @@ export default function ScannerPage() {
         <p className="font-display text-dojo-white text-sm font-bold flex-1 truncate">
           {selectedSchedule?.name ?? "Marcación Libre"}
         </p>
+        <button
+          onClick={toggleCamera}
+          className="p-1.5 rounded-lg hover:bg-dojo-border transition-colors shrink-0"
+          title={facingMode === "environment" ? "Cambiar a cámara frontal" : "Cambiar a cámara trasera"}
+        >
+          <SwitchCamera size={18} className="text-dojo-muted" />
+        </button>
       </div>
 
       <div className="px-4 pt-4 pb-2 shrink-0">
