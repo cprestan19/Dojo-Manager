@@ -101,8 +101,7 @@ export default function SchedulesPage() {
   const [studError,   setStudError]   = useState("");
   const [search,      setSearch]      = useState("");
   const [beltFilter,  setBeltFilter]  = useState("");
-  const [ageMin,      setAgeMin]      = useState("");
-  const [ageMax,      setAgeMax]      = useState("");
+  const [showOnly,    setShowOnly]    = useState<"all" | "assigned" | "unassigned">("all");
 
   // Add-students modal (from expanded row)
   const [addModal,    setAddModal]    = useState<string | null>(null);
@@ -157,7 +156,7 @@ export default function SchedulesPage() {
   function openCreate() {
     setForm(emptyForm());
     setError("");
-    setSearch(""); setBeltFilter(""); setAgeMin(""); setAgeMax("");
+    setSearch(""); setBeltFilter(""); setShowOnly("all");
     setStudents([]); setStudLoading(true); setStudError("");
     setModal(true);
     loadStudents();
@@ -166,7 +165,7 @@ export default function SchedulesPage() {
   function openEdit(s: Schedule) {
     setStudents([]); setStudLoading(true); setStudError("");
     setError("");
-    setSearch(""); setBeltFilter(""); setAgeMin(""); setAgeMax("");
+    setSearch(""); setBeltFilter(""); setShowOnly("all");
     setForm({
       id:          s.id,
       name:        s.name,
@@ -194,7 +193,7 @@ export default function SchedulesPage() {
   /* ── "Add students" from expanded row ── */
 
   function openAddStudents(scheduleId: string) {
-    setSearch(""); setBeltFilter(""); setAgeMin(""); setAgeMax("");
+    setSearch(""); setBeltFilter(""); setShowOnly("all");
     setStudents([]); setStudLoading(true); setStudError("");
 
     const s = schedules.find(sc => sc.id === scheduleId);
@@ -304,18 +303,26 @@ export default function SchedulesPage() {
   }
 
   function clearFilters() {
-    setSearch(""); setBeltFilter(""); setAgeMin(""); setAgeMax("");
+    setSearch(""); setBeltFilter(""); setShowOnly("all");
   }
 
-  const hasFilters = !!(search || beltFilter || ageMin || ageMax);
+  const hasFilters = !!(search || beltFilter || showOnly !== "all");
 
   const filteredStudents = students.filter(s => {
     const name = (s.fullName || `${s.firstName} ${s.lastName}`).toLowerCase();
     if (search && !name.includes(search.toLowerCase())) return false;
     if (beltFilter && s.belt.toLowerCase() !== beltFilter.toLowerCase()) return false;
-    if (ageMin && s.age < Number(ageMin)) return false;
-    if (ageMax && s.age > Number(ageMax)) return false;
+    const isSelected = form.studentIds.includes(s.id);
+    if (showOnly === "assigned" && !isSelected) return false;
+    if (showOnly === "unassigned" && isSelected) return false;
     return true;
+  });
+
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
+    const aSelected = form.studentIds.includes(a.id) ? 0 : 1;
+    const bSelected = form.studentIds.includes(b.id) ? 0 : 1;
+    if (aSelected !== bSelected) return aSelected - bSelected;
+    return a.fullName.localeCompare(b.fullName);
   });
 
   const selectedCount = form.studentIds.length;
@@ -328,118 +335,120 @@ export default function SchedulesPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users size={15} className="text-dojo-gold" />
-            <p className="text-dojo-white text-sm font-semibold">Alumnos asignados</p>
+            <p className="text-dojo-white text-sm font-semibold">Alumnos</p>
           </div>
-          {selectedCount > 0 && (
-            <span className="text-xs bg-dojo-gold/20 text-dojo-gold px-2 py-0.5 rounded-full font-medium">
-              {selectedCount} seleccionado{selectedCount !== 1 ? "s" : ""}
-            </span>
-          )}
+          <span className="text-xs bg-dojo-gold/20 text-dojo-gold px-2 py-0.5 rounded-full font-medium">
+            {selectedCount} asignado{selectedCount !== 1 ? "s" : ""}
+          </span>
         </div>
 
-        {/* Filters */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="relative col-span-2">
+        {/* Filters: search + belt + toggle — one row */}
+        <div className="flex gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[140px]">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="form-input pl-8 py-1.5 text-sm"
+              className="form-input pl-8 py-1.5 text-sm w-full"
               placeholder="Buscar alumno..."
             />
           </div>
           <select
             value={beltFilter}
             onChange={e => setBeltFilter(e.target.value)}
-            className="form-input py-1.5 text-sm"
+            className="form-input py-1.5 text-sm w-auto min-w-[120px]"
           >
             <option value="">Todas las cintas</option>
             {BELT_COLORS.map(b => (
               <option key={b.value} value={b.value}>{b.label}</option>
             ))}
           </select>
-          <div className="flex gap-1">
-            <input
-              type="number"
-              value={ageMin}
-              onChange={e => setAgeMin(e.target.value)}
-              className="form-input py-1.5 text-sm w-full"
-              placeholder="Edad min."
-              min={0}
-            />
-            <input
-              type="number"
-              value={ageMax}
-              onChange={e => setAgeMax(e.target.value)}
-              className="form-input py-1.5 text-sm w-full"
-              placeholder="Edad max."
-              min={0}
-            />
-          </div>
+          <select
+            value={showOnly}
+            onChange={e => setShowOnly(e.target.value as "all" | "assigned" | "unassigned")}
+            className="form-input py-1.5 text-sm w-auto min-w-[120px]"
+          >
+            <option value="all">Todos</option>
+            <option value="assigned">Asignados</option>
+            <option value="unassigned">Sin asignar</option>
+          </select>
         </div>
 
-        {/* Student list */}
-        <div className="max-h-56 overflow-y-auto rounded-lg border border-dojo-border bg-dojo-darker space-y-px">
-          {studLoading && (
-            <p className="text-center text-dojo-muted text-sm py-6">Cargando alumnos...</p>
-          )}
-          {!studLoading && studError && (
-            <p className="text-center text-red-400 text-sm py-6">{studError}</p>
-          )}
-          {!studLoading && !studError && filteredStudents.length === 0 && (
-            <div className="text-center text-dojo-muted text-sm py-6 space-y-2">
-              <p>{students.length === 0 ? "No hay alumnos activos en el dojo." : "Ningún alumno coincide con los filtros."}</p>
-              {hasFilters && (
-                <button type="button" onClick={clearFilters} className="text-dojo-gold text-xs hover:underline">
-                  Limpiar filtros
-                </button>
-              )}
-            </div>
-          )}
-          {!studLoading && filteredStudents.map(st => {
-            const isSelected = form.studentIds.includes(st.id);
-            const inOther    = st.currentScheduleId !== null
-                            && st.currentScheduleId !== form.id
-                            && !isSelected;
-            const belt       = getBeltInfo(st.belt);
+        {/* Student list with header */}
+        <div className="rounded-lg border border-dojo-border bg-dojo-darker overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center gap-3 px-3 py-2 border-b border-dojo-border bg-dojo-dark/50 text-[11px] font-semibold text-dojo-muted uppercase tracking-wider">
+            <span className="w-4 shrink-0" />
+            <span className="flex-1">Alumno</span>
+            <span className="w-[120px] text-right shrink-0 hidden sm:block">Horario actual</span>
+          </div>
 
-            return (
-              <button
-                key={st.id}
-                type="button"
-                onClick={() => toggleStudent(st.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
-                  isSelected
-                    ? "bg-dojo-red/20 hover:bg-dojo-red/30"
-                    : "hover:bg-dojo-dark"
-                }`}
-              >
-                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                  isSelected ? "bg-dojo-red border-dojo-red" : "border-dojo-border bg-transparent"
-                }`}>
-                  {isSelected && <CheckCircle2 size={12} className="text-white" />}
-                </div>
-
-                <div
-                  className="w-3 h-3 rounded-full shrink-0 border border-white/20"
-                  style={{ backgroundColor: belt.hex }}
-                  title={belt.label}
-                />
-
-                <div className="flex-1 min-w-0">
-                  <p className="text-dojo-white text-sm truncate">{st.fullName}</p>
-                  <p className="text-dojo-muted text-xs">{st.age} años · {belt.label}</p>
-                </div>
-
-                {inOther && (
-                  <div className="flex items-center gap-1 text-xs text-amber-400 shrink-0">
-                    <AlertCircle size={12} />
-                    <span className="hidden sm:inline truncate max-w-[100px]">{st.currentScheduleName}</span>
-                  </div>
+          {/* Scrollable list */}
+          <div className="max-h-56 overflow-y-auto">
+            {studLoading && (
+              <p className="text-center text-dojo-muted text-sm py-6">Cargando alumnos...</p>
+            )}
+            {!studLoading && studError && (
+              <p className="text-center text-red-400 text-sm py-6">{studError}</p>
+            )}
+            {!studLoading && !studError && sortedStudents.length === 0 && (
+              <div className="text-center text-dojo-muted text-sm py-6 space-y-2">
+                <p>{students.length === 0 ? "No hay alumnos activos en el dojo." : "Ningún alumno coincide con los filtros."}</p>
+                {hasFilters && (
+                  <button type="button" onClick={clearFilters} className="text-dojo-gold text-xs hover:underline">
+                    Limpiar filtros
+                  </button>
                 )}
-              </button>
-            );
-          })}
+              </div>
+            )}
+            {!studLoading && sortedStudents.map(st => {
+              const isSelected = form.studentIds.includes(st.id);
+              const inOther    = st.currentScheduleId !== null
+                              && st.currentScheduleId !== form.id
+                              && !isSelected;
+              const belt       = getBeltInfo(st.belt);
+
+              return (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => toggleStudent(st.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors border-b border-dojo-border/30 last:border-0 ${
+                    isSelected
+                      ? "bg-dojo-red/15 hover:bg-dojo-red/25"
+                      : "hover:bg-dojo-dark"
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                    isSelected ? "bg-dojo-red border-dojo-red" : "border-dojo-border bg-transparent"
+                  }`}>
+                    {isSelected && <CheckCircle2 size={12} className="text-white" />}
+                  </div>
+
+                  <div
+                    className="w-3 h-3 rounded-full shrink-0 border border-white/20"
+                    style={{ backgroundColor: belt.hex }}
+                    title={belt.label}
+                  />
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-dojo-white text-sm truncate">{st.fullName}</p>
+                    <p className="text-dojo-muted text-[11px]">{belt.label}</p>
+                  </div>
+
+                  <div className="w-[120px] text-right shrink-0 hidden sm:block">
+                    {isSelected ? (
+                      <span className="text-[11px] text-green-400 font-medium">Este horario</span>
+                    ) : inOther ? (
+                      <span className="text-[11px] text-amber-400 truncate block">{st.currentScheduleName}</span>
+                    ) : (
+                      <span className="text-[11px] text-dojo-muted">Sin horario</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
