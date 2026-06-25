@@ -43,7 +43,8 @@ export async function GET(req: NextRequest) {
       autoRemindersEnabled: true,
       cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true,
       logo:         true,              // siempre — es URL corta de Cloudinary
-      loginBgImage: includeLoginBg,    // solo cuando Settings lo pide
+      loginBgImage:      includeLoginBg,    // solo cuando Settings lo pide
+      cardTemplateImage: includeLoginBg,    // solo cuando Settings lo pide
     },
   });
   if (!dojo) return NextResponse.json({ error: "Dojo no encontrado" }, { status: 404 });
@@ -52,8 +53,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     {
       ...dojo,
-      logo:         dojo.logo         ? (dojo.logo.startsWith("http")         ? dojo.logo         : null) : null,
-      loginBgImage: dojo.loginBgImage ? (dojo.loginBgImage.startsWith("http") ? dojo.loginBgImage : null) : null,
+      logo:              dojo.logo              ? (dojo.logo.startsWith("http")              ? dojo.logo              : null) : null,
+      loginBgImage:      dojo.loginBgImage      ? (dojo.loginBgImage.startsWith("http")      ? dojo.loginBgImage      : null) : null,
+      cardTemplateImage: dojo.cardTemplateImage ? (dojo.cardTemplateImage.startsWith("http") ? dojo.cardTemplateImage : null) : null,
     },
     { headers: { "Cache-Control": "no-store" } },
   );
@@ -98,7 +100,8 @@ export async function PUT(req: NextRequest) {
       phone:     body.phone    ?? null,
       slogan:    body.slogan   ?? null,
       logo:         body.logo         ?? null,
-      loginBgImage: "loginBgImage" in body ? (body.loginBgImage ?? null) : undefined,
+      loginBgImage:      "loginBgImage"      in body ? (body.loginBgImage      ?? null) : undefined,
+      cardTemplateImage: "cardTemplateImage" in body ? (body.cardTemplateImage ?? null) : undefined,
       reminderToleranceDays: body.reminderToleranceDays != null ? Number(body.reminderToleranceDays) : undefined,
       lateInterestPct:       body.lateInterestPct       != null ? Number(body.lateInterestPct)       : undefined,
       autoRemindersEnabled:  body.autoRemindersEnabled  != null ? Boolean(body.autoRemindersEnabled)  : undefined,

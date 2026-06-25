@@ -36,6 +36,7 @@ model Dojo {
   cardPrimaryColor   String? @map("card_primary_color")
   cardSecondaryColor String? @map("card_secondary_color")
   cardTertiaryColor  String? @map("card_tertiary_color")
+  cardTemplateImage  String? @db.Text @map("card_template_image")
 
   users           User[]
   students        Student[]

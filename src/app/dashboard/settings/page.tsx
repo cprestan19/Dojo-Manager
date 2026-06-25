@@ -50,8 +50,14 @@ export default function SettingsPage() {
   const [bgError,         setBgError]         = useState("");
   const [savingBg,        setSavingBg]        = useState(false);
   const [bgSaved,         setBgSaved]         = useState(false);
-  const fileRef   = useRef<HTMLInputElement>(null);
-  const bgFileRef = useRef<HTMLInputElement>(null);
+  const [cardTemplateImage,   setCardTemplateImage]   = useState<string | null>(null);
+  const [tplUploading,        setTplUploading]        = useState(false);
+  const [tplError,            setTplError]            = useState("");
+  const [savingTpl,           setSavingTpl]           = useState(false);
+  const [tplSaved,            setTplSaved]            = useState(false);
+  const fileRef    = useRef<HTMLInputElement>(null);
+  const bgFileRef  = useRef<HTMLInputElement>(null);
+  const tplFileRef = useRef<HTMLInputElement>(null);
 
   // Cargar lista de dojos para sysadmin + pre-seleccionar el dojo del contexto activo
   useEffect(() => {
@@ -96,6 +102,7 @@ export default function SettingsPage() {
           setCardPrimaryColor(data.cardPrimaryColor ?? "#CC0000");
           setCardSecondaryColor(data.cardSecondaryColor ?? "#000000");
           setCardTertiaryColor(data.cardTertiaryColor ?? "#D4AF37");
+          setCardTemplateImage(data.cardTemplateImage ?? null);
         }
         setLoading(false);
       });
@@ -138,6 +145,7 @@ export default function SettingsPage() {
         cardPrimaryColor,
         cardSecondaryColor,
         cardTertiaryColor,
+        cardTemplateImage,
       }),
     });
     if (res.ok) {
@@ -188,6 +196,45 @@ export default function SettingsPage() {
       setBgUploading(false);
       if (bgFileRef.current) bgFileRef.current.value = "";
     }
+  }
+
+  async function handleTplFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert("El archivo supera 5 MB"); return; }
+    setTplError(""); setTplUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file",    file);
+      fd.append("type",    "image");
+      fd.append("purpose", "card-template");
+      const res  = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok) setCardTemplateImage(data.url);
+      else        setTplError(data.error ?? "Error al subir la imagen");
+    } catch {
+      setTplError("Error de conexión al subir la imagen");
+    } finally {
+      setTplUploading(false);
+      if (tplFileRef.current) tplFileRef.current.value = "";
+    }
+  }
+
+  async function handleSaveTpl() {
+    setSavingTpl(true); setTplSaved(false);
+    const url = role === "sysadmin" && selectedId ? `/api/dojo?id=${selectedId}` : "/api/dojo";
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardTemplateImage }),
+    });
+    if (res.ok) {
+      setTplSaved(true);
+      setTimeout(() => setTplSaved(false), 3000);
+      refreshDojo();
+      router.refresh();
+    }
+    setSavingTpl(false);
   }
 
   if (loading) {
@@ -351,6 +398,67 @@ export default function SettingsPage() {
               >
                 Restablecer colores por defecto
               </button>
+            </div>
+          </div>
+
+          {/* Plantilla de fondo del carnet */}
+          <div className="card space-y-5">
+            <h2 className="text-dojo-white font-semibold text-lg border-b border-dojo-border pb-3 flex items-center gap-2">
+              <ImageIcon size={18} className="text-dojo-red" /> Plantilla de Fondo del Carnet
+            </h2>
+            <div>
+              <label className="form-label">Imagen de fondo personalizada</label>
+              <p className="text-dojo-muted text-xs mb-4">
+                Sube una imagen de fondo para el carnet de tus alumnos. El sistema coloca la foto, nombre, QR y slogan encima. Tamaño recomendado: 638 × 1009 px (formato CR80 vertical).
+              </p>
+              <div className="flex gap-6 items-start">
+                <div
+                  className="w-[96px] h-[152px] rounded-xl border-2 border-dojo-border overflow-hidden shrink-0 flex items-center justify-center"
+                  style={cardTemplateImage ? {
+                    backgroundImage: `url(${cardTemplateImage})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  } : { backgroundColor: "#0F0F1A" }}
+                >
+                  {!cardTemplateImage && (
+                    <div className="flex flex-col items-center gap-1 text-dojo-muted/40">
+                      <ImageIcon size={20} />
+                      <span className="text-[10px]">Sin plantilla</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <button
+                    onClick={() => !tplUploading && tplFileRef.current?.click()}
+                    disabled={tplUploading}
+                    className="btn-secondary flex items-center gap-2 w-full justify-center disabled:opacity-60"
+                  >
+                    {tplUploading
+                      ? <><Loader2 size={16} className="animate-spin" /> Subiendo a Cloudinary...</>
+                      : <><Upload size={16} /> Subir imagen (JPG, PNG, WEBP)</>
+                    }
+                  </button>
+                  {tplError && <p className="text-xs text-red-400">{tplError}</p>}
+                  {cardTemplateImage && !tplUploading && (
+                    <button
+                      onClick={() => setCardTemplateImage(null)}
+                      className="btn-ghost text-red-400 hover:text-red-300 flex items-center gap-2 w-full justify-center text-sm"
+                    >
+                      <Trash2 size={14} /> Eliminar plantilla
+                    </button>
+                  )}
+                  <input ref={tplFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleTplFileChange} />
+                  <p className="text-xs text-dojo-muted">Recomendado: 638 × 1009 px · Máximo 5 MB</p>
+                  <button
+                    onClick={handleSaveTpl}
+                    disabled={savingTpl}
+                    className="btn-primary flex items-center gap-2 w-full justify-center mt-2"
+                  >
+                    <Save size={15} /> {savingTpl ? "Guardando..." : "Guardar plantilla"}
+                  </button>
+                  {tplSaved && <p className="text-green-400 text-xs text-center">¡Plantilla guardada!</p>}
+                </div>
+              </div>
             </div>
           </div>
 

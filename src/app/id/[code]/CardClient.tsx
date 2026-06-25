@@ -87,6 +87,7 @@ interface CardProps {
     primaryColor: string | null;
     secondaryColor: string | null;
     tertiaryColor: string | null;
+    cardTemplateImage: string | null;
   };
   contact: { name: string | null; phone: string | null };
   qrDataUrl: string;
@@ -102,6 +103,9 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   // Todos los demás dojos (nuevos y existentes) usan el diseño actualizado:
   // sin kanji, slogan completo en el footer y acento con el tercer color.
   const isNatsuki = dojo.slug === NATSUKI_SLUG;
+
+  // Plantilla de fondo personalizada — oculta capas decorativas y superpone datos del alumno
+  const hasTemplate = !!dojo.cardTemplateImage;
 
   // Variante de layout determinística por dojo: alterna forma de foto,
   // posición del logo y orientación de las esquinas decorativas.
@@ -211,35 +215,59 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             style={{
               position: "relative",
               width: W, height: H,
-              background: BG,
+              background: hasTemplate ? undefined : BG,
               overflow: "hidden",
               fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
               borderRadius: 10,
               boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
             }}
           >
+            {/* Template background image — fills entire card when configured */}
+            {hasTemplate && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={dojo.cardTemplateImage!}
+                alt=""
+                crossOrigin="anonymous"
+                style={{
+                  position: "absolute",
+                  top: 0, left: 0,
+                  width: W, height: H,
+                  objectFit: "cover",
+                  zIndex: 0,
+                }}
+              />
+            )}
 
             {/* ── LAYER 1: Triángulos decorativos en las 4 esquinas (orientación según variante del dojo) ── */}
-            <div style={{ position: "absolute", zIndex: 1, background: RED, ...corners.tl }} />
-            <div style={{ position: "absolute", zIndex: 1, background: RED, ...corners.tr }} />
-            <div style={{ position: "absolute", zIndex: 4, background: RED, ...corners.bl }} />
-            <div style={{ position: "absolute", zIndex: 4, background: RED, ...corners.br }} />
+            {!hasTemplate && (
+              <>
+                <div style={{ position: "absolute", zIndex: 1, background: RED, ...corners.tl }} />
+                <div style={{ position: "absolute", zIndex: 1, background: RED, ...corners.tr }} />
+                <div style={{ position: "absolute", zIndex: 4, background: RED, ...corners.bl }} />
+                <div style={{ position: "absolute", zIndex: 4, background: RED, ...corners.br }} />
+              </>
+            )}
 
             {/* ── LAYER 2: Patrón de rombos gris (watermark) ───────────── */}
-            <div style={{
-              position: "absolute", left: 0, top: 520, zIndex: 2,
-              opacity: 0.18, pointerEvents: "none",
-            }}>
-              <DiamondWatermark />
-            </div>
+            {!hasTemplate && (
+              <div style={{
+                position: "absolute", left: 0, top: 520, zIndex: 2,
+                opacity: 0.18, pointerEvents: "none",
+              }}>
+                <DiamondWatermark />
+              </div>
+            )}
 
             {/* ── LAYER 3: Banner negro inferior (footer) ───────────────── */}
-            <div style={{
-              position: "absolute",
-              top: FT, left: 0, width: W, height: H - FT,
-              background: BLACK,
-              zIndex: 3,
-            }} />
+            {!hasTemplate && (
+              <div style={{
+                position: "absolute",
+                top: FT, left: 0, width: W, height: H - FT,
+                background: BLACK,
+                zIndex: 3,
+              }} />
+            )}
             {/* Texto del footer (sobre el negro, z=8) */}
             <div style={{
               position: "absolute",
@@ -255,21 +283,24 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                     fontSize: 15, fontStyle: "italic", fontWeight: 400,
                     color: "#ffffff", letterSpacing: "0.12em",
                     textTransform: "uppercase", textAlign: "center",
+                    ...(hasTemplate ? { textShadow: "0 1px 4px rgba(0,0,0,0.7)" } : {}),
                   }}>{sloganLine1}</div>
                   <div style={{
                     fontSize: 18, fontStyle: "italic", fontWeight: 700,
                     color: "#ffffff", letterSpacing: "0.10em",
                     textTransform: "uppercase", textAlign: "center",
+                    ...(hasTemplate ? { textShadow: "0 1px 4px rgba(0,0,0,0.7)" } : {}),
                   }}>{sloganLine2}</div>
                 </>
               ) : (
                 <>
-                  <div style={{ width: 50, height: 3, borderRadius: 2, background: GOLD, marginBottom: 6 }} />
+                  {!hasTemplate && <div style={{ width: 50, height: 3, borderRadius: 2, background: GOLD, marginBottom: 6 }} />}
                   <div style={{
                     fontSize: 15, fontStyle: "italic", fontWeight: 700,
                     color: "#ffffff", letterSpacing: "0.08em", lineHeight: 1.35,
                     textTransform: "uppercase", textAlign: "center",
                     padding: "0 36px", maxWidth: W - 48,
+                    ...(hasTemplate ? { textShadow: "0 1px 4px rgba(0,0,0,0.7)" } : {}),
                   }}>{sloganText}</div>
                 </>
               )}
@@ -350,9 +381,10 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               zIndex: 7, textAlign: "center",
             }}>
               <div style={{
-                fontSize: 38, fontWeight: 800, color: BLACK,
+                fontSize: 38, fontWeight: 800, color: hasTemplate ? "#ffffff" : BLACK,
                 letterSpacing: "0.5px", lineHeight: 1.1,
                 textTransform: "uppercase", wordBreak: "break-word",
+                ...(hasTemplate ? { textShadow: "0 1px 4px rgba(0,0,0,0.7)" } : {}),
               }}>
                 {student.fullName}
               </div>
