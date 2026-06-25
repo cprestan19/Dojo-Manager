@@ -731,16 +731,16 @@ export default function ScannerPage() {
 
             {result.student && (
               <div className="flex flex-col items-center gap-4 py-6">
-                <div className="w-28 h-28 md:w-56 md:h-56 lg:w-64 lg:h-64 rounded-2xl overflow-hidden bg-dojo-border flex items-center justify-center shadow-lg">
+                <div className="w-28 h-28 md:w-80 md:h-80 lg:w-96 lg:h-96 rounded-2xl overflow-hidden bg-dojo-border flex items-center justify-center shadow-lg">
                   {result.student.photo ? (
                     <Image
                       src={result.student.photo} alt="foto"
-                      width={256} height={256}
+                      width={384} height={384}
                       className="object-cover w-full h-full"
                       unoptimized
                     />
                   ) : (
-                    <span className="font-display text-4xl md:text-7xl font-bold text-dojo-gold">
+                    <span className="font-display text-4xl md:text-8xl lg:text-9xl font-bold text-dojo-gold">
                       {result.student.fullName.split(" ").slice(0,2).map(w => w[0]).join("")}
                     </span>
                   )}
