@@ -25,7 +25,7 @@ export function StudentQR(props: StudentQRProps) {
     if (!props.cardToken) return;
     let cancelled = false;
     QRCode.toDataURL(buildQRText(props), {
-      width: 200,
+      width: 300,
       margin: 2,
       color: { dark: "#0F0F1A", light: "#FFFFFF" },
       errorCorrectionLevel: "M",

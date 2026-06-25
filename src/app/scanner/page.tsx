@@ -109,6 +109,10 @@ export default function ScannerPage() {
 
       if (scanRes.status === 404) {
         setResult({ type: "error", message: "Este ID no existe" });
+        fetch("/api/scanner-log", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event: "QR_NOT_FOUND", message: `ID: ${resolvedId.slice(0, 30)}`, context: `raw: ${decodedText.slice(0, 60)}` }),
+        }).catch(() => {});
       } else if (scanData.code === "NOT_ASSIGNED") {
         setResult({ type: "not_assigned", student: scanData.student });
       } else if (!scanRes.ok) {
@@ -121,6 +125,7 @@ export default function ScannerPage() {
             studentId:  scanData.id,
             type:       currentMode,
             scheduleId: currentSchedule?.id ?? null,
+            source:     "qr",
           }),
         });
         const attData = await attRes.json();
@@ -150,10 +155,9 @@ export default function ScannerPage() {
       scannerRef.current = qr;
 
       qr.start(
-        { facingMode: "environment" },   // rear camera (cámara trasera)
+        { facingMode: "environment" },
         {
           fps: 10,
-          // Responsive qrbox: 70% of the smaller dimension
           qrbox: (w: number, h: number) => {
             const side = Math.floor(Math.min(w, h) * 0.72);
             return { width: side, height: side };
@@ -165,14 +169,17 @@ export default function ScannerPage() {
       ).catch((err: unknown) => {
         if (cancelled) return;
         const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-        console.error("[scanner] Camera start failed:", msg);
+
+        fetch("/api/scanner-log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event: "CAMERA_FAILED", message: msg.slice(0, 200), context: navigator.userAgent.slice(0, 200) }),
+        }).catch(() => {});
 
         if (msg.includes("dismissed")) {
-          // El usuario cerró el diálogo sin aceptar — solo hay que volver e intentar de nuevo
           setCameraError("Toca «Activar Cámara» y acepta el permiso cuando el navegador lo solicite.");
           setView("cameraReady");
         } else if (msg.includes("permission") || msg.includes("notallowed") || msg.includes("not allowed")) {
-          // Permiso bloqueado en la configuración del navegador
           setCameraError("Permisos de cámara denegados. Actívalos en la configuración del navegador.");
         } else {
           setCameraError("No se pudo iniciar la cámara. Verifica que el navegador tenga acceso.");
@@ -263,7 +270,7 @@ export default function ScannerPage() {
         const attRes  = await fetch("/api/attendance", {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ studentId: scanData.id, type: currentMode, scheduleId: currentSchedule?.id ?? null }),
+          body:    JSON.stringify({ studentId: scanData.id, type: currentMode, scheduleId: currentSchedule?.id ?? null, source: "manual" }),
         });
         const attData = await attRes.json();
         setResult({

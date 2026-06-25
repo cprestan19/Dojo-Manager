@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
     // ── Parse & validate body ────────────────────────────────
-    let body: { studentId?: unknown; type?: unknown; scheduleId?: unknown; note?: unknown };
+    let body: { studentId?: unknown; type?: unknown; scheduleId?: unknown; note?: unknown; source?: unknown };
     try {
       body = await req.json();
     } catch {
@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
     const type       = typeof body.type      === "string" ? body.type.trim()       : null;
     const scheduleId = typeof body.scheduleId === "string" ? body.scheduleId.trim() : null;
     const note       = typeof body.note       === "string" ? body.note.trim()       : null;
+    const source     = body.source === "qr" || body.source === "manual" ? body.source : null;
 
     if (!studentId) return NextResponse.json({ error: "studentId requerido" }, { status: 400 });
     if (!type || !VALID_TYPES.has(type))
@@ -170,7 +171,7 @@ export async function POST(req: NextRequest) {
       resourceId:   attendance.id,
       targetId:     student.id,
       statusCode:   201,
-      details:      JSON.stringify({ studentName: student.fullName, type, scheduleId: scheduleId || null }),
+      details:      JSON.stringify({ studentName: student.fullName, type, scheduleId: scheduleId || null, source: source || "unknown" }),
     });
 
     return NextResponse.json({ ok: true, attendance, student: studentOut }, { status: 201 });
