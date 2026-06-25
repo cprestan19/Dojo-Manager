@@ -34,64 +34,81 @@ export function StudentQR(props: StudentQRProps) {
   }, [props.cardToken]);
 
   function handleDownload() {
-    if (!qrUrl) return;
+    if (!props.cardToken) return;
 
-    const img = new Image();
-    img.onload = () => {
-      const sidePad = 16;
-      const topPad = 16;
-      const textGap = -4;
-      const lineHeight = 18;
-      const canvasWidth = img.width + sidePad * 2;
-      const maxTextWidth = img.width;
+    // Generar QR en alta resolución exclusivamente para la descarga
+    QRCode.toDataURL(buildQRText(props), {
+      width: 800,
+      margin: 2,
+      color: { dark: "#0F0F1A", light: "#FFFFFF" },
+      errorCorrectionLevel: "M",
+    }).then((hiResUrl) => {
+      const img = new Image();
+      img.onload = () => {
+        // Escala 3× → canvas físico de ~2400×2800 px (≈300 DPI al imprimir a 8cm)
+        const SCALE = 3;
+        const qrLogical = 400;   // tamaño lógico del QR en el canvas
+        const sidePad = 24;
+        const topPad = 24;
+        const textGap = 12;
+        const lineHeight = 30;
+        const maxTextWidth = qrLogical;
+        const logicalWidth = qrLogical + sidePad * 2;
 
-      const parts = toTitleCase(props.fullName).split(" ");
-      const mid = Math.ceil(parts.length / 2);
-      const firstLine = parts.slice(0, mid).join(" ");
-      const secondLine = parts.slice(mid).join(" ");
-      const idLine = `ID: #${props.studentCode ?? "—"}`;
+        const parts = toTitleCase(props.fullName).split(" ");
+        const mid = Math.ceil(parts.length / 2);
+        const firstLine = parts.slice(0, mid).join(" ");
+        const secondLine = parts.slice(mid).join(" ");
+        const idLine = `ID: #${props.studentCode ?? "—"}`;
 
-      const lines = secondLine ? 3 : 2;
-      const canvasHeight = topPad + img.height + textGap + lineHeight * lines + 12;
+        const textLines = secondLine ? 3 : 2;
+        const logicalHeight = topPad + qrLogical + textGap + lineHeight * textLines + 24;
 
-      const canvas = document.createElement("canvas");
-      canvas.width = canvasWidth;
-      canvas.height = canvasHeight;
-      const ctx = canvas.getContext("2d")!;
+        const canvas = document.createElement("canvas");
+        canvas.width = logicalWidth * SCALE;
+        canvas.height = logicalHeight * SCALE;
+        const ctx = canvas.getContext("2d")!;
 
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-      ctx.drawImage(img, sidePad, topPad);
+        // Todas las instrucciones de dibujo usan coordenadas lógicas;
+        // ctx.scale las amplifica al tamaño físico real del canvas.
+        ctx.scale(SCALE, SCALE);
 
-      ctx.fillStyle = "#0F0F1A";
-      ctx.textAlign = "center";
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, logicalWidth, logicalHeight);
 
-      let fontSize = 14;
-      ctx.font = `bold ${fontSize}px sans-serif`;
-      const longestLine = firstLine.length > secondLine.length ? firstLine : secondLine;
-      while (ctx.measureText(longestLine).width > maxTextWidth && fontSize > 9) {
-        fontSize--;
+        // QR centrado
+        ctx.drawImage(img, sidePad, topPad, qrLogical, qrLogical);
+
+        ctx.fillStyle = "#0F0F1A";
+        ctx.textAlign = "center";
+
+        let fontSize = 22;
         ctx.font = `bold ${fontSize}px sans-serif`;
-      }
+        const longestLine = firstLine.length >= secondLine.length ? firstLine : secondLine;
+        while (ctx.measureText(longestLine).width > maxTextWidth && fontSize > 14) {
+          fontSize--;
+          ctx.font = `bold ${fontSize}px sans-serif`;
+        }
 
-      let y = topPad + img.height + textGap + lineHeight;
-      ctx.fillText(firstLine, canvasWidth / 2, y, maxTextWidth);
+        let y = topPad + qrLogical + textGap + lineHeight;
+        ctx.fillText(firstLine, logicalWidth / 2, y, maxTextWidth);
 
-      if (secondLine) {
+        if (secondLine) {
+          y += lineHeight;
+          ctx.fillText(secondLine, logicalWidth / 2, y, maxTextWidth);
+        }
+
+        ctx.font = `${Math.max(fontSize - 3, 14)}px sans-serif`;
         y += lineHeight;
-        ctx.fillText(secondLine, canvasWidth / 2, y, maxTextWidth);
-      }
+        ctx.fillText(idLine, logicalWidth / 2, y, maxTextWidth);
 
-      ctx.font = `${Math.max(fontSize - 2, 9)}px sans-serif`;
-      y += lineHeight;
-      ctx.fillText(idLine, canvasWidth / 2, y, maxTextWidth);
-
-      const a = document.createElement("a");
-      a.href = canvas.toDataURL("image/png");
-      a.download = `qr-${props.fullName.replace(/\s+/g, "-")}.png`;
-      a.click();
-    };
-    img.src = qrUrl;
+        const a = document.createElement("a");
+        a.href = canvas.toDataURL("image/png");
+        a.download = `qr-${props.fullName.replace(/\s+/g, "-")}.png`;
+        a.click();
+      };
+      img.src = hiResUrl;
+    });
   }
 
   return (

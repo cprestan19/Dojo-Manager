@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const schedules = await prisma.schedule.findMany({
     where: { dojoId },
     include: {
-      _count: { select: { attendances: true, studentSchedules: true } },
+      _count: { select: { attendances: true, studentSchedules: { where: { removedAt: null } } } },
       studentSchedules: {
         where: { removedAt: null },
         select: {

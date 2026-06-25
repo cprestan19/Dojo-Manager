@@ -110,7 +110,7 @@ export default function SchedulesPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const r = await fetch("/api/schedules");
+    const r = await fetch("/api/schedules", { cache: "no-store" });
     if (r.ok) {
       const data: Schedule[] = await r.json();
       setSchedules(data);
@@ -177,17 +177,13 @@ export default function SchedulesPage() {
       description:       s.description ?? "",
       active:            s.active,
       availableForTrial: s.availableForTrial,
-      studentIds:        [],
+      studentIds:        s.studentSchedules.map(ss => ss.student.id),
     });
     setModal(true);
     fetch(`/api/schedules/students?scheduleId=${s.id}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then((data: StudentInfo[]) => {
         setStudents(data);
-        const selected = data
-          .filter(st => st.currentScheduleId === s.id)
-          .map(st => st.id);
-        setForm(f => ({ ...f, studentIds: selected }));
       })
       .catch(() => setStudError("No se pudieron cargar los alumnos."))
       .finally(() => setStudLoading(false));
