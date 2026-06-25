@@ -21,11 +21,15 @@ function getChartColors(): ChartColors {
 }
 const darkColors: ChartColors = { primary: "#C0392B", grid: "rgba(255,255,255,0.06)", axis: "#8892A4", tooltipBg: "#1A1A2E", tooltipBorder: "rgba(255,255,255,0.12)" };
 
+interface ScheduleBreakdown { name: string; count: number; }
 interface DayData {
-  day:   string;
-  pct:   number;
-  count: number;
-  date:  string;
+  day:       string;
+  pct:       number;
+  count:     number;
+  entries:   number;
+  exits:     number;
+  date:      string;
+  schedules: ScheduleBreakdown[];
 }
 interface WeekData {
   days:        DayData[];
@@ -38,11 +42,24 @@ function CustomTooltip({ active, payload, label, colors }: TooltipProps<number, 
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="rounded-xl px-4 py-2.5 shadow-xl text-center"
+    <div className="rounded-xl px-4 py-3 shadow-xl min-w-[160px]"
       style={{ background: colors.tooltipBg, border: `1px solid ${colors.tooltipBorder}` }}>
-      <p className="font-semibold text-sm" style={{ color: colors.axis }}>{label}</p>
-      <p className="text-2xl font-bold" style={{ color: colors.primary }}>{d.pct}%</p>
-      <p className="text-xs" style={{ color: colors.axis }}>{d.count} alumnos</p>
+      <p className="font-semibold text-sm text-center mb-1.5" style={{ color: colors.axis }}>{label}</p>
+      <p className="text-2xl font-bold text-center" style={{ color: colors.primary }}>{d.pct}%</p>
+      <div className="flex justify-center gap-4 mt-1.5 text-xs" style={{ color: colors.axis }}>
+        <span className="text-green-400">{d.entries} entradas</span>
+        <span className="text-red-400">{d.exits} salidas</span>
+      </div>
+      {d.schedules.length > 0 && (
+        <div className="mt-2 pt-2 space-y-0.5" style={{ borderTop: `1px solid ${colors.tooltipBorder}` }}>
+          {d.schedules.map(s => (
+            <div key={s.name} className="flex justify-between gap-3 text-xs" style={{ color: colors.axis }}>
+              <span className="truncate max-w-[120px]">{s.name}</span>
+              <span className="font-bold" style={{ color: colors.primary }}>{s.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

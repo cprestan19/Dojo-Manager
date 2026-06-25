@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   ClipboardList, Search, Filter, Edit2, Trash2,
-  Save, X, AlertTriangle, LogIn, LogOut, Clock,
+  Save, X, AlertTriangle, LogIn, LogOut, Clock, FileSpreadsheet,
 } from "lucide-react";
 import Link from "next/link";
 import { BeltBadge } from "@/components/ui/BeltBadge";
@@ -40,22 +40,13 @@ function toDateTimeLocal(iso: string) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-function exportCSV(rows: Attendance[]) {
-  const header = ["Alumno","Tipo","Fecha/Hora","Horario","Nota","Corregida"];
-  const lines = rows.map(a => [
-    `"${a.student.fullName}"`,
-    `"${a.type === "entry" ? "Entrada" : "Salida"}"`,
-    `"${formatDateTime(a.markedAt)}"`,
-    `"${a.schedule?.name ?? ""}"`,
-    `"${a.note ?? ""}"`,
-    `"${a.corrected ? "Sí" : "No"}"`,
-  ].join(","));
-  const csv = [header.join(","), ...lines].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href = url; a.download = `asistencia-${todayStr()}.csv`; a.click();
-  URL.revokeObjectURL(url);
+function exportExcel(dateFrom: string, dateTo: string, typeFilter: string, scheduleFilter: string) {
+  const p = new URLSearchParams();
+  if (dateFrom)                 p.set("dateFrom",    `${dateFrom}T00:00:00`);
+  if (dateTo)                   p.set("dateTo",      `${dateTo}T23:59:59`);
+  if (typeFilter !== "all")     p.set("type",         typeFilter);
+  if (scheduleFilter !== "all") p.set("scheduleId",   scheduleFilter);
+  window.open(`/api/attendance/export?${p}`, "_blank");
 }
 
 function StudentAvatar({ student }: { student: AttendanceStudent }) {
@@ -166,9 +157,9 @@ export default function AttendancePage() {
           <a href="/scanner" target="_blank" rel="noopener noreferrer" className="btn-primary text-xs sm:text-sm py-1.5 px-3">
             <LogIn size={14} /> <span className="hidden sm:inline">Abrir </span>Scanner
           </a>
-          <button onClick={() => exportCSV(filtered)} disabled={filtered.length === 0}
+          <button onClick={() => exportExcel(dateFrom, dateTo, typeFilter, scheduleFilter)} disabled={filtered.length === 0}
             className="btn-secondary text-xs sm:text-sm py-1.5 px-3 disabled:opacity-40">
-            <ClipboardList size={14} /> <span className="hidden sm:inline">Exportar CSV</span>
+            <FileSpreadsheet size={14} /> <span className="hidden sm:inline">Exportar Excel</span>
           </button>
         </div>
       </div>
