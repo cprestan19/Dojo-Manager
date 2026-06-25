@@ -10,8 +10,10 @@ interface AttendanceRow {
 
 export default function PortalAttendancePage() {
   const now      = new Date();
-  const defFrom  = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-  const defTo    = now.toISOString().split("T")[0];
+  const pad      = (n: number) => String(n).padStart(2, "0");
+  const localDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const defFrom  = localDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  const defTo    = localDate(now);
 
   const [from,    setFrom]    = useState(defFrom);
   const [to,      setTo]      = useState(defTo);

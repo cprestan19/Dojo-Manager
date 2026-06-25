@@ -753,8 +753,10 @@ export default function StudentDetailPage() {
   const [accessLoading,   setAccessLoading]   = useState(false);
   const [accessResult,    setAccessResult]    = useState<{ email: string; tempPassword: string; emailSent: boolean; emailError: string | null } | null>(null);
 
-  const defaultFrom = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
-  const defaultTo   = new Date().toISOString().split("T")[0];
+  const _pad = (n: number) => String(n).padStart(2, "0");
+  const _ld  = (d: Date) => `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`;
+  const defaultFrom = _ld(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const defaultTo   = _ld(new Date());
   const [attFrom,     setAttFrom]   = useState(defaultFrom);
   const [attTo,       setAttTo]     = useState(defaultTo);
   const [attList,     setAttList]   = useState<{ id: string; type: string; markedAt: string; schedule: { name: string } | null; corrected: boolean }[]>([]);

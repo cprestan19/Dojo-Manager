@@ -24,7 +24,11 @@ interface CorrectionForm {
   id: string; type: string; markedAt: string; scheduleId: string; note: string;
 }
 
-function todayStr() { return new Date().toISOString().split("T")[0]; }
+function todayStr() {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("es-PA", { dateStyle: "short", timeStyle: "short" });
