@@ -26,20 +26,20 @@ export async function GET(req: NextRequest) {
 
   const now = new Date();
 
-  const [newEvents, newVideos] = await Promise.all([
-    // New upcoming events created after `since`
+  const [newEvents, newVideos, newSchedules, pendingPayments] = await Promise.all([
+    // Eventos próximos creados después de `since`
     prisma.event.findMany({
       where: {
         dojoId:    student.dojoId,
         createdAt: { gte: since },
-        endDate:   { gte: now },   // still active
+        endDate:   { gte: now },
       },
       orderBy: { startDate: "asc" },
       select: { id: true, title: true, startDate: true, createdAt: true },
       take: 10,
     }),
 
-    // New belt videos added after `since`
+    // Videos de cinta activos agregados después de `since`
     prisma.beltVideo.findMany({
       where: {
         dojoId:    student.dojoId,
@@ -50,13 +50,33 @@ export async function GET(req: NextRequest) {
       select: { id: true, title: true, beltColor: true, createdAt: true },
       take: 10,
     }),
+
+    // Horarios asignados al alumno después de `since`
+    prisma.studentSchedule.count({
+      where: {
+        studentId: user.studentId!,
+        removedAt: null,
+        assignedAt: { gte: since },
+      },
+    }),
+
+    // Pagos pendientes o en mora (persistente — sin límite de fecha)
+    prisma.payment.count({
+      where: {
+        studentId: user.studentId!,
+        status:    { in: ["pending", "late"] },
+      },
+    }),
   ]);
 
   return NextResponse.json({
-    newEvents:  newEvents.length,
-    newVideos:  newVideos.length,
-    total:      newEvents.length + newVideos.length,
-    events:     newEvents,
-    videos:     newVideos,
+    newEvents:       newEvents.length,
+    newVideos:       newVideos.length,
+    newSchedules,
+    pendingPayments,
+    // total = contenido nuevo descartable (no incluye pagos pendientes)
+    total:           newEvents.length + newVideos.length + newSchedules,
+    events:          newEvents,
+    videos:          newVideos,
   });
 }

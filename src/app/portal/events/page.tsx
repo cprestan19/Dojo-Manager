@@ -273,7 +273,7 @@ export default function PortalEventsPage() {
   const isPast = tab === "past";
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5 px-4 py-5">
+    <div className="space-y-5">
 
       {/* Header */}
       <div className="flex items-center gap-2">

@@ -24,9 +24,9 @@ export default async function PortalLayout({ children }: { children: React.React
   if (!student) redirect("/login");
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-dojo-darker">
+    <div className="min-h-[100dvh] w-full flex flex-col bg-dojo-darker overflow-x-hidden">
       <PortalNav student={student} />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-x-hidden overflow-y-auto min-w-0">
         <div className="max-w-2xl mx-auto px-4 py-6">
           {children}
         </div>

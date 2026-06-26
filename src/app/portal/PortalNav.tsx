@@ -18,9 +18,11 @@ interface Props {
 }
 
 interface PortalNotifications {
-  total:      number;
-  newEvents:  number;
-  newVideos:  number;
+  total:           number;
+  newEvents:       number;
+  newVideos:       number;
+  newSchedules:    number;
+  pendingPayments: number;
   events:     { id: string; title: string; startDate: string }[];
   videos:     { id: string; title: string; beltColor: string }[];
 }
@@ -68,9 +70,12 @@ export default function PortalNav({ student }: Props) {
     fetch(`/api/portal/notifications?since=${encodeURIComponent(since)}`)
       .then(r => r.ok ? r.json() : null)
       .then((data: PortalNotifications | null) => {
-        if (data && data.total > 0) {
+        if (data) {
           setNotifs(data);
-          setShowAlert(true);
+          // El banner aparece si hay contenido nuevo O pagos pendientes
+          if (data.total > 0 || data.pendingPayments > 0) {
+            setShowAlert(true);
+          }
         }
       })
       .catch(() => null);
@@ -86,9 +91,13 @@ export default function PortalNav({ student }: Props) {
     setDismissed(true);
   }
 
-  // When navigating to events/videos tab, mark as seen for that section
+  // Al navegar a las secciones con contenido nuevo, marcar como visto
   useEffect(() => {
-    if (pathname === "/portal/events" || pathname === "/portal/videos") {
+    if (
+      pathname === "/portal/events"    ||
+      pathname === "/portal/videos"    ||
+      pathname === "/portal/schedules"
+    ) {
       localStorage.setItem(STORAGE_KEY, new Date().toISOString());
       setShowAlert(false);
     }
@@ -98,11 +107,15 @@ export default function PortalNav({ student }: Props) {
     ...BASE_TABS.map(t => ({
       ...t,
       badge: hasLive && t.href === "/portal/live" ? true : false,
+      // Punto dorado — contenido nuevo descartable
       notif:
-        (t.href === "/portal/events" && (notifs?.newEvents ?? 0) > 0 && !dismissed) ||
-        (t.href === "/portal/videos" && (notifs?.newVideos ?? 0) > 0 && !dismissed),
+        (t.href === "/portal/events"    && (notifs?.newEvents    ?? 0) > 0 && !dismissed) ||
+        (t.href === "/portal/videos"    && (notifs?.newVideos    ?? 0) > 0 && !dismissed) ||
+        (t.href === "/portal/schedules" && (notifs?.newSchedules ?? 0) > 0 && !dismissed),
+      // Punto naranja — pagos pendientes (persistente, no se descarta)
+      warn: t.href === "/portal/payments" && (notifs?.pendingPayments ?? 0) > 0,
     })),
-    { href: "/portal/live", label: "En Vivo", icon: Radio, badge: hasLive, notif: false },
+    { href: "/portal/live", label: "En Vivo", icon: Radio, badge: hasLive, notif: false, warn: false },
   ];
 
   return (
@@ -139,20 +152,31 @@ export default function PortalNav({ student }: Props) {
         </div>
       </header>
 
-      {/* ── Alerta de novedades ───────────────────────────────────── */}
-      {showAlert && notifs && notifs.total > 0 && (
-        <div className="bg-dojo-dark border-b border-dojo-gold/30 px-4 py-2.5 flex items-start gap-3 shrink-0">
-          <Bell size={15} className="text-dojo-gold shrink-0 mt-0.5" />
+      {/* ── Alerta de novedades y pagos ──────────────────────────── */}
+      {showAlert && notifs && (notifs.total > 0 || notifs.pendingPayments > 0) && (
+        <div className={`border-b px-4 py-2.5 flex items-start gap-3 shrink-0 ${
+          notifs.pendingPayments > 0 && notifs.total === 0
+            ? "bg-orange-950/40 border-orange-500/30"
+            : "bg-dojo-dark border-dojo-gold/30"
+        }`}>
+          <Bell size={15} className={`shrink-0 mt-0.5 ${notifs.pendingPayments > 0 && notifs.total === 0 ? "text-orange-400" : "text-dojo-gold"}`} />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-dojo-gold leading-tight">
-              {notifs.total === 1
-                ? "Hay 1 novedad nueva de tu dojo"
-                : `Hay ${notifs.total} novedades nuevas de tu dojo`}
+            <p className={`text-xs font-semibold leading-tight ${notifs.pendingPayments > 0 && notifs.total === 0 ? "text-orange-300" : "text-dojo-gold"}`}>
+              {notifs.total === 0
+                ? `Tienes ${notifs.pendingPayments} pago${notifs.pendingPayments !== 1 ? "s" : ""} pendiente${notifs.pendingPayments !== 1 ? "s" : ""}`
+                : notifs.pendingPayments > 0
+                  ? "Tienes novedades y pagos pendientes"
+                  : notifs.total === 1
+                    ? "Hay 1 novedad nueva de tu dojo"
+                    : `Hay ${notifs.total} novedades nuevas de tu dojo`
+              }
             </p>
             <p className="text-[11px] text-dojo-muted mt-0.5 leading-tight">
               {[
-                notifs.newEvents > 0 && `${notifs.newEvents} evento${notifs.newEvents > 1 ? "s" : ""} nuevo${notifs.newEvents > 1 ? "s" : ""}`,
-                notifs.newVideos > 0 && `${notifs.newVideos} video${notifs.newVideos > 1 ? "s" : ""} nuevo${notifs.newVideos > 1 ? "s" : ""}`,
+                notifs.newEvents       > 0 && `${notifs.newEvents} evento${notifs.newEvents !== 1 ? "s" : ""} nuevo${notifs.newEvents !== 1 ? "s" : ""}`,
+                notifs.newVideos       > 0 && `${notifs.newVideos} video${notifs.newVideos !== 1 ? "s" : ""} nuevo${notifs.newVideos !== 1 ? "s" : ""}`,
+                notifs.newSchedules    > 0 && `${notifs.newSchedules} horario${notifs.newSchedules !== 1 ? "s" : ""} asignado${notifs.newSchedules !== 1 ? "s" : ""}`,
+                notifs.pendingPayments > 0 && `${notifs.pendingPayments} pago${notifs.pendingPayments !== 1 ? "s" : ""} pendiente${notifs.pendingPayments !== 1 ? "s" : ""}`,
               ].filter(Boolean).join(" · ")}
             </p>
           </div>
@@ -174,6 +198,7 @@ export default function PortalNav({ student }: Props) {
             const active = pathname === t.href || pathname.startsWith(t.href + "/");
             const hasRed = "badge" in t ? t.badge : false;
             const hasGold = "notif" in t ? t.notif : false;
+            const hasWarn = "warn" in t ? (t as { warn: boolean }).warn : false;
             return (
               <Link
                 key={t.href}
@@ -190,9 +215,13 @@ export default function PortalNav({ student }: Props) {
                   {hasRed && (
                     <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                   )}
-                  {/* Punto dorado — contenido nuevo del sensei */}
+                  {/* Punto dorado — contenido nuevo (eventos, videos, horarios) */}
                   {!hasRed && hasGold && (
                     <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-dojo-gold animate-pulse" />
+                  )}
+                  {/* Punto naranja — pagos pendientes (persistente) */}
+                  {!hasRed && !hasGold && hasWarn && (
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
                   )}
                 </span>
                 {t.label}
