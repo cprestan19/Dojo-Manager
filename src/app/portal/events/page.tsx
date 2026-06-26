@@ -2,6 +2,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { Calendar, MapPin, Clock, CalendarCheck, History, CheckCircle2, X, Users, Loader2 } from "lucide-react";
 
+interface FamilyMemberRsvp {
+  studentId: string;
+  fullName:  string;
+  isMe:      boolean;
+  status:    "attending" | "not_attending" | null;
+}
+
 interface DojoEvent {
   id:             string;
   title:          string;
@@ -10,7 +17,7 @@ interface DojoEvent {
   imageUrl:       string | null;
   startDate:      string;
   endDate:        string;
-  myRsvp:         "attending" | "not_attending" | null;
+  memberRsvps:    FamilyMemberRsvp[];
   attendingCount: number;
 }
 
@@ -30,32 +37,125 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: "America/Panama" });
 }
 
-// ── RSVP Banner — top of card, full-width, eye-catching ─────────────────────
+// ── Fila de RSVP por miembro de familia ──────────────────────────────────────
+
+function MemberRsvpRow({ member, loading, onRsvp }: {
+  member:  FamilyMemberRsvp;
+  loading: string | null;
+  onRsvp:  (status: "attending" | "not_attending") => void;
+}) {
+  const busyAttend    = loading === `${member.studentId}:attending`;
+  const busyDecline   = loading === `${member.studentId}:not_attending`;
+  const busy          = busyAttend || busyDecline;
+
+  return (
+    <div className="flex items-center justify-between gap-2 px-4 py-2.5">
+      <div className="flex items-center gap-2 min-w-0">
+        {member.status === "attending"     && <CheckCircle2 size={14} className="text-green-400 shrink-0" />}
+        {member.status === "not_attending" && <X            size={14} className="text-red-400   shrink-0" />}
+        {member.status === null            && <div className="w-3.5 h-3.5 rounded-full border border-dojo-muted/50 shrink-0" />}
+        <span className="text-sm text-dojo-white truncate">
+          {member.fullName}
+          {member.isMe && <span className="text-dojo-muted text-xs ml-1">(yo)</span>}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        {member.status !== "attending" && (
+          <button
+            type="button"
+            onClick={() => onRsvp("attending")}
+            disabled={busy}
+            className="text-xs px-2.5 py-1 rounded-lg bg-green-900/30 text-green-400 hover:bg-green-900/50 transition-colors disabled:opacity-40 font-semibold"
+          >
+            {busyAttend ? <Loader2 size={10} className="animate-spin inline" /> : "Participaré"}
+          </button>
+        )}
+        {member.status === "attending" && (
+          <span className="text-xs text-green-300 font-semibold">Confirmado</span>
+        )}
+        {member.status !== "not_attending" && (
+          <button
+            type="button"
+            onClick={() => onRsvp("not_attending")}
+            disabled={busy}
+            className="text-xs px-2.5 py-1 rounded-lg bg-red-900/20 text-red-400 hover:bg-red-900/40 transition-colors disabled:opacity-40 font-semibold"
+          >
+            {busyDecline ? <Loader2 size={10} className="animate-spin inline" /> : "No iré"}
+          </button>
+        )}
+        {member.status === "not_attending" && (
+          <span className="text-xs text-red-400 font-semibold">No irá</span>
+        )}
+        {(member.status === "attending" || member.status === "not_attending") && (
+          <button
+            type="button"
+            onClick={() => onRsvp(member.status === "attending" ? "not_attending" : "attending")}
+            disabled={busy}
+            className="text-[11px] text-dojo-muted hover:text-dojo-white transition-colors underline underline-offset-2 disabled:opacity-40"
+          >
+            {busy ? <Loader2 size={9} className="animate-spin inline" /> : "Cambiar"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Banner RSVP principal ────────────────────────────────────────────────────
 
 function RsvpBanner({ event, onUpdate }: {
   event:    DojoEvent;
-  onUpdate: (eventId: string, newStatus: "attending" | "not_attending", count: number) => void;
+  onUpdate: (eventId: string, studentId: string, newStatus: "attending" | "not_attending", count: number) => void;
 }) {
-  const [loading, setLoading] = useState<"attending" | "not_attending" | null>(null);
+  const [loading, setLoading] = useState<string | null>(null); // `${studentId}:${status}`
 
-  async function rsvp(newStatus: "attending" | "not_attending") {
-    setLoading(newStatus);
+  async function rsvp(studentId: string, newStatus: "attending" | "not_attending") {
+    setLoading(`${studentId}:${newStatus}`);
     try {
       const res = await fetch("/api/portal/events", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ eventId: event.id, status: newStatus }),
+        body:    JSON.stringify({ eventId: event.id, status: newStatus, studentId }),
       });
       if (res.ok) {
         const data = await res.json() as { attendingCount: number };
-        onUpdate(event.id, newStatus, data.attendingCount);
+        onUpdate(event.id, studentId, newStatus, data.attendingCount);
       }
     } catch { /* ignore */ }
     finally { setLoading(null); }
   }
 
-  // ── Estado: confirmado ───────────────────────────────────────────────────────
-  if (event.myRsvp === "attending") {
+  const isFamily = event.memberRsvps.length > 1;
+
+  // ── Vista familia: una fila por miembro ─────────────────────────────────────
+  if (isFamily) {
+    return (
+      <div className="border-b border-dojo-border">
+        <div className="px-4 pt-3 pb-1.5 flex items-center gap-1.5">
+          <Users size={12} className="text-dojo-muted" />
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-dojo-muted">Familia</span>
+        </div>
+        <div className="divide-y divide-dojo-border/40 pb-1">
+          {event.memberRsvps.map(m => (
+            <MemberRsvpRow
+              key={m.studentId}
+              member={m}
+              loading={loading}
+              onRsvp={(status) => void rsvp(m.studentId, status)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Vista individual (no familia): 3 estados ─────────────────────────────────
+  const member  = event.memberRsvps[0];
+  if (!member) return null;
+  const myStatus = member.status;
+
+  if (myStatus === "attending") {
     return (
       <div className="bg-green-600/20 border-b border-green-600/30 px-4 py-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -71,18 +171,17 @@ function RsvpBanner({ event, onUpdate }: {
         </div>
         <button
           type="button"
-          onClick={() => void rsvp("not_attending")}
+          onClick={() => void rsvp(member.studentId, "not_attending")}
           disabled={loading !== null}
           className="text-[11px] text-green-400/60 hover:text-red-400 transition-colors underline underline-offset-2 shrink-0 disabled:opacity-40"
         >
-          {loading === "not_attending" ? <Loader2 size={12} className="animate-spin inline" /> : "No asistiré"}
+          {loading ? <Loader2 size={12} className="animate-spin inline" /> : "No asistiré"}
         </button>
       </div>
     );
   }
 
-  // ── Estado: declinado ────────────────────────────────────────────────────────
-  if (event.myRsvp === "not_attending") {
+  if (myStatus === "not_attending") {
     return (
       <div className="bg-red-900/15 border-b border-red-900/25 px-4 py-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -91,27 +190,27 @@ function RsvpBanner({ event, onUpdate }: {
         </div>
         <button
           type="button"
-          onClick={() => void rsvp("attending")}
+          onClick={() => void rsvp(member.studentId, "attending")}
           disabled={loading !== null}
           className="text-[11px] text-red-400/60 hover:text-green-400 transition-colors underline underline-offset-2 shrink-0 disabled:opacity-40"
         >
-          {loading === "attending" ? <Loader2 size={12} className="animate-spin inline" /> : "Cambiar"}
+          {loading ? <Loader2 size={12} className="animate-spin inline" /> : "Cambiar"}
         </button>
       </div>
     );
   }
 
-  // ── Estado: sin respuesta — dos botones ──────────────────────────────────────
+  // Sin respuesta: dos botones
   return (
     <div className="flex border-b border-dojo-border">
       <button
         type="button"
-        onClick={() => void rsvp("attending")}
+        onClick={() => void rsvp(member.studentId, "attending")}
         disabled={loading !== null}
         className="relative flex-1 flex items-center justify-center gap-2 px-3 py-4 bg-gradient-to-r from-red-600 via-dojo-red to-red-700 hover:from-red-500 hover:via-red-600 hover:to-red-700 active:scale-[0.99] transition-all disabled:opacity-60 group overflow-hidden"
       >
         <span className="pointer-events-none absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        {loading === "attending"
+        {loading === `${member.studentId}:attending`
           ? <Loader2 size={18} className="animate-spin text-white" />
           : <CalendarCheck size={18} className="text-white group-hover:scale-110 transition-transform" />
         }
@@ -129,11 +228,11 @@ function RsvpBanner({ event, onUpdate }: {
 
       <button
         type="button"
-        onClick={() => void rsvp("not_attending")}
+        onClick={() => void rsvp(member.studentId, "not_attending")}
         disabled={loading !== null}
         className="flex-1 flex items-center justify-center gap-2 px-3 py-4 bg-dojo-dark hover:bg-dojo-border/40 active:scale-[0.99] transition-all disabled:opacity-60"
       >
-        {loading === "not_attending"
+        {loading === `${member.studentId}:not_attending`
           ? <Loader2 size={16} className="animate-spin text-dojo-muted" />
           : <X size={16} className="text-dojo-muted" />
         }
@@ -143,7 +242,7 @@ function RsvpBanner({ event, onUpdate }: {
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// ── Página principal ─────────────────────────────────────────────────────────
 
 export default function PortalEventsPage() {
   const [tab,     setTab]    = useState<Tab>("active");
@@ -159,11 +258,15 @@ export default function PortalEventsPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  function handleRsvpUpdate(eventId: string, newStatus: "attending" | "not_attending", count: number) {
+  function handleRsvpUpdate(eventId: string, studentId: string, newStatus: "attending" | "not_attending", count: number) {
     setEvents(prev => prev.map(ev =>
-      ev.id === eventId
-        ? { ...ev, myRsvp: newStatus, attendingCount: count }
-        : ev,
+      ev.id !== eventId ? ev : {
+        ...ev,
+        attendingCount: count,
+        memberRsvps: ev.memberRsvps.map(m =>
+          m.studentId === studentId ? { ...m, status: newStatus } : m,
+        ),
+      },
     ));
   }
 
@@ -216,7 +319,7 @@ export default function PortalEventsPage() {
           {events.map(ev => (
             <div key={ev.id} className="card p-0 overflow-hidden">
 
-              {/* Banner RSVP — arriba de todo, llama la atención */}
+              {/* Banner RSVP */}
               {!isPast && (
                 <RsvpBanner event={ev} onUpdate={handleRsvpUpdate} />
               )}
@@ -227,17 +330,11 @@ export default function PortalEventsPage() {
               )}
 
               <div className="p-4 space-y-3">
-                {/* Título + badge estado */}
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <h2 className="font-display font-bold text-dojo-white text-lg leading-tight">{ev.title}</h2>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {isPast && (
-                      <span className="badge-yellow text-xs shrink-0">Finalizado</span>
-                    )}
-                  </div>
+                  {isPast && <span className="badge-yellow text-xs shrink-0">Finalizado</span>}
                 </div>
 
-                {/* Fecha */}
                 <div className="flex flex-wrap gap-3 text-sm">
                   <span className="flex items-center gap-1.5 text-dojo-muted">
                     <Clock size={14} className="text-dojo-red shrink-0" />
@@ -248,7 +345,6 @@ export default function PortalEventsPage() {
                   </span>
                 </div>
 
-                {/* Lugar */}
                 {ev.location && (
                   <div className="flex items-center gap-1.5 text-sm text-dojo-muted">
                     <MapPin size={14} className="text-dojo-red shrink-0" />
@@ -256,22 +352,38 @@ export default function PortalEventsPage() {
                   </div>
                 )}
 
-                {/* Descripción */}
                 {ev.description && (
                   <p className="text-sm text-dojo-muted leading-relaxed border-t border-dojo-border/40 pt-3">
                     {ev.description}
                   </p>
                 )}
 
-                {/* Historial: respuesta del alumno */}
-                {isPast && ev.myRsvp === "attending" && (
-                  <div className="flex items-center gap-1.5 text-xs text-green-400/70 pt-2 border-t border-dojo-border/40">
-                    <CheckCircle2 size={11} /> Confirmaste tu participación
-                  </div>
-                )}
-                {isPast && ev.myRsvp === "not_attending" && (
-                  <div className="flex items-center gap-1.5 text-xs text-red-400/70 pt-2 border-t border-dojo-border/40">
-                    <X size={11} /> Indicaste que no participarías
+                {/* Historial: respuesta(s) del alumno / familia */}
+                {isPast && ev.memberRsvps.some(m => m.status !== null) && (
+                  <div className="pt-2 border-t border-dojo-border/40 space-y-1">
+                    {ev.memberRsvps.length === 1 ? (
+                      ev.memberRsvps[0].status === "attending" ? (
+                        <div className="flex items-center gap-1.5 text-xs text-green-400/70">
+                          <CheckCircle2 size={11} /> Confirmaste tu participación
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-xs text-red-400/70">
+                          <X size={11} /> Indicaste que no participarías
+                        </div>
+                      )
+                    ) : (
+                      ev.memberRsvps.filter(m => m.status !== null).map(m => (
+                        <div key={m.studentId} className={`flex items-center gap-1.5 text-xs ${
+                          m.status === "attending" ? "text-green-400/70" : "text-red-400/70"
+                        }`}>
+                          {m.status === "attending"
+                            ? <CheckCircle2 size={11} />
+                            : <X            size={11} />
+                          }
+                          {m.fullName}{m.isMe ? " (yo)" : ""}
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>

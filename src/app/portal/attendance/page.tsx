@@ -1,33 +1,69 @@
 "use client";
-import { useState, useCallback } from "react";
-import { ClipboardList, LogIn, LogOut, Search } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { ClipboardList, LogIn, LogOut, Search, Users } from "lucide-react";
+
+interface FamilyMember { id: string; fullName: string; isMe: boolean; }
 
 interface AttendanceRow {
   id: string; type: string; markedAt: string;
+  student:  { id: string; fullName: string };
   schedule: { name: string } | null;
   corrected: boolean;
 }
 
-export default function PortalAttendancePage() {
-  const now      = new Date();
-  const pad      = (n: number) => String(n).padStart(2, "0");
-  const localDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const defFrom  = localDate(new Date(now.getFullYear(), now.getMonth(), 1));
-  const defTo    = localDate(now);
+const TZ = "America/Panama";
 
-  const [from,    setFrom]    = useState(defFrom);
-  const [to,      setTo]      = useState(defTo);
-  const [rows,    setRows]    = useState<AttendanceRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loaded,  setLoaded]  = useState(false);
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("es-PA", { timeZone: TZ });
+}
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+}
+
+export default function PortalAttendancePage() {
+  const now       = new Date();
+  const pad       = (n: number) => String(n).padStart(2, "0");
+  const localDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const defFrom   = localDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  const defTo     = localDate(now);
+
+  const [from,             setFrom]            = useState(defFrom);
+  const [to,               setTo]              = useState(defTo);
+  const [rows,             setRows]            = useState<AttendanceRow[]>([]);
+  const [loading,          setLoading]         = useState(false);
+  const [loaded,           setLoaded]          = useState(false);
+  const [familyMembers,    setFamilyMembers]   = useState<FamilyMember[]>([]);
+  const [selectedId,       setSelectedId]      = useState<string>("");
+
+  // Cargar familia al montar — solo muestra selector si hay 2+ miembros
+  useEffect(() => {
+    fetch("/api/portal/family")
+      .then(r => r.ok ? r.json() : [])
+      .then((members: FamilyMember[]) => {
+        setFamilyMembers(members);
+        if (members.length > 1) {
+          const me = members.find(m => m.isMe);
+          if (me) setSelectedId(me.id);
+        }
+      })
+      .catch(() => { /* sin familia, comportamiento normal */ });
+  }, []);
+
+  const isFamily = familyMembers.length > 1;
 
   const load = useCallback(async () => {
     setLoading(true);
-    const r = await fetch(`/api/portal/attendance?dateFrom=${from}T00:00:00-05:00&dateTo=${to}T23:59:59-05:00`);
+    const p = new URLSearchParams();
+    p.set("dateFrom", `${from}T00:00:00-05:00`);
+    p.set("dateTo",   `${to}T23:59:59-05:00`);
+    if (isFamily && selectedId) p.set("studentId", selectedId);
+    const r = await fetch(`/api/portal/attendance?${p}`);
     if (r.ok) setRows(await r.json());
     setLoading(false);
     setLoaded(true);
-  }, [from, to]);
+  }, [from, to, selectedId, isFamily]);
+
+  const showStudentName = isFamily && selectedId === "all";
 
   const entries = rows.filter(r => r.type === "entry").length;
   const exits   = rows.filter(r => r.type === "exit").length;
@@ -36,7 +72,31 @@ export default function PortalAttendancePage() {
     <div className="space-y-5">
       <h1 className="font-display text-xl font-bold text-dojo-white">Mi Asistencia</h1>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+
+        {/* Selector de alumno — solo cuando hay familia */}
+        {isFamily && (
+          <div className="w-full space-y-1">
+            <label className="form-label text-xs flex items-center gap-1.5">
+              <Users size={12} /> Alumno
+            </label>
+            <select
+              value={selectedId}
+              onChange={e => setSelectedId(e.target.value)}
+              className="form-input"
+              style={{ fontSize: "16px" }}
+            >
+              <option value="all">Todos</option>
+              {familyMembers.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.fullName}{m.isMe ? " (yo)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="flex-1 space-y-1">
           <label className="form-label text-xs">Desde</label>
           <input type="date" value={from} onChange={e => setFrom(e.target.value)} className="form-input" style={{ fontSize: "16px" }} />
@@ -56,9 +116,9 @@ export default function PortalAttendancePage() {
         <>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Total",    value: rows.length, color: "text-dojo-white"  },
-              { label: "Entradas", value: entries,     color: "text-green-400"   },
-              { label: "Salidas",  value: exits,       color: "text-red-400"     },
+              { label: "Total",    value: rows.length, color: "text-dojo-white" },
+              { label: "Entradas", value: entries,     color: "text-green-400"  },
+              { label: "Salidas",  value: exits,       color: "text-red-400"    },
             ].map(s => (
               <div key={s.label} className="card text-center">
                 <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -87,11 +147,14 @@ export default function PortalAttendancePage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-dojo-white">
-                        {new Date(a.markedAt).toLocaleDateString("es-PA", { timeZone: "America/Panama" })}
-                        {" · "}
-                        {new Date(a.markedAt).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: "America/Panama" })}
+                        {fmtDate(a.markedAt)} · {fmtTime(a.markedAt)}
                       </p>
-                      {a.schedule && <p className="text-xs text-dojo-muted truncate">{a.schedule.name}</p>}
+                      <p className="text-xs text-dojo-muted truncate">
+                        {showStudentName && (
+                          <span className="font-semibold text-dojo-white/70">{a.student.fullName}{" · "}</span>
+                        )}
+                        {a.schedule?.name}
+                      </p>
                     </div>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                       a.type === "entry" ? "text-green-400 bg-green-900/30" : "text-red-400 bg-red-900/30"

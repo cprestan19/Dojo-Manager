@@ -5,6 +5,23 @@ import prisma from "@/lib/prisma";
 
 type PortalUser = { role?: string; studentId?: string | null };
 
+async function resolveFamily(studentId: string) {
+  const me = await prisma.student.findUnique({
+    where:  { id: studentId },
+    select: { id: true, fullName: true, familyId: true, dojoId: true },
+  });
+  if (!me) return null;
+
+  if (!me.familyId) return { me, dojoId: me.dojoId, members: [{ id: me.id, fullName: me.fullName }] };
+
+  const members = await prisma.student.findMany({
+    where:   { familyId: me.familyId, dojoId: me.dojoId, active: true },
+    select:  { id: true, fullName: true },
+    orderBy: { fullName: "asc" },
+  });
+  return { me, dojoId: me.dojoId, members };
+}
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -13,31 +30,30 @@ export async function GET(req: NextRequest) {
   if (user.role !== "student" || !user.studentId)
     return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
 
-  const student = await prisma.student.findUnique({
-    where:  { id: user.studentId },
-    select: { dojoId: true },
-  });
-  if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+  const family = await resolveFamily(user.studentId);
+  if (!family) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+
+  const { me, dojoId, members } = family;
+  const memberIds = members.map(m => m.id);
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") ?? "active";
   const now    = new Date();
 
   const baseWhere = {
-    dojoId:  student.dojoId,
+    dojoId,
     endDate: status === "active" ? { gte: now } : { lt: now },
   };
   const baseOrder = { startDate: status === "active" ? ("asc" as const) : ("desc" as const) };
 
   try {
-    // Try with RSVP data first
     const events = await prisma.event.findMany({
       where:   baseWhere,
       orderBy: baseOrder,
       include: {
         rsvps: {
-          where:  { studentId: user.studentId! },
-          select: { status: true },
+          where:  { studentId: { in: memberIds } },
+          select: { studentId: true, status: true },
         },
         _count: { select: { rsvps: { where: { status: "attending" } } } },
       },
@@ -51,17 +67,19 @@ export async function GET(req: NextRequest) {
       imageUrl:       ev.imageUrl,
       startDate:      ev.startDate,
       endDate:        ev.endDate,
-      myRsvp:         ev.rsvps[0]?.status ?? null,
       attendingCount: ev._count.rsvps,
+      memberRsvps:    members.map(m => ({
+        studentId: m.id,
+        fullName:  m.fullName,
+        isMe:      m.id === me.id,
+        status:    (ev.rsvps.find(r => r.studentId === m.id)?.status ?? null) as "attending" | "not_attending" | null,
+      })),
     }));
 
     return NextResponse.json(result);
   } catch {
-    // Fallback: return events without RSVP (e.g. Prisma client not yet regenerated)
-    const events = await prisma.event.findMany({
-      where:   baseWhere,
-      orderBy: baseOrder,
-    });
+    // Fallback: sin datos de RSVP (cliente Prisma no regenerado)
+    const events = await prisma.event.findMany({ where: baseWhere, orderBy: baseOrder });
     const result = events.map(ev => ({
       id:             ev.id,
       title:          ev.title,
@@ -70,14 +88,14 @@ export async function GET(req: NextRequest) {
       imageUrl:       ev.imageUrl,
       startDate:      ev.startDate,
       endDate:        ev.endDate,
-      myRsvp:         null,
       attendingCount: 0,
+      memberRsvps:    members.map(m => ({ studentId: m.id, fullName: m.fullName, isMe: m.id === me.id, status: null as null })),
     }));
     return NextResponse.json(result);
   }
 }
 
-// POST — alumno confirma o cancela su participación
+// POST — alumno o familiar confirma / cancela participación
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -87,34 +105,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
 
   try {
-    const { eventId, status: rsvpStatus, note } = await req.json() as {
-      eventId: string;
-      status:  "attending" | "not_attending";
-      note?:   string;
+    const { eventId, status: rsvpStatus, studentId: targetId, note } = await req.json() as {
+      eventId:    string;
+      status:     "attending" | "not_attending";
+      studentId?: string;
+      note?:      string;
     };
 
     if (!eventId) return NextResponse.json({ error: "eventId requerido" }, { status: 400 });
     if (!["attending", "not_attending"].includes(rsvpStatus))
       return NextResponse.json({ error: "status inválido" }, { status: 400 });
 
-    // Verify event belongs to student's dojo
-    const student = await prisma.student.findUnique({
-      where:  { id: user.studentId },
-      select: { dojoId: true },
-    });
-    if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+    const family = await resolveFamily(user.studentId);
+    if (!family) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+
+    // Validar que el targetId es el alumno en sesión o un miembro de su familia
+    const rsvpStudentId = targetId ?? user.studentId;
+    const isMember = family.members.some(m => m.id === rsvpStudentId);
+    if (!isMember) return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+
     const event = await prisma.event.findFirst({
-      where: { id: eventId, dojoId: student.dojoId },
+      where: { id: eventId, dojoId: family.dojoId },
     });
     if (!event) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
 
     const rsvp = await prisma.eventRSVP.upsert({
-      where:  { eventId_studentId: { eventId, studentId: user.studentId } },
-      create: { eventId, studentId: user.studentId!, status: rsvpStatus, note: note ?? null },
+      where:  { eventId_studentId: { eventId, studentId: rsvpStudentId } },
+      create: { eventId, studentId: rsvpStudentId, status: rsvpStatus, note: note ?? null },
       update: { status: rsvpStatus, note: note ?? null },
     });
 
-    // Return updated count
     const attendingCount = await prisma.eventRSVP.count({
       where: { eventId, status: "attending" },
     });
