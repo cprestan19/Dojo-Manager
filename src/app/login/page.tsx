@@ -63,10 +63,10 @@ function LoginForm() {
       {bgImage && (
         <>
           <div
-            className="absolute inset-0 z-0 block lg:hidden"
+            className="absolute inset-0 z-0 block md:hidden"
             style={{ backgroundImage: `url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
           />
-          <div className="absolute inset-0 bg-black/55 z-0 block lg:hidden" />
+          <div className="absolute inset-0 bg-black/55 z-0 block md:hidden" />
         </>
       )}
 
