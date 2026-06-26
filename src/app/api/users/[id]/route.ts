@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { UpdateUserSchema, validationError } from "@/lib/validation";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null; id?: string; email?: string };
@@ -47,7 +48,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
     if (body.role               !== undefined) data.role               = body.role;
     if (body.active             !== undefined) data.active             = body.active;
-    if (body.photo              !== undefined) data.photo              = body.photo ?? null;
+    if (body.photo !== undefined) {
+      data.photo = body.photo ?? null;
+      // Borrar foto anterior de Cloudinary si se reemplaza o elimina
+      if (body.photo !== target.photo && target.photo) {
+        const pid = extractCloudinaryPublicId(target.photo);
+        if (pid) deleteResource(pid).catch(() => {});
+      }
+    }
     if (body.mustChangePassword !== undefined) data.mustChangePassword = body.mustChangePassword;
 
     const passwordChanged = !!body.password;
@@ -134,6 +142,12 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     }
 
     await prisma.user.delete({ where: { id } });
+
+    // Borrar foto de Cloudinary fuera de la transacción (no bloquea si falla)
+    if (target.photo) {
+      const pid = extractCloudinaryPublicId(target.photo);
+      if (pid) deleteResource(pid).catch(() => {});
+    }
 
     const ctx2 = buildAuditCtx(session, req, { dojoId: dojoId ?? target.dojoId });
     await logAudit({

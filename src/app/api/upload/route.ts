@@ -47,11 +47,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Archivo demasiado grande (máx ${maxBytes / 1024 / 1024} MB)` }, { status: 400 });
 
   const scope  = dojoId ?? "global";
-  const subfolder = purpose === "student-photo" ? "students"
-    : purpose === "belt-video"                  ? "belt-videos"
-    : purpose === "dojo-logo"                   ? "logos"
-    : purpose === "login-bg"                    ? "login-backgrounds"
-    :                                             "users";
+  const subfolder = purpose === "student-photo"   ? "students"
+    : purpose === "belt-video"                    ? "belt-videos"
+    : purpose === "dojo-logo"                     ? "logos"
+    : purpose === "login-bg"                      ? "login-backgrounds"
+    : purpose === "card-template"                 ? "card-templates"
+    : purpose === "event-image"                   ? "events"
+    :                                               "users";
   const folder = `dojo-manager/${scope}/${subfolder}`;
 
   try {

@@ -10,6 +10,7 @@ import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/queries";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -87,6 +88,27 @@ export async function PUT(req: NextRequest) {
   for (const key of ["cardPrimaryColor", "cardSecondaryColor", "cardTertiaryColor"] as const) {
     if (body[key] != null && !HEX_COLOR_RE.test(body[key])) {
       return NextResponse.json({ error: `${key} debe ser un color hexadecimal válido (#RRGGBB)` }, { status: 400 });
+    }
+  }
+
+  // Borrar imágenes antiguas de Cloudinary cuando se reemplazan o eliminan
+  const IMAGE_FIELDS = ["logo", "loginBgImage", "cardTemplateImage"] as const;
+  const hasImageChange = IMAGE_FIELDS.some(f => f in body);
+  if (hasImageChange) {
+    const current = await prisma.dojo.findUnique({
+      where:  { id: targetId },
+      select: { logo: true, loginBgImage: true, cardTemplateImage: true },
+    });
+    if (current) {
+      const toDelete: string[] = [];
+      for (const field of IMAGE_FIELDS) {
+        if (field in body && body[field] !== current[field]) {
+          const pid = extractCloudinaryPublicId(current[field]);
+          if (pid) toDelete.push(pid);
+        }
+      }
+      if (toDelete.length > 0)
+        Promise.all(toDelete.map(pid => deleteResource(pid).catch(() => {})));
     }
   }
 
