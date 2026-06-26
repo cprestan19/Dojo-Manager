@@ -252,7 +252,7 @@ export default function LandingPage() {
             <span style={{ fontWeight:900, fontSize:18, letterSpacing:".02em" }}>Dojo Master</span>
           </div>
 
-          <div style={{ display:"flex", gap:36, fontSize:14 }} className="hidden md:flex">
+          <div style={{ gap:36, fontSize:14 }} className="hidden md:flex">
             {(es
               ? [["Funciones","#funciones"],["Planes","#planes"],["Preguntas","#faq"]]
               : [["Features","#funciones"],["Pricing","#planes"],["FAQ","#faq"]]
@@ -263,7 +263,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <div style={{ display:"flex", alignItems:"center", gap:12 }} className="hidden md:flex">
+          <div style={{ alignItems:"center", gap:12 }} className="hidden md:flex">
             <button onClick={()=>setLang(l=>l==="es"?"en":"es")}
               style={{ padding:"6px 14px", borderRadius:100, border:"1px solid rgba(255,255,255,.1)",
                 fontSize:12, fontWeight:700, color:"rgba(255,255,255,.5)", cursor:"pointer",
@@ -282,9 +282,20 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <button onClick={()=>setNavOpen(o=>!o)} style={{ padding:8, background:"transparent", border:"none", color:"rgba(255,255,255,.7)", cursor:"pointer" }} className="md:hidden">
-            {navOpen ? <X size={20}/> : <Menu size={20}/>}
-          </button>
+          {/* Mobile: login visible + hamburger */}
+          <div style={{ display:"flex", alignItems:"center", gap:8 }} className="md:hidden">
+            <Link href="/login" style={{
+              fontSize:13, fontWeight:700, color:"rgba(255,255,255,.75)",
+              padding:"7px 14px", borderRadius:100,
+              border:"1px solid rgba(255,255,255,.15)",
+              whiteSpace:"nowrap",
+            }}>
+              {es?"Entrar":"Login"}
+            </Link>
+            <button onClick={()=>setNavOpen(o=>!o)} style={{ padding:8, background:"transparent", border:"none", color:"rgba(255,255,255,.7)", cursor:"pointer" }}>
+              {navOpen ? <X size={20}/> : <Menu size={20}/>}
+            </button>
+          </div>
         </div>
 
         {navOpen && (
