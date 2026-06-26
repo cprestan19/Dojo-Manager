@@ -33,9 +33,6 @@ export default function SettingsPage() {
   const [logo,          setLogo]          = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError,     setLogoError]     = useState("");
-  const [cardPrimaryColor,   setCardPrimaryColor]   = useState("#CC0000");
-  const [cardSecondaryColor, setCardSecondaryColor] = useState("#000000");
-  const [cardTertiaryColor,  setCardTertiaryColor]  = useState("#D4AF37");
   const [saving,        setSaving]        = useState(false);
   const [saved,         setSaved]         = useState(false);
   const [loading,       setLoading]       = useState(true);
@@ -99,9 +96,6 @@ export default function SettingsPage() {
           setAutoRemindersEnabled(data.autoRemindersEnabled ?? false);
           setLoginBgImage(data.loginBgImage ?? null);
           setLocale(data.locale ?? "es");
-          setCardPrimaryColor(data.cardPrimaryColor ?? "#CC0000");
-          setCardSecondaryColor(data.cardSecondaryColor ?? "#000000");
-          setCardTertiaryColor(data.cardTertiaryColor ?? "#D4AF37");
           setCardTemplateImage(data.cardTemplateImage ?? null);
         }
         setLoading(false);
@@ -142,9 +136,6 @@ export default function SettingsPage() {
         lateInterestPct:       interestPct,
         autoRemindersEnabled,
         locale,
-        cardPrimaryColor,
-        cardSecondaryColor,
-        cardTertiaryColor,
         cardTemplateImage,
       }),
     });
@@ -347,58 +338,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Colores del carnet digital */}
-            <div className="space-y-3 pt-2 border-t border-dojo-border">
-              <label className="form-label">Colores del Carnet Digital</label>
-              <p className="text-dojo-muted text-xs">
-                Se usan en el carnet de identificación de los alumnos (/id). Cada dojo puede tener su propia paleta.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <span className="text-xs text-dojo-muted">Color primario (acentos, marco)</span>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={cardPrimaryColor}
-                      onChange={e => setCardPrimaryColor(e.target.value)}
-                      className="w-12 h-10 rounded-lg border border-dojo-border bg-transparent cursor-pointer"
-                    />
-                    <span className="font-mono text-sm text-dojo-white">{cardPrimaryColor.toUpperCase()}</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <span className="text-xs text-dojo-muted">Color secundario (banner inferior)</span>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={cardSecondaryColor}
-                      onChange={e => setCardSecondaryColor(e.target.value)}
-                      className="w-12 h-10 rounded-lg border border-dojo-border bg-transparent cursor-pointer"
-                    />
-                    <span className="font-mono text-sm text-dojo-white">{cardSecondaryColor.toUpperCase()}</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <span className="text-xs text-dojo-muted">Color terciario (detalles, slogan)</span>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={cardTertiaryColor}
-                      onChange={e => setCardTertiaryColor(e.target.value)}
-                      className="w-12 h-10 rounded-lg border border-dojo-border bg-transparent cursor-pointer"
-                    />
-                    <span className="font-mono text-sm text-dojo-white">{cardTertiaryColor.toUpperCase()}</span>
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setCardPrimaryColor("#CC0000"); setCardSecondaryColor("#000000"); setCardTertiaryColor("#D4AF37"); }}
-                className="btn-ghost text-sm"
-              >
-                Restablecer colores por defecto
-              </button>
-            </div>
           </div>
 
           {/* Plantilla de fondo del carnet */}
@@ -417,68 +356,51 @@ export default function SettingsPage() {
                   <div
                     className="relative w-[140px] h-[222px] rounded-xl border-2 overflow-hidden shadow-lg"
                     style={{
-                      borderColor: cardPrimaryColor,
+                      borderColor: "#d1d5db",
                       ...(cardTemplateImage
                         ? { backgroundImage: `url(${cardTemplateImage})`, backgroundSize: "cover", backgroundPosition: "center" }
-                        : { backgroundColor: "#0F0F1A" }),
+                        : { backgroundColor: "#ffffff" }),
                     }}
                   >
-                    {cardTemplateImage && <div className="absolute inset-0 bg-black/10 pointer-events-none" />}
-
-                    {/* Franja superior */}
-                    <div
-                      className="absolute top-0 inset-x-0 h-[22px] flex items-center justify-center"
-                      style={{ backgroundColor: cardSecondaryColor, opacity: 0.92 }}
-                    >
-                      <span className="text-[6.5px] font-bold tracking-widest truncate px-2" style={{ color: cardTertiaryColor }}>
-                        {name.toUpperCase() || "DOJO MASTER"}
-                      </span>
-                    </div>
-
-                    {/* Foto placeholder */}
-                    <div className="absolute top-[28px] inset-x-0 flex justify-center">
-                      <div
-                        className="w-[52px] h-[52px] rounded-full border-2 flex items-center justify-center"
-                        style={{ borderColor: cardPrimaryColor, backgroundColor: "rgba(0,0,0,0.30)" }}
-                      >
-                        <User size={22} className="text-white/35" />
-                      </div>
-                    </div>
-
-                    {/* Nombre placeholder */}
-                    <div className="absolute top-[88px] inset-x-0 flex flex-col items-center gap-[3px] px-4">
-                      <div className="h-[5px] rounded-full w-3/4" style={{ backgroundColor: "rgba(255,255,255,0.38)" }} />
-                      <div className="h-[4px] rounded-full w-1/2" style={{ backgroundColor: "rgba(255,255,255,0.22)" }} />
-                    </div>
-
-                    {/* Chip cinta */}
-                    <div className="absolute top-[106px] inset-x-0 flex justify-center">
-                      <div className="h-[8px] w-[54px] rounded-full" style={{ backgroundColor: cardPrimaryColor, opacity: 0.85 }} />
-                    </div>
-
-                    {/* QR placeholder */}
-                    <div className="absolute bottom-[26px] inset-x-0 flex justify-center">
-                      <div className="w-[42px] h-[42px] rounded bg-white p-[3px]">
-                        <QrCode size={36} className="text-gray-800" />
-                      </div>
-                    </div>
-
-                    {/* Franja inferior */}
-                    <div
-                      className="absolute bottom-0 inset-x-0 h-[20px] flex items-center justify-center"
-                      style={{ backgroundColor: cardPrimaryColor, opacity: 0.90 }}
-                    >
-                      <span className="text-[6px] tracking-widest text-white/80 truncate px-2">
-                        {slogan || "— KARATEDOJO —"}
-                      </span>
-                    </div>
-
-                    {/* Watermark sin plantilla */}
+                    {/* Sin plantilla: llamada a acción prominente */}
                     {!cardTemplateImage && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 pointer-events-none">
-                        <ImageIcon size={16} className="text-dojo-muted/25" />
-                        <span className="text-[8px] text-dojo-muted/35">Sin plantilla</span>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center">
+                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                          <Upload size={18} className="text-gray-400" />
+                        </div>
+                        <p className="text-[9px] font-semibold text-gray-500 leading-tight">Cargar plantilla</p>
+                        <p className="text-[8px] text-gray-400 leading-tight">638 × 1009 px recomendado</p>
                       </div>
+                    )}
+
+                    {/* Con plantilla: overlay de representación de elementos */}
+                    {cardTemplateImage && (
+                      <>
+                        {/* Foto placeholder */}
+                        <div className="absolute top-[28px] inset-x-0 flex justify-center">
+                          <div className="w-[52px] h-[52px] rounded-full border-2 border-white/70 flex items-center justify-center bg-black/25">
+                            <User size={22} className="text-white/50" />
+                          </div>
+                        </div>
+
+                        {/* Nombre placeholder */}
+                        <div className="absolute top-[88px] inset-x-0 flex flex-col items-center gap-[3px] px-4">
+                          <div className="h-[5px] rounded-full w-3/4 bg-white/50" />
+                          <div className="h-[4px] rounded-full w-1/2 bg-white/35" />
+                        </div>
+
+                        {/* Chip cinta */}
+                        <div className="absolute top-[106px] inset-x-0 flex justify-center">
+                          <div className="h-[8px] w-[54px] rounded-full bg-white/40" />
+                        </div>
+
+                        {/* QR placeholder */}
+                        <div className="absolute bottom-[26px] inset-x-0 flex justify-center">
+                          <div className="w-[42px] h-[42px] rounded bg-white p-[3px]">
+                            <QrCode size={36} className="text-gray-800" />
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
                   <p className="text-[9px] text-dojo-muted">Vista previa del carnet</p>
