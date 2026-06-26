@@ -96,13 +96,15 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   // sin kanji, slogan completo en el footer y acento con el tercer color.
   const isNatsuki = dojo.slug === NATSUKI_SLUG;
 
-  // Posición y layout de la foto — Natsuki conserva el original; el resto baja la foto
-  const PY = isNatsuki ? 74  : 120;   // top de la foto
-  const qh = isNatsuki ? QH  : 280;   // altura sección QR (reducida para compensar)
-  const NT = PY + PD + 12;            // nombre top
-  const TT = NT + 93;                 // team top
-  const QT = TT + 25;                 // QR top
-  const FT = QT + qh + 6;            // footer top
+  // Posición y layout de la foto — Natsuki conserva el original; el resto baja la foto.
+  // Para no-Natsuki: se comprime el gap nombre→team para que el QR quede en la misma
+  // posición vertical (QT=624) y el footer al mismo nivel (FT=940) que en Natsuki.
+  const PY = isNatsuki ? 74  : 120;           // top de la foto
+  const qh = QH;                               // altura sección QR (igual en ambos)
+  const NT = PY + PD + 12;                     // nombre top
+  const TT = isNatsuki ? NT + 93 : NT + 48;   // team top (comprimido para no-Natsuki)
+  const QT = isNatsuki ? TT + 25 : TT + 24;   // QR top = 624 en ambos casos
+  const FT = QT + qh + 6;                      // footer top = 940 en ambos casos
 
   // Plantilla de fondo personalizada — oculta capas decorativas y superpone datos del alumno
   const hasTemplate = !!dojo.cardTemplateImage;

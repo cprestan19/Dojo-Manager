@@ -26,12 +26,12 @@ const PLANS = [
   },
   {
     name:         "Silver",
-    description:  "Para dojos en crecimiento — hasta 40 alumnos",
+    description:  "Para dojos en crecimiento — hasta 60 alumnos",
     monthlyPrice: 29,
     annualPrice:  290,
-    maxStudents:  40,
+    maxStudents:  60,
     features: [
-      "Hasta 40 alumnos activos",
+      "Hasta 60 alumnos activos",
       "Todo lo del plan Bronce",
       "Página web profesional del dojo incluida",
       "CRM de prospectos",
@@ -69,21 +69,18 @@ export async function POST(req: NextRequest) {
   for (const plan of PLANS) {
     const existing = await prisma.plan.findFirst({
       where:  { name: plan.name },
-      select: { id: true, name: true },
+      select: { id: true },
     });
+
+    const data = { ...plan, features: JSON.stringify(plan.features) };
 
     if (existing) {
+      await prisma.plan.update({ where: { id: existing.id }, data });
       results.push({ name: plan.name, action: "exists" });
-      continue;
+    } else {
+      await prisma.plan.create({ data });
+      results.push({ name: plan.name, action: "created" });
     }
-
-    await prisma.plan.create({
-      data: {
-        ...plan,
-        features: JSON.stringify(plan.features),
-      },
-    });
-    results.push({ name: plan.name, action: "created" });
   }
 
   return NextResponse.json({ ok: true, results });

@@ -28,13 +28,13 @@ function buildWaGuide(senseiName: string, dojoName: string): string {
     `3️⃣ Prueba el QR de asistencia → Menú → Scanner`,
     ``,
     `*📋 Plan Bronce (gratis):*`,
-    `✓ Hasta 15 alumnos activos`,
+    `✓ Hasta 20 alumnos activos`,
     `✓ Asistencia QR solo con tu celular`,
     `✓ Cobros y recordatorios automáticos de mora`,
     `✓ Portal del alumno — historial + videos de katas`,
     ``,
     `*⬆️ ¿Cuándo subir de plan?*`,
-    `• Más de 15 alumnos → *Silver $29/mes* (hasta 40)`,
+    `• Más de 20 alumnos → *Silver $29/mes* (hasta 60)`,
     `  Incluye: página web gratis de tu dojo + torneos básicos`,
     `• Torneos con streaming en vivo → *Gold $59/mes* (ilimitado)`,
     `  Incluye: tatamis, jueces, overlay OBS, inscripciones federativas`,
@@ -124,7 +124,7 @@ export default function RegisterPage() {
                     Tu dojo en Dojo Master<br />en 2 minutos
                   </h1>
                   <p className="text-white/50 text-base mt-3 leading-relaxed">
-                    Sin tarjeta de crédito. El plan Bronce es <strong className="text-white/70">gratis para siempre</strong> hasta 15 alumnos.
+                    Sin tarjeta de crédito. El plan Bronce es <strong className="text-white/70">gratis para siempre</strong> hasta 20 alumnos.
                   </p>
                 </div>
 
@@ -151,8 +151,8 @@ export default function RegisterPage() {
                 <div className="rounded-2xl p-4 space-y-2.5 border border-white/5" style={{ background: "#0D1117" }}>
                   <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">Planes disponibles</p>
                   {[
-                    { name: "🥉 Bronce", limit: "Hasta 15 alumnos", price: "Gratis", color: "#78716C" },
-                    { name: "🥈 Silver",  limit: "Hasta 40 alumnos + web", price: "$29/mes", color: "#94A3B8" },
+                    { name: "🥉 Bronce", limit: "Hasta 20 alumnos", price: "Gratis", color: "#78716C" },
+                    { name: "🥈 Silver",  limit: "Hasta 60 alumnos + web", price: "$29/mes", color: "#94A3B8" },
                     { name: "🥇 Gold",   limit: "Ilimitado + torneos Pro", price: "$59/mes", color: "#F59E0B" },
                   ].map(p => (
                     <div key={p.name} className="flex items-center justify-between">
@@ -218,9 +218,9 @@ export default function RegisterPage() {
                         style={{ background: "#0D1117" }}
                       >
                         <option value="">Seleccionar</option>
-                        <option value="1-15">1–15 (Plan Bronce)</option>
-                        <option value="21-40">21–40 (Plan Silver)</option>
-                        <option value="41-100">41–100 (Plan Gold)</option>
+                        <option value="1-20">1–20 (Plan Bronce)</option>
+                        <option value="21-60">21–60 (Plan Silver)</option>
+                        <option value="61-100">61–100 (Plan Gold)</option>
                         <option value="100+">Más de 100 (Plan Gold)</option>
                       </select>
                     </div>
@@ -356,7 +356,7 @@ export default function RegisterPage() {
               <div className="rounded-2xl p-5 text-left mb-6 border" style={{ background: "#0D1117", borderColor: "#F59E0B30" }}>
                 <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "#F59E0B" }}>📋 Tu plan actual — Bronce (gratis)</p>
                 <div className="space-y-2 mb-4">
-                  {["Hasta 15 alumnos activos","Asistencia QR solo desde tu celular","Cobros y recordatorios automáticos de mora","Portal del alumno con historial y videos de katas"].map(f => (
+                  {["Hasta 20 alumnos activos","Asistencia QR solo desde tu celular","Cobros y recordatorios automáticos de mora","Portal del alumno con historial y videos de katas"].map(f => (
                     <div key={f} className="flex items-center gap-2 text-sm text-white/65">
                       <Check size={12} className="text-emerald-400 shrink-0" />{f}
                     </div>
@@ -365,7 +365,7 @@ export default function RegisterPage() {
                 <div className="border-t border-white/5 pt-3 space-y-1.5">
                   <p className="text-xs text-white/40 font-bold uppercase tracking-wider mb-2">¿Cuándo subir de plan?</p>
                   <p className="text-xs text-white/50">
-                    <span className="font-bold text-white/70">🥈 Silver $29/mes</span> — Cuando superes 15 alumnos o quieras la <strong>página web de tu dojo gratis</strong> + torneos básicos (hasta 40 alumnos)
+                    <span className="font-bold text-white/70">🥈 Silver $29/mes</span> — Cuando superes 20 alumnos o quieras la <strong>página web de tu dojo gratis</strong> + torneos básicos (hasta 60 alumnos)
                   </p>
                   <p className="text-xs text-white/50">
                     <span className="font-bold text-white/70">🥇 Gold $59/mes</span> — Torneos profesionales con <strong>streaming en vivo</strong>, tatamis, jueces, inscripciones federativas y alumnos ilimitados
