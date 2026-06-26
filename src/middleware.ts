@@ -48,11 +48,12 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const ip           = getClientIp(req);
 
-  // ── Redirigir usuarios autenticados (admin/sysadmin) desde "/" a "/dashboard" ──
-  if (pathname === "/") {
+  // ── Redirigir usuarios ya autenticados desde "/" y "/login" ─────────────────
+  if (pathname === "/" || pathname === "/login") {
     const token = await readToken(req);
-    if (token && token.role !== "student") {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+    if (token) {
+      const dest = token.role === "student" ? "/portal" : "/dashboard";
+      return NextResponse.redirect(new URL(dest, req.url));
     }
   }
 
@@ -147,6 +148,7 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/login",
     "/dashboard/:path*",
     "/portal/:path*",
     // Public API endpoints with rate limits

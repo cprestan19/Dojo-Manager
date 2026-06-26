@@ -1,6 +1,6 @@
 "use client";
 import { Suspense, useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, signOut, getSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import Image from "next/image";
@@ -19,6 +19,11 @@ function LoginForm() {
   const [error,    setError]    = useState("");
   const [dojo,     setDojo]     = useState<DojoInfo | null>(null);
   const [bgImage,  setBgImage]  = useState<string | null>(null);
+
+  // Si hay una sesión activa de otro usuario, cerrarla al cargar el login
+  useEffect(() => {
+    getSession().then(sess => { if (sess) signOut({ redirect: false }); });
+  }, []);
 
   useEffect(() => {
     if (!dojoSlug) return;
