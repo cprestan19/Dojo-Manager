@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 type SessionUser = { role?: string };
 
@@ -63,6 +64,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    revalidatePath("/api/public/plans");
+    revalidatePath("/");
     return NextResponse.json(plan, { status: 201 });
   } catch (err) {
     console.error("POST /api/billing/plans error:", err);
@@ -99,6 +102,8 @@ export async function PATCH(req: NextRequest) {
     }
 
     const plan = await prisma.plan.update({ where: { id }, data });
+    revalidatePath("/api/public/plans");
+    revalidatePath("/");
     return NextResponse.json(plan);
   } catch (err) {
     console.error("PATCH /api/billing/plans error:", err);
@@ -123,6 +128,8 @@ export async function DELETE(req: NextRequest) {
       data:  { isActive: false },
     });
 
+    revalidatePath("/api/public/plans");
+    revalidatePath("/");
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/billing/plans error:", err);
