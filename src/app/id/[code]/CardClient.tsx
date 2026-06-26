@@ -48,15 +48,7 @@ const LOGO_Y = 24;    // top edge
 // Foto (centrada, ~58 % del ancho — cerca del 60 % del spec)
 const PD = 420;                           // diámetro
 const PX = Math.floor((W - PD) / 2);     // = 119 (centrado)
-const PY = 74;                            // top de la foto
-
-// Textos
-const NT = PY + PD + 12;  // nombre top  = 550
-const TT = NT + 93;        // team top: subido 17px
-const QT = TT + 25;        // QR top
-const QH = 310;            // QR height
-const FT = QT + QH + 6;   // footer top
-// footer height: 1009 − FT ≈ 110 px ✓
+const QH = 310;                           // QR height
 
 /** Patrón de rombos gris (watermark decorativo zona media-izquierda) */
 function DiamondWatermark() {
@@ -103,6 +95,14 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   // Todos los demás dojos (nuevos y existentes) usan el diseño actualizado:
   // sin kanji, slogan completo en el footer y acento con el tercer color.
   const isNatsuki = dojo.slug === NATSUKI_SLUG;
+
+  // Posición y layout de la foto — Natsuki conserva el original; el resto baja la foto
+  const PY = isNatsuki ? 74  : 120;   // top de la foto
+  const qh = isNatsuki ? QH  : 280;   // altura sección QR (reducida para compensar)
+  const NT = PY + PD + 12;            // nombre top
+  const TT = NT + 93;                 // team top
+  const QT = TT + 25;                 // QR top
+  const FT = QT + qh + 6;            // footer top
 
   // Plantilla de fondo personalizada — oculta capas decorativas y superpone datos del alumno
   const hasTemplate = !!dojo.cardTemplateImage;
@@ -306,29 +306,31 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               )}
             </div>
 
-            {/* ── LAYER 4: Logo del dojo — círculo, esquina superior (izq. o der. según variante) ── */}
-            <div style={{
-              position: "absolute",
-              top: LOGO_Y, ...logoPos,
-              width: LOGO_D, height: LOGO_D,
-              borderRadius: "50%",
-              border: `4px solid ${RED}`,
-              overflow: "hidden",
-              background: "#fff",
-              zIndex: 5,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: `0 0 0 2px #fff`,
-            }}>
-              {dojo.logo && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={dojo.logo}
-                  alt={dojo.name}
-                  crossOrigin="anonymous"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              )}
-            </div>
+            {/* ── LAYER 4: Logo del dojo — solo Natsuki conserva el círculo en esquina ── */}
+            {isNatsuki && (
+              <div style={{
+                position: "absolute",
+                top: LOGO_Y, ...logoPos,
+                width: LOGO_D, height: LOGO_D,
+                borderRadius: "50%",
+                border: `4px solid ${RED}`,
+                overflow: "hidden",
+                background: "#fff",
+                zIndex: 5,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: `0 0 0 2px #fff`,
+              }}>
+                {dojo.logo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={dojo.logo}
+                    alt={dojo.name}
+                    crossOrigin="anonymous"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                )}
+              </div>
+            )}
 
             {/* ── LAYER 5: Foto del alumno — círculo o cuadro redondeado según variante ── */}
             {/* Anillo exterior decorativo */}
@@ -381,10 +383,11 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               zIndex: 7, textAlign: "center",
             }}>
               <div style={{
-                fontSize: 38, fontWeight: 800, color: hasTemplate ? "#ffffff" : BLACK,
+                fontSize: 38, fontWeight: 800,
+                color: isNatsuki && hasTemplate ? "#ffffff" : BLACK,
                 letterSpacing: "0.5px", lineHeight: 1.1,
                 textTransform: "uppercase", wordBreak: "break-word",
-                ...(hasTemplate ? { textShadow: "0 1px 4px rgba(0,0,0,0.7)" } : {}),
+                ...(isNatsuki && hasTemplate ? { textShadow: "0 1px 4px rgba(0,0,0,0.7)" } : {}),
               }}>
                 {student.fullName}
               </div>
@@ -408,10 +411,9 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             </div>
 
             {/* ── LAYER 8: Zona QR — 3 columnas ─────────────────────────── */}
-            {/* QT=626, QH=286, bottom=912                                  */}
             <div style={{
               position: "absolute",
-              top: QT, left: 0, right: 0, height: QH,
+              top: QT, left: 0, right: 0, height: qh,
               zIndex: 7,
               display: "flex", alignItems: "stretch",
               padding: "0 0 0 16px",
@@ -419,14 +421,14 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               boxSizing: "border-box" as const,
             }}>
 
-              {/* Columna izquierda 20%: Kanji (solo Natsuki) o barra decorativa con el 3er color */}
+              {/* Columna izquierda 20%: Kanji solo para Natsuki; vacía para el resto */}
               <div style={{
                 width: "20%", flexShrink: 0,
                 display: "flex", flexDirection: "column",
                 alignItems: "center", justifyContent: "center",
                 gap: 10,
               }}>
-                {isNatsuki ? (
+                {isNatsuki && (
                   <div style={{
                     transform: "rotate(-90deg)",
                     fontSize: 62, fontWeight: 900,
@@ -434,12 +436,6 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                     userSelect: "none", whiteSpace: "nowrap",
                     fontFamily: "'Kosugi Maru', sans-serif",
                   }}>道場夏月</div>
-                ) : (
-                  <div style={{
-                    width: 32, height: 240, borderRadius: 16,
-                    background: `linear-gradient(180deg, ${GOLD} 0%, ${RED} 100%)`,
-                    boxShadow: `0 6px 24px ${hexToRgba(GOLD, 0.30)}`,
-                  }} />
                 )}
               </div>
 
@@ -514,13 +510,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                     fontSize: 22, color: RED,
                     opacity: 0.18, userSelect: "none",
                   }}>道場</div>
-                ) : (
-                  /* Si no hay contacto: acento circular con el 3er color */
-                  <div style={{
-                    width: 46, height: 46, borderRadius: "50%",
-                    background: GOLD, opacity: 0.22,
-                  }} />
-                )}
+                ) : null}
               </div>
 
             </div>{/* fin zona QR */}
@@ -529,7 +519,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             <div style={{
               position: "absolute",
               left: 4, top: QT,
-              height: QH,
+              height: qh,
               zIndex: 8,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
