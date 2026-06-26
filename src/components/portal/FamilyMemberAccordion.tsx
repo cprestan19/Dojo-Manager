@@ -7,6 +7,7 @@ import {
   Phone, User, ClipboardList, LogIn, LogOut,
 } from "lucide-react";
 import { StudentQR } from "@/components/students/StudentQR";
+import { formatTimeStr } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -209,7 +210,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
                         <div key={i} className="text-xs p-2.5 rounded-lg bg-dojo-darker border border-dojo-border/60">
                           <p className="text-dojo-white font-semibold">{s.name}</p>
                           <p className="text-dojo-muted mt-0.5">
-                            {s.days.map(d => DAY_LABEL[d] ?? d).join(" · ")} · {s.startTime} – {s.endTime}
+                            {s.days.map(d => DAY_LABEL[d] ?? d).join(" · ")} · {formatTimeStr(s.startTime)} – {formatTimeStr(s.endTime)}
                           </p>
                         </div>
                       ))}

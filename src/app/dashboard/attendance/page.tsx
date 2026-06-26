@@ -32,13 +32,16 @@ function todayStr() {
 
 const TZ = "America/Panama";
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("es-PA", { dateStyle: "short", timeStyle: "short", timeZone: TZ });
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: TZ });
+  const time = d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: TZ });
+  return `${date}, ${time}`;
 }
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", timeZone: TZ });
 }
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: TZ });
 }
 function toDateTimeLocal(iso: string) {
   const d = new Date(iso);

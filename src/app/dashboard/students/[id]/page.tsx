@@ -1465,7 +1465,7 @@ export default function StudentDetailPage() {
                           <p className="text-xs text-dojo-white">
                             {new Date(a.markedAt).toLocaleDateString("es-PA")}
                             {" — "}
-                            {new Date(a.markedAt).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" })}
+                            {new Date(a.markedAt).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true })}
                           </p>
                           {a.schedule && <p className="text-xs text-dojo-muted truncate">{a.schedule.name}</p>}
                         </div>

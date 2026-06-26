@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { BeltBadge } from "@/components/ui/BeltBadge";
-import { BELT_COLORS, getBeltInfo } from "@/lib/utils";
+import { BELT_COLORS, getBeltInfo, formatTimeStr } from "@/lib/utils";
 
 /* ── Types ── */
 
@@ -78,11 +78,10 @@ function parseDays(raw: string): string[] {
 }
 
 function formatAttendanceDate(iso: string): string {
-  return new Date(iso).toLocaleString("es-PA", {
-    timeZone: "America/Panama",
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Panama" });
+  const time = d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Panama" });
+  return `${date}, ${time}`;
 }
 
 /* ── Component ── */
@@ -526,7 +525,7 @@ export default function SchedulesPage() {
 
                   {/* Time */}
                   <span className="text-dojo-gold font-mono text-sm shrink-0">
-                    {s.startTime} – {s.endTime}
+                    {formatTimeStr(s.startTime)} – {formatTimeStr(s.endTime)}
                   </span>
 
                   {/* Student count badge */}

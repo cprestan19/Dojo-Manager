@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { formatTimeStr } from "@/lib/utils";
 import { Clock, Users } from "lucide-react";
 
 const DAY_LABELS: Record<string, string> = {
@@ -28,7 +29,7 @@ function ScheduleCard({ assignment }: { assignment: Assignment }) {
     <div className="card min-w-0">
       <p className="font-semibold text-dojo-white break-words">{assignment.schedule.name}</p>
       <p className="text-dojo-gold font-mono text-sm mt-1">
-        {assignment.schedule.startTime} – {assignment.schedule.endTime}
+        {formatTimeStr(assignment.schedule.startTime)} – {formatTimeStr(assignment.schedule.endTime)}
       </p>
       {days.length > 0 && (
         <div className="flex gap-1.5 mt-3 flex-wrap">

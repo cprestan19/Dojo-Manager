@@ -4,7 +4,7 @@ import { useToast } from "@/components/ui/Toast";
 import {
   TOURNAMENT_STATUS, JUDGE_ROLES, SCHEDULE_EVENT_TYPES, getTournamentStatusFlow,
 } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { cn, formatTimeStr } from "@/lib/utils";
 import {
   Plus, Trash2, Edit2, Check, X, ChevronUp, ChevronDown,
   AlertTriangle, Users, Calendar, MapPin, Globe, Link,
@@ -734,7 +734,7 @@ export function TournamentSettings({ tournamentId, tournament, onRefresh }: Prop
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-dojo-white truncate">{s.title}</p>
                         <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                          <span className="text-xs text-dojo-muted">{s.startTime}{s.endTime ? ` – ${s.endTime}` : ""}</span>
+                          <span className="text-xs text-dojo-muted">{formatTimeStr(s.startTime)}{s.endTime ? ` – ${formatTimeStr(s.endTime)}` : ""}</span>
                           {s.tatami && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full border text-dojo-muted"
                               style={{ borderColor: s.tatami.color + "60" }}>

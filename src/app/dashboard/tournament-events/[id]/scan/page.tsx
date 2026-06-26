@@ -313,7 +313,7 @@ export default function TournamentEventScanPage() {
                   {lastResult.belt && <p className="text-white/60 text-xs">{lastResult.belt}</p>}
                   {lastResult.type === "already" && lastResult.arrivedAt && (
                     <p className="text-yellow-200 text-xs mt-1 font-semibold">
-                      Registrado a las {new Date(lastResult.arrivedAt).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" })}
+                      Registrado a las {new Date(lastResult.arrivedAt).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true })}
                     </p>
                   )}
                   {lastResult.type === "already" && (

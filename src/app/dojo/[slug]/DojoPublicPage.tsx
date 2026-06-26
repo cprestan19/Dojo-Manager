@@ -7,6 +7,7 @@ import {
   Users, MessageCircle, ArrowRight, ShoppingBag,
   ChevronLeft, ChevronRight,
 } from "lucide-react";
+import { formatTimeStr } from "@/lib/utils";
 
 interface Schedule { id: string; name: string; days: string; startTime: string; endTime: string; description: string | null; availableForTrial?: boolean }
 interface DojoPageData {
@@ -527,7 +528,7 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-lg truncate">{s.name}</p>
-                      <p className="text-white/50 text-sm font-mono">{s.startTime} – {s.endTime}</p>
+                      <p className="text-white/50 text-sm font-mono">{formatTimeStr(s.startTime)} – {formatTimeStr(s.endTime)}</p>
                     </div>
                   </div>
                   <p className="text-sm font-semibold px-3 py-1 rounded-full w-fit"
@@ -801,7 +802,7 @@ export function DojoPublicPage({ dojo }: { dojo: DojoData }) {
                         <option value="" className="bg-gray-900">Seleccionar horario...</option>
                         {trialSchedules.map(s => (
                           <option key={s.id} value={s.id} className="bg-gray-900">
-                            {s.name} — {parseDays(s.days)} — {s.startTime} a {s.endTime}
+                            {s.name} — {parseDays(s.days)} — {formatTimeStr(s.startTime)} a {formatTimeStr(s.endTime)}
                           </option>
                         ))}
                       </select>

@@ -606,7 +606,7 @@ export default function TournamentEventDetailPage() {
                   <span className="text-xs text-dojo-muted">{p.age} años</span>
                   {p.arrivedAt && (
                     <span className="text-xs text-dojo-muted">
-                      Llegó: {new Date(p.arrivedAt).toLocaleTimeString("es-PA", { hour:"2-digit", minute:"2-digit" })}
+                      Llegó: {new Date(p.arrivedAt).toLocaleTimeString("es-PA", { hour:"2-digit", minute:"2-digit", hour12: true })}
                     </span>
                   )}
                 </div>

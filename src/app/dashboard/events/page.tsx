@@ -44,7 +44,7 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric" });
 }
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 function formatDateRange(start: string, end: string) {
   const s = new Date(start);

@@ -17,7 +17,7 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-PA", { timeZone: TZ });
 }
 function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: TZ });
 }
 
 export default function PortalAttendancePage() {

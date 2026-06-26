@@ -34,6 +34,18 @@ export function formatStudentName(fullName: string): string {
   return toTitleCase(fullName.trim());
 }
 
+// Convierte string "HH:mm" almacenado en BD (24h) a formato 12h con AM/PM
+// Ej: "18:30" → "6:30 PM"  |  "08:00" → "8:00 AM"
+export function formatTimeStr(hhmm: string): string {
+  const [hPart, mPart] = hhmm.split(":");
+  const h = parseInt(hPart ?? "0", 10);
+  const m = parseInt(mPart ?? "0", 10);
+  if (isNaN(h) || isNaN(m)) return hhmm;
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-PA", {
     style: "currency",

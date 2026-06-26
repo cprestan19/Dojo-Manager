@@ -34,7 +34,7 @@ function formatDateRange(start: string, end: string) {
 }
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: "America/Panama" });
+  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Panama" });
 }
 
 // ── Fila de RSVP por miembro de familia ──────────────────────────────────────

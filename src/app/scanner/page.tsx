@@ -30,10 +30,18 @@ function parseDays(raw: string): string[] {
   try { return JSON.parse(raw); } catch { return []; }
 }
 
-function fmtTime(time: string) { return time; }
+function fmtTime(time: string) {
+  const [hPart, mPart] = time.split(":");
+  const h = parseInt(hPart ?? "0", 10);
+  const m = parseInt(mPart ?? "0", 10);
+  if (isNaN(h) || isNaN(m)) return time;
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${suffix}`;
+}
 
 function nowTime() {
-  return new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+  return new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
 export default function ScannerPage() {
