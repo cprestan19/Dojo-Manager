@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  if (role === "student") return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
