@@ -131,7 +131,7 @@ export default async function PortalProfilePage() {
   }
 
   function fmtAttendance(d: Date): string {
-    return `${d.toLocaleDateString("es-PA")} · ${d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" })}`;
+    return `${d.toLocaleDateString("es-PA", { timeZone: "America/Panama" })} · ${d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: "America/Panama" })}`;
   }
 
   type StudentLike = {

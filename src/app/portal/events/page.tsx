@@ -19,14 +19,15 @@ type Tab = "active" | "past";
 function formatDateRange(start: string, end: string) {
   const s = new Date(start);
   const e = new Date(end);
-  const opts: Intl.DateTimeFormatOptions = { day: "2-digit", month: "long", year: "numeric" };
-  if (s.toDateString() === e.toDateString())
+  const TZ = "America/Panama";
+  const opts: Intl.DateTimeFormatOptions = { day: "2-digit", month: "long", year: "numeric", timeZone: TZ };
+  if (s.toLocaleDateString("es-PA", { timeZone: TZ }) === e.toLocaleDateString("es-PA", { timeZone: TZ }))
     return new Date(s).toLocaleDateString("es-PA", opts);
-  return `${s.toLocaleDateString("es-PA", { day: "2-digit", month: "short" })} — ${e.toLocaleDateString("es-PA", opts)}`;
+  return `${s.toLocaleDateString("es-PA", { day: "2-digit", month: "short", timeZone: TZ })} — ${e.toLocaleDateString("es-PA", opts)}`;
 }
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: "America/Panama" });
 }
 
 // ── RSVP Banner — top of card, full-width, eye-catching ─────────────────────

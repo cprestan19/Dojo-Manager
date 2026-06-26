@@ -30,14 +30,15 @@ function todayStr() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+const TZ = "America/Panama";
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("es-PA", { dateStyle: "short", timeStyle: "short" });
+  return new Date(iso).toLocaleString("es-PA", { dateStyle: "short", timeStyle: "short", timeZone: TZ });
 }
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short" });
+  return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", timeZone: TZ });
 }
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
 }
 function toDateTimeLocal(iso: string) {
   const d = new Date(iso);

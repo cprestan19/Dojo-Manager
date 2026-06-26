@@ -23,7 +23,7 @@ export default function PortalAttendancePage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const r = await fetch(`/api/portal/attendance?dateFrom=${from}&dateTo=${to}T23:59:59`);
+    const r = await fetch(`/api/portal/attendance?dateFrom=${from}T00:00:00-05:00&dateTo=${to}T23:59:59-05:00`);
     if (r.ok) setRows(await r.json());
     setLoading(false);
     setLoaded(true);
@@ -87,9 +87,9 @@ export default function PortalAttendancePage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-dojo-white">
-                        {new Date(a.markedAt).toLocaleDateString("es-PA")}
+                        {new Date(a.markedAt).toLocaleDateString("es-PA", { timeZone: "America/Panama" })}
                         {" · "}
-                        {new Date(a.markedAt).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit" })}
+                        {new Date(a.markedAt).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: "America/Panama" })}
                       </p>
                       {a.schedule && <p className="text-xs text-dojo-muted truncate">{a.schedule.name}</p>}
                     </div>
