@@ -4,7 +4,7 @@
  */
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2 } from "lucide-react";
+import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2, QrCode } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -412,20 +412,76 @@ export default function SettingsPage() {
                 Sube una imagen de fondo para el carnet de tus alumnos. El sistema coloca la foto, nombre, QR y slogan encima. Tamaño recomendado: 638 × 1009 px (formato CR80 vertical).
               </p>
               <div className="flex gap-6 items-start">
-                <div
-                  className="w-[96px] h-[152px] rounded-xl border-2 border-dojo-border overflow-hidden shrink-0 flex items-center justify-center"
-                  style={cardTemplateImage ? {
-                    backgroundImage: `url(${cardTemplateImage})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  } : { backgroundColor: "#0F0F1A" }}
-                >
-                  {!cardTemplateImage && (
-                    <div className="flex flex-col items-center gap-1 text-dojo-muted/40">
-                      <ImageIcon size={20} />
-                      <span className="text-[10px]">Sin plantilla</span>
+                {/* Preview proporcional del carnet (CR80 vertical ~0.632) */}
+                <div className="flex flex-col items-center gap-1.5 shrink-0">
+                  <div
+                    className="relative w-[140px] h-[222px] rounded-xl border-2 overflow-hidden shadow-lg"
+                    style={{
+                      borderColor: cardPrimaryColor,
+                      ...(cardTemplateImage
+                        ? { backgroundImage: `url(${cardTemplateImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+                        : { backgroundColor: "#0F0F1A" }),
+                    }}
+                  >
+                    {cardTemplateImage && <div className="absolute inset-0 bg-black/10 pointer-events-none" />}
+
+                    {/* Franja superior */}
+                    <div
+                      className="absolute top-0 inset-x-0 h-[22px] flex items-center justify-center"
+                      style={{ backgroundColor: cardSecondaryColor, opacity: 0.92 }}
+                    >
+                      <span className="text-[6.5px] font-bold tracking-widest truncate px-2" style={{ color: cardTertiaryColor }}>
+                        {name.toUpperCase() || "DOJO MASTER"}
+                      </span>
                     </div>
-                  )}
+
+                    {/* Foto placeholder */}
+                    <div className="absolute top-[28px] inset-x-0 flex justify-center">
+                      <div
+                        className="w-[52px] h-[52px] rounded-full border-2 flex items-center justify-center"
+                        style={{ borderColor: cardPrimaryColor, backgroundColor: "rgba(0,0,0,0.30)" }}
+                      >
+                        <User size={22} className="text-white/35" />
+                      </div>
+                    </div>
+
+                    {/* Nombre placeholder */}
+                    <div className="absolute top-[88px] inset-x-0 flex flex-col items-center gap-[3px] px-4">
+                      <div className="h-[5px] rounded-full w-3/4" style={{ backgroundColor: "rgba(255,255,255,0.38)" }} />
+                      <div className="h-[4px] rounded-full w-1/2" style={{ backgroundColor: "rgba(255,255,255,0.22)" }} />
+                    </div>
+
+                    {/* Chip cinta */}
+                    <div className="absolute top-[106px] inset-x-0 flex justify-center">
+                      <div className="h-[8px] w-[54px] rounded-full" style={{ backgroundColor: cardPrimaryColor, opacity: 0.85 }} />
+                    </div>
+
+                    {/* QR placeholder */}
+                    <div className="absolute bottom-[26px] inset-x-0 flex justify-center">
+                      <div className="w-[42px] h-[42px] rounded bg-white p-[3px]">
+                        <QrCode size={36} className="text-gray-800" />
+                      </div>
+                    </div>
+
+                    {/* Franja inferior */}
+                    <div
+                      className="absolute bottom-0 inset-x-0 h-[20px] flex items-center justify-center"
+                      style={{ backgroundColor: cardPrimaryColor, opacity: 0.90 }}
+                    >
+                      <span className="text-[6px] tracking-widest text-white/80 truncate px-2">
+                        {slogan || "— KARATEDOJO —"}
+                      </span>
+                    </div>
+
+                    {/* Watermark sin plantilla */}
+                    {!cardTemplateImage && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 pointer-events-none">
+                        <ImageIcon size={16} className="text-dojo-muted/25" />
+                        <span className="text-[8px] text-dojo-muted/35">Sin plantilla</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[9px] text-dojo-muted">Vista previa del carnet</p>
                 </div>
                 <div className="flex-1 space-y-2">
                   <button
@@ -609,20 +665,63 @@ export default function SettingsPage() {
                 Esta imagen se mostrará como fondo en la pantalla de inicio de sesión en dispositivos móviles.
               </p>
               <div className="flex gap-6 items-start">
-                <div
-                  className="w-[100px] h-[175px] rounded-xl border-2 border-dojo-border overflow-hidden shrink-0 flex items-center justify-center"
-                  style={loginBgImage ? {
-                    backgroundImage: `url(${loginBgImage})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  } : { backgroundColor: "#0F0F1A" }}
-                >
-                  {!loginBgImage && (
-                    <div className="flex flex-col items-center gap-1 text-dojo-muted/40">
-                      <ImageIcon size={20} />
-                      <span className="text-[10px]">Sin imagen</span>
+                {/* Preview móvil — simula login en teléfono */}
+                <div className="flex flex-col items-center gap-1.5 shrink-0">
+                  <div className="relative w-[116px] h-[206px] bg-[#1a1a1a] rounded-[22px] border-[3px] border-gray-600 shadow-xl overflow-hidden">
+                    {/* Notch superior */}
+                    <div className="absolute top-[6px] inset-x-0 z-20 flex justify-center">
+                      <div className="w-[20px] h-[4px] bg-gray-600 rounded-full" />
                     </div>
-                  )}
+
+                    {/* Pantalla */}
+                    <div className="absolute inset-[14px_2px_6px_2px] rounded-[10px] overflow-hidden">
+                      {/* Fondo */}
+                      <div
+                        className="absolute inset-0"
+                        style={loginBgImage
+                          ? { backgroundImage: `url(${loginBgImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+                          : { backgroundColor: "#0F0F1A" }
+                        }
+                      />
+                      {loginBgImage && <div className="absolute inset-0 bg-black/55" />}
+                      {!loginBgImage && (
+                        <div
+                          className="absolute inset-0 opacity-5"
+                          style={{ backgroundImage: "repeating-linear-gradient(45deg,#C0392B 0,#C0392B 1px,transparent 0,transparent 50%)", backgroundSize: "16px 16px" }}
+                        />
+                      )}
+
+                      {/* Contenido del login */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center px-2.5 gap-1.5">
+                        {/* Logo */}
+                        <div className="w-[22px] h-[22px] rounded-md bg-dojo-red flex items-center justify-center shadow overflow-hidden">
+                          {logo
+                            ? <img src={logo} alt="" className="w-full h-full object-contain" />
+                            : <span className="text-white text-[8px] font-bold">{name?.[0] ?? "D"}</span>
+                          }
+                        </div>
+                        <p className="text-[5.5px] font-bold text-white tracking-wider text-center leading-tight">
+                          {name?.toUpperCase() || "DOJO MASTER"}
+                        </p>
+
+                        {/* Card formulario */}
+                        <div
+                          className="w-full rounded-[6px] p-1.5 space-y-1"
+                          style={{ background: "rgba(22,33,62,0.93)", border: "1px solid rgba(42,53,80,0.80)" }}
+                        >
+                          <div className="h-[7px] rounded bg-white/10 w-full" />
+                          <div className="h-[7px] rounded bg-white/10 w-full" />
+                          <div className="h-[8px] rounded w-full mt-0.5" style={{ background: "rgba(255,255,255,0.14)" }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Barra home */}
+                    <div className="absolute bottom-[2px] inset-x-0 flex justify-center">
+                      <div className="w-[28px] h-[2px] bg-gray-500/70 rounded-full" />
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-dojo-muted">Vista previa móvil</p>
                 </div>
                 <div className="flex-1 space-y-2">
                   <button
