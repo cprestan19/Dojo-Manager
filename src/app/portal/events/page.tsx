@@ -36,12 +36,10 @@ function RsvpBanner({ event, onUpdate }: {
   event:    DojoEvent;
   onUpdate: (eventId: string, newStatus: "attending" | "not_attending", count: number) => void;
 }) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<"attending" | "not_attending" | null>(null);
 
-  async function toggle() {
-    const newStatus: "attending" | "not_attending" =
-      event.myRsvp === "attending" ? "not_attending" : "attending";
-    setLoading(true);
+  async function rsvp(newStatus: "attending" | "not_attending") {
+    setLoading(newStatus);
     try {
       const res = await fetch("/api/portal/events", {
         method:  "POST",
@@ -53,12 +51,11 @@ function RsvpBanner({ event, onUpdate }: {
         onUpdate(event.id, newStatus, data.attendingCount);
       }
     } catch { /* ignore */ }
-    finally { setLoading(false); }
+    finally { setLoading(null); }
   }
 
-  const isAttending = event.myRsvp === "attending";
-
-  if (isAttending) {
+  // ── Estado: confirmado ───────────────────────────────────────────────────────
+  if (event.myRsvp === "attending") {
     return (
       <div className="bg-green-600/20 border-b border-green-600/30 px-4 py-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -74,42 +71,75 @@ function RsvpBanner({ event, onUpdate }: {
         </div>
         <button
           type="button"
-          onClick={() => void toggle()}
-          disabled={loading}
+          onClick={() => void rsvp("not_attending")}
+          disabled={loading !== null}
           className="text-[11px] text-green-400/60 hover:text-red-400 transition-colors underline underline-offset-2 shrink-0 disabled:opacity-40"
         >
-          {loading ? <Loader2 size={12} className="animate-spin inline" /> : "Cancelar"}
+          {loading === "not_attending" ? <Loader2 size={12} className="animate-spin inline" /> : "No asistiré"}
         </button>
       </div>
     );
   }
 
-  return (
-    <button
-      type="button"
-      onClick={() => void toggle()}
-      disabled={loading}
-      className="relative w-full flex items-center justify-center gap-3 px-4 py-5 bg-gradient-to-r from-red-600 via-dojo-red to-red-700 hover:from-red-500 hover:via-red-600 hover:to-red-700 active:scale-[0.99] transition-all disabled:opacity-60 group overflow-hidden"
-    >
-      {/* shimmer sweep */}
-      <span className="pointer-events-none absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      {loading ? (
-        <Loader2 size={22} className="animate-spin text-white" />
-      ) : (
-        <CalendarCheck size={22} className="text-white drop-shadow group-hover:scale-110 transition-transform" />
-      )}
-      <div className="text-left">
-        <p className="text-lg font-black text-white tracking-widest leading-tight drop-shadow">
-          {loading ? "Procesando…" : "¡QUIERO PARTICIPAR!"}
-        </p>
-        {event.attendingCount > 0 && (
-          <p className="text-[11px] text-red-200/80 flex items-center gap-1">
-            <Users size={10} className="inline" />
-            {event.attendingCount} ya confirmado{event.attendingCount !== 1 ? "s" : ""}
-          </p>
-        )}
+  // ── Estado: declinado ────────────────────────────────────────────────────────
+  if (event.myRsvp === "not_attending") {
+    return (
+      <div className="bg-red-900/15 border-b border-red-900/25 px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <X size={18} className="text-red-400 shrink-0" />
+          <p className="text-sm font-bold text-red-300">No participarás en este evento</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void rsvp("attending")}
+          disabled={loading !== null}
+          className="text-[11px] text-red-400/60 hover:text-green-400 transition-colors underline underline-offset-2 shrink-0 disabled:opacity-40"
+        >
+          {loading === "attending" ? <Loader2 size={12} className="animate-spin inline" /> : "Cambiar"}
+        </button>
       </div>
-    </button>
+    );
+  }
+
+  // ── Estado: sin respuesta — dos botones ──────────────────────────────────────
+  return (
+    <div className="flex border-b border-dojo-border">
+      <button
+        type="button"
+        onClick={() => void rsvp("attending")}
+        disabled={loading !== null}
+        className="relative flex-1 flex items-center justify-center gap-2 px-3 py-4 bg-gradient-to-r from-red-600 via-dojo-red to-red-700 hover:from-red-500 hover:via-red-600 hover:to-red-700 active:scale-[0.99] transition-all disabled:opacity-60 group overflow-hidden"
+      >
+        <span className="pointer-events-none absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        {loading === "attending"
+          ? <Loader2 size={18} className="animate-spin text-white" />
+          : <CalendarCheck size={18} className="text-white group-hover:scale-110 transition-transform" />
+        }
+        <div className="text-left">
+          <p className="text-sm font-black text-white tracking-wider leading-tight drop-shadow">PARTICIPARÉ</p>
+          {event.attendingCount > 0 && (
+            <p className="text-[10px] text-red-200/70 flex items-center gap-0.5">
+              <Users size={9} className="inline" /> {event.attendingCount} confirmado{event.attendingCount !== 1 ? "s" : ""}
+            </p>
+          )}
+        </div>
+      </button>
+
+      <div className="w-px bg-dojo-border shrink-0" />
+
+      <button
+        type="button"
+        onClick={() => void rsvp("not_attending")}
+        disabled={loading !== null}
+        className="flex-1 flex items-center justify-center gap-2 px-3 py-4 bg-dojo-dark hover:bg-dojo-border/40 active:scale-[0.99] transition-all disabled:opacity-60"
+      >
+        {loading === "not_attending"
+          ? <Loader2 size={16} className="animate-spin text-dojo-muted" />
+          : <X size={16} className="text-dojo-muted" />
+        }
+        <span className="text-sm font-semibold text-dojo-muted">No participaré</span>
+      </button>
+    </div>
   );
 }
 
@@ -233,10 +263,15 @@ export default function PortalEventsPage() {
                   </p>
                 )}
 
-                {/* Historial: mostrar si el alumno había confirmado */}
+                {/* Historial: respuesta del alumno */}
                 {isPast && ev.myRsvp === "attending" && (
                   <div className="flex items-center gap-1.5 text-xs text-green-400/70 pt-2 border-t border-dojo-border/40">
-                    <CheckCircle2 size={11} /> Participaste en este evento
+                    <CheckCircle2 size={11} /> Confirmaste tu participación
+                  </div>
+                )}
+                {isPast && ev.myRsvp === "not_attending" && (
+                  <div className="flex items-center gap-1.5 text-xs text-red-400/70 pt-2 border-t border-dojo-border/40">
+                    <X size={11} /> Indicaste que no participarías
                   </div>
                 )}
               </div>
