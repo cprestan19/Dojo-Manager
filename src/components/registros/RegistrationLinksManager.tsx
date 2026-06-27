@@ -44,25 +44,42 @@ function CopyButton({ url }: { url: string }) {
   );
 }
 
+const PA_TZ = "America/Panama"; // UTC-5, sin horario de verano
+
 function formatDate(d: string | null) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(d).toLocaleDateString("es-PA", { timeZone: PA_TZ, day: "2-digit", month: "short", year: "numeric" });
 }
 
 function formatDateTime(d: string | null) {
   if (!d) return "—";
-  return new Date(d).toLocaleString("es", {
+  return new Date(d).toLocaleString("es-PA", {
+    timeZone: PA_TZ,
     day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: true,
   });
 }
 
-/** Convierte un Date a string compatible con input datetime-local (YYYY-MM-DDTHH:MM en hora local) */
+/**
+ * Convierte un ISO UTC a string YYYY-MM-DDTHH:MM en hora panameña,
+ * listo para usarse en un input datetime-local.
+ */
 function toDateTimeLocal(iso: string | null): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: PA_TZ,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(new Date(iso));
+  const v = (t: string) => parts.find(p => p.type === t)?.value ?? "00";
+  const h = v("hour") === "24" ? "00" : v("hour"); // medianoche puede dar "24"
+  return `${v("year")}-${v("month")}-${v("day")}T${h}:${v("minute")}`;
+}
+
+/** Interpreta un valor datetime-local como hora panameña y devuelve ISO UTC. */
+function panamaInputToISO(localStr: string): string {
+  // Panama es siempre UTC-5, sin cambio de horario de verano
+  return new Date(`${localStr}:00-05:00`).toISOString();
 }
 
 type FormState = { label: string; activatesAt: string; expiresAt: string; maxUses: string };
@@ -118,12 +135,12 @@ export default function RegistrationLinksManager() {
     if (!form.label.trim()) return;
     setSaving(true);
     try {
-      // Convertir datetime-local (hora local del browser) a ISO UTC antes de enviar
+      // Convertir datetime-local (hora panameña) a ISO UTC antes de enviar
       const payload = {
         label:       form.label.trim(),
-        activatesAt: form.activatesAt ? new Date(form.activatesAt).toISOString() : null,
-        expiresAt:   form.expiresAt   ? new Date(form.expiresAt).toISOString()   : null,
-        maxUses:     form.maxUses     ? Number(form.maxUses)                      : null,
+        activatesAt: form.activatesAt ? panamaInputToISO(form.activatesAt) : null,
+        expiresAt:   form.expiresAt   ? panamaInputToISO(form.expiresAt)   : null,
+        maxUses:     form.maxUses     ? Number(form.maxUses)                : null,
       };
 
       const res = await fetch(
@@ -263,7 +280,7 @@ export default function RegistrationLinksManager() {
               </div>
             </div>
             <p className="text-xs text-dojo-muted">
-              Las fechas y horas se guardan en tu hora local actual.
+              Las fechas y horas se ingresan y muestran en hora panameña (UTC-5).
             </p>
             <div className="space-y-1">
               <label className="form-label">Máximo de usos</label>

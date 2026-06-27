@@ -107,7 +107,7 @@ function StudentCard({
               <span className="ml-2">Link: {student.registrationLink.label}</span>
             </p>
             <p className="text-xs text-dojo-muted">
-              Enviado: {new Date(student.submittedAt).toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" })}
+              Enviado: {new Date(student.submittedAt).toLocaleString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
             </p>
           </div>
         </div>
@@ -130,7 +130,7 @@ function StudentCard({
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
               <InfoRow label="Nombre"    value={student.firstName} />
               <InfoRow label="Apellido"  value={student.lastName} />
-              <InfoRow label="Nacimiento" value={new Date(student.birthDate).toLocaleDateString("es")} />
+              <InfoRow label="Nacimiento" value={new Date(student.birthDate).toLocaleDateString("es-PA", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" })} />
               <InfoRow label="Cédula"    value={student.cedula} />
               <InfoRow label="FEPAKA"    value={student.fepakaId} />
               <InfoRow label="Ryo Bukai" value={student.ryoBukaiId} />

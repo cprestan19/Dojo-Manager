@@ -1,7 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { differenceInYears, format } from "date-fns";
-import { es } from "date-fns/locale";
+import { differenceInYears } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -11,8 +10,25 @@ export function calculateAge(birthDate: Date | string): number {
   return differenceInYears(new Date(), new Date(birthDate));
 }
 
-export function formatDate(date: Date | string, fmt = "dd/MM/yyyy"): string {
-  return format(new Date(date), fmt, { locale: es });
+// Fechas puras (birthDate, dueDate, etc.) se guardan como medianoche UTC.
+// Se muestran en UTC para que nunca haya desfase de día por timezone.
+export function formatDate(date: Date | string): string {
+  return new Intl.DateTimeFormat("es-PA", {
+    timeZone: "UTC",
+    day:   "2-digit",
+    month: "2-digit",
+    year:  "numeric",
+  }).format(new Date(date));
+}
+
+// Timestamps (createdAt, submittedAt, markedAt…) se muestran en hora panameña.
+export function formatDateTimePanama(date: Date | string): string {
+  return new Intl.DateTimeFormat("es-PA", {
+    timeZone: "America/Panama",
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: true,
+  }).format(new Date(date));
 }
 
 const NAME_LOWERCASE_PARTICLES = new Set(["de", "del", "la", "las", "los", "el", "y", "e"]);
