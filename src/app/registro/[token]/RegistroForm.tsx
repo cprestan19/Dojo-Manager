@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Camera } from "lucide-react";
 
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
+const INSURANCE_COMPANIES = ["MAPFRE","PALIG","SURA","FEDPA","ANCON","ACERTA","IS","ASSA SEGUROS","ALIADO SEGUROS","BLUE CROSS"] as const;
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 interface Props { token: string; dojoName: string; reset?: boolean }
@@ -130,9 +131,10 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
-      // Auto-expandir sección con errores
       if (hasPersonalError(errs)) setSections(p => ({ ...p, personal: true }));
       setGlobalError("Por favor completa todos los campos obligatorios marcados con *");
+      // Scroll al inicio para que el usuario vea los errores en la sección de Datos Personales
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -198,6 +200,14 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
       <p className="text-xs text-dojo-muted">
         Los campos marcados con <span className="text-dojo-red font-bold">*</span> son obligatorios.
       </p>
+
+      {/* Banner de error global — visible al tope para que el usuario lo vea sin scrollear */}
+      {globalError && (
+        <div className="flex items-center gap-2 text-red-400 bg-red-900/20 border border-red-600 rounded-lg p-3 text-sm">
+          <AlertCircle size={16} className="shrink-0" />
+          {globalError}
+        </div>
+      )}
 
       {/* ── Datos Personales ── */}
       <Section
@@ -309,13 +319,17 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
         </div>
         {form.hasPrivateInsurance && (
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nombre del seguro">
-              <input className="form-input" value={form.insuranceName}
-                onChange={e => set("insuranceName", e.target.value)} maxLength={200} />
+            <Field label="Aseguradora">
+              <select className="form-input" value={form.insuranceName}
+                onChange={e => set("insuranceName", e.target.value)}>
+                <option value="">— Seleccionar —</option>
+                {INSURANCE_COMPANIES.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
             </Field>
             <Field label="Número de póliza">
-              <input className="form-input" value={form.insuranceNumber}
-                onChange={e => set("insuranceNumber", e.target.value)} maxLength={25} />
+              <input className="form-input font-mono" value={form.insuranceNumber}
+                onChange={e => set("insuranceNumber", e.target.value.toUpperCase().replace(/[^A-Z0-9\-]/g, "").slice(0, 25))}
+                maxLength={25} placeholder="Ej. 123456789" />
             </Field>
           </div>
         )}
@@ -362,13 +376,6 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
             placeholder="Calle, ciudad, provincia..." />
         </Field>
       </Section>
-
-      {globalError && (
-        <div className="flex items-center gap-2 text-red-400 bg-red-900/20 border border-red-600 rounded-lg p-3 text-sm">
-          <AlertCircle size={16} className="shrink-0" />
-          {globalError}
-        </div>
-      )}
 
       <button type="submit" disabled={loading} className="btn-primary w-full">
         {loading ? "Enviando..." : "Enviar solicitud de inscripción"}

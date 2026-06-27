@@ -65,7 +65,11 @@ export default async function RegistroPage({ params, searchParams }: Props) {
         </div>
 
         <p className="text-xs text-dojo-muted text-center mt-4">
-          Powered by DojoManager
+          Powered by{" "}
+          <a href="https://dojomasteronline.com" target="_blank" rel="noopener noreferrer"
+            className="hover:text-dojo-white transition-colors">
+            dojomasteronline.com
+          </a>
         </p>
       </div>
     </main>

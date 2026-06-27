@@ -91,7 +91,7 @@ function LoginForm() {
           {/* Logo: dojo custom > app default */}
           <div className="w-20 h-20 bg-dojo-red rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-dojo-red/30 overflow-hidden">
             <Image
-              src={dojo?.logo && dojo.logo.startsWith("http") ? dojo.logo : "/logo.png"}
+              src={dojo?.logo || "/logo.png"}
               alt={dojo?.name ?? "Dojo Master"}
               width={80}
               height={80}
