@@ -16,7 +16,7 @@ import {
   BarChart2, Settings, LogOut, Shield, Building2, ClipboardList, ExternalLink,
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
   Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Upload,
-  Receipt, LayoutList, HelpCircle,
+  Receipt, LayoutList,
 } from "lucide-react";
 
 interface NavItem {
@@ -336,17 +336,6 @@ export function Sidebar() {
           </a>
         </div>
       )}
-
-      {/* Ayuda / Soporte */}
-      <div className="px-4 pb-3">
-        <a
-          href="mailto:soporte@dojomasteronline.com"
-          className="flex items-center gap-2 w-full px-3 py-2.5 rounded-lg border border-dojo-border text-dojo-sidebar-muted text-sm hover:bg-dojo-border/60 hover:text-dojo-sidebar-text transition-colors duration-200"
-        >
-          <HelpCircle size={16} />
-          Ayuda y Soporte
-        </a>
-      </div>
 
       {/* Info del usuario */}
       <div className="p-4 border-t border-dojo-border">
