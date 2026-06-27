@@ -69,7 +69,7 @@ export const UpdatePaymentSchema = z.object({
 });
 
 // ── Users ────────────────────────────────────────────────────
-const PasswordSchema = z
+export const PasswordSchema = z
   .string()
   .min(8, "Mínimo 8 caracteres")
   .max(128)

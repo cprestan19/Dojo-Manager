@@ -39,6 +39,18 @@ export async function PUT(req: NextRequest, { params }: Params) {
         return NextResponse.json({ error: "No puedes desactivar o cambiar el último sysadmin" }, { status: 400 });
     }
 
+    // Protección contra escalada de privilegios en cambio de rol:
+    // admin no puede asignar rol admin ni sysadmin
+    // sysadmin no puede convertir otro usuario en sysadmin vía API
+    if (body.role !== undefined) {
+      if (role === "admin" && ["sysadmin", "admin"].includes(body.role)) {
+        return NextResponse.json({ error: "No tienes permisos para asignar ese rol" }, { status: 403 });
+      }
+      if (role === "sysadmin" && body.role === "sysadmin" && target.role !== "sysadmin") {
+        return NextResponse.json({ error: "No se puede asignar el rol sysadmin vía API" }, { status: 403 });
+      }
+    }
+
     const data: Record<string, unknown> = {};
     if (body.name  !== undefined) data.name  = body.name;
     if (body.email !== undefined) {

@@ -75,6 +75,21 @@ export async function middleware(req: NextRequest) {
     if (!rateLimit(`login:${ip}`, 10, 15 * 60_000)) return tooManyRequests("900");
   }
 
+  // Forgot password: 3 requests per 10 min — prevents user enumeration + DoS via email
+  if (pathname === "/api/auth/forgot-password" && req.method === "POST") {
+    if (!rateLimit(`forgot-pwd:${ip}`, 3, 10 * 60_000)) return tooManyRequests("600");
+  }
+
+  // Reset password token: 5 attempts per 15 min — prevents token brute-force
+  if (pathname === "/api/auth/reset-password" && req.method === "POST") {
+    if (!rateLimit(`reset-pwd:${ip}`, 5, 15 * 60_000)) return tooManyRequests("900");
+  }
+
+  // Change password: 5 attempts per 15 min per IP
+  if (pathname === "/api/auth/change-password" && req.method === "PUT") {
+    if (!rateLimit(`change-pwd:${ip}`, 5, 15 * 60_000)) return tooManyRequests("900");
+  }
+
   // ── Rate limits — authenticated data endpoints ────────────────
   // Students list: prevent enumeration / scraping
   if (pathname === "/api/students" || pathname.startsWith("/api/students/")) {
@@ -167,6 +182,9 @@ export const config = {
     "/api/scan/:path*",
     "/api/attendance",
     "/api/auth/callback/credentials",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
+    "/api/auth/change-password",
     "/api/public/free-trial",
     "/api/public/tournaments/:path*",
     // Authenticated data endpoints with rate limits

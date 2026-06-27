@@ -76,6 +76,17 @@ export async function POST(req: NextRequest) {
       targetDojoId = sessionDojoId ?? null;
     }
 
+    // Protección contra escalada de privilegios:
+    // admin solo puede crear user/student o roles personalizados — nunca admin/sysadmin
+    // sysadmin puede crear admin, user y student — nunca otro sysadmin vía API
+    const ELEVATED_ROLES = ["sysadmin", "admin"];
+    if (role === "admin" && ELEVATED_ROLES.includes(userRole)) {
+      return NextResponse.json({ error: "No tienes permisos para asignar ese rol" }, { status: 403 });
+    }
+    if (role === "sysadmin" && userRole === "sysadmin") {
+      return NextResponse.json({ error: "No se puede crear otro sysadmin vía API" }, { status: 403 });
+    }
+
     const hashed = await bcrypt.hash(password, 12);
 
     const newUser = await prisma.user.create({

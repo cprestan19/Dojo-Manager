@@ -6,6 +6,17 @@ import nodemailer from "nodemailer";
 import prisma from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 
+/** Escapa caracteres HTML para prevenir XSS al interpolar datos de usuario en plantillas. */
+function escHtml(s: string | null | undefined): string {
+  if (!s) return "";
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 interface TransporterResult {
   transporter: ReturnType<typeof nodemailer.createTransport>;
   /** The authenticated SMTP user email — must be used as the From address on Gmail */
@@ -85,26 +96,34 @@ function dojoHeader(dojo?: DojoMeta) {
       </div>`;
   }
 
+  const safeName   = escHtml(dojo.name);
+  const safeSlogan = escHtml(dojo.slogan);
+  const safePhone  = escHtml(dojo.phone);
+
   // Only embed Cloudinary URLs — never base64 (breaks email size limits on Gmail/SMTP).
   const logoUrl  = dojo.logo?.startsWith("http") ? dojo.logo : null;
   const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="${dojo.name}" style="width:56px;height:56px;object-fit:contain;border-radius:10px;background:#fff;" />`
-    : `<div style="width:56px;height:56px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:bold;color:#fff;">${dojo.name[0]}</div>`;
+    ? `<img src="${logoUrl}" alt="${safeName}" style="width:56px;height:56px;object-fit:contain;border-radius:10px;background:#fff;" />`
+    : `<div style="width:56px;height:56px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:bold;color:#fff;">${escHtml(dojo.name[0])}</div>`;
 
   return `
     <div style="background:#C0392B;padding:20px 24px;display:flex;align-items:center;gap:16px;">
       ${logoHtml}
       <div>
-        <h1 style="margin:0;font-size:20px;color:white;font-family:serif;letter-spacing:2px;">${dojo.name}</h1>
-        ${dojo.slogan ? `<p style="margin:3px 0 0;color:rgba(255,255,255,0.85);font-size:12px;font-style:italic;">${dojo.slogan}</p>` : ""}
-        ${dojo.phone  ? `<p style="margin:3px 0 0;color:rgba(255,255,255,0.7);font-size:11px;">📞 ${dojo.phone}</p>` : ""}
+        <h1 style="margin:0;font-size:20px;color:white;font-family:serif;letter-spacing:2px;">${safeName}</h1>
+        ${safeSlogan ? `<p style="margin:3px 0 0;color:rgba(255,255,255,0.85);font-size:12px;font-style:italic;">${safeSlogan}</p>` : ""}
+        ${safePhone  ? `<p style="margin:3px 0 0;color:rgba(255,255,255,0.7);font-size:11px;">📞 ${safePhone}</p>` : ""}
       </div>
     </div>`;
 }
 
 function emailFooter(dojo?: DojoMeta) {
+  const safeName  = escHtml(dojo?.name ?? "Dojo Master");
+  const safeOwner = escHtml(dojo?.ownerName);
+  const safePhone = escHtml(dojo?.phone);
+
   const dojoLine = dojo
-    ? `${dojo.name}${dojo.ownerName ? " · " + dojo.ownerName : ""}${dojo.phone ? " · " + dojo.phone : ""}`
+    ? `${safeName}${safeOwner ? " · " + safeOwner : ""}${safePhone ? " · " + safePhone : ""}`
     : "Dojo Master";
   return `
     <div style="padding:20px 24px;background:#0F0F1A;border-top:1px solid #2A3550;">
@@ -129,9 +148,13 @@ export async function sendPaymentReminder({
   interestPct?:   number;
   dojo?:         DojoMeta;
 }) {
-  const greeting = guardianName
-    ? `Estimado/a <strong>${guardianName}</strong>, padre/tutor de <strong>${studentName}</strong>`
-    : `Estimado padre / tutor de <strong>${studentName}</strong>`;
+  const safeGuardian = escHtml(guardianName);
+  const safeStudent  = escHtml(studentName);
+  const safeDueDate  = escHtml(dueDate);
+
+  const greeting = safeGuardian
+    ? `Estimado/a <strong>${safeGuardian}</strong>, padre/tutor de <strong>${safeStudent}</strong>`
+    : `Estimado padre / tutor de <strong>${safeStudent}</strong>`;
 
   const lateBlock = daysLate > 0
     ? `<p style="margin:0 0 16px;color:#C8D0DA;">
@@ -155,11 +178,11 @@ export async function sendPaymentReminder({
         <div style="background:#16213E;border:1px solid #2A3550;border-radius:8px;padding:20px;margin-bottom:20px;">
           <table style="width:100%;border-collapse:collapse;">
             <tr><td style="padding:6px 0;color:#8892A4;font-size:13px;">Alumno</td>
-                <td style="padding:6px 0;font-weight:bold;text-align:right;">${studentName}</td></tr>
+                <td style="padding:6px 0;font-weight:bold;text-align:right;">${safeStudent}</td></tr>
             <tr><td style="padding:6px 0;color:#8892A4;font-size:13px;">Monto</td>
                 <td style="padding:6px 0;font-weight:bold;color:#F39C12;text-align:right;">$${amount.toFixed(2)}</td></tr>
             <tr><td style="padding:6px 0;color:#8892A4;font-size:13px;">Fecha de vencimiento</td>
-                <td style="padding:6px 0;text-align:right;">${dueDate}</td></tr>
+                <td style="padding:6px 0;text-align:right;">${safeDueDate}</td></tr>
           </table>
         </div>
 
@@ -203,8 +226,14 @@ export async function sendPaymentReceipt({
   concept:      string;
   dojo?:        DojoMeta;
 }) {
-  const greeting = guardianName
-    ? `Estimado/a <strong>${guardianName}</strong>`
+  const safeGuardian  = escHtml(guardianName);
+  const safeStudent   = escHtml(studentName);
+  const safeReceiptNo = escHtml(receiptNo);
+  const safePaidDate  = escHtml(paidDate);
+  const safeConcept   = escHtml(concept);
+
+  const greeting = safeGuardian
+    ? `Estimado/a <strong>${safeGuardian}</strong>`
     : "Estimado padre / tutor";
 
   const html = `
@@ -213,7 +242,7 @@ export async function sendPaymentReceipt({
       <div style="padding:32px 24px;">
         <div style="text-align:center;margin-bottom:24px;">
           <h2 style="color:#F0F0F0;margin:0 0 4px;font-size:20px;letter-spacing:3px;font-family:serif;">RECIBO DE PAGO</h2>
-          <p style="color:#8892A4;font-size:12px;margin:0;letter-spacing:1px;">N.º ${receiptNo}</p>
+          <p style="color:#8892A4;font-size:12px;margin:0;letter-spacing:1px;">N.º ${safeReceiptNo}</p>
         </div>
 
         <p style="font-size:14px;margin:0 0 8px;">${greeting},</p>
@@ -225,7 +254,7 @@ export async function sendPaymentReceipt({
           <table style="width:100%;border-collapse:collapse;">
             <tr>
               <td style="padding:6px 0;color:#8892A4;font-size:13px;">Alumno</td>
-              <td style="padding:6px 0;font-weight:bold;text-align:right;">${studentName}</td>
+              <td style="padding:6px 0;font-weight:bold;text-align:right;">${safeStudent}</td>
             </tr>
             ${studentCode ? `
             <tr>
@@ -234,11 +263,11 @@ export async function sendPaymentReceipt({
             </tr>` : ""}
             <tr>
               <td style="padding:6px 0;color:#8892A4;font-size:13px;">Concepto</td>
-              <td style="padding:6px 0;text-align:right;">${concept}</td>
+              <td style="padding:6px 0;text-align:right;">${safeConcept}</td>
             </tr>
             <tr>
               <td style="padding:6px 0;color:#8892A4;font-size:13px;">Fecha de pago</td>
-              <td style="padding:6px 0;text-align:right;">${paidDate}</td>
+              <td style="padding:6px 0;text-align:right;">${safePaidDate}</td>
             </tr>
           </table>
         </div>
@@ -278,12 +307,17 @@ export async function sendStudentWelcome({
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.dojomasteronline.com";
   const loginUrl = dojo?.slug ? `${appUrl}/dojo/${dojo.slug}/login` : `${appUrl}/login`;
 
+  const safeStudent  = escHtml(studentName);
+  const safeEmail    = escHtml(loginEmail);
+  const safePassword = escHtml(tempPassword);
+  const safeLoginUrl = escHtml(loginUrl);
+
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
       ${dojoHeader(dojo)}
       <div style="padding:32px 24px;">
         <h2 style="color:#F0F0F0;margin:0 0 16px;font-size:20px;">¡Bienvenido/a al Portal del Alumno!</h2>
-        <p style="font-size:15px;margin:0 0 12px;">Hola <strong>${studentName}</strong>,</p>
+        <p style="font-size:15px;margin:0 0 12px;">Hola <strong>${safeStudent}</strong>,</p>
         <p style="color:#C8D0DA;font-size:13px;margin:0 0 20px;">
           Se ha creado tu acceso al portal del alumno. Usa las siguientes credenciales para ingresar:
         </p>
@@ -292,16 +326,16 @@ export async function sendStudentWelcome({
             <tr>
               <td style="padding:8px 0;color:#8892A4;font-size:13px;">URL de acceso</td>
               <td style="padding:8px 0;text-align:right;">
-                <a href="${loginUrl}" style="color:#E74C3C;">${loginUrl}</a>
+                <a href="${safeLoginUrl}" style="color:#E74C3C;">${safeLoginUrl}</a>
               </td>
             </tr>
             <tr>
               <td style="padding:8px 0;color:#8892A4;font-size:13px;">Correo</td>
-              <td style="padding:8px 0;font-family:monospace;text-align:right;">${loginEmail}</td>
+              <td style="padding:8px 0;font-family:monospace;text-align:right;">${safeEmail}</td>
             </tr>
             <tr>
               <td style="padding:8px 0;color:#8892A4;font-size:13px;">Contraseña temporal</td>
-              <td style="padding:8px 0;font-family:monospace;font-size:16px;font-weight:bold;color:#F39C12;text-align:right;">${tempPassword}</td>
+              <td style="padding:8px 0;font-family:monospace;font-size:16px;font-weight:bold;color:#F39C12;text-align:right;">${safePassword}</td>
             </tr>
           </table>
         </div>
@@ -334,13 +368,19 @@ export async function sendUserWelcome({
 }) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.dojomasteronline.com";
 
+  const safeName      = escHtml(name);
+  const safeDojoName  = escHtml(dojo?.name);
+  const safeEmail     = escHtml(loginEmail);
+  const safePassword  = escHtml(tempPassword);
+  const safeRoleLabel = escHtml(roleLabel);
+
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
       ${dojoHeader(dojo)}
       <div style="padding:32px 24px;">
-        <h2 style="color:#F0F0F0;margin:0 0 8px;font-size:20px;">¡Bienvenido/a, ${name}!</h2>
+        <h2 style="color:#F0F0F0;margin:0 0 8px;font-size:20px;">¡Bienvenido/a, ${safeName}!</h2>
         <p style="color:#C8D0DA;font-size:13px;margin:0 0 20px;">
-          Se ha creado tu cuenta de acceso al sistema de gestión${dojo ? ` de <strong>${dojo.name}</strong>` : ""}.
+          Se ha creado tu cuenta de acceso al sistema de gestión${safeDojoName ? ` de <strong>${safeDojoName}</strong>` : ""}.
           A continuación encontrarás tus credenciales de ingreso.
         </p>
 
@@ -355,18 +395,18 @@ export async function sendUserWelcome({
             </tr>
             <tr style="border-top:1px solid #2A3550;">
               <td style="padding:8px 0;color:#8892A4;font-size:13px;">Correo electrónico</td>
-              <td style="padding:8px 0;font-family:monospace;font-size:13px;text-align:right;color:#F0F0F0;">${loginEmail}</td>
+              <td style="padding:8px 0;font-family:monospace;font-size:13px;text-align:right;color:#F0F0F0;">${safeEmail}</td>
             </tr>
             <tr style="border-top:1px solid #2A3550;">
               <td style="padding:8px 0;color:#8892A4;font-size:13px;">Contraseña temporal</td>
               <td style="padding:8px 0;text-align:right;">
-                <span style="font-family:monospace;font-size:18px;font-weight:bold;color:#F39C12;background:#2A2000;padding:4px 12px;border-radius:6px;">${tempPassword}</span>
+                <span style="font-family:monospace;font-size:18px;font-weight:bold;color:#F39C12;background:#2A2000;padding:4px 12px;border-radius:6px;">${safePassword}</span>
               </td>
             </tr>
             <tr style="border-top:1px solid #2A3550;">
               <td style="padding:8px 0;color:#8892A4;font-size:13px;">Rol asignado</td>
               <td style="padding:8px 0;text-align:right;">
-                <span style="background:#1E3A5F;color:#60A5FA;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:bold;">${roleLabel}</span>
+                <span style="background:#1E3A5F;color:#60A5FA;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:bold;">${safeRoleLabel}</span>
               </td>
             </tr>
           </table>
@@ -404,17 +444,20 @@ export async function sendPasswordReset({
   resetUrl: string;
   dojo?:    DojoMeta;
 }) {
+  const safeName     = escHtml(name);
+  const safeResetUrl = escHtml(resetUrl);
+
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
       ${dojoHeader(dojo)}
       <div style="padding:32px 24px;">
         <h2 style="color:#F0F0F0;margin:0 0 16px;font-size:20px;">Restablecer contraseña</h2>
-        <p style="font-size:15px;margin:0 0 12px;">Hola <strong>${name}</strong>,</p>
+        <p style="font-size:15px;margin:0 0 12px;">Hola <strong>${safeName}</strong>,</p>
         <p style="color:#C8D0DA;font-size:13px;margin:0 0 24px;">
           Recibimos una solicitud para restablecer tu contraseña. El enlace expira en <strong>30 minutos</strong>.
         </p>
         <div style="text-align:center;margin-bottom:24px;">
-          <a href="${resetUrl}"
+          <a href="${safeResetUrl}"
             style="display:inline-block;background:#C0392B;color:#fff;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:bold;text-decoration:none;">
             Restablecer contraseña
           </a>
