@@ -231,6 +231,7 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
   }
 
   async function onSubmit(data: FormData) {
+    if (photoUploading) return; // esperar a que termine la subida
     setError("");
     const trimmed   = data.fullName.trim();
     const parts     = trimmed.split(/\s+/);
@@ -299,8 +300,8 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
             {isEdit ? "Editar Alumno" : "Nuevo Alumno"}
           </h1>
         </div>
-        <button type="submit" disabled={isSubmitting} className="btn-primary">
-          <Save size={18} /> {isSubmitting ? "Guardando..." : "Guardar Alumno"}
+        <button type="submit" disabled={isSubmitting || photoUploading} className="btn-primary">
+          <Save size={18} /> {isSubmitting ? "Guardando..." : photoUploading ? "Subiendo foto..." : "Guardar Alumno"}
         </button>
       </div>
 
