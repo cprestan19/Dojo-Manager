@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
@@ -171,6 +172,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
         after:  { fullName: student.fullName, active: student.active },
       }),
     });
+
+    // Invalidar caché de Next.js para que la lista y el perfil muestren datos frescos
+    revalidatePath("/dashboard/students");
+    revalidatePath(`/dashboard/students/${id}`);
 
     return NextResponse.json(student);
   } catch (err) {

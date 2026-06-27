@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { CreateStudentSchema, validationError } from "@/lib/validation";
@@ -158,6 +159,8 @@ async function _POST(req: NextRequest) {
       statusCode:   201,
       details:      JSON.stringify({ fullName: student.fullName, studentCode: student.studentCode, gender: student.gender, nationality: student.nationality }),
     });
+
+    revalidatePath("/dashboard/students");
 
     return NextResponse.json(student, { status: 201 });
   } catch (err) {
