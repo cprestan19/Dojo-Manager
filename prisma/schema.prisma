@@ -58,6 +58,8 @@ model Dojo {
   externalClubs           ExternalClub[]
   externalAthletes        ExternalAthlete[]
   subscription            Subscription?
+  registrationLinks       RegistrationLink[]
+  pendingStudents         PendingStudent[]
 
   @@map("dojos")
 }
@@ -1201,6 +1203,77 @@ model TournamentEventParticipant {
   @@index([eventId, arrived])
   @@index([eventId, kataResult])
   @@map("tournament_event_participants")
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// AUTO-REGISTRO — Links de auto-inscripción + cola de aprobación
+// ════════════════════════════════════════════════════════════════════════════
+
+model RegistrationLink {
+  id          String    @id @default(cuid())
+  dojoId      String    @map("dojo_id")
+  dojo        Dojo      @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  token       String    @unique           // crypto.randomUUID() — 122 bits de entropía
+  label       String                      // "Inscripciones Enero 2026"
+  isActive    Boolean   @default(true)    @map("is_active")
+  activatesAt DateTime? @map("activates_at")  // no usable ANTES de esta fecha
+  expiresAt   DateTime? @map("expires_at")    // no usable DESPUÉS de esta fecha
+  maxUses     Int?      @map("max_uses")       // null = sin límite
+  useCount    Int       @default(0)        @map("use_count")
+  createdAt   DateTime  @default(now())    @map("created_at")
+  createdBy   String    @map("created_by") // userId del admin
+
+  pendingStudents PendingStudent[]
+
+  @@index([dojoId])
+  @@map("registration_links")
+}
+
+model PendingStudent {
+  id                 String           @id @default(cuid())
+  dojoId             String           @map("dojo_id")
+  dojo               Dojo             @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  registrationLinkId String           @map("registration_link_id")
+  registrationLink   RegistrationLink @relation(fields: [registrationLinkId], references: [id], onDelete: Cascade)
+
+  // ── Datos personales ────────────────────────────────────────
+  fullName   String   @map("full_name")
+  firstName  String   @map("first_name")
+  lastName   String   @map("last_name")
+  birthDate  DateTime @map("birth_date")
+  gender     String
+  nationality String
+  cedula     String?
+  fepakaId   String?  @map("fepaka_id")
+  ryoBukaiId String?  @map("ryo_bukai_id")
+
+  // ── Datos de salud ──────────────────────────────────────────
+  bloodType           String?  @map("blood_type")
+  condition           String?
+  hasPrivateInsurance Boolean  @default(false) @map("has_private_insurance")
+  insuranceName       String?  @map("insurance_name")
+  insuranceNumber     String?  @map("insurance_number")
+
+  // ── Contactos ───────────────────────────────────────────────
+  motherName  String?  @map("mother_name")
+  motherPhone String?  @map("mother_phone")
+  motherEmail String?  @map("mother_email")
+  fatherName  String?  @map("father_name")
+  fatherPhone String?  @map("father_phone")
+  fatherEmail String?  @map("father_email")
+  address     String?  @db.Text
+
+  // ── Control de aprobación ───────────────────────────────────
+  status        String    @default("pending")  // pending | approved | rejected
+  reviewedBy    String?   @map("reviewed_by")
+  reviewedAt    DateTime? @map("reviewed_at")
+  rejectionNote String?   @map("rejection_note")
+  submittedAt   DateTime  @default(now()) @map("submitted_at")
+  submitterIp   String?   @map("submitter_ip")
+
+  @@index([dojoId, status])
+  @@index([registrationLinkId])
+  @@map("pending_students")
 }
 
 // ════════════════════════════════════════════════════════════════════════════

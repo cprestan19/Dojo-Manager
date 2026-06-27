@@ -15,7 +15,7 @@ import {
   BarChart2, Settings, LogOut, Shield, Building2,
   ClipboardList, QrCode, ChevronDown, Video, ShieldCheck,
   ChevronLeft, Home, Mail, LayoutDashboard, Trophy, ScrollText,
-  Crown, Lock, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag,
+  Crown, Lock, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Receipt,
 } from "lucide-react";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -28,6 +28,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/attendance":               "Asistencia",
   "/dashboard/tournament-events":        "Asistencia de Torneos",
   "/dashboard/tournament-events/new":    "Nuevo Torneo",
+  "/dashboard/registros":               "Auto-registro",
   "/dashboard/settings/katas":     "Katas",
   "/dashboard/reports":            "Reportes",
   "/dashboard/users":              "Usuarios",
@@ -45,6 +46,7 @@ interface NavItem { href: string; label: string; icon: React.ElementType; permKe
 const drawerItems: NavItem[] = [
   { href: "/dashboard",                label: "Dashboard",       icon: LayoutDashboard, permKey: NAV_KEYS.DASHBOARD      },
   { href: "/dashboard/students",       label: "Alumnos",         icon: Users,           permKey: NAV_KEYS.STUDENTS       },
+  { href: "/dashboard/registros",      label: "Auto-registro",   icon: Receipt,         permKey: NAV_KEYS.REGISTROS      },
   { href: "/dashboard/leads",          label: "Prospectos",      icon: UserPlus,        permKey: NAV_KEYS.LEADS          },
   { href: "/dashboard/attendance",          label: "Asistencia",  icon: ClipboardList, permKey: NAV_KEYS.ATTENDANCE        },
   { href: "/dashboard/tournament-events",  label: "Asistencia de Torneos", icon: Trophy, permKey: NAV_KEYS.TOURNAMENT_EVENTS },

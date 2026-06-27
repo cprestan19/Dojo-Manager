@@ -23,6 +23,7 @@ export const NAV_KEYS = {
   LEADS:           "leads",
   PUBLIC_PAGE:     "public-page",
   STORE:           "store",
+  REGISTROS:       "registros",
 } as const;
 
 export type NavKey = typeof NAV_KEYS[keyof typeof NAV_KEYS];
@@ -49,6 +50,7 @@ export const ALL_DOJO_KEYS: NavKey[] = [
   NAV_KEYS.LEADS,
   NAV_KEYS.PUBLIC_PAGE,
   NAV_KEYS.STORE,
+  NAV_KEYS.REGISTROS,
 ];
 
 // Permisos del sysadmin SIN dojo activo — solo gestión global de la plataforma
@@ -106,6 +108,7 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "leads":            "Prospectos",
   "public-page":      "Página Pública",
   "store":            "Tienda",
+  "registros":        "Auto-registro",
 };
 
 export const ROLE_COLORS = [

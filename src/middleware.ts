@@ -104,6 +104,11 @@ export async function middleware(req: NextRequest) {
     if (!rateLimit(`free-trial:${ip}`, 5, 60_000)) return tooManyRequests("60");
   }
 
+  // Self-registration form: 3 submissions per IP per 10 minutes
+  if (pathname.startsWith("/api/public/register/") && req.method === "POST") {
+    if (!rateLimit(`reg-submit:${ip}`, 3, 10 * 60_000)) return tooManyRequests("600");
+  }
+
   // Tournament public registration: prevent spam
   if (pathname.includes("/api/public/tournaments/") && pathname.endsWith("/register") && req.method === "POST") {
     if (!rateLimit(`tournament-reg:${ip}`, 10, 60_000)) return tooManyRequests("60");
@@ -167,5 +172,6 @@ export const config = {
     "/api/users/:path*",
     "/api/upload",
     "/api/upload/video-signature",
+    "/api/public/register/:path*",
   ],
 };

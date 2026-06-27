@@ -31,6 +31,7 @@ type NavItemDef = { href: string; icon: React.ElementType; permKey: NavKey; labe
 const NAV_DEFS: NavItemDef[] = [
   { href: "/dashboard",                  icon: LayoutDashboard, permKey: NAV_KEYS.DASHBOARD,       labelKey: "dashboard"   },
   { href: "/dashboard/students",         icon: Users,           permKey: NAV_KEYS.STUDENTS,        labelKey: "students"    },
+  { href: "/dashboard/registros",        icon: Receipt,         permKey: NAV_KEYS.REGISTROS,       labelKey: "registros"   },
   { href: "/dashboard/leads",            icon: UserPlus,        permKey: NAV_KEYS.LEADS,           labelKey: "leads"       },
   { href: "/dashboard/attendance",         icon: ClipboardList, permKey: NAV_KEYS.ATTENDANCE,        labelKey: "attendance"        },
   { href: "/dashboard/tournament-events", icon: Trophy,        permKey: NAV_KEYS.TOURNAMENT_EVENTS, labelKey: "tournament-events"  },
