@@ -498,9 +498,16 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
         </Field>
       </Section>
 
-      <button type="submit" disabled={loading} className="btn-primary w-full">
-        {loading ? "Enviando..." : "Enviar solicitud de inscripción"}
-      </button>
+      <div className="flex gap-3">
+        <button type="button" disabled={loading}
+          onClick={() => { setForm(INIT); setErrors({}); setGlobalError(""); setStep("splash"); }}
+          className="btn-secondary flex-1">
+          Cancelar
+        </button>
+        <button type="submit" disabled={loading} className="btn-primary flex-1">
+          {loading ? "Enviando..." : "Enviar solicitud"}
+        </button>
+      </div>
 
       <p className="text-xs text-dojo-muted text-center">
         Tu información será revisada por {dojoName} antes de ser registrada.
