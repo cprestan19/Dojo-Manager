@@ -35,16 +35,17 @@ function StudentCard({
 }: {
   student:   PendingStudent;
   onApprove: (id: string, force?: boolean) => Promise<ApproveResult>;
-  onReject:  (id: string, note: string) => Promise<void>;
+  onReject:  (id: string, note: string, notify: boolean) => Promise<void>;
   onDelete:  (id: string, notify: boolean) => Promise<void>;
 }) {
-  const [expanded,    setExpanded]    = useState(false);
-  const [loading,     setLoading]     = useState(false);
-  const [showReject,  setShowReject]  = useState(false);
-  const [showDelete,  setShowDelete]  = useState(false);
-  const [dupWarning,  setDupWarning]  = useState<DupWarning | null>(null);
-  const [note,        setNote]        = useState("");
-  const [notifyOnDel, setNotifyOnDel] = useState(true);
+  const [expanded,       setExpanded]       = useState(false);
+  const [loading,        setLoading]        = useState(false);
+  const [showReject,     setShowReject]     = useState(false);
+  const [showDelete,     setShowDelete]     = useState(false);
+  const [dupWarning,     setDupWarning]     = useState<DupWarning | null>(null);
+  const [note,           setNote]           = useState("");
+  const [notifyOnRej,    setNotifyOnRej]    = useState(true);
+  const [notifyOnDel,    setNotifyOnDel]    = useState(true);
 
   const hasEmail = !!(student.motherEmail || student.fatherEmail);
 
@@ -59,7 +60,7 @@ function StudentCard({
 
   async function reject() {
     setLoading(true);
-    await onReject(student.id, note).finally(() => setLoading(false));
+    await onReject(student.id, note, notifyOnRej && hasEmail).finally(() => setLoading(false));
     setShowReject(false);
     setNote("");
   }
@@ -245,9 +246,23 @@ function StudentCard({
 
       {/* Acciones aprobar / rechazar */}
       {!showDelete && !dupWarning && (showReject ? (
-        <div className="space-y-2 border-t border-dojo-border pt-3">
+        <div className="space-y-3 border-t border-dojo-border pt-3">
           <textarea className="form-input resize-none text-sm" rows={2} value={note}
-            onChange={e => setNote(e.target.value)} placeholder="Motivo del rechazo (opcional)" />
+            onChange={e => setNote(e.target.value)} placeholder="Motivo del rechazo (opcional — el padre/tutor lo verá si se notifica)" />
+          {hasEmail ? (
+            <label className="flex items-center gap-2 text-sm text-dojo-white cursor-pointer">
+              <input type="checkbox" checked={notifyOnRej} onChange={e => setNotifyOnRej(e.target.checked)}
+                className="w-4 h-4 accent-dojo-red" />
+              Enviar email con link para que corrija y reenvíe
+            </label>
+          ) : (
+            <p className="text-xs text-yellow-500">⚠ No hay correo registrado — no se puede notificar.</p>
+          )}
+          {notifyOnRej && hasEmail && (
+            <p className="text-xs text-dojo-muted">
+              El padre/tutor recibirá un enlace con <code className="text-dojo-gold">?reset=1</code> que le permite volver a abrir el formulario y corregir los datos.
+            </p>
+          )}
           <div className="flex gap-2">
             <button onClick={() => setShowReject(false)} className="btn-secondary text-sm flex-1">Cancelar</button>
             <button onClick={reject} disabled={loading}
@@ -315,11 +330,11 @@ export default function PendingStudentsQueue({ onCountChange }: { onCountChange?
     load(statusFilter);
   }
 
-  async function reject(id: string, note: string) {
+  async function reject(id: string, note: string, notify: boolean) {
     const res = await fetch(`/api/pending-students/${id}/reject`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ note }),
+      body:    JSON.stringify({ note, notify }),
     });
     if (!res.ok) alert("Error al rechazar.");
     else load(statusFilter);
