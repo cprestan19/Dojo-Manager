@@ -978,14 +978,6 @@ export default function StudentDetailPage() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="btn-ghost"><ArrowLeft size={18}/></button>
-          <div className="w-16 h-16 rounded-2xl bg-dojo-border overflow-hidden relative">
-            {student.photo
-              ? <Image src={student.photo} alt="foto" fill className="object-cover"/>
-              : <div className="w-full h-full flex items-center justify-center text-xl font-bold text-dojo-gold">
-                  {student.fullName.split(" ").slice(0,2).map(w => w[0]).join("")}
-                </div>
-            }
-          </div>
           <div>
             <h1 className="font-display text-2xl font-bold text-dojo-white">
               {student.fullName}
@@ -1079,6 +1071,15 @@ export default function StudentDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Personal info */}
         <div className="lg:col-span-1 space-y-4">
+
+          {/* Photo */}
+          {student.photo && (
+            <div className="card p-0 overflow-hidden rounded-xl">
+              <div className="w-full h-52 relative">
+                <Image src={student.photo} alt={student.fullName} fill className="object-cover" />
+              </div>
+            </div>
+          )}
 
           {/* Personal */}
           <div className="card">
