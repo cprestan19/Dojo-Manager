@@ -184,6 +184,11 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
     const file = e.target.files?.[0];
     if (!file) return;
     setPhotoError("");
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("La imagen no debe superar 5 MB. Comprime o recorta antes de subir.");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     setPhotoUploading(true);
     try {
       const fd = new FormData();
@@ -334,6 +339,9 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
               )}
             </div>
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoChange} />
+            <p className="text-[10px] text-dojo-muted text-center leading-tight">
+              De pecho hacia arriba<br/>No cuerpo completo · Máx. 5 MB
+            </p>
             {photoError && <p className="text-xs text-red-400 text-center">{photoError}</p>}
             {photo && !photoUploading && (
               <button type="button" onClick={() => setPhoto(null)} className="text-xs text-dojo-muted hover:text-red-400 transition-colors">

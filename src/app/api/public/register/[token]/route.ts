@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
+import { sendRegistrationConfirmation } from "@/lib/email";
 
 const GENERIC_ERROR = "No se pudo procesar la solicitud. Verifica el enlace e intenta de nuevo.";
 
@@ -48,7 +49,10 @@ export async function POST(
 
   const link = await prisma.registrationLink.findUnique({
     where:  { token },
-    select: { id: true, dojoId: true, isActive: true, activatesAt: true, expiresAt: true, maxUses: true, useCount: true },
+    select: {
+      id: true, dojoId: true, isActive: true, activatesAt: true, expiresAt: true, maxUses: true, useCount: true,
+      dojo: { select: { name: true, email: true, phone: true, slogan: true, logo: true, ownerName: true } },
+    },
   });
 
   const now = new Date();
@@ -145,6 +149,17 @@ export async function POST(
       ip,
       details:      JSON.stringify({ fullName: body.fullName, linkId: link.id }),
     });
+
+    // Enviar email de confirmación al padre/madre si proporcionó correo (fire-and-forget)
+    const confirmTo = body.motherEmail || body.fatherEmail;
+    if (confirmTo) {
+      sendRegistrationConfirmation({
+        to:          confirmTo,
+        studentName: body.fullName,
+        dojoName:    link.dojo.name,
+        dojo:        link.dojo,
+      }).catch(err => console.error("[registro] Confirmation email failed:", err));
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {

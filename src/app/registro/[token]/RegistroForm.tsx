@@ -129,7 +129,11 @@ export default function RegistroForm({ token, dojoName }: Props) {
         <CheckCircle2 size={56} className="text-green-400" />
         <h2 className="text-xl font-bold text-dojo-white">¡Solicitud enviada!</h2>
         <p className="text-dojo-muted max-w-xs">
-          {dojoName} revisará tu información y te contactará pronto para confirmar la inscripción.
+          Hemos recibido la solicitud de inscripción. <strong className="text-dojo-white">{dojoName}</strong> la revisará
+          y se comunicará contigo para confirmar el registro.
+        </p>
+        <p className="text-dojo-muted text-xs max-w-xs">
+          Si proporcionaste un correo electrónico recibirás una confirmación por email.
         </p>
       </div>
     );
@@ -137,6 +141,9 @@ export default function RegistroForm({ token, dojoName }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <p className="text-xs text-dojo-muted">
+        Los campos marcados con <span className="text-dojo-red font-bold">*</span> son obligatorios.
+      </p>
 
       {/* ── Datos Personales ── */}
       <Section title="1. Datos Personales" open={sections.personal} toggle={() => toggleSection("personal")}>

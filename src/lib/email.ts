@@ -474,6 +474,49 @@ export async function sendPasswordReset({
   await t.sendMail({ from: fromAddress(smtpUser, fromName, dojo), to, subject, html });
 }
 
+export async function sendRegistrationConfirmation({
+  to, studentName, dojoName, dojo,
+}: {
+  to:          string;
+  studentName: string;
+  dojoName:    string;
+  dojo?:       DojoMeta;
+}) {
+  const safeStudent = escHtml(studentName);
+  const safeDojo    = escHtml(dojoName);
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
+      ${dojoHeader(dojo)}
+      <div style="padding:32px 24px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="display:inline-block;background:#0D3B1F;border:2px solid #16A34A;border-radius:50%;width:64px;height:64px;line-height:64px;font-size:32px;">✅</div>
+        </div>
+        <h2 style="color:#4ADE80;text-align:center;margin:0 0 16px;font-size:20px;">¡Solicitud recibida!</h2>
+        <p style="color:#C8D0DA;font-size:14px;margin:0 0 20px;text-align:center;">
+          Hemos recibido la solicitud de inscripción de <strong style="color:#F0F0F0;">${safeStudent}</strong>
+          en <strong style="color:#F0F0F0;">${safeDojo}</strong>.
+        </p>
+        <div style="background:#16213E;border:1px solid #2A3550;border-radius:8px;padding:16px;margin-bottom:20px;">
+          <p style="margin:0 0 8px;color:#8892A4;font-size:13px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">¿Qué sigue?</p>
+          <ol style="margin:0;padding-left:18px;color:#C8D0DA;font-size:13px;line-height:1.8;">
+            <li>Un administrador del dojo revisará los datos enviados.</li>
+            <li>Si todo está correcto, el alumno quedará registrado en el sistema.</li>
+            <li>El dojo se comunicará contigo para confirmar la inscripción.</li>
+          </ol>
+        </div>
+        <p style="color:#8892A4;font-size:12px;text-align:center;margin:0;">
+          Si tienes dudas, comunícate directamente con ${safeDojo}.
+        </p>
+      </div>
+      ${emailFooter(dojo)}
+    </div>`;
+
+  const subject = `✅ Solicitud recibida — ${studentName} · ${dojoName}`;
+  const { transporter: t, smtpUser, fromName } = await createTransporter();
+  await t.sendMail({ from: fromAddress(smtpUser, fromName, dojo), to, subject, html });
+}
+
 /**
  * Envío genérico de email — para notificaciones de torneos abiertos y coaches externos.
  * Usa la misma configuración SMTP del sistema.
