@@ -1050,7 +1050,7 @@ export default function StudentDetailPage() {
               : <><UserCheck size={15}/> {togglingActive ? "..." : "Activar"}</>
             }
           </button>
-          {!student.active && (
+          {!student.active && canEdit && (
             <button
               onClick={() => setConfirmDelete(true)}
               disabled={deleting}
