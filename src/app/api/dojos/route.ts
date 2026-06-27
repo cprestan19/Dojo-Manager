@@ -65,6 +65,26 @@ export async function POST(req: NextRequest) {
   const defaultPlan = await getOrCreateDefaultPlan();
   await createTrialSubscription(dojo.id, defaultPlan.id);
 
+  // Copiar katas del dojo natusuki como plantilla base
+  const templateDojo = await prisma.dojo.findFirst({
+    where:   { slug: { contains: "natusuki" } },
+    select:  { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (templateDojo) {
+    const templateKatas = await prisma.kata.findMany({
+      where:   { dojoId: templateDojo.id, active: true },
+      select:  { name: true, beltColor: true, order: true, description: true },
+      orderBy: { order: "asc" },
+    });
+    if (templateKatas.length > 0) {
+      await prisma.kata.createMany({
+        data:           templateKatas.map(k => ({ ...k, dojoId: dojo.id })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
   const adminEmail     = `admin@${slug}.com`;
   const hashedPassword = await bcrypt.hash(adminPassword, 12);
 
