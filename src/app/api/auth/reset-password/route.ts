@@ -11,29 +11,31 @@ export async function POST(req: NextRequest) {
   const pwResult = PasswordSchema.safeParse(password);
   if (!pwResult.success) return NextResponse.json({ error: pwResult.error.errors[0]?.message ?? "Contraseña inválida" }, { status: 400 });
 
-  // Fetch candidate user by expiry + active — avoid full table scan
-  // Then compare tokens with timingSafeEqual to prevent timing side-channel
+  // Buscar por token en DB (UUID de 122 bits — no enumerable por timing).
+  // timingSafeEqual como capa adicional contra comparaciones en memoria.
   const candidate = await prisma.user.findFirst({
     where: {
+      resetToken:       token,
       resetTokenExpiry: { gte: new Date() },
       active:           true,
-      resetToken:       { not: null },
     },
     select: { id: true, resetToken: true },
   });
 
-  let user: { id: string } | null = null;
+  let verified = false;
   if (candidate?.resetToken) {
     try {
       const a = Buffer.from(candidate.resetToken, "utf8");
-      const b = Buffer.from(token,                 "utf8");
-      if (a.length === b.length && timingSafeEqual(a, b)) user = { id: candidate.id };
+      const b = Buffer.from(token,                "utf8");
+      verified = a.length === b.length && timingSafeEqual(a, b);
     } catch {
-      // length mismatch handled by null user below
+      verified = false;
     }
   }
 
-  if (!user) return NextResponse.json({ error: "Token inválido o expirado" }, { status: 400 });
+  if (!verified) return NextResponse.json({ error: "Token inválido o expirado" }, { status: 400 });
+
+  const user = candidate!;
 
   const hashed = await bcrypt.hash(password, 12);
   await prisma.user.update({
