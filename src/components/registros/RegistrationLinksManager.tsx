@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Copy, Check, Trash2, ToggleLeft, ToggleRight, ExternalLink } from "lucide-react";
+import { Plus, Copy, Check, Trash2, ToggleLeft, ToggleRight, ExternalLink, Pencil } from "lucide-react";
 
 interface RegistrationLink {
   id: string; label: string; token: string; isActive: boolean;
@@ -49,13 +49,33 @@ function formatDate(d: string | null) {
   return new Date(d).toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function formatDateTime(d: string | null) {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("es", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+/** Convierte un Date a string compatible con input datetime-local (YYYY-MM-DDTHH:MM en hora local) */
+function toDateTimeLocal(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+type FormState = { label: string; activatesAt: string; expiresAt: string; maxUses: string };
+const FORM_INIT: FormState = { label: "", activatesAt: "", expiresAt: "", maxUses: "" };
+
 export default function RegistrationLinksManager() {
-  const [links, setLinks]     = useState<RegistrationLink[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [saving, setSaving]   = useState(false);
-  const [form, setForm]       = useState({ label: "", activatesAt: "", expiresAt: "", maxUses: "" });
+  const [links, setLinks]       = useState<RegistrationLink[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [form, setForm]         = useState<FormState>(FORM_INIT);
+  const [editingId, setEditingId] = useState<string | null>(null); // null = crear, string = editar
+  const [showModal, setShowModal] = useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -71,25 +91,50 @@ export default function RegistrationLinksManager() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function createLink() {
+  function openCreate() {
+    setEditingId(null);
+    setForm(FORM_INIT);
+    setShowModal(true);
+  }
+
+  function openEdit(link: RegistrationLink) {
+    setEditingId(link.id);
+    setForm({
+      label:       link.label,
+      activatesAt: toDateTimeLocal(link.activatesAt),
+      expiresAt:   toDateTimeLocal(link.expiresAt),
+      maxUses:     link.maxUses != null ? String(link.maxUses) : "",
+    });
+    setShowModal(true);
+  }
+
+  function closeModal() {
+    setShowModal(false);
+    setForm(FORM_INIT);
+    setEditingId(null);
+  }
+
+  async function saveLink() {
     if (!form.label.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/registration-links", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          label:       form.label.trim(),
-          activatesAt: form.activatesAt || null,
-          expiresAt:   form.expiresAt   || null,
-          maxUses:     form.maxUses ? Number(form.maxUses) : null,
-        }),
-      });
-      if (res.ok) {
-        setShowModal(false);
-        setForm({ label: "", activatesAt: "", expiresAt: "", maxUses: "" });
-        load();
-      }
+      // Convertir datetime-local (hora local del browser) a ISO UTC antes de enviar
+      const payload = {
+        label:       form.label.trim(),
+        activatesAt: form.activatesAt ? new Date(form.activatesAt).toISOString() : null,
+        expiresAt:   form.expiresAt   ? new Date(form.expiresAt).toISOString()   : null,
+        maxUses:     form.maxUses     ? Number(form.maxUses)                      : null,
+      };
+
+      const res = await fetch(
+        editingId ? `/api/registration-links/${editingId}` : "/api/registration-links",
+        {
+          method:  editingId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(payload),
+        },
+      );
+      if (res.ok) { closeModal(); load(); }
     } finally {
       setSaving(false);
     }
@@ -97,15 +142,15 @@ export default function RegistrationLinksManager() {
 
   async function toggleActive(link: RegistrationLink) {
     await fetch(`/api/registration-links/${link.id}`, {
-      method: "PATCH",
+      method:  "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !link.isActive }),
+      body:    JSON.stringify({ isActive: !link.isActive }),
     });
     load();
   }
 
   async function deleteLink(link: RegistrationLink) {
-    if (!confirm(`¿Eliminar el link "${link.label}"? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(`¿Eliminar el enlace "${link.label}"? Esta acción no se puede deshacer.`)) return;
     setDeleting(link.id);
     try {
       const res = await fetch(`/api/registration-links/${link.id}`, { method: "DELETE" });
@@ -120,15 +165,13 @@ export default function RegistrationLinksManager() {
     }
   }
 
-  if (loading) {
-    return <div className="h-32 bg-dojo-card rounded-xl animate-pulse" />;
-  }
+  if (loading) return <div className="h-32 bg-dojo-card rounded-xl animate-pulse" />;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-dojo-muted text-sm">{links.length} {links.length === 1 ? "enlace" : "enlaces"} creados</p>
-        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2 text-sm">
+        <button onClick={openCreate} className="btn-primary flex items-center gap-2 text-sm">
           <Plus size={14} /> Nuevo enlace
         </button>
       </div>
@@ -167,6 +210,10 @@ export default function RegistrationLinksManager() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => openEdit(link)} title="Editar"
+                    className="p-1.5 rounded hover:bg-dojo-border/40 text-dojo-muted hover:text-dojo-white transition-colors">
+                    <Pencil size={14} />
+                  </button>
                   <button onClick={() => toggleActive(link)} title={link.isActive ? "Desactivar" : "Activar"}
                     className="p-1.5 rounded hover:bg-dojo-border/40 text-dojo-muted hover:text-dojo-white transition-colors">
                     {link.isActive
@@ -181,8 +228,8 @@ export default function RegistrationLinksManager() {
               </div>
               <div className="flex flex-wrap gap-4 text-xs text-dojo-muted border-t border-dojo-border pt-2">
                 <span>Usos: <strong className="text-dojo-white">{link.useCount}</strong>{link.maxUses ? ` / ${link.maxUses}` : ""}</span>
-                <span>Activa desde: <strong className="text-dojo-white">{formatDate(link.activatesAt)}</strong></span>
-                <span>Vence: <strong className="text-dojo-white">{formatDate(link.expiresAt)}</strong></span>
+                <span>Activa desde: <strong className="text-dojo-white">{formatDateTime(link.activatesAt)}</strong></span>
+                <span>Vence: <strong className="text-dojo-white">{formatDateTime(link.expiresAt)}</strong></span>
                 <span>Creado: <strong className="text-dojo-white">{formatDate(link.createdAt)}</strong></span>
               </div>
             </div>
@@ -193,11 +240,14 @@ export default function RegistrationLinksManager() {
       {showModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-dojo-card rounded-xl p-6 w-full max-w-md space-y-4">
-            <h3 className="font-bold text-dojo-white text-lg">Nuevo enlace de registro</h3>
+            <h3 className="font-bold text-dojo-white text-lg">
+              {editingId ? "Editar enlace" : "Nuevo enlace de registro"}
+            </h3>
 
             <div className="space-y-1">
               <label className="form-label">Nombre del enlace <span className="text-dojo-red">*</span></label>
-              <input className="form-input" value={form.label} onChange={e => setForm(p => ({ ...p, label: e.target.value }))}
+              <input className="form-input" value={form.label}
+                onChange={e => setForm(p => ({ ...p, label: e.target.value }))}
                 placeholder='Ej: "Inscripciones Enero 2026"' maxLength={200} autoFocus />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -212,6 +262,9 @@ export default function RegistrationLinksManager() {
                   onChange={e => setForm(p => ({ ...p, expiresAt: e.target.value }))} />
               </div>
             </div>
+            <p className="text-xs text-dojo-muted">
+              Las fechas y horas se guardan en tu hora local actual.
+            </p>
             <div className="space-y-1">
               <label className="form-label">Máximo de usos</label>
               <input type="number" min="1" className="form-input" value={form.maxUses}
@@ -220,9 +273,9 @@ export default function RegistrationLinksManager() {
             </div>
 
             <div className="flex gap-2 justify-end pt-2">
-              <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancelar</button>
-              <button type="button" onClick={createLink} disabled={saving || !form.label.trim()} className="btn-primary">
-                {saving ? "Creando..." : "Crear enlace"}
+              <button type="button" onClick={closeModal} className="btn-secondary">Cancelar</button>
+              <button type="button" onClick={saveLink} disabled={saving || !form.label.trim()} className="btn-primary">
+                {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear enlace"}
               </button>
             </div>
           </div>

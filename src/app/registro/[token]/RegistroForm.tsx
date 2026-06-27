@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from "lucide-react"
 
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
 
-interface Props { token: string; dojoName: string }
+interface Props { token: string; dojoName: string; reset?: boolean }
 
 type FormData = {
   fullName: string; firstName: string; lastName: string;
@@ -54,19 +54,24 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-export default function RegistroForm({ token, dojoName }: Props) {
+export default function RegistroForm({ token, dojoName, reset }: Props) {
   const [form, setForm] = useState<FormData>(INIT);
   const [sections, setSections] = useState({ personal: true, salud: false, contactos: false });
   const [loading, setLoading] = useState(false);
   const [done, setDone]       = useState(false);
   const [error, setError]     = useState("");
 
-  // Marcar como enviado en localStorage para que recarga de página no permita reenvío
+  // Si viene con ?reset=1 (admin solicitó reenvío), limpiar localStorage y mostrar el form
+  // Si no, y ya fue enviado, mostrar pantalla de éxito para evitar duplicados accidentales
   useEffect(() => {
-    if (typeof window !== "undefined" && localStorage.getItem(`registro-sent-${token}`)) {
+    if (typeof window === "undefined") return;
+    const key = `registro-sent-${token}`;
+    if (reset) {
+      localStorage.removeItem(key);
+    } else if (localStorage.getItem(key)) {
       setDone(true);
     }
-  }, [token]);
+  }, [token, reset]);
 
   const set = (key: keyof FormData, value: string | boolean) =>
     setForm(prev => ({ ...prev, [key]: value }));

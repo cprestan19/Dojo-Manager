@@ -2,12 +2,16 @@ import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
 import RegistroForm from "./RegistroForm";
 
-interface Props { params: Promise<{ token: string }> }
+interface Props {
+  params:      Promise<{ token: string }>;
+  searchParams: Promise<{ reset?: string }>;
+}
 
 export const dynamic = "force-dynamic";
 
-export default async function RegistroPage({ params }: Props) {
+export default async function RegistroPage({ params, searchParams }: Props) {
   const { token } = await params;
+  const { reset }  = await searchParams;
 
   const link = await prisma.registrationLink.findUnique({
     where:  { token },
@@ -57,7 +61,7 @@ export default async function RegistroPage({ params }: Props) {
 
         {/* Form */}
         <div className="card">
-          <RegistroForm token={token} dojoName={dojoName} />
+          <RegistroForm token={token} dojoName={dojoName} reset={reset === "1"} />
         </div>
 
         <p className="text-xs text-dojo-muted text-center mt-4">

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { ChevronDown, ChevronUp, UserCheck, UserX, User, Filter } from "lucide-react";
+import { ChevronDown, ChevronUp, UserCheck, UserX, User, Filter, Trash2, ShieldCheck } from "lucide-react";
 
 interface PendingStudent {
   id: string; status: string; submittedAt: string;
@@ -26,16 +26,21 @@ function InfoRow({ label, value }: { label: string; value: string | null | boole
 }
 
 function StudentCard({
-  student, onApprove, onReject,
+  student, onApprove, onReject, onDelete,
 }: {
-  student: PendingStudent;
+  student:   PendingStudent;
   onApprove: (id: string) => Promise<void>;
-  onReject: (id: string, note: string) => Promise<void>;
+  onReject:  (id: string, note: string) => Promise<void>;
+  onDelete:  (id: string, notify: boolean) => Promise<void>;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [showReject, setShowReject] = useState(false);
-  const [note, setNote]         = useState("");
+  const [expanded,    setExpanded]    = useState(false);
+  const [loading,     setLoading]     = useState(false);
+  const [showReject,  setShowReject]  = useState(false);
+  const [showDelete,  setShowDelete]  = useState(false);
+  const [note,        setNote]        = useState("");
+  const [notifyOnDel, setNotifyOnDel] = useState(true);
+
+  const hasEmail = !!(student.motherEmail || student.fatherEmail);
 
   async function approve() {
     if (!confirm(`¿Aprobar e inscribir a ${student.fullName}?`)) return;
@@ -48,6 +53,12 @@ function StudentCard({
     await onReject(student.id, note).finally(() => setLoading(false));
     setShowReject(false);
     setNote("");
+  }
+
+  async function deleteStudent() {
+    setLoading(true);
+    await onDelete(student.id, notifyOnDel && hasEmail).finally(() => setLoading(false));
+    setShowDelete(false);
   }
 
   const age = Math.floor((Date.now() - new Date(student.birthDate).getTime()) / (365.25 * 24 * 3600 * 1000));
@@ -94,10 +105,16 @@ function StudentCard({
             </p>
           </div>
         </div>
-        <button onClick={() => setExpanded(v => !v)}
-          className="p-1.5 rounded hover:bg-dojo-border/40 text-dojo-muted shrink-0">
-          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={() => { setShowDelete(v => !v); setShowReject(false); }} title="Eliminar solicitud"
+            className="p-1.5 rounded hover:bg-red-900/20 text-dojo-muted hover:text-red-400 transition-colors">
+            <Trash2 size={14} />
+          </button>
+          <button onClick={() => setExpanded(v => !v)}
+            className="p-1.5 rounded hover:bg-dojo-border/40 text-dojo-muted">
+            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        </div>
       </div>
 
       {expanded && (
@@ -105,11 +122,11 @@ function StudentCard({
           <div>
             <p className="text-xs font-semibold text-dojo-muted uppercase tracking-wide mb-2">Datos personales</p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <InfoRow label="Nombre" value={student.firstName} />
-              <InfoRow label="Apellido" value={student.lastName} />
+              <InfoRow label="Nombre"    value={student.firstName} />
+              <InfoRow label="Apellido"  value={student.lastName} />
               <InfoRow label="Nacimiento" value={new Date(student.birthDate).toLocaleDateString("es")} />
-              <InfoRow label="Cédula" value={student.cedula} />
-              <InfoRow label="FEPAKA" value={student.fepakaId} />
+              <InfoRow label="Cédula"    value={student.cedula} />
+              <InfoRow label="FEPAKA"    value={student.fepakaId} />
               <InfoRow label="Ryo Bukai" value={student.ryoBukaiId} />
             </div>
           </div>
@@ -119,8 +136,8 @@ function StudentCard({
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                 <InfoRow label="Tipo de sangre" value={student.bloodType} />
                 <InfoRow label="Seguro privado" value={student.hasPrivateInsurance} />
-                <InfoRow label="Nombre seguro" value={student.insuranceName} />
-                <InfoRow label="Nº póliza" value={student.insuranceNumber} />
+                <InfoRow label="Nombre seguro"  value={student.insuranceName} />
+                <InfoRow label="Nº póliza"      value={student.insuranceNumber} />
               </div>
               {student.condition && (
                 <div className="mt-1 text-sm">
@@ -134,10 +151,10 @@ function StudentCard({
             <div>
               <p className="text-xs font-semibold text-dojo-muted uppercase tracking-wide mb-2">Contactos</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                <InfoRow label="Madre" value={student.motherName} />
+                <InfoRow label="Madre"      value={student.motherName} />
                 <InfoRow label="Tel. madre" value={student.motherPhone} />
                 <InfoRow label="Email madre" value={student.motherEmail} />
-                <InfoRow label="Padre" value={student.fatherName} />
+                <InfoRow label="Padre"      value={student.fatherName} />
                 <InfoRow label="Tel. padre" value={student.fatherPhone} />
                 <InfoRow label="Email padre" value={student.fatherEmail} />
               </div>
@@ -152,14 +169,40 @@ function StudentCard({
         </div>
       )}
 
-      {/* Acciones */}
-      {showReject ? (
+      {/* Panel eliminar */}
+      {showDelete && (
+        <div className="border border-red-800 bg-red-900/10 rounded-lg p-3 space-y-3">
+          <p className="text-sm text-red-300 font-semibold">¿Eliminar esta solicitud permanentemente?</p>
+          <p className="text-xs text-dojo-muted">El registro se borrará de la cola. Si el padre/tutor tiene correo registrado puedes pedirle que lo envíe de nuevo.</p>
+          {hasEmail && (
+            <label className="flex items-center gap-2 text-sm text-dojo-white cursor-pointer">
+              <input type="checkbox" checked={notifyOnDel} onChange={e => setNotifyOnDel(e.target.checked)}
+                className="w-4 h-4 accent-dojo-red" />
+              Enviar email pidiendo reenvío del formulario
+            </label>
+          )}
+          {!hasEmail && (
+            <p className="text-xs text-yellow-500">⚠ No hay correo registrado — no se puede notificar.</p>
+          )}
+          <div className="flex gap-2">
+            <button onClick={() => setShowDelete(false)} className="btn-secondary text-sm flex-1">Cancelar</button>
+            <button onClick={deleteStudent} disabled={loading}
+              className="flex-1 bg-red-700 hover:bg-red-600 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors">
+              {loading ? "Eliminando..." : "Eliminar"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Acciones aprobar / rechazar */}
+      {!showDelete && (showReject ? (
         <div className="space-y-2 border-t border-dojo-border pt-3">
           <textarea className="form-input resize-none text-sm" rows={2} value={note}
             onChange={e => setNote(e.target.value)} placeholder="Motivo del rechazo (opcional)" />
           <div className="flex gap-2">
             <button onClick={() => setShowReject(false)} className="btn-secondary text-sm flex-1">Cancelar</button>
-            <button onClick={reject} disabled={loading} className="flex-1 bg-red-700 hover:bg-red-600 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors">
+            <button onClick={reject} disabled={loading}
+              className="flex-1 bg-red-700 hover:bg-red-600 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors">
               {loading ? "Rechazando..." : "Confirmar rechazo"}
             </button>
           </div>
@@ -175,15 +218,15 @@ function StudentCard({
             <UserCheck size={14} /> {loading ? "Procesando..." : "Aprobar e inscribir"}
           </button>
         </div>
-      )}
+      ))}
     </div>
   );
 }
 
 export default function PendingStudentsQueue({ onCountChange }: { onCountChange?: (n: number) => void }) {
-  const [students, setStudents]     = useState<PendingStudent[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [statusFilter, setStatus]   = useState("pending");
+  const [students, setStudents]   = useState<PendingStudent[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [statusFilter, setStatus] = useState("pending");
 
   const load = useCallback(async (status: string) => {
     setLoading(true);
@@ -213,11 +256,21 @@ export default function PendingStudentsQueue({ onCountChange }: { onCountChange?
 
   async function reject(id: string, note: string) {
     const res = await fetch(`/api/pending-students/${id}/reject`, {
-      method: "POST",
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ note }),
+      body:    JSON.stringify({ note }),
     });
     if (!res.ok) alert("Error al rechazar.");
+    else load(statusFilter);
+  }
+
+  async function deletePending(id: string, notify: boolean) {
+    const res = await fetch(`/api/pending-students/${id}`, {
+      method:  "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ notify }),
+    });
+    if (!res.ok) alert("Error al eliminar.");
     else load(statusFilter);
   }
 
@@ -226,6 +279,15 @@ export default function PendingStudentsQueue({ onCountChange }: { onCountChange?
 
   return (
     <div className="space-y-4">
+
+      {/* Garantía de aislamiento */}
+      <div className="flex items-start gap-2 bg-green-900/20 border border-green-800/40 rounded-lg px-3 py-2.5">
+        <ShieldCheck size={15} className="text-green-400 mt-0.5 shrink-0" />
+        <p className="text-xs text-green-300">
+          <strong>Ninguna solicitud se agrega a la base de alumnos</strong> hasta que el administrador la apruebe manualmente.
+        </p>
+      </div>
+
       <div className="flex items-center gap-2">
         <Filter size={14} className="text-dojo-muted" />
         <span className="text-sm text-dojo-muted">Filtrar:</span>
@@ -249,18 +311,10 @@ export default function PendingStudentsQueue({ onCountChange }: { onCountChange?
         </div>
       )}
 
-      {!loading && statusFilter === "pending" && pending.length > 0 && (
+      {!loading && (
         <div className="space-y-3">
-          {pending.map(s => (
-            <StudentCard key={s.id} student={s} onApprove={approve} onReject={reject} />
-          ))}
-        </div>
-      )}
-
-      {!loading && statusFilter !== "pending" && processed.length > 0 && (
-        <div className="space-y-3">
-          {processed.map(s => (
-            <StudentCard key={s.id} student={s} onApprove={approve} onReject={reject} />
+          {(statusFilter === "pending" ? pending : processed).map(s => (
+            <StudentCard key={s.id} student={s} onApprove={approve} onReject={reject} onDelete={deletePending} />
           ))}
         </div>
       )}

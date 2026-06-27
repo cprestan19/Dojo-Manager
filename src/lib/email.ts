@@ -474,6 +474,55 @@ export async function sendPasswordReset({
   await t.sendMail({ from: fromAddress(smtpUser, fromName, dojo), to, subject, html });
 }
 
+export async function sendResubmissionRequest({
+  to, studentName, dojoName, linkUrl, dojo,
+}: {
+  to:          string;
+  studentName: string;
+  dojoName:    string;
+  linkUrl:     string;
+  dojo?:       DojoMeta;
+}) {
+  const safeStudent  = escHtml(studentName);
+  const safeDojo     = escHtml(dojoName);
+  const safeLinkUrl  = escHtml(linkUrl);
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
+      ${dojoHeader(dojo)}
+      <div style="padding:32px 24px;">
+        <h2 style="color:#F39C12;margin:0 0 16px;font-size:18px;">📋 Solicitud de reenvío de formulario</h2>
+        <p style="color:#C8D0DA;font-size:14px;margin:0 0 12px;">
+          La solicitud de inscripción de <strong style="color:#F0F0F0;">${safeStudent}</strong>
+          en <strong style="color:#F0F0F0;">${safeDojo}</strong> requiere ser enviada nuevamente.
+        </p>
+        <p style="color:#C8D0DA;font-size:14px;margin:0 0 24px;">
+          Por favor haz clic en el botón a continuación para completar el formulario de inscripción nuevamente:
+        </p>
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="${safeLinkUrl}"
+            style="display:inline-block;background:#C0392B;color:#fff;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:bold;text-decoration:none;">
+            Completar formulario
+          </a>
+        </div>
+        <div style="background:#1C1A0A;border:1px solid #5C4A00;border-radius:8px;padding:14px;margin-bottom:20px;">
+          <p style="margin:0;color:#FCD34D;font-size:13px;">
+            ⚠️ Si el botón no funciona, copia y pega este enlace en tu navegador:
+          </p>
+          <p style="margin:6px 0 0;color:#C8D0DA;font-size:12px;word-break:break-all;">${safeLinkUrl}</p>
+        </div>
+        <p style="color:#8892A4;font-size:12px;text-align:center;margin:0;">
+          Si tienes dudas, comunícate directamente con ${safeDojo}.
+        </p>
+      </div>
+      ${emailFooter(dojo)}
+    </div>`;
+
+  const subject = `📋 Completar inscripción — ${studentName} · ${dojoName}`;
+  const { transporter: t, smtpUser, fromName } = await createTransporter();
+  await t.sendMail({ from: fromAddress(smtpUser, fromName, dojo), to, subject, html });
+}
+
 export async function sendRegistrationConfirmation({
   to, studentName, dojoName, dojo,
 }: {
