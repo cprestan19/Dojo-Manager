@@ -79,34 +79,55 @@ export async function POST(
 
   const body = parsed.data;
 
-  // ── Deduplicación: verificar cédula y correos antes de insertar ──────────
+  // ── Validación de duplicados: cédula y correos ────────────────────────────
   const trimmedCedula      = body.cedula?.trim()      || null;
   const trimmedMotherEmail = body.motherEmail?.trim() || null;
   const trimmedFatherEmail = body.fatherEmail?.trim() || null;
   const hasSibling         = body.hasSiblingInDojo ?? false;
 
-  // Cédula siempre se verifica (nadie puede tener la misma cédula)
-  // Correos solo se verifican si NO es hermano/a — los hermanos comparten email de padres
-  const orConditions: object[] = [];
-  if (trimmedCedula) orConditions.push({ cedula: trimmedCedula });
-  if (!hasSibling) {
-    if (trimmedMotherEmail) orConditions.push({ motherEmail: trimmedMotherEmail });
-    if (trimmedFatherEmail) orConditions.push({ fatherEmail: trimmedFatherEmail });
+  // 1. Cédula — verificar contra alumnos aprobados y solicitudes activas
+  if (trimmedCedula) {
+    const [cedulaStudent, cedulaPending] = await Promise.all([
+      prisma.student.findFirst({
+        where:  { dojoId: link.dojoId, cedula: trimmedCedula },
+        select: { id: true },
+      }),
+      prisma.pendingStudent.findFirst({
+        where:  { dojoId: link.dojoId, cedula: trimmedCedula, status: { not: "rejected" } },
+        select: { id: true, status: true },
+      }),
+    ]);
+
+    if (cedulaStudent || cedulaPending) {
+      const msg = cedulaStudent || cedulaPending?.status === "approved"
+        ? "Esta cédula ya pertenece a un alumno registrado en este dojo."
+        : "Esta cédula ya tiene una solicitud de inscripción pendiente de revisión.";
+      return NextResponse.json({ error: msg, field: "cedula" }, { status: 409 });
+    }
   }
 
-  if (orConditions.length > 0) {
-    const existingPending = await prisma.pendingStudent.findFirst({
-      where: { dojoId: link.dojoId, status: { not: "rejected" }, OR: orConditions },
-      select: { id: true },
-    });
-    if (existingPending) return NextResponse.json({ ok: true }); // respuesta opaca
+  // 2. Correos — solo si NO es hermano/a (los hermanos comparten email de padres)
+  if (!hasSibling) {
+    const emailsToCheck = [trimmedMotherEmail, trimmedFatherEmail].filter(Boolean) as string[];
 
-    if (trimmedCedula) {
-      const existingStudent = await prisma.student.findFirst({
-        where: { dojoId: link.dojoId, cedula: trimmedCedula },
-        select: { id: true },
-      });
-      if (existingStudent) return NextResponse.json({ ok: true });
+    for (const email of emailsToCheck) {
+      const [emailStudent, emailPending] = await Promise.all([
+        prisma.student.findFirst({
+          where:  { dojoId: link.dojoId, OR: [{ motherEmail: email }, { fatherEmail: email }] },
+          select: { id: true },
+        }),
+        prisma.pendingStudent.findFirst({
+          where:  { dojoId: link.dojoId, status: { not: "rejected" }, OR: [{ motherEmail: email }, { fatherEmail: email }] },
+          select: { id: true, status: true },
+        }),
+      ]);
+
+      if (emailStudent || emailPending) {
+        const msg = emailStudent || emailPending?.status === "approved"
+          ? "Este correo electrónico ya está asociado a un alumno registrado en este dojo."
+          : "Este correo electrónico ya tiene una solicitud de inscripción pendiente de revisión.";
+        return NextResponse.json({ error: msg, field: "email" }, { status: 409 });
+      }
     }
   }
 

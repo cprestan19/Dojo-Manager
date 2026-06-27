@@ -187,8 +187,21 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setGlobalError((data as { error?: string }).error ?? "Error al enviar. Intenta de nuevo.");
+        const data = await res.json().catch(() => ({})) as { error?: string; field?: string };
+        const msg  = data.error ?? "Error al enviar. Intenta de nuevo.";
+        setGlobalError(msg);
+
+        // Marcar el campo duplicado y abrir la sección correspondiente
+        if (res.status === 409) {
+          if (data.field === "cedula") {
+            setErrors(prev => ({ ...prev, cedula: msg }));
+            setSections(p => ({ ...p, personal: true }));
+          } else if (data.field === "email") {
+            setErrors(prev => ({ ...prev, motherEmail: msg, fatherEmail: msg }));
+            setSections(p => ({ ...p, contactos: true }));
+          }
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
         return;
       }
       localStorage.setItem(`registro-sent-${token}`, "1");
@@ -397,9 +410,9 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
             onChange={e => { set("nationality", e.target.value); clearError("nationality"); }}
             placeholder="Ej: Panameña" maxLength={100} />
         </Field>
-        <Field label="Cédula / Documento">
-          <input className="form-input" value={form.cedula}
-            onChange={e => set("cedula", e.target.value)} placeholder="Opcional" maxLength={30} />
+        <Field label="Cédula / Documento" error={errors.cedula}>
+          <input className={inputCls(errors.cedula)} value={form.cedula}
+            onChange={e => { set("cedula", e.target.value); clearError("cedula"); }} placeholder="Opcional" maxLength={30} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="ID FEPAKA">
@@ -488,9 +501,9 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
               onChange={e => set("motherPhone", e.target.value)} maxLength={30} />
           </Field>
         </div>
-        <Field label="Email de la madre">
-          <input className="form-input" type="email" value={form.motherEmail}
-            onChange={e => set("motherEmail", e.target.value)} maxLength={200} />
+        <Field label="Email de la madre" error={errors.motherEmail}>
+          <input className={inputCls(errors.motherEmail)} type="email" value={form.motherEmail}
+            onChange={e => { set("motherEmail", e.target.value); clearError("motherEmail"); clearError("fatherEmail"); }} maxLength={200} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Nombre del padre">
@@ -502,9 +515,9 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
               onChange={e => set("fatherPhone", e.target.value)} maxLength={30} />
           </Field>
         </div>
-        <Field label="Email del padre">
-          <input className="form-input" type="email" value={form.fatherEmail}
-            onChange={e => set("fatherEmail", e.target.value)} maxLength={200} />
+        <Field label="Email del padre" error={errors.fatherEmail}>
+          <input className={inputCls(errors.fatherEmail)} type="email" value={form.fatherEmail}
+            onChange={e => { set("fatherEmail", e.target.value); clearError("fatherEmail"); clearError("motherEmail"); }} maxLength={200} />
         </Field>
         <Field label="Dirección">
           <textarea className="form-input resize-none" rows={2} value={form.address}
