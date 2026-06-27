@@ -73,6 +73,34 @@ export async function POST(
 
   const body = parsed.data;
 
+  // ── Deduplicación: verificar cédula y correos antes de insertar ──────────
+  const trimmedCedula      = body.cedula?.trim()      || null;
+  const trimmedMotherEmail = body.motherEmail?.trim() || null;
+  const trimmedFatherEmail = body.fatherEmail?.trim() || null;
+
+  const orConditions: object[] = [];
+  if (trimmedCedula)      orConditions.push({ cedula:      trimmedCedula      });
+  if (trimmedMotherEmail) orConditions.push({ motherEmail: trimmedMotherEmail });
+  if (trimmedFatherEmail) orConditions.push({ fatherEmail: trimmedFatherEmail });
+
+  if (orConditions.length > 0) {
+    // Solicitud pendiente o aprobada ya existe en este dojo con misma cédula o correo
+    const existingPending = await prisma.pendingStudent.findFirst({
+      where: { dojoId: link.dojoId, status: { not: "rejected" }, OR: orConditions },
+      select: { id: true },
+    });
+    if (existingPending) return NextResponse.json({ ok: true }); // respuesta opaca — no revelar duplicado
+
+    // Alumno ya inscrito en el dojo con misma cédula
+    if (trimmedCedula) {
+      const existingStudent = await prisma.student.findFirst({
+        where: { dojoId: link.dojoId, cedula: trimmedCedula },
+        select: { id: true },
+      });
+      if (existingStudent) return NextResponse.json({ ok: true });
+    }
+  }
+
   try {
     await prisma.$transaction(async (tx) => {
       await tx.pendingStudent.create({

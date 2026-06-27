@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from "lucide-react";
 
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
@@ -61,6 +61,13 @@ export default function RegistroForm({ token, dojoName }: Props) {
   const [done, setDone]       = useState(false);
   const [error, setError]     = useState("");
 
+  // Marcar como enviado en localStorage para que recarga de página no permita reenvío
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem(`registro-sent-${token}`)) {
+      setDone(true);
+    }
+  }, [token]);
+
   const set = (key: keyof FormData, value: string | boolean) =>
     setForm(prev => ({ ...prev, [key]: value }));
 
@@ -107,6 +114,7 @@ export default function RegistroForm({ token, dojoName }: Props) {
         setError((data as { error?: string }).error ?? "Error al enviar. Intenta de nuevo.");
         return;
       }
+      localStorage.setItem(`registro-sent-${token}`, "1");
       setDone(true);
     } catch {
       setError("Error de conexión. Revisa tu red e intenta de nuevo.");
