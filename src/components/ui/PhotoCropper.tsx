@@ -12,35 +12,43 @@ function createImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
+function toRad(deg: number) { return (deg * Math.PI) / 180; }
+
+function rotatedBoundingBox(w: number, h: number, deg: number) {
+  const r = toRad(deg);
+  return {
+    width:  Math.abs(Math.cos(r) * w) + Math.abs(Math.sin(r) * h),
+    height: Math.abs(Math.sin(r) * w) + Math.abs(Math.cos(r) * h),
+  };
+}
+
 async function cropImage(imageSrc: string, pixelCrop: Area, rotation: number): Promise<string> {
   const image = await createImage(imageSrc);
-  const maxSize = Math.max(image.width, image.height);
-  const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
+  const rotRad = toRad(rotation);
+  const { width: bW, height: bH } = rotatedBoundingBox(image.width, image.height, rotation);
 
-  const tmp = document.createElement("canvas");
-  tmp.width = safeArea;
-  tmp.height = safeArea;
-  const tCtx = tmp.getContext("2d")!;
-  tCtx.translate(safeArea / 2, safeArea / 2);
-  tCtx.rotate((rotation * Math.PI) / 180);
-  tCtx.translate(-safeArea / 2, -safeArea / 2);
-  tCtx.drawImage(image, safeArea / 2 - image.width / 2, safeArea / 2 - image.height / 2);
+  // Canvas 1: imagen entera rotada sobre su bounding box exacto
+  const rot = document.createElement("canvas");
+  rot.width  = bW;
+  rot.height = bH;
+  const rCtx = rot.getContext("2d")!;
+  rCtx.translate(bW / 2, bH / 2);
+  rCtx.rotate(rotRad);
+  rCtx.translate(-image.width / 2, -image.height / 2);
+  rCtx.drawImage(image, 0, 0);
 
+  // Canvas 2: recorte 1:1 escalado a máx 800 px
   const size = Math.min(pixelCrop.width, 800);
-  const out = document.createElement("canvas");
-  out.width = size;
-  out.height = size;
-  const oCtx = out.getContext("2d")!;
-  oCtx.drawImage(
-    tmp,
-    Math.round(safeArea / 2 - image.width  / 2 + pixelCrop.x),
-    Math.round(safeArea / 2 - image.height / 2 + pixelCrop.y),
-    pixelCrop.width,
-    pixelCrop.height,
+  const crop = document.createElement("canvas");
+  crop.width  = size;
+  crop.height = size;
+  crop.getContext("2d")!.drawImage(
+    rot,
+    pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
     0, 0, size, size,
   );
 
-  return out.toDataURL("image/jpeg", 0.82);
+  return crop.toDataURL("image/jpeg", 0.82);
 }
 
 interface Props {

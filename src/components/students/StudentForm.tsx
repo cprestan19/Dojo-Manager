@@ -207,10 +207,14 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
     setPhotoUploading(true);
     setPhotoError("");
     try {
-      // Convertir base64 → Blob → File
-      const res64 = await fetch(croppedBase64);
-      const blob  = await res64.blob();
-      const file  = new File([blob], "photo.jpg", { type: "image/jpeg" });
+      // Convertir base64 → Blob → File (sin fetch para máxima compatibilidad)
+      const [header, b64data] = croppedBase64.split(",");
+      const mime = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+      const bytes = atob(b64data);
+      const arr   = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+      const blob  = new Blob([arr], { type: mime });
+      const file  = new File([blob], "photo.jpg", { type: mime });
       const fd    = new FormData();
       fd.append("file", file);
       fd.append("type", "image");
