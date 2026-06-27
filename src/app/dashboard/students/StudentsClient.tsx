@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import {
-  Users, Plus, Search, Edit, Eye, ChevronRight, UserX,
+  Users, Plus, Search, Edit, Eye, ChevronRight, UserX, UserCheck,
   ChevronUp, ChevronDown, ChevronsUpDown, MonitorSmartphone,
   AlertTriangle,
 } from "lucide-react";
@@ -85,12 +85,19 @@ const BELT_ORDER = Object.fromEntries(BELT_COLORS.map((b, i) => [b.value, i]));
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function StudentsClient({ initialStudents }: { initialStudents: StudentRow[] }) {
+export function StudentsClient({
+  initialStudents,
+  canEdit = false,
+}: {
+  initialStudents: StudentRow[];
+  canEdit?: boolean;
+}) {
   const [students,      setStudents]      = useState<StudentRow[]>(initialStudents);
   const [search,        setSearch]        = useState("");
   const [activeFilter,  setActiveFilter]  = useState<ActiveFilter>("active");
   const [beltFilter,    setBeltFilter]    = useState("");
   const [billing,       setBilling]       = useState<BillingStatus | null>(null);
+  const [togglingActive, setTogglingActive] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/billing/status")
@@ -103,6 +110,20 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
   const [sortDir,       setSortDir]       = useState<SortDir>("asc");
   const [loading,       setLoading]       = useState(false);
   const skipFirstFetch = useRef(true);
+
+  async function handleToggleActive(s: StudentRow) {
+    if (s.active && !confirm(`¿Desactivar a ${s.fullName}? Quedará invisible en el scanner y la lista activa.`)) return;
+    setTogglingActive(s.id);
+    const res = await fetch(`/api/students/${s.id}`, {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ ...s, active: !s.active }),
+    });
+    setTogglingActive(null);
+    if (res.ok) {
+      setStudents(prev => prev.map(st => st.id === s.id ? { ...st, active: !s.active } : st));
+    }
+  }
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
@@ -512,6 +533,21 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
                       <Link href={`/dashboard/students/${s.id}/edit`} className="btn-ghost p-2 text-dojo-muted" title="Editar">
                         <Edit size={16} />
                       </Link>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleToggleActive(s)}
+                          disabled={togglingActive === s.id}
+                          title={s.active ? "Desactivar alumno" : "Activar alumno"}
+                          className={`btn-ghost p-2 transition-colors disabled:opacity-40 ${
+                            s.active ? "text-red-400 hover:text-red-300" : "text-green-400 hover:text-green-300"
+                          }`}
+                        >
+                          {togglingActive === s.id
+                            ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
+                            : s.active ? <UserX size={16} /> : <UserCheck size={16} />
+                          }
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

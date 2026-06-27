@@ -7,11 +7,11 @@ import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { StudentsClient, type StudentRow } from "./StudentsClient";
 
-type SessionUser = { dojoId?: string | null };
+type SessionUser = { dojoId?: string | null; role?: string };
 
 export default async function StudentsPage() {
   const session = await getServerSession(authOptions);
-  const { dojoId } = (session?.user as SessionUser) ?? {};
+  const { dojoId, role } = (session?.user as SessionUser) ?? {};
   if (!dojoId) redirect("/login");
 
   const raw = await prisma.student.findMany({
@@ -44,5 +44,6 @@ export default async function StudentsPage() {
     payments:  s.payments.map(p => ({ ...p, dueDate: p.dueDate.toISOString() })),
   }));
 
-  return <StudentsClient initialStudents={students} />;
+  const canEdit = role === "admin" || role === "sysadmin";
+  return <StudentsClient initialStudents={students} canEdit={canEdit} />;
 }
