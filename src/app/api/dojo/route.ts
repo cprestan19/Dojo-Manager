@@ -91,6 +91,17 @@ export async function PUT(req: NextRequest) {
     }
   }
 
+  if (body.reminderToleranceDays != null) {
+    const v = Number(body.reminderToleranceDays);
+    if (!Number.isInteger(v) || v < 0 || v > 30)
+      return NextResponse.json({ error: "reminderToleranceDays debe ser un entero entre 0 y 30" }, { status: 400 });
+  }
+  if (body.lateInterestPct != null) {
+    const v = Number(body.lateInterestPct);
+    if (isNaN(v) || v < 0 || v > 100)
+      return NextResponse.json({ error: "lateInterestPct debe estar entre 0 y 100" }, { status: 400 });
+  }
+
   // Borrar imágenes antiguas de Cloudinary cuando se reemplazan o eliminan
   const IMAGE_FIELDS = ["logo", "loginBgImage", "cardTemplateImage"] as const;
   const hasImageChange = IMAGE_FIELDS.some(f => f in body);

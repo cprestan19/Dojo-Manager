@@ -121,6 +121,29 @@ export async function middleware(req: NextRequest) {
     if (!rateLimit(`free-trial:${ip}`, 5, 60_000)) return tooManyRequests("60");
   }
 
+  // Belt history mutations: protect against mass data write
+  if ((pathname === "/api/belt-history" || pathname.startsWith("/api/belt-history/")) &&
+      (req.method === "POST" || req.method === "PUT" || req.method === "DELETE")) {
+    if (!rateLimit(`belt-history:${ip}`, 60, 60_000)) return tooManyRequests("60");
+  }
+
+  // Reports: heavy DB queries — strict limit
+  if (pathname === "/api/reports") {
+    if (!rateLimit(`reports:${ip}`, 20, 60_000)) return tooManyRequests("60");
+  }
+
+  // Schedules mutations
+  if ((pathname === "/api/schedules" || pathname.startsWith("/api/schedules/")) &&
+      (req.method === "POST" || req.method === "PUT" || req.method === "DELETE")) {
+    if (!rateLimit(`schedules:${ip}`, 60, 60_000)) return tooManyRequests("60");
+  }
+
+  // Katas mutations
+  if ((pathname === "/api/katas" || pathname.startsWith("/api/katas/")) &&
+      (req.method === "POST" || req.method === "PUT" || req.method === "DELETE")) {
+    if (!rateLimit(`katas:${ip}`, 30, 60_000)) return tooManyRequests("60");
+  }
+
   // Self-registration form: 3 submissions per IP per 10 minutes
   if (pathname.startsWith("/api/public/register/") && req.method === "POST") {
     if (!rateLimit(`reg-submit:${ip}`, 3, 10 * 60_000)) return tooManyRequests("600");
@@ -197,5 +220,12 @@ export const config = {
     "/api/upload",
     "/api/upload/video-signature",
     "/api/public/register/:path*",
+    "/api/belt-history",
+    "/api/belt-history/:path*",
+    "/api/reports",
+    "/api/schedules",
+    "/api/schedules/:path*",
+    "/api/katas",
+    "/api/katas/:path*",
   ],
 };

@@ -7,7 +7,7 @@ import prisma from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 
 /** Escapa caracteres HTML para prevenir XSS al interpolar datos de usuario en plantillas. */
-function escHtml(s: string | null | undefined): string {
+export function escHtml(s: string | null | undefined): string {
   if (!s) return "";
   return s
     .replace(/&/g, "&amp;")

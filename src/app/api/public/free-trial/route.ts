@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, escHtml } from "@/lib/email";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
 import { z } from "zod";
 
@@ -114,22 +114,34 @@ export async function POST(req: NextRequest) {
     const adminEmails = dojo.users.map(u => u.email).filter(Boolean);
     if (adminEmails.length > 0) {
       const dashboardUrl = `${process.env.NEXTAUTH_URL ?? "https://dojomasteronline.com"}/dashboard/leads`;
+
+      // Sanitizar todos los valores de usuario antes de interpolar en HTML
+      const safeDojoName   = escHtml(dojo.name);
+      const safeChildName  = escHtml(childName);
+      const safeParentName = escHtml(parentName);
+      const safePhone      = escHtml(parentPhone);
+      const safeEmail      = escHtml(parentEmail);
+      const safeMessage    = escHtml(message);
+      const safeCountry    = escHtml(country ?? "N/A");
+      const safeCity       = escHtml(city ?? "");
+      const safeIp         = escHtml(ip);
+
       const html = `
 <div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;background:#1A1A2E;color:#F0F0F0;border-radius:12px;overflow:hidden;">
   <div style="background:#C0392B;padding:20px 24px;">
-    <h1 style="margin:0;font-size:18px;color:#fff;font-family:serif;letter-spacing:2px;">${dojo.name}</h1>
+    <h1 style="margin:0;font-size:18px;color:#fff;font-family:serif;letter-spacing:2px;">${safeDojoName}</h1>
     <p style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:13px;">Nueva solicitud de clase de prueba</p>
   </div>
   <div style="padding:24px;">
     <h2 style="color:#F39C12;font-size:16px;margin:0 0 16px;">🥋 ¡Nuevo prospecto interesado!</h2>
     <div style="background:#16213E;border-radius:8px;padding:16px;margin-bottom:16px;">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <tr><td style="color:#8892A4;padding:5px 0;">Niño/a</td><td style="color:#F0F0F0;font-weight:bold;">${childName} (${childAge} años)</td></tr>
-        <tr><td style="color:#8892A4;padding:5px 0;">Acudiente</td><td style="color:#F0F0F0;">${parentName}</td></tr>
-        <tr><td style="color:#8892A4;padding:5px 0;">Teléfono</td><td style="color:#F0F0F0;">${parentPhone}</td></tr>
-        ${parentEmail ? `<tr><td style="color:#8892A4;padding:5px 0;">Email</td><td style="color:#F0F0F0;">${parentEmail}</td></tr>` : ""}
-        ${message ? `<tr><td style="color:#8892A4;padding:5px 0;vertical-align:top;">Mensaje</td><td style="color:#C8D0DA;font-style:italic;">"${message}"</td></tr>` : ""}
-        <tr><td style="color:#8892A4;padding:5px 0;">País/IP</td><td style="color:#8892A4;font-size:11px;">${country ?? "N/A"} · ${city ?? ""} · ${ip}</td></tr>
+        <tr><td style="color:#8892A4;padding:5px 0;">Niño/a</td><td style="color:#F0F0F0;font-weight:bold;">${safeChildName} (${childAge} años)</td></tr>
+        <tr><td style="color:#8892A4;padding:5px 0;">Acudiente</td><td style="color:#F0F0F0;">${safeParentName}</td></tr>
+        <tr><td style="color:#8892A4;padding:5px 0;">Teléfono</td><td style="color:#F0F0F0;">${safePhone}</td></tr>
+        ${safeEmail ? `<tr><td style="color:#8892A4;padding:5px 0;">Email</td><td style="color:#F0F0F0;">${safeEmail}</td></tr>` : ""}
+        ${safeMessage ? `<tr><td style="color:#8892A4;padding:5px 0;vertical-align:top;">Mensaje</td><td style="color:#C8D0DA;font-style:italic;">&ldquo;${safeMessage}&rdquo;</td></tr>` : ""}
+        <tr><td style="color:#8892A4;padding:5px 0;">País/IP</td><td style="color:#8892A4;font-size:11px;">${safeCountry} · ${safeCity} · ${safeIp}</td></tr>
       </table>
     </div>
     <div style="text-align:center;">
@@ -143,10 +155,13 @@ export async function POST(req: NextRequest) {
   </div>
 </div>`;
 
+      // Sanitizar asunto: eliminar CRLF para evitar email header injection
+      const safeSubject = `🥋 Nuevo prospecto — ${childName.replace(/[\r\n]/g, "")} (${childAge} años) quiere clase de prueba en ${dojo.name.replace(/[\r\n]/g, "")}`;
+
       // No bloqueante — no fallar el request si el email falla
       sendEmail({
         to:      adminEmails.join(","),
-        subject: `🥋 Nuevo prospecto — ${childName} (${childAge} años) quiere clase de prueba en ${dojo.name}`,
+        subject: safeSubject,
         html,
       }).catch(err => console.error("[free-trial] Admin email failed:", err));
     }
