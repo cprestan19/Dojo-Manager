@@ -85,6 +85,7 @@ export async function POST(
           fatherPhone:         pending.fatherPhone || null,
           fatherEmail:         pending.fatherEmail || null,
           address:             pending.address     || null,
+          photo:               pending.photo       || null,
         },
       });
 

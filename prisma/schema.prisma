@@ -1262,6 +1262,7 @@ model PendingStudent {
   fatherPhone String?  @map("father_phone")
   fatherEmail String?  @map("father_email")
   address     String?  @db.Text
+  photo       String?  @db.Text   // base64 — se copia a Student al aprobar
 
   // ── Control de aprobación ───────────────────────────────────
   status        String    @default("pending")  // pending | approved | rejected

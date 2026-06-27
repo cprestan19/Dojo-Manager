@@ -30,6 +30,7 @@ const RegisterSchema = z.object({
   fatherPhone: z.string().max(30).optional().nullable(),
   fatherEmail: z.string().email().optional().nullable().or(z.literal("")),
   address:     z.string().max(500).optional().nullable(),
+  photo:       z.string().min(1, "La foto es obligatoria"),
 });
 
 function getIp(req: NextRequest): string {
@@ -133,6 +134,7 @@ export async function POST(
           fatherPhone:        body.fatherPhone || null,
           fatherEmail:        body.fatherEmail || null,
           address:            body.address     || null,
+          photo:              body.photo       || null,
         },
       });
       await tx.registrationLink.update({

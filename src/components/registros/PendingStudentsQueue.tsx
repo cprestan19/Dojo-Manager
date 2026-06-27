@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp, UserCheck, UserX, User, Filter, Trash2, ShieldC
 interface PendingStudent {
   id: string; status: string; submittedAt: string;
   fullName: string; firstName: string; lastName: string;
+  photo: string | null;
   birthDate: string; gender: string; nationality: string;
   cedula: string | null; fepakaId: string | null; ryoBukaiId: string | null;
   bloodType: string | null; condition: string | null;
@@ -91,9 +92,14 @@ function StudentCard({
     <div className="card space-y-3 border border-dojo-border">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-full bg-dojo-red/20 flex items-center justify-center shrink-0">
-            <User size={16} className="text-dojo-red" />
-          </div>
+          {student.photo ? (
+            <img src={student.photo} alt={student.fullName}
+              className="w-9 h-9 rounded-full object-cover shrink-0 border border-dojo-border" />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-dojo-red/20 flex items-center justify-center shrink-0">
+              <User size={16} className="text-dojo-red" />
+            </div>
+          )}
           <div className="min-w-0">
             <p className="font-semibold text-dojo-white">{student.fullName}</p>
             <p className="text-xs text-dojo-muted">
