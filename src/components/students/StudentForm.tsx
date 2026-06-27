@@ -8,6 +8,7 @@ import {
   Users, Link2, X,
 } from "lucide-react";
 import { cn, calculateAge, BELT_COLORS, GENDERS, NATIONALITIES } from "@/lib/utils";
+import PhotoCropper from "@/components/ui/PhotoCropper";
 
 interface InscriptionData {
   inscriptionDate:  string;
@@ -116,6 +117,7 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
   });
 
   const [photo,          setPhoto]         = useState<string | null>(defaultValues?.photo ?? null);
+  const [rawPhoto,       setRawPhoto]      = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError,     setPhotoError]     = useState("");
   const [age,            setAge]            = useState<number | null>(null);
@@ -180,22 +182,40 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
     else           setAge(null);
   }, [birthDate]);
 
-  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setPhotoError("");
-    if (file.size > 5 * 1024 * 1024) {
-      setPhotoError("La imagen no debe superar 5 MB. Comprime o recorta antes de subir.");
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("El archivo debe ser una imagen (JPG, PNG, WEBP, etc.).");
       if (fileRef.current) fileRef.current.value = "";
       return;
     }
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("La imagen no debe superar 5 MB.");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => setRawPhoto((ev.target?.result as string) ?? "");
+    reader.readAsDataURL(file);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function handleCropSave(croppedBase64: string) {
+    setRawPhoto(null);
     setPhotoUploading(true);
+    setPhotoError("");
     try {
-      const fd = new FormData();
+      // Convertir base64 → Blob → File
+      const res64 = await fetch(croppedBase64);
+      const blob  = await res64.blob();
+      const file  = new File([blob], "photo.jpg", { type: "image/jpeg" });
+      const fd    = new FormData();
       fd.append("file", file);
       fd.append("type", "image");
       fd.append("purpose", "student-photo");
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const res  = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al subir imagen");
       setPhoto(data.url);
@@ -203,7 +223,6 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
       setPhotoError(err instanceof Error ? err.message : "Error al subir imagen");
     } finally {
       setPhotoUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
     }
   }
 
@@ -257,6 +276,14 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
   }
 
   return (
+    <>
+    {rawPhoto && (
+      <PhotoCropper
+        imageSrc={rawPhoto}
+        onCancel={() => setRawPhoto(null)}
+        onSave={handleCropSave}
+      />
+    )}
     <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl space-y-0">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -798,5 +825,6 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
         </button>
       </div>
     </form>
+    </>
   );
 }

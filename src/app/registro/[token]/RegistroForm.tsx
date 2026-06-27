@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Camera, ShieldCheck, Clock, Users } from "lucide-react";
-import PhotoCropper from "./PhotoCropper";
+import PhotoCropper from "@/components/ui/PhotoCropper";
 
 const BLOOD_TYPES       = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
 const INSURANCE_COMPANIES = ["MAPFRE","PALIG","SURA","FEDPA","ANCON","ACERTA","IS","ASSA SEGUROS","ALIADO SEGUROS","BLUE CROSS"] as const;
