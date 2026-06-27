@@ -5,11 +5,21 @@ import prisma from "@/lib/prisma";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
-// Acciones relacionadas con usuarios (para filtro rápido)
 const USER_ACTIONS = [
   "USER_CREATED", "USER_UPDATED", "USER_DELETED",
-  "USER_ACTIVATED", "USER_DEACTIVATED", "USER_PASSWORD_CHANGED",
-  "PASSWORD_CHANGED", "LOGIN_SUCCESS", "LOGIN_FAILED",
+  "USER_ACTIVATED", "USER_DEACTIVATED", "USER_PASSWORD_CHANGED", "PASSWORD_CHANGED",
+  "LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT",
+];
+
+const REGISTRO_ACTIONS = [
+  "PENDING_STUDENT_SUBMITTED", "PENDING_STUDENT_APPROVED",
+  "PENDING_STUDENT_REJECTED", "PENDING_STUDENT_DELETED",
+  "REGISTRATION_LINK_CREATED", "REGISTRATION_LINK_UPDATED", "REGISTRATION_LINK_DELETED",
+];
+
+const TOURNAMENT_ACTIONS = [
+  "TOURNAMENT_ARCHIVED", "TOURNAMENT_REACTIVATED", "TOURNAMENT_DELETED",
+  "BRACKET_REOPENED", "BRACKET_DELETED",
 ];
 
 export async function GET(req: NextRequest) {
@@ -17,35 +27,53 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { role } = session.user as SessionUser;
-  // Solo sysadmin puede ver el audit log global
   if (role !== "sysadmin")
     return NextResponse.json({ error: "Solo sysadmin puede acceder al log de auditoría" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
-  const filter   = searchParams.get("filter") ?? "all";   // all | users | tournaments | logins
+  const filter   = searchParams.get("filter") ?? "all";
   const page     = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
   const pageSize = 50;
-  const search   = searchParams.get("search") ?? "";
+  const search   = searchParams.get("search")?.trim() ?? "";
+  const dojoId   = searchParams.get("dojoId") ?? "";
 
   const where: Record<string, unknown> = {};
 
+  if (dojoId) where.dojoId = dojoId;
+
   if (filter === "users") {
     where.action = { in: USER_ACTIONS };
+  } else if (filter === "registros") {
+    where.action = { in: REGISTRO_ACTIONS };
   } else if (filter === "tournaments") {
-    where.action = { in: [
-      "TOURNAMENT_ARCHIVED", "TOURNAMENT_REACTIVATED", "TOURNAMENT_DELETED",
-      "BRACKET_REOPENED", "BRACKET_DELETED",
-    ]};
+    where.action = { in: TOURNAMENT_ACTIONS };
   } else if (filter === "logins") {
-    where.action = { in: ["LOGIN_SUCCESS", "LOGIN_FAILED"] };
+    where.action = { in: ["LOGIN_SUCCESS", "LOGIN_FAILED", "LOGOUT"] };
+  } else if (filter === "suspicious") {
+    // Actividad sospechosa: logins fallidos, accesos no autorizados, rate limits, sysadmin proxy
+    where.OR = [
+      { action: "LOGIN_FAILED" },
+      { statusCode: { in: [401, 403, 429] } },
+      { isSysadminProxy: true },
+    ];
   }
 
-  if (search.trim()) {
-    where.OR = [
-      { userEmail: { contains: search, mode: "insensitive" } },
-      { action:    { contains: search, mode: "insensitive" } },
-      { details:   { contains: search, mode: "insensitive" } },
+  if (search) {
+    const searchWhere = [
+      { userEmail:  { contains: search, mode: "insensitive" } },
+      { userName:   { contains: search, mode: "insensitive" } },
+      { action:     { contains: search, mode: "insensitive" } },
+      { details:    { contains: search, mode: "insensitive" } },
+      { ip:         { contains: search } },
+      { targetEmail:{ contains: search, mode: "insensitive" } },
     ];
+    // Merge search with existing OR/AND
+    if (where.OR) {
+      where.AND = [{ OR: where.OR }, { OR: searchWhere }];
+      delete where.OR;
+    } else {
+      where.OR = searchWhere;
+    }
   }
 
   try {
@@ -56,6 +84,32 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: "desc" },
         skip:    (page - 1) * pageSize,
         take:    pageSize,
+        select: {
+          id:             true,
+          action:         true,
+          module:         true,
+          method:         true,
+          resourceType:   true,
+          resourceId:     true,
+          statusCode:     true,
+          userId:         true,
+          userName:       true,
+          userEmail:      true,
+          isSysadminProxy:true,
+          dojoId:         true,
+          dojoSlug:       true,
+          targetId:       true,
+          targetEmail:    true,
+          ip:             true,
+          userAgent:      true,
+          country:        true,
+          city:           true,
+          region:         true,
+          sessionId:      true,
+          duration:       true,
+          details:        true,
+          createdAt:      true,
+        },
       }),
     ]);
 
