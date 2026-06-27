@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const { role } = session.user as SessionUser;
-    if (role !== "sysadmin") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+    if (role !== "sysadmin") return NextResponse.json({ error: `Sin permisos (rol: ${role ?? "desconocido"})` }, { status: 403 });
 
     const body = await req.json().catch(() => null);
     if (!body) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
@@ -79,7 +79,7 @@ export async function PATCH(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const { role } = session.user as SessionUser;
-    if (role !== "sysadmin") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+    if (role !== "sysadmin") return NextResponse.json({ error: `Sin permisos (rol: ${role ?? "desconocido"})` }, { status: 403 });
 
     const body = await req.json().catch(() => null);
     if (!body?.id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
@@ -116,7 +116,7 @@ export async function DELETE(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const { role } = session.user as SessionUser;
-    if (role !== "sysadmin") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+    if (role !== "sysadmin") return NextResponse.json({ error: `Sin permisos (rol: ${role ?? "desconocido"})` }, { status: 403 });
 
     const body = await req.json().catch(() => null);
     if (!body?.id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
