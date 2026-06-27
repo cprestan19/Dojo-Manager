@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { AlertTriangle } from "lucide-react";
 
 interface BillingStatus {
@@ -9,7 +10,9 @@ interface BillingStatus {
 }
 
 export function BillingBanner() {
+  const { data: session } = useSession();
   const [status, setStatus] = useState<BillingStatus | null>(null);
+  const isSysadmin = (session?.user as { role?: string })?.role === "sysadmin";
 
   useEffect(() => {
     fetch("/api/billing/status")
@@ -26,15 +29,17 @@ export function BillingBanner() {
         <div className="flex items-center gap-2 min-w-0">
           <AlertTriangle size={16} className="shrink-0" />
           <span className="truncate">
-            Tu dojo está en modo lectura. Reactiva tu suscripción para continuar.
+            Tu dojo está en modo lectura. Contacta a dojomasteronline.com para reactivar tu suscripción.
           </span>
         </div>
-        <Link
-          href="/dashboard/billing"
-          className="shrink-0 bg-white text-amber-600 font-bold text-xs px-3 py-1 rounded-full hover:bg-amber-50 transition-colors"
-        >
-          Reactivar
-        </Link>
+        {isSysadmin && (
+          <Link
+            href="/dashboard/billing"
+            className="shrink-0 bg-white text-amber-600 font-bold text-xs px-3 py-1 rounded-full hover:bg-amber-50 transition-colors"
+          >
+            Gestionar
+          </Link>
+        )}
       </div>
     );
   }

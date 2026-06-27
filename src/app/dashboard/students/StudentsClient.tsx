@@ -218,14 +218,13 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
             <MonitorSmartphone size={16} /> Portal
           </Link>
           {billing?.atStudentLimit ? (
-            <Link
-              href="/dashboard/billing"
-              className="btn-secondary flex items-center gap-2 text-amber-400 border-amber-700/50 hover:border-amber-600"
-              title={`Límite del plan ${billing.plan?.name ?? ""} alcanzado`}
+            <span
+              className="btn-secondary flex items-center gap-2 text-amber-400 border-amber-700/50 cursor-default"
+              title={`Límite del plan ${billing.plan?.name ?? ""} alcanzado — contacta a dojomasteronline.com`}
             >
               <AlertTriangle size={16} />
               Límite alcanzado
-            </Link>
+            </span>
           ) : (
             <Link href="/dashboard/students/new" className="btn-primary">
               <Plus size={18} /> Nuevo Alumno
@@ -255,16 +254,18 @@ export function StudentsClient({ initialStudents }: { initialStudents: StudentRo
                 }
               </span>
             </div>
-            <Link
-              href="/dashboard/billing"
+            <a
+              href="https://dojomasteronline.com"
+              target="_blank"
+              rel="noopener noreferrer"
               className={`shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
                 atLimit
                   ? "bg-red-700/40 hover:bg-red-700/60 text-red-200"
                   : "bg-amber-700/40 hover:bg-amber-700/60 text-amber-200"
               }`}
             >
-              Ver planes →
-            </Link>
+              Contactar soporte →
+            </a>
           </div>
         );
       })()}

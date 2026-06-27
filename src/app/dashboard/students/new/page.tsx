@@ -67,9 +67,10 @@ export default async function NewStudentPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-dojo-border">
-                <Link href="/dashboard/billing" className="btn-primary justify-center">
-                  Ver planes y actualizar
-                </Link>
+                <a href="https://dojomasteronline.com" target="_blank" rel="noopener noreferrer"
+                  className="btn-primary justify-center">
+                  Contactar soporte
+                </a>
                 <Link href="/dashboard/students" className="btn-secondary justify-center">
                   Volver a mis alumnos
                 </Link>

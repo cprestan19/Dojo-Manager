@@ -288,13 +288,15 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
                 Actualmente tienes <strong>{info.current}</strong>.
               </p>
               <p className="text-amber-200/60 text-xs">
-                Para agregar más alumnos, adquiere el Plan Silver o Gold.
+                Para agregar más alumnos, contacta a dojomasteronline.com.
               </p>
               <a
-                href="/dashboard/billing"
+                href="https://dojomasteronline.com"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 mt-1 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold transition-colors"
               >
-                Ver planes →
+                Contactar soporte →
               </a>
             </div>
           );

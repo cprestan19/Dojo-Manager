@@ -259,8 +259,8 @@ export function Sidebar() {
           </>
         )}
 
-        {/* Facturación — solo admin/sysadmin */}
-        {(role === "admin" || role === "sysadmin") && (
+        {/* Facturación — solo sysadmin de dojomasteronline */}
+        {isSysadmin && (
           <Link
             href="/dashboard/billing"
             className={cn(

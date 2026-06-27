@@ -48,6 +48,9 @@ export default async function BillingPage() {
 
   const { role, dojoId: sessionDojoId } = session.user as SessionUser;
 
+  // Solo el sysadmin de dojomasteronline puede acceder a facturación
+  if (role !== "sysadmin") redirect("/dashboard");
+
   // Resolve effective dojoId (sysadmin uses sx-dojo cookie)
   const cookieStore = await cookies();
   const dojoId = role === "sysadmin"
