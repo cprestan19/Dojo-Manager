@@ -77,19 +77,29 @@ export async function DELETE(
     const { id } = await params;
     const link = await prisma.registrationLink.findUnique({
       where:  { id },
-      select: { dojoId: true, _count: { select: { pendingStudents: { where: { status: "pending" } } } } },
+      select: {
+        dojoId: true,
+        label:  true,
+        pendingStudents: { select: { id: true, status: true, fullName: true } },
+      },
     });
 
     if (!link || link.dojoId !== dojoId) {
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
     }
 
-    if (link._count.pendingStudents > 0) {
+    const pendingCount  = link.pendingStudents.filter(p => p.status === "pending").length;
+    const approvedCount = link.pendingStudents.filter(p => p.status === "approved").length;
+    const rejectedCount = link.pendingStudents.filter(p => p.status === "rejected").length;
+
+    // Bloquear si hay solicitudes sin revisar
+    if (pendingCount > 0) {
       return NextResponse.json({
-        error: "No se puede eliminar: hay solicitudes pendientes de revisión en este link",
+        error: `No se puede eliminar: hay ${pendingCount} solicitud${pendingCount > 1 ? "es" : ""} pendiente${pendingCount > 1 ? "s" : ""} de revisión. Apruébalas o recházalas primero.`,
       }, { status: 409 });
     }
 
+    // Eliminar el link — los pending_students asociados se borran en cascada por la BD
     await prisma.registrationLink.delete({ where: { id } });
 
     const ctx = buildAuditCtx(session, req, { dojoId });
@@ -100,6 +110,12 @@ export async function DELETE(
       resourceType: "RegistrationLink",
       resourceId:   id,
       statusCode:   200,
+      // Registra cuántas solicitudes históricas se eliminaron junto con el link
+      details: JSON.stringify({
+        label:         link.label,
+        cascadeDeleted: { approved: approvedCount, rejected: rejectedCount },
+        note: "Students ya creados (approved) no son afectados — viven en tabla students independiente",
+      }),
     });
 
     return NextResponse.json({ ok: true });
