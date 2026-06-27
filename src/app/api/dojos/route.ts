@@ -19,12 +19,19 @@ export async function GET() {
   const dojos = await prisma.dojo.findMany({
     select: {
       id: true, name: true, slug: true, email: true, phone: true,
-      active: true, createdAt: true, updatedAt: true,
+      active: true, tournamentPro: true, createdAt: true, updatedAt: true,
       // logo y loginBgImage excluidos — son base64 de varios KB/MB
+      subscription: {
+        select: {
+          status: true,
+          currentPeriodEnd: true,
+          plan: { select: { name: true, maxStudents: true } },
+        },
+      },
       _count: {
         select: {
           users:    { where: { role: { not: "student" }, active: true } },
-          students: true,
+          students: { where: { active: true } },
         },
       },
     },
