@@ -110,23 +110,27 @@ export async function POST(
   if (!hasSibling) {
     const emailsToCheck = [trimmedMotherEmail, trimmedFatherEmail].filter(Boolean) as string[];
 
-    for (const email of emailsToCheck) {
-      const [emailStudent, emailPending] = await Promise.all([
-        prisma.student.findFirst({
-          where:  { dojoId: link.dojoId, OR: [{ motherEmail: email }, { fatherEmail: email }] },
-          select: { id: true },
-        }),
-        prisma.pendingStudent.findFirst({
-          where:  { dojoId: link.dojoId, status: { not: "rejected" }, OR: [{ motherEmail: email }, { fatherEmail: email }] },
-          select: { id: true, status: true },
-        }),
-      ]);
+    if (emailsToCheck.length > 0) {
+      const emailChecks = await Promise.all(
+        emailsToCheck.map(email => Promise.all([
+          prisma.student.findFirst({
+            where:  { dojoId: link.dojoId, OR: [{ motherEmail: email }, { fatherEmail: email }] },
+            select: { id: true },
+          }),
+          prisma.pendingStudent.findFirst({
+            where:  { dojoId: link.dojoId, status: { not: "rejected" }, OR: [{ motherEmail: email }, { fatherEmail: email }] },
+            select: { id: true, status: true },
+          }),
+        ]))
+      );
 
-      if (emailStudent || emailPending) {
-        const msg = emailStudent || emailPending?.status === "approved"
-          ? "Este correo electrónico ya está asociado a un alumno registrado en este dojo."
-          : "Este correo electrónico ya tiene una solicitud de inscripción pendiente de revisión.";
-        return NextResponse.json({ error: msg, field: "email" }, { status: 409 });
+      for (const [emailStudent, emailPending] of emailChecks) {
+        if (emailStudent || emailPending) {
+          const msg = emailStudent || emailPending?.status === "approved"
+            ? "Este correo electrónico ya está asociado a un alumno registrado en este dojo."
+            : "Este correo electrónico ya tiene una solicitud de inscripción pendiente de revisión.";
+          return NextResponse.json({ error: msg, field: "email" }, { status: 409 });
+        }
       }
     }
   }

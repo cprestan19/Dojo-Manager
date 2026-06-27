@@ -278,7 +278,6 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
     }
 
     router.push(`/dashboard/students/${newStudentId}`);
-    router.refresh(); // invalida el router cache para que el perfil y la lista carguen datos frescos
   }
 
   return (
