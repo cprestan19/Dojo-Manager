@@ -205,7 +205,10 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     // 1. TournamentEventParticipant — sin FK formal, quedarían huérfanos
     await tx.$executeRaw`DELETE FROM tournament_event_participants WHERE student_id = ${id}`;
 
-    // 2. TournamentParticipant — onDelete: Restrict bloquearía el DELETE del alumno
+    // 2. TournamentEmailLog — sin FK formal en studentId, quedarían huérfanos
+    await tx.$executeRaw`UPDATE tournament_email_logs SET student_id = NULL WHERE student_id = ${id}`;
+
+    // 3. TournamentParticipant — onDelete: Restrict bloquearía el DELETE del alumno
     await tx.tournamentParticipant.deleteMany({ where: { studentId: id } });
 
     // 3. TournamentRegistration — opcional (SetNull no aplica aquí en algunas versiones)

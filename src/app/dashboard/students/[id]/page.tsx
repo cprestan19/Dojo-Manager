@@ -750,6 +750,8 @@ export default function StudentDetailPage() {
   const [deletingPay,     setDeletingPay]     = useState<string | null>(null);
   const [togglingActive,  setTogglingActive]  = useState(false);
   const [deleting,        setDeleting]        = useState(false);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [confirmDelete,     setConfirmDelete]     = useState(false);
   const [accessLoading,   setAccessLoading]   = useState(false);
   const [accessResult,    setAccessResult]    = useState<{ email: string; tempPassword: string; emailSent: boolean; emailError: string | null } | null>(null);
 
@@ -862,26 +864,33 @@ export default function StudentDetailPage() {
   }
 
   async function toggleActive() {
-    const action = student!.active ? "desactivar" : "activar";
-    if (!confirm(`¿Deseas ${action} a este alumno?`)) return;
+    if (student!.active) { setConfirmDeactivate(true); return; }
+    // Reactivar no necesita confirmación extra
     setTogglingActive(true);
     const res = await fetch(`/api/students/${id}`, {
       method:  "PUT",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ ...student, active: !student!.active }),
+      body:    JSON.stringify({ ...student, active: true }),
     });
     setTogglingActive(false);
     if (res.ok) fetchStudent();
   }
 
-  async function deleteStudent() {
+  async function confirmDoDeactivate() {
+    setConfirmDeactivate(false);
+    setTogglingActive(true);
+    const res = await fetch(`/api/students/${id}`, {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ ...student, active: false }),
+    });
+    setTogglingActive(false);
+    if (res.ok) fetchStudent();
+  }
+
+  async function confirmDoDelete() {
     if (!student) return;
-    const confirmed = confirm(
-      `⚠️ ELIMINAR PERMANENTEMENTE a ${student.fullName}\n\n` +
-      `Esto borrará TODOS sus datos: pagos, asistencia, historial de cintas, inscripciones a torneos y acceso al portal.\n\n` +
-      `Esta acción NO se puede deshacer. ¿Confirmas?`
-    );
-    if (!confirmed) return;
+    setConfirmDelete(false);
     setDeleting(true);
     try {
       const res = await fetch(`/api/students/${id}`, { method: "DELETE" });
@@ -1043,7 +1052,7 @@ export default function StudentDetailPage() {
           </button>
           {!student.active && (
             <button
-              onClick={deleteStudent}
+              onClick={() => setConfirmDelete(true)}
               disabled={deleting}
               className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-red-900/60 text-red-500 hover:bg-red-950/40 transition-colors disabled:opacity-50"
               title="Eliminar permanentemente este alumno inactivo"
@@ -1576,6 +1585,84 @@ export default function StudentDetailPage() {
             onSaved={fetchStudent}
           />
         )}
+      </Modal>
+
+      {/* Modal confirmar desactivar */}
+      <Modal
+        open={confirmDeactivate}
+        onClose={() => setConfirmDeactivate(false)}
+        title="Desactivar alumno"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-dojo-muted text-sm">
+            El alumno <span className="text-dojo-white font-semibold">{student?.fullName}</span> quedará
+            inactivo. No aparecerá en la lista principal ni en el scanner de asistencia.
+          </p>
+          <p className="text-dojo-muted text-sm">
+            Sus datos, pagos e historial se conservan. Puedes reactivarlo en cualquier momento.
+          </p>
+          <div className="flex gap-3 justify-end pt-2">
+            <button
+              onClick={() => setConfirmDeactivate(false)}
+              className="btn-ghost"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDoDeactivate}
+              disabled={togglingActive}
+              className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-white transition-colors disabled:opacity-50"
+            >
+              <UserX size={15}/> {togglingActive ? "Desactivando..." : "Desactivar"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal confirmar eliminar */}
+      <Modal
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title="Eliminar alumno permanentemente"
+        size="sm"
+        disableBackdropClose
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 bg-red-950/40 border border-red-800/50 rounded-lg">
+            <Trash2 size={16} className="text-red-400 shrink-0 mt-0.5" />
+            <p className="text-red-300 text-sm font-medium">
+              Esta acción es <strong>irreversible</strong>. No se puede deshacer.
+            </p>
+          </div>
+          <p className="text-dojo-muted text-sm">
+            Se eliminarán permanentemente <span className="text-dojo-white font-semibold">todos los datos</span> de{" "}
+            <span className="text-dojo-white font-semibold">{student?.fullName}</span>:
+          </p>
+          <ul className="text-dojo-muted text-sm space-y-1 pl-4 list-disc">
+            <li>Historial de cintas y katas</li>
+            <li>Pagos y mensualidades</li>
+            <li>Registros de asistencia</li>
+            <li>Inscripción y horarios</li>
+            <li>Acceso al portal (si tiene)</li>
+            <li>Participaciones en torneos</li>
+          </ul>
+          <div className="flex gap-3 justify-end pt-2">
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="btn-ghost"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDoDelete}
+              disabled={deleting}
+              className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-white transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={15}/> {deleting ? "Eliminando..." : "Sí, eliminar"}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
