@@ -1264,6 +1264,9 @@ model PendingStudent {
   address     String?  @db.Text
   photo       String?  @db.Text   // base64 — se copia a Student al aprobar
 
+  // ── Contexto familiar ───────────────────────────────────────
+  hasSiblingInDojo Boolean @default(false) @map("has_sibling_in_dojo")
+
   // ── Control de aprobación ───────────────────────────────────
   status        String    @default("pending")  // pending | approved | rejected
   reviewedBy    String?   @map("reviewed_by")

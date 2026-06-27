@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { ChevronDown, ChevronUp, UserCheck, UserX, User, Filter, Trash2, ShieldCheck } from "lucide-react";
+import { ChevronDown, ChevronUp, UserCheck, UserX, User, Filter, Trash2, ShieldCheck, Users, AlertTriangle } from "lucide-react";
 
 interface PendingStudent {
   id: string; status: string; submittedAt: string;
@@ -13,8 +13,12 @@ interface PendingStudent {
   motherName: string | null; motherPhone: string | null; motherEmail: string | null;
   fatherName: string | null; fatherPhone: string | null; fatherEmail: string | null;
   address: string | null;
+  hasSiblingInDojo: boolean;
   registrationLink: { label: string };
 }
+
+type DupWarning = { message: string; hint?: string };
+type ApproveResult = { duplicate?: boolean; message?: string; hint?: string } | void;
 
 function InfoRow({ label, value }: { label: string; value: string | null | boolean | undefined }) {
   if (!value && value !== false) return null;
@@ -30,7 +34,7 @@ function StudentCard({
   student, onApprove, onReject, onDelete,
 }: {
   student:   PendingStudent;
-  onApprove: (id: string) => Promise<void>;
+  onApprove: (id: string, force?: boolean) => Promise<ApproveResult>;
   onReject:  (id: string, note: string) => Promise<void>;
   onDelete:  (id: string, notify: boolean) => Promise<void>;
 }) {
@@ -38,15 +42,19 @@ function StudentCard({
   const [loading,     setLoading]     = useState(false);
   const [showReject,  setShowReject]  = useState(false);
   const [showDelete,  setShowDelete]  = useState(false);
+  const [dupWarning,  setDupWarning]  = useState<DupWarning | null>(null);
   const [note,        setNote]        = useState("");
   const [notifyOnDel, setNotifyOnDel] = useState(true);
 
   const hasEmail = !!(student.motherEmail || student.fatherEmail);
 
-  async function approve() {
-    if (!confirm(`¿Aprobar e inscribir a ${student.fullName}?`)) return;
+  async function approve(force = false) {
+    if (!force && !confirm(`¿Aprobar e inscribir a ${student.fullName}?`)) return;
     setLoading(true);
-    await onApprove(student.id).finally(() => setLoading(false));
+    const result = await onApprove(student.id, force).finally(() => setLoading(false));
+    if (result?.duplicate) {
+      setDupWarning({ message: result.message ?? "Posible duplicado detectado.", hint: result.hint });
+    }
   }
 
   async function reject() {
@@ -90,6 +98,7 @@ function StudentCard({
 
   return (
     <div className="card space-y-3 border border-dojo-border">
+      {/* Cabecera */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           {student.photo ? (
@@ -101,7 +110,14 @@ function StudentCard({
             </div>
           )}
           <div className="min-w-0">
-            <p className="font-semibold text-dojo-white">{student.fullName}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-semibold text-dojo-white">{student.fullName}</p>
+              {student.hasSiblingInDojo && (
+                <span className="inline-flex items-center gap-1 text-xs bg-dojo-gold/10 text-dojo-gold border border-dojo-gold/30 rounded-full px-2 py-0.5">
+                  <Users size={10} /> Hermano/a
+                </span>
+              )}
+            </div>
             <p className="text-xs text-dojo-muted">
               {student.gender === "M" ? "Masculino" : "Femenino"} · {age} años · {student.nationality}
               <span className="ml-2">Link: {student.registrationLink.label}</span>
@@ -112,7 +128,7 @@ function StudentCard({
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => { setShowDelete(v => !v); setShowReject(false); }} title="Eliminar solicitud"
+          <button onClick={() => { setShowDelete(v => !v); setShowReject(false); setDupWarning(null); }} title="Eliminar solicitud"
             className="p-1.5 rounded hover:bg-red-900/20 text-dojo-muted hover:text-red-400 transition-colors">
             <Trash2 size={14} />
           </button>
@@ -123,17 +139,18 @@ function StudentCard({
         </div>
       </div>
 
+      {/* Detalle expandible */}
       {expanded && (
         <div className="space-y-4 border-t border-dojo-border pt-3">
           <div>
             <p className="text-xs font-semibold text-dojo-muted uppercase tracking-wide mb-2">Datos personales</p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <InfoRow label="Nombre"    value={student.firstName} />
-              <InfoRow label="Apellido"  value={student.lastName} />
+              <InfoRow label="Nombre"     value={student.firstName} />
+              <InfoRow label="Apellido"   value={student.lastName} />
               <InfoRow label="Nacimiento" value={new Date(student.birthDate).toLocaleDateString("es-PA", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" })} />
-              <InfoRow label="Cédula"    value={student.cedula} />
-              <InfoRow label="FEPAKA"    value={student.fepakaId} />
-              <InfoRow label="Ryo Bukai" value={student.ryoBukaiId} />
+              <InfoRow label="Cédula"     value={student.cedula} />
+              <InfoRow label="FEPAKA"     value={student.fepakaId} />
+              <InfoRow label="Ryo Bukai"  value={student.ryoBukaiId} />
             </div>
           </div>
           {(student.bloodType || student.condition || student.hasPrivateInsurance) && (
@@ -142,7 +159,7 @@ function StudentCard({
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                 <InfoRow label="Tipo de sangre" value={student.bloodType} />
                 <InfoRow label="Seguro privado" value={student.hasPrivateInsurance} />
-                <InfoRow label="Nombre seguro"  value={student.insuranceName} />
+                <InfoRow label="Aseguradora"    value={student.insuranceName} />
                 <InfoRow label="Nº póliza"      value={student.insuranceNumber} />
               </div>
               {student.condition && (
@@ -156,12 +173,17 @@ function StudentCard({
           {(student.motherName || student.fatherName || student.address) && (
             <div>
               <p className="text-xs font-semibold text-dojo-muted uppercase tracking-wide mb-2">Contactos</p>
+              {student.hasSiblingInDojo && (
+                <p className="text-xs text-dojo-gold mb-2 flex items-center gap-1">
+                  <Users size={11} /> El padre/tutor indicó que tiene un hermano/a en el dojo — el correo puede coincidir.
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                <InfoRow label="Madre"      value={student.motherName} />
-                <InfoRow label="Tel. madre" value={student.motherPhone} />
+                <InfoRow label="Madre"       value={student.motherName} />
+                <InfoRow label="Tel. madre"  value={student.motherPhone} />
                 <InfoRow label="Email madre" value={student.motherEmail} />
-                <InfoRow label="Padre"      value={student.fatherName} />
-                <InfoRow label="Tel. padre" value={student.fatherPhone} />
+                <InfoRow label="Padre"       value={student.fatherName} />
+                <InfoRow label="Tel. padre"  value={student.fatherPhone} />
                 <InfoRow label="Email padre" value={student.fatherEmail} />
               </div>
               {student.address && (
@@ -172,6 +194,27 @@ function StudentCard({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Advertencia de duplicado */}
+      {dupWarning && (
+        <div className="border border-orange-700 bg-orange-900/15 rounded-lg p-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={15} className="text-orange-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm text-orange-300 font-semibold">Posible duplicado detectado</p>
+              <p className="text-xs text-orange-200">{dupWarning.message}</p>
+              {dupWarning.hint && <p className="text-xs text-dojo-muted">{dupWarning.hint}</p>}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setDupWarning(null)} className="btn-secondary text-sm flex-1">Cancelar</button>
+            <button onClick={() => { setDupWarning(null); approve(true); }} disabled={loading}
+              className="flex-1 bg-orange-700 hover:bg-orange-600 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors">
+              {loading ? "Procesando..." : "Aprobar de todas formas"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -201,7 +244,7 @@ function StudentCard({
       )}
 
       {/* Acciones aprobar / rechazar */}
-      {!showDelete && (showReject ? (
+      {!showDelete && !dupWarning && (showReject ? (
         <div className="space-y-2 border-t border-dojo-border pt-3">
           <textarea className="form-input resize-none text-sm" rows={2} value={note}
             onChange={e => setNote(e.target.value)} placeholder="Motivo del rechazo (opcional)" />
@@ -219,7 +262,7 @@ function StudentCard({
             className="flex-1 flex items-center justify-center gap-1.5 bg-dojo-card hover:bg-red-900/30 border border-dojo-border hover:border-red-700 text-dojo-muted hover:text-red-400 rounded-lg px-3 py-2 text-sm font-medium transition-colors">
             <UserX size={14} /> Rechazar
           </button>
-          <button onClick={approve} disabled={loading}
+          <button onClick={() => approve()} disabled={loading}
             className="flex-1 flex items-center justify-center gap-1.5 btn-primary text-sm">
             <UserCheck size={14} /> {loading ? "Procesando..." : "Aprobar e inscribir"}
           </button>
@@ -231,7 +274,7 @@ function StudentCard({
 
 export default function PendingStudentsQueue({ onCountChange }: { onCountChange?: (n: number) => void }) {
   const [students, setStudents]   = useState<PendingStudent[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const [loading,  setLoading]    = useState(true);
   const [statusFilter, setStatus] = useState("pending");
 
   const load = useCallback(async (status: string) => {
@@ -250,8 +293,20 @@ export default function PendingStudentsQueue({ onCountChange }: { onCountChange?
 
   useEffect(() => { load(statusFilter); }, [load, statusFilter]);
 
-  async function approve(id: string) {
-    const res = await fetch(`/api/pending-students/${id}/approve`, { method: "POST" });
+  async function approve(id: string, force = false): Promise<ApproveResult> {
+    const res = await fetch(`/api/pending-students/${id}/approve`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ force }),
+    });
+
+    if (res.status === 409) {
+      const data = await res.json().catch(() => ({})) as { duplicate?: boolean; message?: string; hint?: string; error?: string };
+      if (data.duplicate) return data; // devuelve la advertencia para mostrar en la card
+      alert(data.error ?? "Error al aprobar.");
+      return;
+    }
+
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       alert((data as { message?: string }).message ?? "Error al aprobar.");
@@ -294,7 +349,8 @@ export default function PendingStudentsQueue({ onCountChange }: { onCountChange?
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      {/* Filtros */}
+      <div className="flex items-center gap-2 flex-wrap">
         <Filter size={14} className="text-dojo-muted" />
         <span className="text-sm text-dojo-muted">Filtrar:</span>
         {(["pending", "approved", "rejected"] as const).map(s => (

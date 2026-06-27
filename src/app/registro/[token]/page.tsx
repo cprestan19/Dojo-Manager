@@ -17,7 +17,7 @@ export default async function RegistroPage({ params, searchParams }: Props) {
     where:  { token },
     select: {
       id: true, isActive: true, activatesAt: true, expiresAt: true, maxUses: true, useCount: true,
-      dojo: { select: { name: true } },
+      dojo: { select: { name: true, logo: true } },
     },
   });
 
@@ -45,23 +45,22 @@ export default async function RegistroPage({ params, searchParams }: Props) {
   }
 
   const dojoName = link.dojo.name;
+  // Solo pasar URL Cloudinary — evitar base64 grande en prop de Server→Client
+  const dojoLogo = link.dojo.logo?.startsWith("http") ? link.dojo.logo : null;
+  const expiresAt = link.expiresAt?.toISOString() ?? null;
 
   return (
     <main className="min-h-screen bg-dojo-darker flex flex-col items-center justify-start p-4 py-8">
       <div className="w-full max-w-2xl">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-dojo-white font-display">
-            Inscripción en {dojoName}
-          </h1>
-          <p className="text-dojo-muted text-sm mt-1">
-            Completa el formulario. El dojo revisará tu solicitud antes de activar tu cuenta.
-          </p>
-        </div>
-
         {/* Form */}
         <div className="card">
-          <RegistroForm token={token} dojoName={dojoName} reset={reset === "1"} />
+          <RegistroForm
+            token={token}
+            dojoName={dojoName}
+            dojoLogo={dojoLogo}
+            expiresAt={expiresAt}
+            reset={reset === "1"}
+          />
         </div>
 
         <p className="text-xs text-dojo-muted text-center mt-4">

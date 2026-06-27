@@ -1,12 +1,20 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Camera } from "lucide-react";
+import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Camera, ShieldCheck, Clock, Users } from "lucide-react";
 
-const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
+const BLOOD_TYPES       = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
 const INSURANCE_COMPANIES = ["MAPFRE","PALIG","SURA","FEDPA","ANCON","ACERTA","IS","ASSA SEGUROS","ALIADO SEGUROS","BLUE CROSS"] as const;
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const MAX_PHOTO_BYTES   = 5 * 1024 * 1024;
 
-interface Props { token: string; dojoName: string; reset?: boolean }
+interface Props {
+  token:     string;
+  dojoName:  string;
+  dojoLogo:  string | null;
+  expiresAt: string | null;
+  reset?:    boolean;
+}
+
+type Step = "splash" | "form" | "done" | "already-submitted";
 
 type FormData = {
   fullName: string; firstName: string; lastName: string;
@@ -16,8 +24,8 @@ type FormData = {
   insuranceName: string; insuranceNumber: string;
   motherName: string; motherPhone: string; motherEmail: string;
   fatherName: string; fatherPhone: string; fatherEmail: string;
-  address: string;
-  photo: string;
+  address: string; photo: string;
+  hasSiblingInDojo: boolean;
 };
 
 type FieldErrors = Partial<Record<keyof FormData, string>>;
@@ -25,10 +33,12 @@ type FieldErrors = Partial<Record<keyof FormData, string>>;
 const INIT: FormData = {
   fullName: "", firstName: "", lastName: "", birthDate: "", gender: "", nationality: "",
   cedula: "", fepakaId: "", ryoBukaiId: "",
-  bloodType: "", condition: "", hasPrivateInsurance: false, insuranceName: "", insuranceNumber: "",
+  bloodType: "", condition: "", hasPrivateInsurance: false,
+  insuranceName: "", insuranceNumber: "",
   motherName: "", motherPhone: "", motherEmail: "",
-  fatherName: "", fatherPhone: "", fatherEmail: "", address: "",
-  photo: "",
+  fatherName: "", fatherPhone: "", fatherEmail: "",
+  address: "", photo: "",
+  hasSiblingInDojo: false,
 };
 
 function Section({ title, open, toggle, hasError, children }: {
@@ -36,11 +46,8 @@ function Section({ title, open, toggle, hasError, children }: {
 }) {
   return (
     <div className={`border rounded-lg overflow-hidden ${hasError ? "border-red-600" : "border-dojo-border"}`}>
-      <button
-        type="button"
-        onClick={toggle}
-        className="w-full flex items-center justify-between px-4 py-3 bg-dojo-card hover:bg-dojo-border/30 transition-colors text-left"
-      >
+      <button type="button" onClick={toggle}
+        className="w-full flex items-center justify-between px-4 py-3 bg-dojo-card hover:bg-dojo-border/30 transition-colors text-left">
         <span className="font-semibold text-dojo-white flex items-center gap-2">
           {title}
           {hasError && <span className="text-xs font-normal text-red-400">(campos requeridos incompletos)</span>}
@@ -70,12 +77,20 @@ function inputCls(error?: string) {
   return `form-input ${error ? "border-red-600 focus:ring-red-500" : ""}`;
 }
 
-export default function RegistroForm({ token, dojoName, reset }: Props) {
-  const [form, setForm]       = useState<FormData>(INIT);
-  const [errors, setErrors]   = useState<FieldErrors>({});
+function formatExpiry(iso: string): string {
+  return new Date(iso).toLocaleString("es-PA", {
+    timeZone: "America/Panama",
+    day: "2-digit", month: "long", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: true,
+  });
+}
+
+export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, reset }: Props) {
+  const [step,     setStep]     = useState<Step>("splash");
+  const [form,     setForm]     = useState<FormData>(INIT);
+  const [errors,   setErrors]   = useState<FieldErrors>({});
   const [sections, setSections] = useState({ personal: true, salud: false, contactos: false });
-  const [loading, setLoading] = useState(false);
-  const [done, setDone]       = useState(false);
+  const [loading,  setLoading]  = useState(false);
   const [globalError, setGlobalError] = useState("");
   const photoRef = useRef<HTMLInputElement>(null);
 
@@ -85,7 +100,7 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
     if (reset) {
       localStorage.removeItem(key);
     } else if (localStorage.getItem(key)) {
-      setDone(true);
+      setStep("already-submitted");
     }
   }, [token, reset]);
 
@@ -111,12 +126,12 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
 
   function validate(): FieldErrors {
     const e: FieldErrors = {};
-    if (!form.photo)       e.photo       = "La foto del alumno es obligatoria.";
-    if (!form.fullName.trim())  e.fullName    = "El nombre completo es obligatorio.";
-    if (!form.firstName.trim()) e.firstName   = "El primer nombre es obligatorio.";
-    if (!form.lastName.trim())  e.lastName    = "El apellido es obligatorio.";
-    if (!form.birthDate)        e.birthDate   = "La fecha de nacimiento es obligatoria.";
-    if (!form.gender)           e.gender      = "Selecciona el género.";
+    if (!form.photo)              e.photo       = "La foto del alumno es obligatoria.";
+    if (!form.fullName.trim())    e.fullName    = "El nombre completo es obligatorio.";
+    if (!form.firstName.trim())   e.firstName   = "El primer nombre es obligatorio.";
+    if (!form.lastName.trim())    e.lastName    = "El apellido es obligatorio.";
+    if (!form.birthDate)          e.birthDate   = "La fecha de nacimiento es obligatoria.";
+    if (!form.gender)             e.gender      = "Selecciona el género.";
     if (!form.nationality.trim()) e.nationality = "La nacionalidad es obligatoria.";
     return e;
   }
@@ -133,7 +148,6 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
       setErrors(errs);
       if (hasPersonalError(errs)) setSections(p => ({ ...p, personal: true }));
       setGlobalError("Por favor completa todos los campos obligatorios marcados con *");
-      // Scroll al inicio para que el usuario vea los errores en la sección de Datos Personales
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -142,21 +156,21 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
     try {
       const payload = {
         ...form,
-        fepakaId:   form.fepakaId.toUpperCase()   || null,
-        ryoBukaiId: form.ryoBukaiId.toUpperCase() || null,
-        bloodType:  form.bloodType   || null,
-        cedula:     form.cedula      || null,
-        condition:  form.condition   || null,
+        fepakaId:        form.fepakaId.toUpperCase()   || null,
+        ryoBukaiId:      form.ryoBukaiId.toUpperCase() || null,
+        bloodType:       form.bloodType       || null,
+        cedula:          form.cedula          || null,
+        condition:       form.condition       || null,
         insuranceName:   form.insuranceName   || null,
         insuranceNumber: form.insuranceNumber || null,
-        motherName:  form.motherName  || null,
-        motherPhone: form.motherPhone || null,
-        motherEmail: form.motherEmail || null,
-        fatherName:  form.fatherName  || null,
-        fatherPhone: form.fatherPhone || null,
-        fatherEmail: form.fatherEmail || null,
-        address:     form.address     || null,
-        photo:       form.photo       || null,
+        motherName:      form.motherName      || null,
+        motherPhone:     form.motherPhone     || null,
+        motherEmail:     form.motherEmail     || null,
+        fatherName:      form.fatherName      || null,
+        fatherPhone:     form.fatherPhone     || null,
+        fatherEmail:     form.fatherEmail     || null,
+        address:         form.address         || null,
+        photo:           form.photo           || null,
       };
 
       const res = await fetch(`/api/public/register/${token}`, {
@@ -171,7 +185,7 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
         return;
       }
       localStorage.setItem(`registro-sent-${token}`, "1");
-      setDone(true);
+      setStep("done");
     } catch {
       setGlobalError("Error de conexión. Revisa tu red e intenta de nuevo.");
     } finally {
@@ -179,14 +193,102 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
     }
   }
 
-  if (done) {
+  // ── Pantalla de bienvenida / confidencialidad ─────────────────────────────
+  if (step === "splash") {
+    return (
+      <div className="flex flex-col items-center gap-6 py-6 px-2 text-center">
+        {/* Logo */}
+        {dojoLogo ? (
+          <img src={dojoLogo} alt={dojoName}
+            className="w-24 h-24 object-contain rounded-2xl border border-dojo-border shadow-lg" />
+        ) : (
+          <div className="w-24 h-24 bg-dojo-red rounded-2xl flex items-center justify-center shadow-lg shadow-dojo-red/20">
+            <span className="text-4xl select-none">🥋</span>
+          </div>
+        )}
+
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-widest text-dojo-gold">Formulario de Inscripción</p>
+          <h2 className="text-xl font-bold text-dojo-white font-display leading-tight">{dojoName}</h2>
+        </div>
+
+        {/* Confidencialidad */}
+        <div className="bg-dojo-card border border-green-800/40 rounded-lg p-4 text-left w-full">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldCheck size={15} className="text-green-400 shrink-0" />
+            <span className="font-semibold text-green-300 text-sm">Información Confidencial</span>
+          </div>
+          <p className="text-dojo-muted text-sm leading-relaxed">
+            Los datos que proporciones serán utilizados exclusivamente para tu inscripción en{" "}
+            <strong className="text-dojo-white">{dojoName}</strong> y tratados de forma segura y privada.
+            No serán compartidos con terceros.
+          </p>
+        </div>
+
+        {/* Vencimiento del link */}
+        {expiresAt && (
+          <div className="flex items-start gap-2 bg-yellow-900/20 border border-yellow-800/40 rounded-lg px-4 py-3 w-full text-left">
+            <Clock size={14} className="text-yellow-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-yellow-300 leading-snug">
+              Este enlace estará disponible hasta el{" "}
+              <strong className="text-yellow-200">{formatExpiry(expiresAt)}</strong>.
+            </p>
+          </div>
+        )}
+
+        <button onClick={() => setStep("form")} className="btn-primary w-full py-3 text-base">
+          Acepto · Completar el formulario
+        </button>
+
+        <p className="text-xs text-dojo-muted leading-relaxed">
+          Al continuar, aceptas que tu información sea procesada por{" "}
+          <strong className="text-dojo-white">{dojoName}</strong> con fines de inscripción.
+        </p>
+      </div>
+    );
+  }
+
+  // ── Ya enviaste (localStorage) ────────────────────────────────────────────
+  if (step === "already-submitted") {
+    return (
+      <div className="flex flex-col items-center gap-5 py-10 text-center">
+        {dojoLogo && (
+          <img src={dojoLogo} alt={dojoName}
+            className="w-16 h-16 object-contain rounded-xl border border-dojo-border opacity-80" />
+        )}
+        <div className="w-14 h-14 bg-blue-900/30 rounded-full flex items-center justify-center border border-blue-800/40">
+          <CheckCircle2 size={28} className="text-blue-400" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-dojo-white">Ya enviaste tu solicitud</h2>
+          <p className="text-dojo-muted text-sm mt-2 max-w-xs leading-relaxed">
+            Recibimos tu solicitud de inscripción en{" "}
+            <strong className="text-dojo-white">{dojoName}</strong>.
+            Está siendo revisada por el equipo del dojo.
+          </p>
+        </div>
+        <div className="bg-dojo-card border border-dojo-border rounded-lg p-4 text-sm text-dojo-muted text-left w-full max-w-sm leading-relaxed">
+          <p>
+            Si necesitas <strong className="text-dojo-white">modificar</strong> tu información o
+            cometiste algún error, comunícate con{" "}
+            <strong className="text-dojo-white">{dojoName}</strong> para que te envíen un nuevo
+            enlace de inscripción.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Enviado con éxito ─────────────────────────────────────────────────────
+  if (step === "done") {
     return (
       <div className="flex flex-col items-center gap-4 py-12 text-center">
         <CheckCircle2 size={56} className="text-green-400" />
         <h2 className="text-xl font-bold text-dojo-white">¡Solicitud enviada!</h2>
-        <p className="text-dojo-muted max-w-xs">
-          Hemos recibido la solicitud de inscripción. <strong className="text-dojo-white">{dojoName}</strong> la revisará
-          y se comunicará contigo para confirmar el registro.
+        <p className="text-dojo-muted max-w-xs leading-relaxed">
+          Hemos recibido la solicitud de inscripción.{" "}
+          <strong className="text-dojo-white">{dojoName}</strong> la revisará y se comunicará
+          contigo para confirmar el registro.
         </p>
         <p className="text-dojo-muted text-xs max-w-xs">
           Si proporcionaste un correo electrónico recibirás una confirmación por email.
@@ -195,13 +297,14 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
     );
   }
 
+  // ── Formulario ────────────────────────────────────────────────────────────
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <p className="text-xs text-dojo-muted">
         Los campos marcados con <span className="text-dojo-red font-bold">*</span> son obligatorios.
       </p>
 
-      {/* Banner de error global — visible al tope para que el usuario lo vea sin scrollear */}
+      {/* Banner de error — visible al tope */}
       {globalError && (
         <div className="flex items-center gap-2 text-red-400 bg-red-900/20 border border-red-600 rounded-lg p-3 text-sm">
           <AlertCircle size={16} className="shrink-0" />
@@ -209,25 +312,26 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
         </div>
       )}
 
-      {/* ── Datos Personales ── */}
+      {/* ── 1. Datos Personales ── */}
       <Section
         title="1. Datos Personales"
         open={sections.personal}
         toggle={() => setSections(p => ({ ...p, personal: !p.personal }))}
         hasError={hasPersonalError(errors)}
       >
-        {/* Foto del alumno */}
+        {/* Foto */}
         <Field label="Foto del alumno" required error={errors.photo}>
           <div className="space-y-2">
             <div className="flex items-start gap-3">
               {form.photo ? (
-                <img src={form.photo} alt="Vista previa" className="w-20 h-20 rounded-lg object-cover border border-dojo-border shrink-0" />
+                <img src={form.photo} alt="Vista previa"
+                  className="w-20 h-20 rounded-lg object-cover border border-dojo-border shrink-0" />
               ) : (
                 <div className={`w-20 h-20 rounded-lg border-2 border-dashed flex items-center justify-center shrink-0 ${errors.photo ? "border-red-600 bg-red-900/10" : "border-dojo-border"}`}>
                   <Camera size={24} className={errors.photo ? "text-red-400" : "text-dojo-muted"} />
                 </div>
               )}
-              <div className="space-y-1 flex-1">
+              <div className="space-y-1 flex-1 min-w-0">
                 <button type="button" onClick={() => photoRef.current?.click()}
                   className="btn-secondary text-sm w-full text-center">
                   {form.photo ? "Cambiar foto" : "Seleccionar foto"}
@@ -294,7 +398,7 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
         </div>
       </Section>
 
-      {/* ── Datos de Salud ── */}
+      {/* ── 2. Datos de Salud ── */}
       <Section
         title="2. Datos de Salud"
         open={sections.salud}
@@ -328,19 +432,36 @@ export default function RegistroForm({ token, dojoName, reset }: Props) {
             </Field>
             <Field label="Número de póliza">
               <input className="form-input font-mono" value={form.insuranceNumber}
-                onChange={e => set("insuranceNumber", e.target.value.toUpperCase().replace(/[^A-Z0-9\-]/g, "").slice(0, 25))}
+                onChange={e => set("insuranceNumber", e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 25))}
                 maxLength={25} placeholder="Ej. 123456789" />
             </Field>
           </div>
         )}
       </Section>
 
-      {/* ── Contactos ── */}
+      {/* ── 3. Contactos y Dirección ── */}
       <Section
         title="3. Contactos y Dirección"
         open={sections.contactos}
         toggle={() => setSections(p => ({ ...p, contactos: !p.contactos }))}
       >
+        {/* Hermano/a en el dojo */}
+        <div className="flex items-start gap-3 bg-dojo-card/60 border border-dojo-border rounded-lg p-3">
+          <input type="checkbox" id="sibling" checked={form.hasSiblingInDojo}
+            onChange={e => set("hasSiblingInDojo", e.target.checked)}
+            className="w-4 h-4 mt-0.5 accent-dojo-red shrink-0" />
+          <label htmlFor="sibling" className="text-sm cursor-pointer">
+            <span className="flex items-center gap-1.5 text-dojo-white font-medium">
+              <Users size={13} className="text-dojo-gold shrink-0" />
+              Tengo un hermano/a ya inscrito/a en este dojo
+            </span>
+            <span className="block text-xs text-dojo-muted mt-0.5 leading-relaxed">
+              Activa esta opción si un familiar comparte el mismo correo de contacto.
+              El administrador vinculará los perfiles de familia al aprobar.
+            </span>
+          </label>
+        </div>
+
         <p className="text-dojo-muted text-xs">Al menos un contacto es recomendado para emergencias.</p>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Nombre de la madre">

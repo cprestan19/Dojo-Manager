@@ -29,8 +29,9 @@ const RegisterSchema = z.object({
   fatherName:  z.string().max(200).optional().nullable(),
   fatherPhone: z.string().max(30).optional().nullable(),
   fatherEmail: z.string().email().optional().nullable().or(z.literal("")),
-  address:     z.string().max(500).optional().nullable(),
-  photo:       z.string().min(1, "La foto es obligatoria"),
+  address:          z.string().max(500).optional().nullable(),
+  photo:            z.string().min(1, "La foto es obligatoria"),
+  hasSiblingInDojo: z.boolean().optional().default(false),
 });
 
 function getIp(req: NextRequest): string {
@@ -82,21 +83,24 @@ export async function POST(
   const trimmedCedula      = body.cedula?.trim()      || null;
   const trimmedMotherEmail = body.motherEmail?.trim() || null;
   const trimmedFatherEmail = body.fatherEmail?.trim() || null;
+  const hasSibling         = body.hasSiblingInDojo ?? false;
 
+  // Cédula siempre se verifica (nadie puede tener la misma cédula)
+  // Correos solo se verifican si NO es hermano/a — los hermanos comparten email de padres
   const orConditions: object[] = [];
-  if (trimmedCedula)      orConditions.push({ cedula:      trimmedCedula      });
-  if (trimmedMotherEmail) orConditions.push({ motherEmail: trimmedMotherEmail });
-  if (trimmedFatherEmail) orConditions.push({ fatherEmail: trimmedFatherEmail });
+  if (trimmedCedula) orConditions.push({ cedula: trimmedCedula });
+  if (!hasSibling) {
+    if (trimmedMotherEmail) orConditions.push({ motherEmail: trimmedMotherEmail });
+    if (trimmedFatherEmail) orConditions.push({ fatherEmail: trimmedFatherEmail });
+  }
 
   if (orConditions.length > 0) {
-    // Solicitud pendiente o aprobada ya existe en este dojo con misma cédula o correo
     const existingPending = await prisma.pendingStudent.findFirst({
       where: { dojoId: link.dojoId, status: { not: "rejected" }, OR: orConditions },
       select: { id: true },
     });
-    if (existingPending) return NextResponse.json({ ok: true }); // respuesta opaca — no revelar duplicado
+    if (existingPending) return NextResponse.json({ ok: true }); // respuesta opaca
 
-    // Alumno ya inscrito en el dojo con misma cédula
     if (trimmedCedula) {
       const existingStudent = await prisma.student.findFirst({
         where: { dojoId: link.dojoId, cedula: trimmedCedula },
@@ -133,8 +137,9 @@ export async function POST(
           fatherName:         body.fatherName  || null,
           fatherPhone:        body.fatherPhone || null,
           fatherEmail:        body.fatherEmail || null,
-          address:            body.address     || null,
-          photo:              body.photo       || null,
+          address:            body.address         || null,
+          photo:              body.photo           || null,
+          hasSiblingInDojo:   body.hasSiblingInDojo ?? false,
         },
       });
       await tx.registrationLink.update({

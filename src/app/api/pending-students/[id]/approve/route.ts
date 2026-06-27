@@ -26,6 +26,9 @@ export async function POST(
     }
 
     const { id } = await params;
+    const body = await req.json().catch(() => ({})) as { force?: boolean };
+    const force = body.force === true;
+
     const pending = await prisma.pendingStudent.findUnique({ where: { id } });
 
     if (!pending || pending.dojoId !== dojoId) {
@@ -33,6 +36,45 @@ export async function POST(
     }
     if (pending.status !== "pending") {
       return NextResponse.json({ error: "Esta solicitud ya fue procesada" }, { status: 409 });
+    }
+
+    // ── Detección de duplicados (omitir si admin confirmó con force) ────────
+    if (!force) {
+      // Mismo cédula → siempre es sospechoso
+      const dupByCedula = pending.cedula ? await prisma.student.findFirst({
+        where:  { dojoId, cedula: pending.cedula },
+        select: { fullName: true, cedula: true },
+      }) : null;
+
+      if (dupByCedula) {
+        return NextResponse.json({
+          duplicate: true,
+          reason:    "cedula",
+          message:   `Ya existe un alumno con cédula ${pending.cedula}: ${dupByCedula.fullName}.`,
+        }, { status: 409 });
+      }
+
+      // Mismo correo de acudiente → advertir SOLO si NO es hermano/a marcado
+      if (!pending.hasSiblingInDojo) {
+        const emailConditions = [];
+        if (pending.motherEmail) emailConditions.push({ motherEmail: pending.motherEmail });
+        if (pending.fatherEmail) emailConditions.push({ fatherEmail: pending.fatherEmail });
+
+        const dupByEmail = emailConditions.length > 0 ? await prisma.student.findFirst({
+          where:  { dojoId, OR: emailConditions },
+          select: { fullName: true },
+        }) : null;
+
+        if (dupByEmail) {
+          const which = pending.motherEmail ? `madre (${pending.motherEmail})` : `padre (${pending.fatherEmail})`;
+          return NextResponse.json({
+            duplicate: true,
+            reason:    "email",
+            message:   `El correo del ${which} ya está registrado bajo el alumno "${dupByEmail.fullName}".`,
+            hint:      "Si es un hermano/a del alumno existente, el padre/tutor debe marcar esa opción en el formulario.",
+          }, { status: 409 });
+        }
+      }
     }
 
     // Verificar límite de plan
