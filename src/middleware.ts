@@ -52,7 +52,9 @@ export async function middleware(req: NextRequest) {
   if (pathname === "/" || pathname === "/login") {
     const token = await readToken(req);
     if (token) {
-      const dest = token.role === "student" ? "/portal" : "/dashboard";
+      let dest = "/dashboard";
+      if (token.role === "student") dest = "/portal";
+      else if (token.role !== "admin" && token.role !== "sysadmin") dest = "/dashboard/attendance";
       return NextResponse.redirect(new URL(dest, req.url));
     }
   }
@@ -143,6 +145,10 @@ export async function middleware(req: NextRequest) {
 
     if (token.role === "student")
       return NextResponse.redirect(new URL("/portal", req.url));
+
+    // El rol "user" y roles personalizados no tienen acceso al dashboard de métricas
+    if (pathname === "/dashboard" && token.role !== "admin" && token.role !== "sysadmin")
+      return NextResponse.redirect(new URL("/dashboard/attendance", req.url));
 
     if (!isChangePwd && token.mustChangePassword)
       return NextResponse.redirect(new URL("/dashboard/change-password", req.url));
