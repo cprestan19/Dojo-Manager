@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Camera, ShieldCheck, Clock, Users } from "lucide-react";
+import PhotoCropper from "./PhotoCropper";
 
 const BLOOD_TYPES       = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
 const INSURANCE_COMPANIES = ["MAPFRE","PALIG","SURA","FEDPA","ANCON","ACERTA","IS","ASSA SEGUROS","ALIADO SEGUROS","BLUE CROSS"] as const;
@@ -90,8 +91,9 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
   const [form,     setForm]     = useState<FormData>(INIT);
   const [errors,   setErrors]   = useState<FieldErrors>({});
   const [sections, setSections] = useState({ personal: true, salud: false, contactos: false });
-  const [loading,  setLoading]  = useState(false);
+  const [loading,   setLoading]   = useState(false);
   const [globalError, setGlobalError] = useState("");
+  const [rawPhoto,  setRawPhoto]  = useState<string | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -113,6 +115,11 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setErrors(prev => ({ ...prev, photo: "El archivo debe ser una imagen (JPG, PNG, HEIC, etc.)." }));
+      if (photoRef.current) photoRef.current.value = "";
+      return;
+    }
     if (file.size > MAX_PHOTO_BYTES) {
       setErrors(prev => ({ ...prev, photo: "La imagen no debe superar 5 MB. Comprime o recorta antes de subir." }));
       if (photoRef.current) photoRef.current.value = "";
@@ -120,7 +127,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
     }
     clearError("photo");
     const reader = new FileReader();
-    reader.onload = ev => set("photo", (ev.target?.result as string) ?? "");
+    reader.onload = ev => setRawPhoto((ev.target?.result as string) ?? "");
     reader.readAsDataURL(file);
   }
 
@@ -299,6 +306,14 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
 
   // ── Formulario ────────────────────────────────────────────────────────────
   return (
+    <>
+    {rawPhoto && (
+      <PhotoCropper
+        imageSrc={rawPhoto}
+        onCancel={() => { setRawPhoto(null); if (photoRef.current) photoRef.current.value = ""; }}
+        onSave={(cropped) => { set("photo", cropped); clearError("photo"); setRawPhoto(null); }}
+      />
+    )}
     <form onSubmit={handleSubmit} className="space-y-4">
       <p className="text-xs text-dojo-muted">
         Los campos marcados con <span className="text-dojo-red font-bold">*</span> son obligatorios.
@@ -513,5 +528,6 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
         Tu información será revisada por {dojoName} antes de ser registrada.
       </p>
     </form>
+    </>
   );
 }
