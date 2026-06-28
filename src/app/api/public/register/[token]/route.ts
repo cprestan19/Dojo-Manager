@@ -41,7 +41,7 @@ const RegisterSchema = z.object({
   fatherPhone: z.string().max(30).optional().nullable(),
   fatherEmail: z.string().email().optional().nullable().or(z.literal("")),
   address:          z.string().max(500).optional().nullable(),
-  photo:            z.string().optional().nullable(),
+  photo:            z.string().max(6_800_000).optional().nullable(), // ~5 MB como base64
   hasSiblingInDojo: z.boolean().optional().default(false),
   primaryGuardian:  z.enum(["mother", "father"]).optional().nullable(),
 });
