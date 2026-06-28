@@ -15,6 +15,39 @@ import {
   type CardLayout, type CardPreset,
 } from "@/lib/card-layout";
 
+// ── Tipo de elemento arrastrable ──────────────────────────────────────────────
+type DragTarget = "photo" | "qr" | "name" | "team" | "footer" | null;
+
+// ── Hit detection (función pura) ──────────────────────────────────────────────
+function getHitElement(
+  mx: number, my: number,
+  layout: CardLayout, CW: number, CH: number
+): DragTarget {
+  const ph = layout.photo;
+  // Foto: hit circular con 20px de tolerancia
+  const photoCX = ph.x + ph.diameter / 2;
+  const photoCY = ph.y + ph.diameter / 2;
+  if (Math.sqrt((mx - photoCX) ** 2 + (my - photoCY) ** 2) <= ph.diameter / 2 + 20) return "photo";
+  // Nombre: banda horizontal centrada en name.y
+  if (my >= layout.name.y - 10 && my <= layout.name.y + layout.name.fontSize + 20) return "name";
+  // Línea de equipo: banda delgada
+  if (my >= layout.team.y - 20 && my <= layout.team.y + 20) return "team";
+  // Zona QR
+  if (my >= layout.qr.y - 10 && my <= layout.qr.y + layout.qr.height + 10) return "qr";
+  // Footer
+  if (my >= layout.footer.y - 20 && my <= CH) return "footer";
+  // Suprimir warning de CW no usado
+  void CW;
+  return null;
+}
+
+// ── Snap helper ───────────────────────────────────────────────────────────────
+const SNAP_PX = 14;
+
+function snapVal(val: number, center: number, enabled: boolean): number {
+  return enabled && Math.abs(val - center) <= SNAP_PX ? center : val;
+}
+
 // ── Toggle switch ─────────────────────────────────────────────────────────────
 function ToggleRow({ label, checked, onChange, hint }: {
   label: string;
@@ -49,7 +82,12 @@ function CardPreview({
   layout,
   templateUrl,
   dojoName,
-  isDraggingPhoto,
+  draggingEl,
+  hoverEl,
+  showGrid,
+  showGuides,
+  snapCenter,
+  dragCoords,
   onPreviewMouseDown,
   onPreviewMouseMove,
   onPreviewMouseUp,
@@ -58,7 +96,12 @@ function CardPreview({
   layout: CardLayout;
   templateUrl: string | null;
   dojoName: string;
-  isDraggingPhoto: boolean;
+  draggingEl: DragTarget;
+  hoverEl: DragTarget;
+  showGrid: boolean;
+  showGuides: boolean;
+  snapCenter: boolean;
+  dragCoords: { x?: number; y: number } | null;
   onPreviewMouseDown: (e: React.MouseEvent) => void;
   onPreviewMouseMove: (e: React.MouseEvent) => void;
   onPreviewMouseUp: () => void;
@@ -89,6 +132,12 @@ function CardPreview({
   const allFontKeys = CARD_FONTS.filter(f => f.key !== "Montserrat").map(f => f.key);
   const googleFontsUrl = getGoogleFontsUrl(allFontKeys);
 
+  // Cursor dinámico
+  const cursor = draggingEl ? "grabbing"
+               : hoverEl === "photo" ? "grab"
+               : hoverEl ? "ns-resize"
+               : "default";
+
   return (
     <>
       {googleFontsUrl && (
@@ -106,7 +155,7 @@ function CardPreview({
           style={{
             transformOrigin: "top left",
             transform: `scale(${scale})`,
-            cursor: isDraggingPhoto ? "grabbing" : "default",
+            cursor,
           }}
           onMouseDown={onPreviewMouseDown}
           onMouseMove={onPreviewMouseMove}
@@ -142,6 +191,65 @@ function CardPreview({
               </div>
             )}
 
+            {/* ── Grid + guías de centro ─────────────────────────────── */}
+            {(showGrid || showGuides) && (
+              <svg
+                style={{
+                  position: "absolute", inset: 0,
+                  width: CW, height: CH,
+                  zIndex: 20, pointerEvents: "none",
+                }}
+                viewBox={`0 0 ${CW} ${CH}`}
+              >
+                {/* Cuadrícula */}
+                {showGrid && (() => {
+                  const STEP = 50;
+                  const lines: React.ReactNode[] = [];
+                  for (let x = STEP; x < CW; x += STEP) {
+                    lines.push(<line key={`v${x}`} x1={x} y1={0} x2={x} y2={CH}
+                      stroke="rgba(255,255,255,0.12)" strokeWidth="0.8" />);
+                  }
+                  for (let y = STEP; y < CH; y += STEP) {
+                    lines.push(<line key={`h${y}`} x1={0} y1={y} x2={CW} y2={y}
+                      stroke="rgba(255,255,255,0.12)" strokeWidth="0.8" />);
+                  }
+                  return lines;
+                })()}
+
+                {/* Guía vertical de centro */}
+                {showGuides && (
+                  <line x1={CW / 2} y1={0} x2={CW / 2} y2={CH}
+                    stroke="rgba(99,179,237,0.5)" strokeWidth="1"
+                    strokeDasharray="6 4" />
+                )}
+                {/* Guía horizontal de centro */}
+                {showGuides && (
+                  <line x1={0} y1={CH / 2} x2={CW} y2={CH / 2}
+                    stroke="rgba(99,179,237,0.5)" strokeWidth="1"
+                    strokeDasharray="6 4" />
+                )}
+
+                {/* Zona segura (margen 20px) */}
+                {showGuides && (
+                  <rect x={20} y={20} width={CW - 40} height={CH - 40}
+                    fill="none" stroke="rgba(255,200,0,0.2)" strokeWidth="1"
+                    strokeDasharray="8 6" />
+                )}
+
+                {/* Flash de snap: línea naranja cuando foto está centrada H */}
+                {draggingEl === "photo" && snapCenter &&
+                  Math.abs(ph.x - (CW - ph.diameter) / 2) < 2 && (
+                  <line x1={CW / 2} y1={0} x2={CW / 2} y2={CH}
+                    stroke="#FF6B35" strokeWidth="2" strokeDasharray="6 3" opacity={0.9} />
+                )}
+                {draggingEl === "photo" && snapCenter &&
+                  Math.abs(ph.y - (CH - ph.diameter) / 2) < 2 && (
+                  <line x1={0} y1={CH / 2} x2={CW} y2={CH / 2}
+                    stroke="#FF6B35" strokeWidth="2" strokeDasharray="6 3" opacity={0.9} />
+                )}
+              </svg>
+            )}
+
             {/* ── Footer ───────────────────────────── */}
             <div style={{
               position: "absolute", top: layout.footer.y, left: 0,
@@ -158,6 +266,23 @@ function CardPreview({
                 {layout.slogan.text.trim() || "SLOGAN DEL DOJO"}
               </span>
             </div>
+
+            {/* Footer hover/drag indicator */}
+            {(hoverEl === "footer" || draggingEl === "footer") && (
+              <div style={{
+                position: "absolute", top: layout.footer.y - 4, left: 10, right: 10,
+                height: footerH + 8, zIndex: 25,
+                border: "2px dashed rgba(99,179,237,0.7)",
+                borderRadius: 4, pointerEvents: "none",
+              }}>
+                <span style={{
+                  position: "absolute", top: -14, left: 4,
+                  fontSize: 9, color: "rgba(99,179,237,0.9)",
+                  background: "rgba(0,0,0,0.5)", padding: "1px 4px", borderRadius: 3,
+                  fontFamily: "monospace", whiteSpace: "nowrap",
+                }}>↕ FOOTER — Y:{layout.footer.y}</span>
+              </div>
+            )}
 
             {/* ── Zona QR ──────────────────────────── */}
             <div style={{
@@ -186,6 +311,23 @@ function CardPreview({
               </div>
             </div>
 
+            {/* QR hover/drag indicator */}
+            {(hoverEl === "qr" || draggingEl === "qr") && (
+              <div style={{
+                position: "absolute", top: layout.qr.y - 4, left: 10, right: 10,
+                height: layout.qr.height + 8, zIndex: 25,
+                border: "2px dashed rgba(99,179,237,0.7)",
+                borderRadius: 4, pointerEvents: "none",
+              }}>
+                <span style={{
+                  position: "absolute", top: -14, left: 4,
+                  fontSize: 9, color: "rgba(99,179,237,0.9)",
+                  background: "rgba(0,0,0,0.5)", padding: "1px 4px", borderRadius: 3,
+                  fontFamily: "monospace", whiteSpace: "nowrap",
+                }}>↕ QR — Y:{layout.qr.y}</span>
+              </div>
+            )}
+
             {/* ── Línea TEAM ───────────────────────── */}
             <div style={{
               position: "absolute", top: layout.team.y, left: 20, right: 20, zIndex: 7,
@@ -201,6 +343,23 @@ function CardPreview({
               <div style={{ flex: 1, height: 1.5, background: layout.team.color }} />
             </div>
 
+            {/* Team hover/drag indicator */}
+            {(hoverEl === "team" || draggingEl === "team") && (
+              <div style={{
+                position: "absolute", top: layout.team.y - 10, left: 10, right: 10,
+                height: 24, zIndex: 25,
+                border: "2px dashed rgba(99,179,237,0.7)",
+                borderRadius: 4, pointerEvents: "none",
+              }}>
+                <span style={{
+                  position: "absolute", top: -14, left: 4,
+                  fontSize: 9, color: "rgba(99,179,237,0.9)",
+                  background: "rgba(0,0,0,0.5)", padding: "1px 4px", borderRadius: 3,
+                  fontFamily: "monospace", whiteSpace: "nowrap",
+                }}>↕ TEAM — Y:{layout.team.y}</span>
+              </div>
+            )}
+
             {/* ── Nombre ───────────────────────────── */}
             <div style={{
               position: "absolute", top: nm.y, left: 20, right: 20, zIndex: 7,
@@ -214,6 +373,23 @@ function CardPreview({
             }}>
               NOMBRE DEL ALUMNO
             </div>
+
+            {/* Nombre hover/drag indicator */}
+            {(hoverEl === "name" || draggingEl === "name") && (
+              <div style={{
+                position: "absolute", top: nm.y - 4, left: 10, right: 10,
+                height: nm.fontSize + 12, zIndex: 25,
+                border: "2px dashed rgba(99,179,237,0.7)",
+                borderRadius: 4, pointerEvents: "none",
+              }}>
+                <span style={{
+                  position: "absolute", top: -14, left: 4,
+                  fontSize: 9, color: "rgba(99,179,237,0.9)",
+                  background: "rgba(0,0,0,0.5)", padding: "1px 4px", borderRadius: 3,
+                  fontFamily: "monospace", whiteSpace: "nowrap",
+                }}>↕ NOMBRE — Y:{nm.y}</span>
+              </div>
+            )}
 
             {/* ── Foto ─────────────────────────────── */}
             {ph.borderWidth > 0 && (
@@ -247,23 +423,42 @@ function CardPreview({
               borderRadius: photoRadius, overflow: "hidden",
               background: "#CCCCCC", zIndex: 7,
               display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "grab",
             }}>
               <span style={{ fontSize: 20, color: "#888", fontFamily: "sans-serif" }}>Foto</span>
             </div>
 
-            {/* ── Etiqueta de arrastre ─────────────── */}
-            <div style={{
-              position: "absolute",
-              top: ph.y + ph.diameter / 2 - 12,
-              left: ph.x + ph.diameter / 2 - 40,
-              zIndex: 10, background: "rgba(0,0,0,0.6)",
-              borderRadius: 8, padding: "4px 8px",
-              fontSize: 11, color: "#fff", fontFamily: "sans-serif",
-              pointerEvents: "none", whiteSpace: "nowrap",
-            }}>
-              ☰ Arrastrar
-            </div>
+            {/* Foto hover/drag indicator */}
+            {(hoverEl === "photo" || draggingEl === "photo") && (
+              <div style={{
+                position: "absolute",
+                top: ph.y - 4, left: ph.x - 4,
+                width: ph.diameter + 8, height: ph.diameter + 8,
+                borderRadius: ph.shape === "circle" ? "50%" : 16,
+                border: "2px dashed rgba(99,179,237,0.8)",
+                zIndex: 19, pointerEvents: "none",
+              }}>
+                <span style={{
+                  position: "absolute", bottom: -16, left: "50%",
+                  transform: "translateX(-50%)",
+                  fontSize: 9, color: "rgba(99,179,237,0.9)",
+                  background: "rgba(0,0,0,0.5)", padding: "1px 4px", borderRadius: 3,
+                  fontFamily: "monospace", whiteSpace: "nowrap",
+                }}>&#8596;&#8597; FOTO — X:{ph.x} Y:{ph.y}</span>
+              </div>
+            )}
+
+            {/* ── Badge de coordenadas en tiempo real ──────────────────── */}
+            {draggingEl && dragCoords && (
+              <div style={{
+                position: "absolute", top: 8, right: 8,
+                zIndex: 30, background: "rgba(0,0,0,0.75)",
+                color: "#fff", fontSize: 10, fontFamily: "monospace",
+                padding: "3px 7px", borderRadius: 4, pointerEvents: "none",
+                backdropFilter: "blur(4px)",
+              }}>
+                {dragCoords.x !== undefined ? `X:${dragCoords.x} Y:${dragCoords.y}` : `Y:${dragCoords.y}`}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -392,13 +587,20 @@ export default function CardTemplatePage() {
   const [saving,       setSaving]       = useState(false);
   const [saved,        setSaved]        = useState(false);
 
-  const tplFileRef  = useRef<HTMLInputElement>(null);
-  const previewRef  = useRef<HTMLDivElement>(null);
-  const dragging    = useRef(false);
-  const dragOffsetX = useRef(0);
-  const dragOffsetY = useRef(0);
+  // ── Drag state ────────────────────────────────────────────────────────────
+  const [draggingEl, setDraggingEl]   = useState<DragTarget>(null);
+  const [hoverEl,    setHoverEl]      = useState<DragTarget>(null);
+  const [showGrid,   setShowGrid]     = useState(false);
+  const [showGuides, setShowGuides]   = useState(true);
+  const [snapCenter, setSnapCenter]   = useState(true);
+  const [dragCoords, setDragCoords]   = useState<{ x?: number; y: number } | null>(null);
+  const draggingElRef = useRef<DragTarget>(null);
+  const dragOffsetX   = useRef(0);
+  const dragOffsetY   = useRef(0);
+
+  const tplFileRef      = useRef<HTMLInputElement>(null);
+  const previewRef      = useRef<HTMLDivElement>(null);
   const previewScaleRef = useRef(0.44);
-  const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
 
   // Dimensiones dinámicas según preset actual
   const { w: CW, h: CH } = getCardDimensions(layout.preset);
@@ -483,38 +685,89 @@ export default function CardTemplatePage() {
     setLayout(preset === "landscape" ? DEFAULT_LANDSCAPE_LAYOUT : DEFAULT_CARD_LAYOUT);
   }
 
-  // ── Drag-and-drop foto en el preview ─────────────────────────────────────
+  // ── Drag-and-drop en el preview ──────────────────────────────────────────
   const handlePreviewMouseDown = useCallback((e: React.MouseEvent) => {
     if (!previewRef.current) return;
-    const rect = previewRef.current.getBoundingClientRect();
+    const rect  = previewRef.current.getBoundingClientRect();
     const scale = previewScaleRef.current;
-    const mx = (e.clientX - rect.left) / scale;
-    const my = (e.clientY - rect.top) / scale;
-    const ph = layout.photo;
-    if (mx >= ph.x && mx <= ph.x + ph.diameter && my >= ph.y && my <= ph.y + ph.diameter) {
-      dragging.current = true;
-      dragOffsetX.current = mx - ph.x;
-      dragOffsetY.current = my - ph.y;
-      setIsDraggingPhoto(true);
-      e.preventDefault();
+    const mx    = (e.clientX - rect.left)  / scale;
+    const my    = (e.clientY - rect.top)   / scale;
+    const { w: dCW, h: dCH } = getCardDimensions(layout.preset);
+    const hit = getHitElement(mx, my, layout, dCW, dCH);
+    if (!hit) return;
+
+    draggingElRef.current = hit;
+    setDraggingEl(hit);
+
+    if (hit === "photo") {
+      dragOffsetX.current = mx - layout.photo.x;
+      dragOffsetY.current = my - layout.photo.y;
+    } else {
+      const yPos = hit === "qr"     ? layout.qr.y
+                 : hit === "name"   ? layout.name.y
+                 : hit === "team"   ? layout.team.y
+                 : layout.footer.y;
+      dragOffsetY.current = my - yPos;
     }
-  }, [layout.photo]);
+    e.preventDefault();
+  }, [layout]);
 
   const handlePreviewMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragging.current || !previewRef.current) return;
-    const { w: dCW, h: dCH } = getCardDimensions(layout.preset);
+    if (!previewRef.current) return;
+    const rect  = previewRef.current.getBoundingClientRect();
     const scale = previewScaleRef.current;
-    const rect = previewRef.current.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) / scale;
-    const my = (e.clientY - rect.top) / scale;
-    const newX = Math.max(0, Math.min(dCW - layout.photo.diameter, Math.round(mx - dragOffsetX.current)));
-    const newY = Math.max(0, Math.min(dCH - layout.photo.diameter, Math.round(my - dragOffsetY.current)));
-    setLayout(prev => ({ ...prev, photo: { ...prev.photo, x: newX, y: newY } }));
-  }, [layout.photo.diameter, layout.preset]);
+    const mx    = (e.clientX - rect.left)  / scale;
+    const my    = (e.clientY - rect.top)   / scale;
+    const { w: dCW, h: dCH } = getCardDimensions(layout.preset);
+
+    // Hover (cuando no hay drag activo)
+    if (!draggingElRef.current) {
+      setHoverEl(getHitElement(mx, my, layout, dCW, dCH));
+      return;
+    }
+
+    const hit = draggingElRef.current;
+    if (hit === "photo") {
+      const rawX    = mx - dragOffsetX.current;
+      const rawY    = my - dragOffsetY.current;
+      const centerX = (dCW - layout.photo.diameter) / 2;
+      const centerY = (dCH - layout.photo.diameter) / 2;
+      const newX = Math.max(0, Math.min(dCW - layout.photo.diameter,
+        Math.round(snapVal(rawX, centerX, snapCenter))));
+      const newY = Math.max(0, Math.min(dCH - layout.photo.diameter,
+        Math.round(snapVal(rawY, centerY, snapCenter))));
+      setDragCoords({ x: newX, y: newY });
+      setLayout(prev => ({ ...prev, photo: { ...prev.photo, x: newX, y: newY } }));
+    } else {
+      const rawY   = my - dragOffsetY.current;
+      const centerY = dCH / 2;
+      let newY = Math.round(snapVal(rawY, centerY, snapCenter));
+
+      if (hit === "qr") {
+        newY = Math.max(layout.photo.y + layout.photo.diameter, Math.min(dCH - layout.qr.height - 20, newY));
+        setDragCoords({ y: newY });
+        setLayout(prev => ({ ...prev, qr: { ...prev.qr, y: newY } }));
+      } else if (hit === "name") {
+        newY = Math.max(0, Math.min(dCH - 60, newY));
+        setDragCoords({ y: newY });
+        setLayout(prev => ({ ...prev, name: { ...prev.name, y: newY } }));
+      } else if (hit === "team") {
+        newY = Math.max(0, Math.min(dCH - 30, newY));
+        setDragCoords({ y: newY });
+        setLayout(prev => ({ ...prev, team: { ...prev.team, y: newY } }));
+      } else if (hit === "footer") {
+        newY = Math.max(400, Math.min(dCH - 40, newY));
+        setDragCoords({ y: newY });
+        setLayout(prev => ({ ...prev, footer: { ...prev.footer, y: newY } }));
+      }
+    }
+  }, [layout, snapCenter]);
 
   const handlePreviewMouseUp = useCallback(() => {
-    dragging.current = false;
-    setIsDraggingPhoto(false);
+    draggingElRef.current = null;
+    setDraggingEl(null);
+    setHoverEl(null);
+    setDragCoords(null);
   }, []);
 
   function updatePhoto(key: keyof CardLayout["photo"], value: number | string | boolean) {
@@ -579,15 +832,76 @@ export default function CardTemplatePage() {
               layout={layout}
               templateUrl={templateUrl}
               dojoName={dojoName}
-              isDraggingPhoto={isDraggingPhoto}
+              draggingEl={draggingEl}
+              hoverEl={hoverEl}
+              showGrid={showGrid}
+              showGuides={showGuides}
+              snapCenter={snapCenter}
+              dragCoords={dragCoords}
               onPreviewMouseDown={handlePreviewMouseDown}
               onPreviewMouseMove={handlePreviewMouseMove}
               onPreviewMouseUp={handlePreviewMouseUp}
               previewRef={previewRef}
             />
           </div>
+
+          {/* ── Toolbar de herramientas ─────────────── */}
+          <div className="flex flex-wrap items-center justify-center gap-1.5 mt-1">
+            {/* Toggle grid */}
+            <button
+              onClick={() => setShowGrid(g => !g)}
+              title="Cuadrícula (50px)"
+              className={cn(
+                "px-2 py-1 rounded text-[10px] font-semibold border transition-colors",
+                showGrid ? "bg-blue-500/20 border-blue-400 text-blue-300" : "border-dojo-border text-dojo-muted hover:border-dojo-muted"
+              )}
+            >&#8862; Grid</button>
+
+            {/* Toggle guías */}
+            <button
+              onClick={() => setShowGuides(g => !g)}
+              title="Guías de centro"
+              className={cn(
+                "px-2 py-1 rounded text-[10px] font-semibold border transition-colors",
+                showGuides ? "bg-blue-500/20 border-blue-400 text-blue-300" : "border-dojo-border text-dojo-muted hover:border-dojo-muted"
+              )}
+            >&#8853; Guías</button>
+
+            {/* Toggle snap */}
+            <button
+              onClick={() => setSnapCenter(s => !s)}
+              title="Snap al centro"
+              className={cn(
+                "px-2 py-1 rounded text-[10px] font-semibold border transition-colors",
+                snapCenter ? "bg-orange-500/20 border-orange-400 text-orange-300" : "border-dojo-border text-dojo-muted hover:border-dojo-muted"
+              )}
+            >&#8891; Snap</button>
+
+            <div className="w-px h-4 bg-dojo-border" />
+
+            {/* Centrar foto H */}
+            <button
+              onClick={() => setLayout(prev => ({
+                ...prev,
+                photo: { ...prev.photo, x: Math.round((CW - prev.photo.diameter) / 2) },
+              }))}
+              title="Centrar foto horizontalmente"
+              className="px-2 py-1 rounded text-[10px] font-semibold border border-dojo-border text-dojo-muted hover:border-dojo-red/60 hover:text-dojo-white transition-colors"
+            >&#8859; Foto H</button>
+
+            {/* Foto posición estándar Y */}
+            <button
+              onClick={() => setLayout(prev => ({
+                ...prev,
+                photo: { ...prev.photo, y: Math.round(CH * 0.12) },
+              }))}
+              title="Foto en posición estándar (arriba)"
+              className="px-2 py-1 rounded text-[10px] font-semibold border border-dojo-border text-dojo-muted hover:border-dojo-red/60 hover:text-dojo-white transition-colors"
+            >&#8859; Foto Y</button>
+          </div>
+
           <p className="text-[10px] text-dojo-muted text-center">
-            Arrastra la foto en el preview · {CW} × {CH} px (CR80)
+            Arrastra foto · nombre · QR · team · footer en el preview · {CW} &times; {CH} px
           </p>
 
           {/* Botón reset */}
@@ -628,7 +942,7 @@ export default function CardTemplatePage() {
           {/* 2. Plantilla de fondo */}
           <CollapsibleSection title="Plantilla de Fondo" icon={ImageIcon}>
             <p className="text-dojo-muted text-xs">
-              Imagen de fondo del carnet. Recomendado: {CW} × {CH} px · Máximo 5 MB
+              Imagen de fondo del carnet. Recomendado: {CW} &times; {CH} px &middot; Máximo 5 MB
             </p>
             <div className="flex gap-3 flex-wrap">
               <button
@@ -651,7 +965,7 @@ export default function CardTemplatePage() {
               )}
             </div>
             {tplError && <p className="text-xs text-red-400">{tplError}</p>}
-            {templateUrl && <p className="text-xs text-green-400">✓ Plantilla cargada</p>}
+            {templateUrl && <p className="text-xs text-green-400">&#10003; Plantilla cargada</p>}
             <input
               ref={tplFileRef}
               type="file"
@@ -929,7 +1243,7 @@ export default function CardTemplatePage() {
           <div className="card bg-dojo-darker/50">
             <p className="text-xs text-dojo-muted leading-relaxed">
               <strong className="text-dojo-white">Nota:</strong> Estos cambios aplican únicamente a este dojo.
-              Dojo Natsuki mantiene su diseño original sin cambios.
+              Todos los dojos comparten el mismo sistema de diseño configurable.
               Los cambios se verán reflejados en el carnet de cada alumno al regenerar la página de su carnet.
             </p>
           </div>
