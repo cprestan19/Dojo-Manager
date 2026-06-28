@@ -51,9 +51,9 @@ function getHitElement(
   // ── QR (hit rectangular) ──────────────────────────────────────────────
   if (mx >= qr.x - 10 && mx <= qr.x + qr.w + 10 && my >= qr.y - 10 && my <= qr.y + qr.height + 10) return "qr";
 
-  // ── Contacto (zona a la derecha del QR) ───────────────────────────────
-  const cX = qr.x + qr.w + 8;
-  if (mx >= cX - 6 && mx <= CW && my >= qr.y - 10 && my <= qr.y + qr.height + 10) return "contact";
+  // ── Contacto (posición independiente) ────────────────────────────────
+  const ct = layout.contact;
+  if (mx >= ct.x - 8 && mx <= ct.x + ct.width + 8 && my >= ct.y - 10 && my <= ct.y + qr.height + 10) return "contact";
 
   // ── Nombre ────────────────────────────────────────────────────────────
   if (my >= layout.name.y - 10 && my <= layout.name.y + layout.name.fontSize + 20) return "name";
@@ -64,7 +64,6 @@ function getHitElement(
   // ── Footer ────────────────────────────────────────────────────────────
   if (my >= layout.footer.y - 20 && my <= CH) return "footer";
 
-  // Suprimir warning de CW no usado
   void CW;
   return null;
 }
@@ -332,15 +331,14 @@ function CardPreview({
               <span style={{ fontSize: 14, color: "#aaa", fontFamily: "monospace" }}>QR</span>
             </div>
 
-            {/* ── Contacto — a la derecha del QR ──────────── */}
+            {/* ── Contacto — posición independiente ──────── */}
             {(() => {
-              const cX = layout.qr.x + layout.qr.w + 8;
-              const cW = Math.max(40, CW - cX - 4);
+              const ctPos = layout.contact;
               return (
                 <div style={{
                   position: "absolute",
-                  left: cX, top: layout.qr.y,
-                  width: cW, height: layout.qr.height,
+                  left: ctPos.x, top: ctPos.y,
+                  width: ctPos.width, height: layout.qr.height,
                   display: "flex", flexDirection: "column",
                   alignItems: "center", justifyContent: "center",
                   gap: 8, zIndex: 7,
@@ -378,7 +376,7 @@ function CardPreview({
                         fontSize: 9, color: "rgba(99,179,237,0.9)",
                         background: "rgba(0,0,0,0.6)", padding: "1px 4px", borderRadius: 3,
                         fontFamily: "monospace", whiteSpace: "nowrap",
-                      }}>↔ CONTACTO — X:{cX} W:{cW}</span>
+                      }}>&#8596;&#8597; CONTACTO — X:{ctPos.x} Y:{ctPos.y}</span>
                     </div>
                   )}
                 </div>
@@ -874,7 +872,8 @@ export default function CardTemplatePage() {
     } else if (hit === "footer") {
       dragOffsetY.current = my - layout.footer.y;
     } else if (hit === "contact") {
-      dragOffsetX.current = mx - (layout.qr.x + layout.qr.w);
+      dragOffsetX.current = mx - layout.contact.x;
+      dragOffsetY.current = my - layout.contact.y;
     }
     // photo-se y qr-se: sin offset, usan posición raw del mouse
     e.preventDefault();
@@ -961,11 +960,13 @@ export default function CardTemplatePage() {
       dragUpdate(s => ({ ...s, layout: { ...s.layout, footer: { ...s.layout.footer, y: newY } } }));
 
     } else if (hit === "contact") {
-      // Arrastrar el contacto mueve la división QR/contacto (= ajusta qr.w)
-      const splitX = mx - dragOffsetX.current;
-      const newW = Math.max(80, Math.min(dCW - layout.qr.x - 50, Math.round(splitX - layout.qr.x)));
-      setDragCoords({ x: newW, y: dCW - layout.qr.x - newW - 8 });
-      dragUpdate(s => ({ ...s, layout: { ...s.layout, qr: { ...s.layout.qr, w: newW } } }));
+      const rawX   = mx - dragOffsetX.current;
+      const rawY   = my - dragOffsetY.current;
+      const cXCenter = (dCW - layout.contact.width) / 2;
+      const newX   = Math.max(0, Math.min(dCW - layout.contact.width, Math.round(snapVal(rawX, cXCenter, snapCenter))));
+      const newY   = Math.max(0, Math.min(dCH - 50, Math.round(rawY)));
+      setDragCoords({ x: newX, y: newY });
+      dragUpdate(s => ({ ...s, layout: { ...s.layout, contact: { ...s.layout.contact, x: newX, y: newY } } }));
     }
   }, [layout, snapCenter]);
 
@@ -993,6 +994,9 @@ export default function CardTemplatePage() {
   }
   function updateFooter(key: keyof CardLayout["footer"], value: number | string | boolean) {
     updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, footer: { ...s.layout.footer, [key]: value } as CardLayout["footer"] } }));
+  }
+  function updateContact(key: keyof CardLayout["contact"], value: number) {
+    updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, contact: { ...s.layout.contact, [key]: value } as CardLayout["contact"] } }));
   }
 
   if (loading) {
@@ -1061,6 +1065,18 @@ export default function CardTemplatePage() {
         {activeSlot === currentTab && (
           <span className="ml-2 text-xs text-green-500">Este diseño está activo en el carnet</span>
         )}
+
+        {/* Botón Guardar — también arriba para no tener que bajar */}
+        <div className="ml-auto flex items-center gap-3">
+          {saved && <span className="text-green-400 text-sm">¡Guardado!</span>}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="btn-primary flex items-center gap-2 text-sm"
+          >
+            <Save size={14} /> {saving ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 items-start">
@@ -1141,7 +1157,7 @@ export default function CardTemplatePage() {
           </div>
 
           <p className="text-[10px] text-dojo-muted text-center">
-            Arrastra foto · QR · nombre · team · footer · usa &#9632; para redimensionar · {CW} &times; {CH} px
+            Arrastra foto · QR · contacto · nombre · team · footer · usa &#9632; para redimensionar · {CW} &times; {CH} px
           </p>
 
           {/* Botón reset */}
@@ -1481,6 +1497,12 @@ export default function CardTemplatePage() {
               value={layout.contactColor}
               onChange={v => updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, contactColor: v } }))}
             />
+            <SliderRow label="Posición X" value={layout.contact.x} min={0} max={CW - 40} step={1}
+              onChange={v => updateContact("x", v)} />
+            <SliderRow label="Posición Y" value={layout.contact.y} min={0} max={CH - 40} step={1}
+              onChange={v => updateContact("y", v)} />
+            <SliderRow label="Ancho" value={layout.contact.width} min={40} max={CW} step={1}
+              onChange={v => updateContact("width", v)} />
           </CollapsibleSection>
 
           {/* Guardar */}

@@ -127,6 +127,10 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   // flex layout: padding-left 16px, col-izq 20% ≈ 128px, gap 8px, QR 55% ≈ 351px
   const QX_f  = customLayout ? customLayout.qr.x : 152;
   const QW_f  = customLayout ? customLayout.qr.w : 351;
+  // Contacto — posición independiente (si existe en el layout) o derivada del QR para layouts legacy
+  const CTX_f = customLayout?.contact ? customLayout.contact.x : QX_f + QW_f + 8;
+  const CTY_f = customLayout?.contact ? customLayout.contact.y : QT_f;
+  const CTW_f = customLayout?.contact ? customLayout.contact.width : Math.max(80, W_card - (QX_f + QW_f + 8) - 4);
   const FT_f  = customLayout ? customLayout.footer.y       : FT;
 
   const nameColor    = customLayout ? customLayout.name.color    : BLACK;
@@ -446,9 +450,9 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             {/* ── LAYER 8b: Columna de contacto ─────────────────────────── */}
             <div style={{
               position: "absolute",
-              top: QT_f,
-              left: QX_f + QW_f + 8,
-              width: Math.max(80, W_card - (QX_f + QW_f + 8) - 4),
+              top: CTY_f,
+              left: CTX_f,
+              width: CTW_f,
               height: QH_f,
               display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center",

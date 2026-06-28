@@ -95,6 +95,12 @@ export interface CardFooterLayout {
   background: string;
 }
 
+export interface CardContactLayout {
+  x: number;
+  y: number;
+  width: number;
+}
+
 export interface CardLayout {
   preset:       CardPreset;
   photo:        CardPhotoLayout;
@@ -103,6 +109,7 @@ export interface CardLayout {
   team:         CardTeamLayout;
   slogan:       CardSloganLayout;
   footer:       CardFooterLayout;
+  contact:      CardContactLayout;
   contactColor: string;
 }
 
@@ -117,9 +124,10 @@ export const DEFAULT_CARD_LAYOUT: CardLayout = {
     shadowEnabled: false, shadowColor: "#000000", shadowX: 2, shadowY: 2, shadowBlur: 4,
     outlineEnabled: false, outlineColor: "#FFFFFF", outlineWidth: 1,
   },
-  team:   { y: 600, color: "#CC0000" },
-  slogan: { text: "", fontSize: 15, color: "#ffffff", fontFamily: "Montserrat" },
-  footer: { y: 940, background: "#000000" },
+  team:    { y: 600, color: "#CC0000" },
+  slogan:  { text: "", fontSize: 15, color: "#ffffff", fontFamily: "Montserrat" },
+  footer:  { y: 940, background: "#000000" },
+  contact: { x: 476, y: 624, width: 158 }, // 128+340+8=476, 638-476-4=158
   contactColor: "#000000",
 };
 
@@ -133,9 +141,10 @@ export const DEFAULT_LANDSCAPE_LAYOUT: CardLayout = {
     shadowEnabled: false, shadowColor: "#000000", shadowX: 2, shadowY: 2, shadowBlur: 4,
     outlineEnabled: false, outlineColor: "#FFFFFF", outlineWidth: 1,
   },
-  team:   { y: 355, color: "#CC0000" },
-  slogan: { text: "", fontSize: 12, color: "#ffffff", fontFamily: "Montserrat" },
-  footer: { y: 590, background: "#000000" },
+  team:    { y: 355, color: "#CC0000" },
+  slogan:  { text: "", fontSize: 12, color: "#ffffff", fontFamily: "Montserrat" },
+  footer:  { y: 590, background: "#000000" },
+  contact: { x: 220, y: 390, width: 120 }, // 10+200+10=220
   contactColor: "#000000",
 };
 
@@ -145,12 +154,13 @@ export function parseCardLayout(raw: unknown): CardLayout | null {
   try {
     const r  = raw as Record<string, unknown>;
     const d  = DEFAULT_CARD_LAYOUT;
-    const ph = (r.photo  && typeof r.photo  === "object") ? r.photo  as Record<string, unknown> : {};
-    const qr = (r.qr     && typeof r.qr     === "object") ? r.qr     as Record<string, unknown> : {};
-    const nm = (r.name   && typeof r.name   === "object") ? r.name   as Record<string, unknown> : {};
-    const tm = (r.team   && typeof r.team   === "object") ? r.team   as Record<string, unknown> : {};
-    const sl = (r.slogan && typeof r.slogan === "object") ? r.slogan as Record<string, unknown> : {};
-    const ft = (r.footer && typeof r.footer === "object") ? r.footer as Record<string, unknown> : {};
+    const ph = (r.photo   && typeof r.photo   === "object") ? r.photo   as Record<string, unknown> : {};
+    const qr = (r.qr      && typeof r.qr      === "object") ? r.qr      as Record<string, unknown> : {};
+    const nm = (r.name    && typeof r.name    === "object") ? r.name    as Record<string, unknown> : {};
+    const tm = (r.team    && typeof r.team    === "object") ? r.team    as Record<string, unknown> : {};
+    const sl = (r.slogan  && typeof r.slogan  === "object") ? r.slogan  as Record<string, unknown> : {};
+    const ft = (r.footer  && typeof r.footer  === "object") ? r.footer  as Record<string, unknown> : {};
+    const ct = (r.contact && typeof r.contact === "object") ? r.contact as Record<string, unknown> : {};
     const n  = (v: unknown): v is number  => typeof v === "number";
     const s  = (v: unknown): v is string  => typeof v === "string";
     const b  = (v: unknown): v is boolean => typeof v === "boolean";
@@ -201,6 +211,11 @@ export function parseCardLayout(raw: unknown): CardLayout | null {
       footer: {
         y:          n(ft.y)          ? ft.y          : d.footer.y,
         background: s(ft.background) ? ft.background : d.footer.background,
+      },
+      contact: {
+        x:     n(ct.x)     ? ct.x     : d.contact.x,
+        y:     n(ct.y)     ? ct.y     : d.contact.y,
+        width: n(ct.width) ? ct.width : d.contact.width,
       },
       contactColor: s(r.contactColor) ? r.contactColor : d.contactColor,
     };
