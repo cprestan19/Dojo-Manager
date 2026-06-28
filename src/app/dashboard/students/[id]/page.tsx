@@ -1081,11 +1081,11 @@ export default function StudentDetailPage() {
         {/* Left: Personal info */}
         <div className="lg:col-span-1 space-y-4">
 
-          {/* Photo */}
-          {student.photo && (
+          {/* Photo — solo URLs de Cloudinary; base64 legacy se ignora */}
+          {student.photo?.startsWith("http") && (
             <div className="card p-0 overflow-hidden rounded-xl">
               <div className="w-full h-52 relative">
-                <Image src={student.photo} alt={student.fullName} fill className="object-cover" />
+                <Image src={student.photo} alt={student.fullName} fill className="object-cover object-top" unoptimized />
               </div>
             </div>
           )}

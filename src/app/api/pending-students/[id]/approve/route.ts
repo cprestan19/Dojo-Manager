@@ -6,6 +6,22 @@ import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { formatStudentName } from "@/lib/utils";
+import { uploadBuffer } from "@/lib/cloudinary";
+
+/** Sube un base64 de foto a Cloudinary. Retorna la URL o null si falla. */
+async function uploadBase64Photo(base64: string, dojoId: string): Promise<string | null> {
+  try {
+    const [header, b64data] = base64.split(",");
+    if (!b64data) return null;
+    const mime = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+    const buffer = Buffer.from(b64data, "base64");
+    const folder = `dojo-manager/${dojoId}/students`;
+    const result = await uploadBuffer(buffer, folder, "image");
+    return result.url;
+  } catch {
+    return null;
+  }
+}
 
 type SessionUser = { id?: string; name?: string; role?: string; dojoId?: string | null };
 
@@ -97,6 +113,12 @@ export async function POST(
     const reviewerId = (session.user as { id?: string }).id ?? "";
     const t0 = Date.now();
 
+    // Si la foto es base64, subirla a Cloudinary antes de crear el alumno
+    let photoUrl: string | null = pending.photo || null;
+    if (photoUrl?.startsWith("data:")) {
+      photoUrl = await uploadBase64Photo(photoUrl, dojoId) ?? null;
+    }
+
     const student = await prisma.$transaction(async (tx) => {
       const maxCodeResult = await tx.student.aggregate({ _max: { studentCode: true } });
       const studentCode   = (maxCodeResult._max.studentCode ?? 999) + 1;
@@ -127,7 +149,7 @@ export async function POST(
           fatherPhone:         pending.fatherPhone || null,
           fatherEmail:         pending.fatherEmail || null,
           address:             pending.address     || null,
-          photo:               pending.photo       || null,
+          photo:               photoUrl,
         },
       });
 

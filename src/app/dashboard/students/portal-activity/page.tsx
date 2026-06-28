@@ -320,7 +320,7 @@ export default function PortalActivityPage() {
                   {/* Foto / iniciales */}
                   <Link href={`/dashboard/students/${s.studentId}`}
                     className="w-10 h-10 rounded-xl overflow-hidden bg-dojo-darker flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity">
-                    {s.photo
+                    {s.photo?.startsWith("http")
                       // eslint-disable-next-line @next/next/no-img-element
                       ? <img src={s.photo} alt="" className="w-full h-full object-cover" />
                       : <span className="text-dojo-gold font-bold text-xs">

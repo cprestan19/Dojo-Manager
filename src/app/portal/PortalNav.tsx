@@ -124,7 +124,7 @@ export default function PortalNav({ student }: Props) {
       <header className="bg-dojo-dark border-b border-dojo-border px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-dojo-border overflow-hidden flex items-center justify-center text-sm font-bold text-dojo-gold shrink-0">
-            {student.photo
+            {student.photo?.startsWith("http")
               ? <Image src={student.photo} alt="" width={36} height={36} className="object-cover w-full h-full" unoptimized />
               : initials
             }

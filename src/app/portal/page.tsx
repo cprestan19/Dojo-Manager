@@ -210,7 +210,7 @@ export default async function PortalProfilePage() {
       {/* ── Avatar + nombre ── */}
       <div className="card flex items-center gap-4">
         <div className="w-20 h-20 rounded-2xl bg-dojo-border overflow-hidden flex items-center justify-center text-2xl font-bold text-dojo-gold shrink-0">
-          {student.photo
+          {student.photo?.startsWith("http")
             ? <Image src={student.photo} alt="" width={80} height={80} className="object-cover w-full h-full" unoptimized />
             : student.fullName.split(" ").slice(0,2).map(w=>w[0]).join("")}
         </div>
