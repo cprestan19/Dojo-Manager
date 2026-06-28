@@ -125,7 +125,7 @@ function CardPreview({
   const nameLetterSpacing = nm.letterSpacing ? `${nm.letterSpacing * 0.01}em` : undefined;
   const nameTextShadow = nm.shadowEnabled
     ? `${nm.shadowX}px ${nm.shadowY}px ${nm.shadowBlur}px ${nm.shadowColor}`
-    : (templateUrl ? "0 1px 4px rgba(0,0,0,0.7)" : undefined);
+    : undefined;
   const nameTextStroke = nm.outlineEnabled
     ? `${nm.outlineWidth}px ${nm.outlineColor}` : undefined;
 
@@ -913,8 +913,8 @@ export default function CardTemplatePage() {
           </button>
         </div>
 
-        {/* ── Controles ───────────────────────────────────────────────────── */}
-        <div className="space-y-4">
+        {/* ── Controles — scroll independiente para que el preview quede siempre visible */}
+        <div className="space-y-4 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1 lg:pb-4">
 
           {/* 1. Dimensiones del carnet */}
           <CollapsibleSection title="Dimensiones del Carnet" icon={Maximize2} defaultOpen={false}>

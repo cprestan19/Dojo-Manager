@@ -126,7 +126,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
     ? `${customLayout.name.letterSpacing * 0.01}em` : "0.5px";
   const nameTextShadow_f = customLayout?.name.shadowEnabled
     ? `${customLayout.name.shadowX}px ${customLayout.name.shadowY}px ${customLayout.name.shadowBlur}px ${customLayout.name.shadowColor}`
-    : (!!dojo.cardTemplateImage ? "0 1px 4px rgba(0,0,0,0.7)" : undefined);
+    : undefined;
   const nameTextStroke_f = customLayout?.name.outlineEnabled
     ? `${customLayout.name.outlineWidth}px ${customLayout.name.outlineColor}` : undefined;
   const photoShape_f  = customLayout ? customLayout.photo.shape : "circle";
