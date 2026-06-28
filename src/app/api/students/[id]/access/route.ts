@@ -46,12 +46,19 @@ export async function POST(req: NextRequest, { params }: Params) {
       select: {
         id: true, fullName: true, dojoId: true,
         motherEmail: true, fatherEmail: true,
+        primaryGuardian: true,
         portalUser: { select: { id: true, active: true, email: true } },
       },
     });
     if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
 
-    const email = student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
+    // Usar el email del acudiente principal si está definido; si no, fallback materno → paterno
+    const primaryEmail = student.primaryGuardian === "mother"
+      ? student.motherEmail?.trim()
+      : student.primaryGuardian === "father"
+      ? student.fatherEmail?.trim()
+      : null;
+    const email = primaryEmail || student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
     if (!email)
       return NextResponse.json({ error: "El alumno no tiene correo registrado" }, { status: 400 });
 

@@ -14,6 +14,7 @@ interface PendingStudent {
   fatherName: string | null; fatherPhone: string | null; fatherEmail: string | null;
   address: string | null;
   hasSiblingInDojo: boolean;
+  primaryGuardian: "mother" | "father" | null;
   registrationLink: { label: string };
 }
 
@@ -179,11 +180,18 @@ function StudentCard({
                   <Users size={11} /> El padre/tutor indicó que tiene un hermano/a en el dojo — el correo puede coincidir.
                 </p>
               )}
+              {student.primaryGuardian && (
+                <p className="text-xs text-dojo-gold mb-2 flex items-center gap-1">
+                  <ShieldCheck size={11} />
+                  Acudiente principal: <strong>{student.primaryGuardian === "mother" ? "Madre" : "Padre"}</strong>
+                  {" — "}este correo se usará para el acceso al portal del alumno.
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                <InfoRow label="Madre"       value={student.motherName} />
+                <InfoRow label={`Madre${student.primaryGuardian === "mother" ? " ★" : ""}`} value={student.motherName} />
                 <InfoRow label="Tel. madre"  value={student.motherPhone} />
                 <InfoRow label="Email madre" value={student.motherEmail} />
-                <InfoRow label="Padre"       value={student.fatherName} />
+                <InfoRow label={`Padre${student.primaryGuardian === "father" ? " ★" : ""}`} value={student.fatherName} />
                 <InfoRow label="Tel. padre"  value={student.fatherPhone} />
                 <InfoRow label="Email padre" value={student.fatherEmail} />
               </div>

@@ -8,8 +8,8 @@ const GENERIC_ERROR = "No se pudo procesar la solicitud. Verifica el enlace e in
 
 const RegisterSchema = z.object({
   fullName:    z.string().min(2).max(200),
-  firstName:   z.string().min(1).max(100),
-  lastName:    z.string().min(1).max(100),
+  firstName:   z.string().min(1).max(100).optional(),
+  lastName:    z.string().min(1).max(100).optional(),
   birthDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
   gender:      z.enum(["M", "F"]),
   nationality: z.string().min(2).max(100),
@@ -32,6 +32,7 @@ const RegisterSchema = z.object({
   address:          z.string().max(500).optional().nullable(),
   photo:            z.string().optional().nullable(),
   hasSiblingInDojo: z.boolean().optional().default(false),
+  primaryGuardian:  z.enum(["mother", "father"]).optional().nullable(),
 });
 
 function getIp(req: NextRequest): string {
@@ -78,6 +79,12 @@ export async function POST(
   }
 
   const body = parsed.data;
+
+  // Auto-derivar firstName/lastName desde fullName si no fueron enviados
+  const fullNameTrimmed = body.fullName.trim();
+  const nameParts = fullNameTrimmed.split(/\s+/);
+  const firstName = body.firstName?.trim() || nameParts[0] || fullNameTrimmed;
+  const lastName  = body.lastName?.trim()  || nameParts.slice(1).join(" ") || firstName;
 
   // ── Validación de duplicados: cédula y correos ────────────────────────────
   const trimmedCedula      = body.cedula?.trim()      || null;
@@ -142,9 +149,10 @@ export async function POST(
           dojoId:             link.dojoId,
           registrationLinkId: link.id,
           submitterIp:        ip,
-          fullName:           body.fullName.trim(),
-          firstName:          body.firstName.trim(),
-          lastName:           body.lastName.trim(),
+          fullName:           fullNameTrimmed,
+          firstName,
+          lastName,
+          primaryGuardian:    body.primaryGuardian || null,
           birthDate:          new Date(body.birthDate),
           gender:             body.gender,
           nationality:        body.nationality.trim(),
@@ -182,8 +190,10 @@ export async function POST(
       details:      JSON.stringify({ fullName: body.fullName, linkId: link.id }),
     });
 
-    // Enviar email de confirmación al padre/madre si proporcionó correo (fire-and-forget)
-    const confirmTo = body.motherEmail || body.fatherEmail;
+    // Enviar email de confirmación al acudiente principal (fire-and-forget)
+    const confirmTo = body.primaryGuardian === "mother" ? trimmedMotherEmail :
+                      body.primaryGuardian === "father" ? trimmedFatherEmail :
+                      trimmedMotherEmail || trimmedFatherEmail;
     if (confirmTo) {
       sendRegistrationConfirmation({
         to:          confirmTo,

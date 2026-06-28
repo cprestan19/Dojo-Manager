@@ -225,6 +225,8 @@ model Student {
   fatherPhone String?
   fatherEmail String?
 
+  primaryGuardian String? @map("primary_guardian")  // "mother" | "father" — acudiente principal para acceso al portal
+
   address String? @db.Text
   familyId  String?  @map("family_id")
 
@@ -1266,6 +1268,7 @@ model PendingStudent {
 
   // ── Contexto familiar ───────────────────────────────────────
   hasSiblingInDojo Boolean @default(false) @map("has_sibling_in_dojo")
+  primaryGuardian  String? @map("primary_guardian")  // "mother" | "father" — acudiente principal para acceso al portal
 
   // ── Control de aprobación ───────────────────────────────────
   status        String    @default("pending")  // pending | approved | rejected

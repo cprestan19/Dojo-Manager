@@ -18,7 +18,7 @@ interface Props {
 type Step = "splash" | "form" | "done" | "already-submitted";
 
 type FormData = {
-  fullName: string; firstName: string; lastName: string;
+  fullName: string;
   birthDate: string; gender: string; nationality: string;
   cedula: string; fepakaId: string; ryoBukaiId: string;
   bloodType: string; condition: string; hasPrivateInsurance: boolean;
@@ -27,12 +27,13 @@ type FormData = {
   fatherName: string; fatherPhone: string; fatherEmail: string;
   address: string; photo: string;
   hasSiblingInDojo: boolean;
+  primaryGuardian: "" | "mother" | "father";
 };
 
 type FieldErrors = Partial<Record<keyof FormData, string>>;
 
 const INIT: FormData = {
-  fullName: "", firstName: "", lastName: "", birthDate: "", gender: "", nationality: "",
+  fullName: "", birthDate: "", gender: "", nationality: "",
   cedula: "", fepakaId: "", ryoBukaiId: "",
   bloodType: "", condition: "", hasPrivateInsurance: false,
   insuranceName: "", insuranceNumber: "",
@@ -40,6 +41,7 @@ const INIT: FormData = {
   fatherName: "", fatherPhone: "", fatherEmail: "",
   address: "", photo: "",
   hasSiblingInDojo: false,
+  primaryGuardian: "",
 };
 
 function Section({ title, open, toggle, hasError, children }: {
@@ -134,16 +136,28 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
   function validate(): FieldErrors {
     const e: FieldErrors = {};
     if (!form.fullName.trim())    e.fullName    = "El nombre completo es obligatorio.";
-    if (!form.firstName.trim())   e.firstName   = "El primer nombre es obligatorio.";
-    if (!form.lastName.trim())    e.lastName    = "El apellido es obligatorio.";
     if (!form.birthDate)          e.birthDate   = "La fecha de nacimiento es obligatoria.";
     if (!form.gender)             e.gender      = "Selecciona el género.";
     if (!form.nationality.trim()) e.nationality = "La nacionalidad es obligatoria.";
+    // Acudiente principal — requerido si se llenó algún dato de contacto
+    const hasAnyGuardian = form.motherName.trim() || form.motherEmail.trim() ||
+                           form.fatherName.trim()  || form.fatherEmail.trim();
+    if (hasAnyGuardian && !form.primaryGuardian) {
+      e.primaryGuardian = "Selecciona quién es el acudiente principal del alumno.";
+    }
+    if (form.primaryGuardian === "mother" && !form.motherEmail.trim()) {
+      e.motherEmail = "El acudiente principal debe tener un correo electrónico.";
+    }
+    if (form.primaryGuardian === "father" && !form.fatherEmail.trim()) {
+      e.fatherEmail = "El acudiente principal debe tener un correo electrónico.";
+    }
     return e;
   }
 
-  const personalErrorKeys: (keyof FormData)[] = ["fullName","firstName","lastName","birthDate","gender","nationality"];
-  const hasPersonalError = (errs: FieldErrors) => personalErrorKeys.some(k => errs[k]);
+  const personalErrorKeys: (keyof FormData)[] = ["fullName","birthDate","gender","nationality"];
+  const hasPersonalError  = (errs: FieldErrors) => personalErrorKeys.some(k => errs[k]);
+  const contactErrorKeys:  (keyof FormData)[] = ["primaryGuardian","motherEmail","fatherEmail"];
+  const hasContactError   = (errs: FieldErrors) => contactErrorKeys.some(k => errs[k]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -153,6 +167,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       if (hasPersonalError(errs)) setSections(p => ({ ...p, personal: true }));
+      if (hasContactError(errs))  setSections(p => ({ ...p, contactos: true }));
       setGlobalError("Por favor completa todos los campos obligatorios marcados con *");
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
@@ -160,8 +175,15 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
 
     setLoading(true);
     try {
+      const nameParts = form.fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] ?? "";
+      const lastName  = nameParts.slice(1).join(" ") || firstName;
+
       const payload = {
         ...form,
+        firstName,
+        lastName,
+        primaryGuardian: form.primaryGuardian || null,
         fepakaId:        form.fepakaId.toUpperCase()   || null,
         ryoBukaiId:      form.ryoBukaiId.toUpperCase() || null,
         bloodType:       form.bloodType       || null,
@@ -379,18 +401,6 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
             placeholder="Apellido Nombre" maxLength={200} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Primer nombre" required error={errors.firstName}>
-            <input className={inputCls(errors.firstName)} value={form.firstName}
-              onChange={e => { set("firstName", e.target.value); clearError("firstName"); }}
-              placeholder="Nombre" maxLength={100} />
-          </Field>
-          <Field label="Apellido" required error={errors.lastName}>
-            <input className={inputCls(errors.lastName)} value={form.lastName}
-              onChange={e => { set("lastName", e.target.value); clearError("lastName"); }}
-              placeholder="Apellido" maxLength={100} />
-          </Field>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
           <Field label="Fecha de nacimiento" required error={errors.birthDate}>
             <input type="date" className={inputCls(errors.birthDate)} value={form.birthDate}
               onChange={e => { set("birthDate", e.target.value); clearError("birthDate"); }} />
@@ -471,6 +481,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
         title="3. Contactos y Dirección"
         open={sections.contactos}
         toggle={() => setSections(p => ({ ...p, contactos: !p.contactos }))}
+        hasError={hasContactError(errors)}
       >
         {/* Hermano/a en el dojo */}
         <div className="flex items-start gap-3 bg-dojo-card/60 border border-dojo-border rounded-lg p-3">
@@ -490,34 +501,69 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
         </div>
 
         <p className="text-dojo-muted text-xs">Al menos un contacto es recomendado para emergencias.</p>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Nombre de la madre">
-            <input className="form-input" value={form.motherName}
-              onChange={e => set("motherName", e.target.value)} maxLength={200} />
-          </Field>
-          <Field label="Teléfono">
-            <input className="form-input" type="tel" value={form.motherPhone}
-              onChange={e => set("motherPhone", e.target.value)} maxLength={30} />
+
+        {/* Error de acudiente principal */}
+        {errors.primaryGuardian && (
+          <p className="text-xs text-red-400 flex items-center gap-1">
+            <AlertCircle size={11} />{errors.primaryGuardian}
+          </p>
+        )}
+
+        {/* Madre */}
+        <div className={`border rounded-lg p-3 space-y-3 transition-colors ${form.primaryGuardian === "mother" ? "border-dojo-gold/50 bg-dojo-gold/5" : "border-dojo-border/60"}`}>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-dojo-white">Madre</span>
+            <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+              <input type="radio" name="primaryGuardian" value="mother"
+                checked={form.primaryGuardian === "mother"}
+                onChange={() => { set("primaryGuardian", "mother"); clearError("primaryGuardian"); }}
+                className="w-3.5 h-3.5 accent-dojo-red" />
+              <span className="text-xs text-dojo-muted group-hover:text-dojo-gold transition-colors">Acudiente principal</span>
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Nombre">
+              <input className="form-input" value={form.motherName}
+                onChange={e => set("motherName", e.target.value)} maxLength={200} />
+            </Field>
+            <Field label="Teléfono">
+              <input className="form-input" type="tel" value={form.motherPhone}
+                onChange={e => set("motherPhone", e.target.value)} maxLength={30} />
+            </Field>
+          </div>
+          <Field label="Email" error={errors.motherEmail}>
+            <input className={inputCls(errors.motherEmail)} type="email" value={form.motherEmail}
+              onChange={e => { set("motherEmail", e.target.value); clearError("motherEmail"); clearError("primaryGuardian"); }} maxLength={200} />
           </Field>
         </div>
-        <Field label="Email de la madre" error={errors.motherEmail}>
-          <input className={inputCls(errors.motherEmail)} type="email" value={form.motherEmail}
-            onChange={e => { set("motherEmail", e.target.value); clearError("motherEmail"); clearError("fatherEmail"); }} maxLength={200} />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Nombre del padre">
-            <input className="form-input" value={form.fatherName}
-              onChange={e => set("fatherName", e.target.value)} maxLength={200} />
-          </Field>
-          <Field label="Teléfono">
-            <input className="form-input" type="tel" value={form.fatherPhone}
-              onChange={e => set("fatherPhone", e.target.value)} maxLength={30} />
+
+        {/* Padre */}
+        <div className={`border rounded-lg p-3 space-y-3 transition-colors ${form.primaryGuardian === "father" ? "border-dojo-gold/50 bg-dojo-gold/5" : "border-dojo-border/60"}`}>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-dojo-white">Padre</span>
+            <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+              <input type="radio" name="primaryGuardian" value="father"
+                checked={form.primaryGuardian === "father"}
+                onChange={() => { set("primaryGuardian", "father"); clearError("primaryGuardian"); }}
+                className="w-3.5 h-3.5 accent-dojo-red" />
+              <span className="text-xs text-dojo-muted group-hover:text-dojo-gold transition-colors">Acudiente principal</span>
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Nombre">
+              <input className="form-input" value={form.fatherName}
+                onChange={e => set("fatherName", e.target.value)} maxLength={200} />
+            </Field>
+            <Field label="Teléfono">
+              <input className="form-input" type="tel" value={form.fatherPhone}
+                onChange={e => set("fatherPhone", e.target.value)} maxLength={30} />
+            </Field>
+          </div>
+          <Field label="Email" error={errors.fatherEmail}>
+            <input className={inputCls(errors.fatherEmail)} type="email" value={form.fatherEmail}
+              onChange={e => { set("fatherEmail", e.target.value); clearError("fatherEmail"); clearError("primaryGuardian"); }} maxLength={200} />
           </Field>
         </div>
-        <Field label="Email del padre" error={errors.fatherEmail}>
-          <input className={inputCls(errors.fatherEmail)} type="email" value={form.fatherEmail}
-            onChange={e => { set("fatherEmail", e.target.value); clearError("fatherEmail"); clearError("motherEmail"); }} maxLength={200} />
-        </Field>
         <Field label="Dirección">
           <textarea className="form-input resize-none" rows={2} value={form.address}
             onChange={e => set("address", e.target.value)} maxLength={500}

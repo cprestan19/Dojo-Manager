@@ -148,6 +148,7 @@ export async function POST(
           fatherName:          pending.fatherName  || null,
           fatherPhone:         pending.fatherPhone || null,
           fatherEmail:         pending.fatherEmail || null,
+          primaryGuardian:     pending.primaryGuardian || null,
           address:             pending.address     || null,
           photo:               photoUrl,
         },
