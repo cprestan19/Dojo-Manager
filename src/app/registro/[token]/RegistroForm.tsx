@@ -518,7 +518,10 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
                 checked={form.primaryGuardian === "mother"}
                 onChange={() => { set("primaryGuardian", "mother"); clearError("primaryGuardian"); }}
                 className="w-3.5 h-3.5 accent-dojo-red" />
-              <span className="text-xs text-dojo-muted group-hover:text-dojo-gold transition-colors">Acudiente principal</span>
+              <span className="text-xs text-dojo-muted group-hover:text-dojo-gold transition-colors leading-tight">
+                Acudiente principal
+                <span className="block text-dojo-muted/70 text-[10px] leading-tight">Este correo será tu usuario para el portal</span>
+              </span>
             </label>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -546,7 +549,10 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
                 checked={form.primaryGuardian === "father"}
                 onChange={() => { set("primaryGuardian", "father"); clearError("primaryGuardian"); }}
                 className="w-3.5 h-3.5 accent-dojo-red" />
-              <span className="text-xs text-dojo-muted group-hover:text-dojo-gold transition-colors">Acudiente principal</span>
+              <span className="text-xs text-dojo-muted group-hover:text-dojo-gold transition-colors leading-tight">
+                Acudiente principal
+                <span className="block text-dojo-muted/70 text-[10px] leading-tight">Este correo será tu usuario para el portal</span>
+              </span>
             </label>
           </div>
           <div className="grid grid-cols-2 gap-3">
