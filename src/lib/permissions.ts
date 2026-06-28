@@ -132,6 +132,14 @@ export const BADGE_BY_COLOR: Record<string, string> = {
   orange: "badge-yellow",
 };
 
+// Keys añadidas a ADMIN_KEYS después del despliegue inicial.
+// Se auto-incluyen en registros DB existentes para que nuevas funciones
+// aparezcan sin que el admin deba re-guardar sus permisos.
+const NEWLY_ADDED_FOR_ADMIN: NavKey[] = [
+  NAV_KEYS.SETTINGS_CARD,
+  NAV_KEYS.REGISTROS,
+];
+
 // Resolve permissions: DB record > default > empty
 export function resolvePermissions(
   role: string,
@@ -142,6 +150,10 @@ export function resolvePermissions(
   let perms: Set<NavKey>;
   if (dbRecord?.permissions && Array.isArray(dbRecord.permissions)) {
     perms = new Set(dbRecord.permissions as NavKey[]);
+    // Auto-incluir claves nuevas que no existían cuando se guardó el registro
+    if (role === "admin") {
+      for (const key of NEWLY_ADDED_FOR_ADMIN) perms.add(key);
+    }
   } else {
     perms = new Set(DEFAULT_PERMISSIONS[role] ?? DEFAULT_PERMISSIONS.user);
   }

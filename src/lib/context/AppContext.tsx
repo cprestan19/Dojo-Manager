@@ -16,7 +16,7 @@ import {
 import { useSession } from "next-auth/react";
 import type { DojoInfo } from "@/lib/hooks/useDojo";
 import type { NavKey } from "@/lib/permissions";
-import { DEFAULT_PERMISSIONS, SYSADMIN_NO_DOJO_PERMS } from "@/lib/permissions";
+import { DEFAULT_PERMISSIONS, SYSADMIN_NO_DOJO_PERMS, ALL_DOJO_KEYS } from "@/lib/permissions";
 
 interface AppCtx {
   dojo:         DojoInfo | null;
@@ -75,7 +75,7 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
   const fetchPerms = useCallback(async () => {
     if (!userId) return;
     // Check sessionStorage cache first — avoids redundant fetch on soft navigations
-    const cacheKey = `perms-${userId}-${role}`;
+    const cacheKey = `perms-${userId}-${role}-${ALL_DOJO_KEYS.length}`;
     const cached = typeof sessionStorage !== "undefined" ? sessionStorage.getItem(cacheKey) : null;
     if (cached) {
       try {
