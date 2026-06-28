@@ -7,6 +7,28 @@ const BLOOD_TYPES       = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as 
 const INSURANCE_COMPANIES = ["MAPFRE","PALIG","SURA","FEDPA","ANCON","ACERTA","IS","ASSA SEGUROS","ALIADO SEGUROS","BLUE CROSS"] as const;
 const MAX_PHOTO_BYTES   = 5 * 1024 * 1024;
 
+const NATIONALITIES = [
+  "Panamá", "Colombia", "Venezuela", "Costa Rica", "Nicaragua",
+  "Cuba", "República Dominicana", "Ecuador", "Perú", "México",
+  "Honduras", "El Salvador", "Guatemala", "Bolivia", "Chile",
+  "Argentina", "Brasil", "Uruguay", "Paraguay",
+  "España", "Italia", "Francia", "Alemania", "Portugal",
+  "Estados Unidos", "Canadá",
+  "China", "Japón", "Corea del Sur", "India",
+  "Otra",
+] as const;
+
+const LOWER_PARTICLES = new Set(["de", "del", "la", "las", "los", "y", "e", "van", "von", "o"]);
+function toTitleCase(str: string): string {
+  if (!str.trim()) return str;
+  return str.trim().replace(/\s+/g, " ").split(" ").map((word, i) => {
+    if (!word) return word;
+    const lower = word.toLowerCase();
+    if (i > 0 && LOWER_PARTICLES.has(lower)) return lower;
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }).join(" ");
+}
+
 interface Props {
   token:          string;
   dojoName:       string;
@@ -98,6 +120,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
   const [globalError, setGlobalError] = useState("");
   const [rawPhoto,  setRawPhoto]  = useState<string | null>(null);
   const [policyAccepted, setPolicyAccepted] = useState(false);
+  const [customNationality, setCustomNationality] = useState("");
   const photoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -140,7 +163,8 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
     if (!form.fullName.trim())    e.fullName    = "El nombre completo es obligatorio.";
     if (!form.birthDate)          e.birthDate   = "La fecha de nacimiento es obligatoria.";
     if (!form.gender)             e.gender      = "Selecciona el género.";
-    if (!form.nationality.trim()) e.nationality = "La nacionalidad es obligatoria.";
+    const effectiveNationality = form.nationality === "Otra" ? customNationality.trim() : form.nationality;
+    if (!effectiveNationality) e.nationality = "La nacionalidad es obligatoria.";
     // Acudiente principal — requerido si se llenó algún dato de contacto
     const hasAnyGuardian = form.motherName.trim() || form.motherEmail.trim() ||
                            form.fatherName.trim()  || form.fatherEmail.trim();
@@ -177,14 +201,21 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
 
     setLoading(true);
     try {
-      const nameParts = form.fullName.trim().split(/\s+/);
+      const cleanFullName = toTitleCase(form.fullName);
+      const nameParts = cleanFullName.split(/\s+/);
       const firstName = nameParts[0] ?? "";
       const lastName  = nameParts.slice(1).join(" ") || firstName;
 
+      const nationalityValue = form.nationality === "Otra"
+        ? toTitleCase(customNationality)
+        : form.nationality;
+
       const payload = {
         ...form,
+        fullName:        cleanFullName,
         firstName,
         lastName,
+        nationality:     nationalityValue,
         primaryGuardian: form.primaryGuardian || null,
         fepakaId:        form.fepakaId.toUpperCase()   || null,
         ryoBukaiId:      form.ryoBukaiId.toUpperCase() || null,
@@ -193,10 +224,10 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
         condition:       form.condition       || null,
         insuranceName:   form.insuranceName   || null,
         insuranceNumber: form.insuranceNumber || null,
-        motherName:      form.motherName      || null,
+        motherName:      form.motherName ? toTitleCase(form.motherName) : null,
         motherPhone:     form.motherPhone     || null,
         motherEmail:     form.motherEmail     || null,
-        fatherName:      form.fatherName      || null,
+        fatherName:      form.fatherName ? toTitleCase(form.fatherName) : null,
         fatherPhone:     form.fatherPhone     || null,
         fatherEmail:     form.fatherEmail     || null,
         address:         form.address         || null,
@@ -467,6 +498,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
         <Field label="Nombre completo" required error={errors.fullName}>
           <input className={inputCls(errors.fullName)} value={form.fullName}
             onChange={e => { set("fullName", e.target.value); clearError("fullName"); }}
+            onBlur={() => set("fullName", toTitleCase(form.fullName))}
             placeholder="Apellido Nombre" maxLength={200} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
@@ -484,9 +516,25 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
           </Field>
         </div>
         <Field label="Nacionalidad" required error={errors.nationality}>
-          <input className={inputCls(errors.nationality)} value={form.nationality}
-            onChange={e => { set("nationality", e.target.value); clearError("nationality"); }}
-            placeholder="Ej: Panameña" maxLength={100} />
+          <select className={inputCls(errors.nationality)} value={form.nationality}
+            onChange={e => {
+              set("nationality", e.target.value);
+              clearError("nationality");
+              if (e.target.value !== "Otra") setCustomNationality("");
+            }}>
+            <option value="">— Seleccionar —</option>
+            {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+          {form.nationality === "Otra" && (
+            <input
+              className={`form-input mt-2 ${errors.nationality ? "border-red-600" : ""}`}
+              value={customNationality}
+              onChange={e => { setCustomNationality(e.target.value); clearError("nationality"); }}
+              onBlur={() => setCustomNationality(toTitleCase(customNationality))}
+              placeholder="Especifica la nacionalidad"
+              maxLength={100}
+            />
+          )}
         </Field>
         <Field label="Cédula / Documento" error={errors.cedula}>
           <input className={inputCls(errors.cedula)} value={form.cedula}
@@ -596,7 +644,9 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
           <div className="grid grid-cols-2 gap-3">
             <Field label="Nombre">
               <input className="form-input" value={form.motherName}
-                onChange={e => set("motherName", e.target.value)} maxLength={200} />
+                onChange={e => set("motherName", e.target.value)}
+                onBlur={() => set("motherName", toTitleCase(form.motherName))}
+                maxLength={200} />
             </Field>
             <Field label="Teléfono">
               <input className="form-input" type="tel" value={form.motherPhone}
@@ -627,7 +677,9 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
           <div className="grid grid-cols-2 gap-3">
             <Field label="Nombre">
               <input className="form-input" value={form.fatherName}
-                onChange={e => set("fatherName", e.target.value)} maxLength={200} />
+                onChange={e => set("fatherName", e.target.value)}
+                onBlur={() => set("fatherName", toTitleCase(form.fatherName))}
+                maxLength={200} />
             </Field>
             <Field label="Teléfono">
               <input className="form-input" type="tel" value={form.fatherPhone}

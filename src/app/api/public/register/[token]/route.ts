@@ -6,6 +6,17 @@ import { sendRegistrationConfirmation } from "@/lib/email";
 
 const GENERIC_ERROR = "No se pudo procesar la solicitud. Verifica el enlace e intenta de nuevo.";
 
+const LOWER_PARTICLES = new Set(["de", "del", "la", "las", "los", "y", "e", "van", "von", "o"]);
+function toTitleCase(str: string): string {
+  if (!str.trim()) return str;
+  return str.trim().replace(/\s+/g, " ").split(" ").map((word, i) => {
+    if (!word) return word;
+    const lower = word.toLowerCase();
+    if (i > 0 && LOWER_PARTICLES.has(lower)) return lower;
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }).join(" ");
+}
+
 const RegisterSchema = z.object({
   fullName:    z.string().min(2).max(200),
   firstName:   z.string().min(1).max(100).optional(),
@@ -80,11 +91,11 @@ export async function POST(
 
   const body = parsed.data;
 
-  // Auto-derivar firstName/lastName desde fullName si no fueron enviados
-  const fullNameTrimmed = body.fullName.trim();
+  // Normalizar nombres con capitalización correcta en español
+  const fullNameTrimmed = toTitleCase(body.fullName);
   const nameParts = fullNameTrimmed.split(/\s+/);
-  const firstName = body.firstName?.trim() || nameParts[0] || fullNameTrimmed;
-  const lastName  = body.lastName?.trim()  || nameParts.slice(1).join(" ") || firstName;
+  const firstName = toTitleCase(body.firstName?.trim() || nameParts[0] || fullNameTrimmed);
+  const lastName  = toTitleCase(body.lastName?.trim()  || nameParts.slice(1).join(" ") || firstName);
 
   // ── Validación de duplicados: cédula y correos ────────────────────────────
   const trimmedCedula      = body.cedula?.trim()      || null;
@@ -155,7 +166,7 @@ export async function POST(
           primaryGuardian:    body.primaryGuardian || null,
           birthDate:          new Date(body.birthDate),
           gender:             body.gender,
-          nationality:        body.nationality.trim(),
+          nationality:        toTitleCase(body.nationality.trim()),
           cedula:             body.cedula        || null,
           fepakaId:           body.fepakaId     ? body.fepakaId.toUpperCase()    : null,
           ryoBukaiId:         body.ryoBukaiId   ? body.ryoBukaiId.toUpperCase()  : null,
@@ -164,10 +175,10 @@ export async function POST(
           hasPrivateInsurance: body.hasPrivateInsurance ?? false,
           insuranceName:      body.insuranceName  || null,
           insuranceNumber:    body.insuranceNumber || null,
-          motherName:         body.motherName  || null,
+          motherName:         body.motherName  ? toTitleCase(body.motherName)  : null,
           motherPhone:        body.motherPhone || null,
           motherEmail:        body.motherEmail || null,
-          fatherName:         body.fatherName  || null,
+          fatherName:         body.fatherName  ? toTitleCase(body.fatherName)  : null,
           fatherPhone:        body.fatherPhone || null,
           fatherEmail:        body.fatherEmail || null,
           address:            body.address         || null,
