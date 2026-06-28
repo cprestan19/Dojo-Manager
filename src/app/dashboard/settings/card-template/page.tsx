@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useAppContext } from "@/lib/context/AppContext";
 import {
   CreditCard, Upload, Save, Trash2, Loader2, RefreshCw,
-  Move, Type, Palette, Image as ImageIcon,
+  Move, Type, Palette, Image as ImageIcon, ChevronDown,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   CARD_W, CARD_H, CARD_FONTS, DEFAULT_CARD_LAYOUT, getFontStack, getGoogleFontsUrl,
   parseCardLayout,
@@ -236,6 +237,35 @@ function FontRow({ label, value, onChange }: { label: string; value: string; onC
   );
 }
 
+// ── Sección colapsable ────────────────────────────────────────────────────────
+function CollapsibleSection({ title, icon: Icon, children, defaultOpen = true, hint }: {
+  title: string;
+  icon: React.ElementType;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  hint?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="card">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2 text-dojo-white font-semibold text-sm"
+      >
+        <Icon size={16} className="text-dojo-red flex-shrink-0" />
+        <span className="flex-1 text-left">{title}</span>
+        {hint && <span className="text-[10px] text-dojo-muted font-normal mr-1">{hint}</span>}
+        <ChevronDown size={14} className={cn("text-dojo-muted transition-transform duration-200 flex-shrink-0", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="mt-3 pt-3 border-t border-dojo-border space-y-3">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function CardTemplatePage() {
   const { data: session } = useSession();
@@ -448,10 +478,7 @@ export default function CardTemplatePage() {
         <div className="space-y-4">
 
           {/* Plantilla de fondo */}
-          <div className="card space-y-4">
-            <h3 className="text-dojo-white font-semibold text-sm flex items-center gap-2 border-b border-dojo-border pb-2">
-              <ImageIcon size={16} className="text-dojo-red" /> Plantilla de Fondo
-            </h3>
+          <CollapsibleSection title="Plantilla de Fondo" icon={ImageIcon}>
             <p className="text-dojo-muted text-xs">
               Imagen de fondo del carnet. Recomendado: 638 × 1009 px · Máximo 5 MB
             </p>
@@ -476,71 +503,50 @@ export default function CardTemplatePage() {
               )}
             </div>
             {tplError && <p className="text-xs text-red-400">{tplError}</p>}
-            {templateUrl && (
-              <p className="text-xs text-green-400">✓ Plantilla cargada</p>
-            )}
+            {templateUrl && <p className="text-xs text-green-400">✓ Plantilla cargada</p>}
             <input ref={tplFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleTplFileChange} />
-          </div>
+          </CollapsibleSection>
 
           {/* Foto del alumno */}
-          <div className="card space-y-3">
-            <h3 className="text-dojo-white font-semibold text-sm flex items-center gap-2 border-b border-dojo-border pb-2">
-              <Move size={16} className="text-dojo-red" /> Foto del Alumno
-              <span className="text-[10px] text-dojo-muted font-normal ml-auto">Arrástrar en el preview</span>
-            </h3>
+          <CollapsibleSection title="Foto del Alumno" icon={Move} hint="Arrástrar en el preview">
             <SliderRow label="Posición X (izquierda)" value={layout.photo.x} min={0} max={CARD_W - layout.photo.diameter} onChange={v => updatePhoto("x", v)} />
             <SliderRow label="Posición Y (arriba)" value={layout.photo.y} min={0} max={CARD_H - layout.photo.diameter} onChange={v => updatePhoto("y", v)} />
             <SliderRow label="Diámetro" value={layout.photo.diameter} min={100} max={500} onChange={v => updatePhoto("diameter", v)} />
-          </div>
+          </CollapsibleSection>
 
           {/* Nombre del alumno */}
-          <div className="card space-y-3">
-            <h3 className="text-dojo-white font-semibold text-sm flex items-center gap-2 border-b border-dojo-border pb-2">
-              <Type size={16} className="text-dojo-red" /> Nombre del Alumno
-            </h3>
+          <CollapsibleSection title="Nombre del Alumno" icon={Type}>
             <SliderRow label="Posición Y" value={layout.name.y} min={0} max={CARD_H - 60} onChange={v => updateName("y", v)} />
             <SliderRow label="Tamaño de fuente" value={layout.name.fontSize} min={16} max={70} onChange={v => updateName("fontSize", v)} />
             <ColorRow  label="Color" value={layout.name.color} onChange={v => updateName("color", v)} />
             <FontRow   label="Fuente" value={layout.name.fontFamily} onChange={v => updateName("fontFamily", v)} />
-          </div>
+          </CollapsibleSection>
 
           {/* Línea TEAM */}
-          <div className="card space-y-3">
-            <h3 className="text-dojo-white font-semibold text-sm flex items-center gap-2 border-b border-dojo-border pb-2">
-              <Palette size={16} className="text-dojo-red" /> Línea de Equipo
-            </h3>
+          <CollapsibleSection title="Línea de Equipo" icon={Palette}>
             <SliderRow label="Posición Y" value={layout.team.y} min={0} max={CARD_H - 30} onChange={v => updateTeam("y", v)} />
             <ColorRow  label="Color" value={layout.team.color} onChange={v => updateTeam("color", v)} />
-          </div>
+          </CollapsibleSection>
 
           {/* Zona QR */}
-          <div className="card space-y-3">
-            <h3 className="text-dojo-white font-semibold text-sm flex items-center gap-2 border-b border-dojo-border pb-2">
-              <CreditCard size={16} className="text-dojo-red" /> Zona QR
-            </h3>
+          <CollapsibleSection title="Zona QR" icon={CreditCard}>
             <SliderRow label="Posición Y (inicio)" value={layout.qr.y} min={200} max={800} onChange={v => updateQr("y", v)} />
             <SliderRow label="Altura" value={layout.qr.height} min={100} max={450} onChange={v => updateQr("height", v)} />
-          </div>
+          </CollapsibleSection>
 
           {/* Footer / Slogan */}
-          <div className="card space-y-3">
-            <h3 className="text-dojo-white font-semibold text-sm flex items-center gap-2 border-b border-dojo-border pb-2">
-              <Palette size={16} className="text-dojo-red" /> Footer y Slogan
-            </h3>
+          <CollapsibleSection title="Footer y Slogan" icon={Palette}>
             <SliderRow label="Inicio del footer" value={layout.footer.y} min={600} max={CARD_H - 40} onChange={v => updateFooter("y", v)} />
             <ColorRow  label="Color del fondo"   value={layout.footer.background} onChange={v => updateFooter("background", v)} />
             <SliderRow label="Tamaño del slogan" value={layout.slogan.fontSize} min={9} max={24} onChange={v => updateSlogan("fontSize", v)} />
             <ColorRow  label="Color del slogan"  value={layout.slogan.color} onChange={v => updateSlogan("color", v)} />
             <FontRow   label="Fuente del slogan" value={layout.slogan.fontFamily} onChange={v => updateSlogan("fontFamily", v)} />
-          </div>
+          </CollapsibleSection>
 
           {/* Contacto */}
-          <div className="card space-y-3">
-            <h3 className="text-dojo-white font-semibold text-sm flex items-center gap-2 border-b border-dojo-border pb-2">
-              <Palette size={16} className="text-dojo-red" /> Acudiente / Contacto
-            </h3>
+          <CollapsibleSection title="Acudiente / Contacto" icon={Palette}>
             <ColorRow label="Color del texto" value={layout.contactColor} onChange={v => setLayout(prev => ({ ...prev, contactColor: v }))} />
-          </div>
+          </CollapsibleSection>
 
           {/* Guardar */}
           <div className="flex items-center gap-4 pt-2">
