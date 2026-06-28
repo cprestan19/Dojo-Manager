@@ -26,7 +26,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       where:  { id },
       select: {
         id: true, dojoId: true, fullName: true,
-        motherEmail: true, fatherEmail: true,
+        motherEmail: true, fatherEmail: true, primaryGuardian: true,
+        registrationLinkId: true,
         registrationLink: {
           select: { token: true, label: true, dojo: { select: { name: true, email: true, phone: true, slogan: true, logo: true, ownerName: true } } },
         },
@@ -38,7 +39,14 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
     const body = await req.json().catch(() => ({})) as { notify?: boolean };
 
-    await prisma.pendingStudent.delete({ where: { id } });
+    await prisma.$transaction([
+      prisma.pendingStudent.delete({ where: { id } }),
+      // Liberar el cupo del link para que el formulario pueda volver a usarse
+      prisma.registrationLink.update({
+        where: { id: pending.registrationLinkId },
+        data:  { useCount: { decrement: 1 } },
+      }),
+    ]);
 
     const ctx = buildAuditCtx(session, req, { dojoId });
     await logAudit({
@@ -53,7 +61,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
     // Enviar solicitud de reenvío al padre/madre si se indicó
     if (body.notify) {
-      const to = pending.motherEmail || pending.fatherEmail;
+      const primaryEmail = pending.primaryGuardian === "mother" ? pending.motherEmail :
+                           pending.primaryGuardian === "father" ? pending.fatherEmail : null;
+      const to = primaryEmail || pending.motherEmail || pending.fatherEmail;
       if (to) {
         const appUrl  = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
         const linkUrl = `${appUrl}/registro/${pending.registrationLink.token}?reset=1`;
