@@ -44,12 +44,13 @@ export default async function StudentCardPage({ params }: Params) {
   const proto      = host.startsWith("localhost") ? "http" : "https";
   const base       = (process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "") || `${proto}://${host}`;
   const cardUrl    = `${base}/id/${code}`;
-  const qrDataUrl = await QRCode.toDataURL(cardUrl, {
-    width: 420,
+  const qrSvgString = await QRCode.toString(cardUrl, {
+    type: "svg",
     margin: 2,
-    errorCorrectionLevel: "M",
+    errorCorrectionLevel: "H",
     color: { dark: "#0A0A0A", light: "#FFFFFF" },
   });
+  const qrDataUrl = `data:image/svg+xml;base64,${Buffer.from(qrSvgString).toString("base64")}`;
 
   // Contacto: prioridad madre → padre
   const contact = {

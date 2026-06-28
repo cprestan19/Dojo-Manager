@@ -1,6 +1,6 @@
 "use client";
 
-import { parseCardLayout, getFontStack, getGoogleFontsUrl, type CardLayout } from "@/lib/card-layout";
+import { parseCardLayout, getFontStack, getGoogleFontsUrl, getCardDimensions, type CardLayout } from "@/lib/card-layout";
 
 // ─── Dimensiones CR80 a 300 DPI ───────────────────────────────────────────────
 // 54mm × 85.6mm → 638 × 1009 px  (300 DPI exacto)
@@ -16,11 +16,7 @@ const DEFAULT_BLACK = "#000000";
 const DEFAULT_GOLD  = "#D4AF37";
 const BG            = "#F5F5F5";
 
-// Carnet por defecto para dojos nuevos/existentes (todos excepto Dojo Natsuki)
 const DEFAULT_SLOGAN_NEW = "DISCIPLINA, RESPETO Y CONSTANCIA";
-
-// El carnet del Dojo Natsuki queda hardcodeado con su diseño actual (kanji incluido)
-const NATSUKI_SLUG = "dojo-natsuki";
 
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
 
@@ -42,11 +38,6 @@ function hashString(s: string): number {
 }
 
 // ─── Layout (coordenadas en espacio 638 × 1009) ───────────────────────────────
-// Logo circular del dojo (22 % del ancho)
-const LOGO_D = 140;   // diámetro del círculo del logo
-const LOGO_X = 24;    // distancia al borde (izq. o der. según variante)
-const LOGO_Y = 24;    // top edge
-
 // Foto (centrada, ~58 % del ancho — cerca del 60 % del spec)
 const PD = 420;                           // diámetro
 const PX = Math.floor((W - PD) / 2);     // = 119 (centrado)
@@ -94,20 +85,22 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   const BLACK = dojo.secondaryColor && HEX_RE.test(dojo.secondaryColor) ? dojo.secondaryColor : DEFAULT_BLACK;
   const GOLD  = dojo.tertiaryColor  && HEX_RE.test(dojo.tertiaryColor)  ? dojo.tertiaryColor  : DEFAULT_GOLD;
 
-  // El carnet del Dojo Natsuki se mantiene exactamente como está (hardcodeado).
-  const isNatsuki = dojo.slug === NATSUKI_SLUG;
-
-  // Layout personalizado (solo para dojos no-Natsuki con cardLayout configurado)
-  const customLayout: CardLayout | null = (!isNatsuki && dojo.cardLayout)
+  // Layout personalizado del carnet (todos los dojos pueden configurarlo)
+  const customLayout: CardLayout | null = dojo.cardLayout
     ? parseCardLayout(dojo.cardLayout)
     : null;
 
-  // Posición y layout de la foto — Natsuki conserva el original; el resto baja la foto.
-  const PY = isNatsuki ? 74  : 120;
+  // Dimensiones dinámicas según preset del layout
+  const isLandscape = customLayout?.preset === "landscape";
+  const W_card = isLandscape ? H : W;   // H=1009, W=638
+  const H_card = isLandscape ? W : H;
+
+  // Posiciones base (se sobreescriben si hay customLayout)
+  const PY = 120;
   const qh = QH;
   const NT = PY + PD + 12;
-  const TT = isNatsuki ? NT + 93 : NT + 48;
-  const QT = isNatsuki ? TT + 25 : TT + 24;
+  const TT = NT + 48;
+  const QT = TT + 24;
   const FT = QT + qh + 6;
 
   // Valores finales de posición/tamaño/color — custom layout tiene prioridad
@@ -120,7 +113,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   const QH_f  = customLayout ? customLayout.qr.height      : qh;
   const FT_f  = customLayout ? customLayout.footer.y       : FT;
 
-  const nameColor    = customLayout ? customLayout.name.color    : (isNatsuki && !!dojo.cardTemplateImage ? "#ffffff" : BLACK);
+  const nameColor    = customLayout ? customLayout.name.color    : BLACK;
   const teamColor    = customLayout ? customLayout.team.color    : RED;
   const sloganColor  = customLayout ? customLayout.slogan.color  : "#ffffff";
   const footerBg     = customLayout ? customLayout.footer.background : BLACK;
@@ -129,12 +122,28 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   const sloganFontStack = customLayout ? getFontStack(customLayout.slogan.fontFamily) : "'Montserrat','Segoe UI',Arial,sans-serif";
   const nameFontSize    = customLayout ? customLayout.name.fontSize   : 38;
   const sloganFontSize  = customLayout ? customLayout.slogan.fontSize : 15;
-  const photoRadius_f: string | number = isNatsuki ? (hashString(dojo.id) % 2 === 1 ? 32 : "50%") : "50%";
+  const nameLetterSpacing_f = customLayout?.name.letterSpacing
+    ? `${customLayout.name.letterSpacing * 0.01}em` : "0.5px";
+  const nameTextShadow_f = customLayout?.name.shadowEnabled
+    ? `${customLayout.name.shadowX}px ${customLayout.name.shadowY}px ${customLayout.name.shadowBlur}px ${customLayout.name.shadowColor}`
+    : (!!dojo.cardTemplateImage ? "0 1px 4px rgba(0,0,0,0.7)" : undefined);
+  const nameTextStroke_f = customLayout?.name.outlineEnabled
+    ? `${customLayout.name.outlineWidth}px ${customLayout.name.outlineColor}` : undefined;
+  const photoShape_f  = customLayout ? customLayout.photo.shape : "circle";
+  const photoRadius_f: string | number = photoShape_f === "rectangle" ? 12 : "50%";
+  const photoBorderColor_f = customLayout ? customLayout.photo.borderColor : RED;
+  const photoBorderWidth_f = customLayout ? customLayout.photo.borderWidth : 4;
 
   // Google Fonts adicionales para el layout personalizado
   const extraFontUrl = customLayout
     ? getGoogleFontsUrl([customLayout.name.fontFamily, customLayout.slogan.fontFamily])
     : "";
+
+  // Variables QR
+  const qrBorderStr_f = (customLayout && customLayout.qr.frameBorderWidth > 0 && customLayout.qr.frameBorderColor)
+    ? `${customLayout.qr.frameBorderWidth}px solid ${customLayout.qr.frameBorderColor}`
+    : `2px solid ${RED}`;
+  const qrBg_f = customLayout?.qr.bgTransparent ? "transparent" : "#ffffff";
 
   // Plantilla de fondo personalizada — oculta capas decorativas y superpone datos del alumno
   const hasTemplate = !!dojo.cardTemplateImage;
@@ -142,7 +151,6 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   // Variante de layout determinística por dojo: alterna posición del logo
   // y orientación de las esquinas decorativas.
   const variantB = hashString(dojo.id) % 2 === 1;
-  const logoPos  = variantB ? { right: LOGO_X } : { left: LOGO_X };
   const corners = variantB
     ? {
         tl: { top: 0, left: 0, width: 96,  height: 202, clipPath: "polygon(0 0, 0 100%, 100% 0)" },
@@ -160,14 +168,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   const initials  = student.fullName.split(/\s+/).slice(0, 2).map(n => n[0]?.toUpperCase() ?? "").join("");
   const teamLabel = `TEAM ${dojo.name.toUpperCase()}`;
 
-  // Slogan del footer — Natsuki conserva el formato de 2 líneas hardcodeado;
-  // el resto de dojos muestra el slogan configurado completo (o el default nuevo)
-  const natsukiSlogan = dojo.slogan ?? "PERFECCIONA TU CARÁCTER CON DISCIPLINA Y CONSTANCIA";
-  const [sloganLine1, sloganLine2] = (() => {
-    const m = natsukiSlogan.match(/^(.+?con)\s+(.+)$/i);
-    return m ? [m[1].toUpperCase(), m[2].toUpperCase()] : ["PERFECCIONA TU CARÁCTER CON", "DISCIPLINA Y CONSTANCIA"];
-  })();
-  const sloganText = (dojo.slogan?.trim() || DEFAULT_SLOGAN_NEW).toUpperCase();
+  const sloganText = (customLayout?.slogan.text?.trim() || dojo.slogan?.trim() || DEFAULT_SLOGAN_NEW).toUpperCase();
 
   function printCard() {
     window.print();
@@ -176,15 +177,14 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700;900&family=Kosugi+Maru&display=swap');
         ${extraFontUrl ? `@import url('${extraFontUrl}');` : ""}
         @keyframes spin { to { transform: rotate(360deg); } }
 
         @media print {
-          @page { size: 55mm 85mm; margin: 0; }
+          @page { size: ${isLandscape ? "85mm 55mm" : "55mm 85mm"}; margin: 0; }
 
           html, body {
-            width: 55mm !important; height: 85mm !important;
+            width: ${isLandscape ? "85mm" : "55mm"} !important; height: ${isLandscape ? "53.74mm" : "85mm"} !important;
             margin: 0 !important; padding: 0 !important;
             background: white !important; overflow: hidden !important;
           }
@@ -200,22 +200,22 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             min-height: unset !important;
             background: white !important;
             padding: 0 !important; margin: 0 !important;
-            width: 55mm !important; height: 85mm !important;
+            width: ${isLandscape ? "85mm" : "55mm"} !important; height: ${isLandscape ? "53.74mm" : "85mm"} !important;
             overflow: hidden !important;
           }
 
-          /* Wrapper del carnet: centrado horizontalmente en la página, ancho = carnet escalado */
+          /* Wrapper del carnet: centrado horizontalmente en la página */
           .card-print-wrapper {
             position: fixed !important;
             top: 0 !important; left: 50% !important;
             transform: translateX(-50%) !important;
-            width: 53.74mm !important; height: 85mm !important;
+            width: ${isLandscape ? "86mm" : "53.74mm"} !important; height: ${isLandscape ? "53.74mm" : "85mm"} !important;
             overflow: hidden !important;
             margin: 0 !important; padding: 0 !important;
           }
 
-          /* Escala limitada por la altura: 1009px → 85mm (321.26px a 96dpi) → scale 0.3184
-             Ancho resultante: 638 × 0.3184 = 203.1px = 53.74mm */
+          /* Escala limitada por la altura: 638px → 53.74mm (portrait) o 1009px → 85mm (portrait)
+             En landscape H_card=638, mismo scale 0.3184 */
           .card-print-scale {
             transform-origin: top left !important;
             transform: scale(0.3184) !important;
@@ -231,8 +231,8 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
 
       {/* ── Wrapper: ocupa el espacio visual escalado ─────────────────────── */}
       <div className="card-print-wrapper" style={{
-        width:  Math.round(W * DS),
-        height: Math.round(H * DS),
+        width:  Math.round(W_card * DS),
+        height: Math.round(H_card * DS),
         flexShrink: 0,
         overflow: "visible",
       }}>
@@ -240,13 +240,13 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
         <div className="card-print-scale" style={{ transformOrigin: "top left", transform: `scale(${DS})` }}>
 
           {/* ════════════════════════════════════════════════════════════════
-              CARNET  638 × 1009 px  (54 × 85.6 mm @ 300 DPI)
+              CARNET  W_card × H_card px  (CR80 @ 300 DPI)
               ════════════════════════════════════════════════════════════════ */}
           <div
             className="id-card-surface"
             style={{
               position: "relative",
-              width: W, height: H,
+              width: W_card, height: H_card,
               background: hasTemplate ? undefined : BG,
               overflow: "hidden",
               fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
@@ -264,7 +264,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                 style={{
                   position: "absolute",
                   top: 0, left: 0,
-                  width: W, height: H,
+                  width: W_card, height: H_card,
                   objectFit: "cover",
                   zIndex: 0,
                 }}
@@ -295,7 +295,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             {!hasTemplate && (
               <div style={{
                 position: "absolute",
-                top: FT_f, left: 0, width: W, height: H - FT_f,
+                top: FT_f, left: 0, width: W_card, height: H_card - FT_f,
                 background: footerBg,
                 zIndex: 3,
               }} />
@@ -303,88 +303,48 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             {/* Texto del footer (sobre el negro, z=8) */}
             <div style={{
               position: "absolute",
-              top: FT_f, left: 0, width: W, height: H - FT_f,
+              top: FT_f, left: 0, width: W_card, height: H_card - FT_f,
               zIndex: 8,
               display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center",
               gap: 4,
             }}>
-              {isNatsuki ? (
-                <>
-                  <div style={{
-                    fontSize: 15, fontStyle: "italic", fontWeight: 400,
-                    color: "#ffffff", letterSpacing: "0.12em",
-                    textTransform: "uppercase", textAlign: "center",
-                    ...(hasTemplate ? { textShadow: "0 1px 4px rgba(0,0,0,0.7)" } : {}),
-                  }}>{sloganLine1}</div>
-                  <div style={{
-                    fontSize: 18, fontStyle: "italic", fontWeight: 700,
-                    color: "#ffffff", letterSpacing: "0.10em",
-                    textTransform: "uppercase", textAlign: "center",
-                    ...(hasTemplate ? { textShadow: "0 1px 4px rgba(0,0,0,0.7)" } : {}),
-                  }}>{sloganLine2}</div>
-                </>
-              ) : (
-                <>
-                  {!hasTemplate && <div style={{ width: 50, height: 3, borderRadius: 2, background: GOLD, marginBottom: 6 }} />}
-                  <div style={{
-                    fontSize: sloganFontSize, fontStyle: "italic", fontWeight: 700,
-                    color: sloganColor, letterSpacing: "0.08em", lineHeight: 1.35,
-                    textTransform: "uppercase", textAlign: "center",
-                    padding: "0 36px", maxWidth: W - 48,
-                    fontFamily: sloganFontStack,
-                    ...(hasTemplate ? { textShadow: "0 1px 4px rgba(0,0,0,0.7)" } : {}),
-                  }}>{sloganText}</div>
-                </>
-              )}
+              <>
+                {!hasTemplate && <div style={{ width: 50, height: 3, borderRadius: 2, background: GOLD, marginBottom: 6 }} />}
+                <div style={{
+                  fontSize: sloganFontSize, fontStyle: "italic", fontWeight: 700,
+                  color: sloganColor, letterSpacing: "0.08em", lineHeight: 1.35,
+                  textTransform: "uppercase", textAlign: "center",
+                  padding: "0 36px", maxWidth: W_card - 48,
+                  fontFamily: sloganFontStack,
+                  ...(hasTemplate ? { textShadow: "0 1px 4px rgba(0,0,0,0.7)" } : {}),
+                }}>{sloganText}</div>
+              </>
             </div>
 
-            {/* ── LAYER 4: Logo del dojo — solo Natsuki conserva el círculo en esquina ── */}
-            {isNatsuki && (
-              <div style={{
-                position: "absolute",
-                top: LOGO_Y, ...logoPos,
-                width: LOGO_D, height: LOGO_D,
-                borderRadius: "50%",
-                border: `4px solid ${RED}`,
-                overflow: "hidden",
-                background: "#fff",
-                zIndex: 5,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: `0 0 0 2px #fff`,
-              }}>
-                {dojo.logo && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={dojo.logo}
-                    alt={dojo.name}
-                    crossOrigin="anonymous"
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                )}
-              </div>
-            )}
-
             {/* ── LAYER 5: Foto del alumno ───────────────────────────────── */}
-            {/* Anillo exterior decorativo */}
-            <div style={{
-              position: "absolute",
-              top: PY_f - 8, left: PX_f - 8,
-              width: PD_f + 16, height: PD_f + 16,
-              borderRadius: photoRadius_f,
-              border: `2px solid ${hexToRgba(RED, 0.22)}`,
-              zIndex: 5,
-            }} />
-            {/* Borde sólido 4px */}
-            <div style={{
-              position: "absolute",
-              top: PY_f - 4, left: PX_f - 4,
-              width: PD_f + 8, height: PD_f + 8,
-              borderRadius: photoRadius_f,
-              border: `4px solid ${RED}`,
-              zIndex: 6,
-              boxShadow: `0 6px 28px ${hexToRgba(RED, 0.30)}`,
-            }} />
+            {/* Borde y anillo de la foto */}
+            {photoBorderWidth_f > 0 && (
+              <>
+                <div style={{
+                  position: "absolute",
+                  top: PY_f - photoBorderWidth_f - 4, left: PX_f - photoBorderWidth_f - 4,
+                  width: PD_f + (photoBorderWidth_f + 4) * 2, height: PD_f + (photoBorderWidth_f + 4) * 2,
+                  borderRadius: photoRadius_f,
+                  border: `2px solid ${hexToRgba(photoBorderColor_f, 0.22)}`,
+                  zIndex: 5,
+                }} />
+                <div style={{
+                  position: "absolute",
+                  top: PY_f - photoBorderWidth_f, left: PX_f - photoBorderWidth_f,
+                  width: PD_f + photoBorderWidth_f * 2, height: PD_f + photoBorderWidth_f * 2,
+                  borderRadius: photoRadius_f,
+                  border: `${photoBorderWidth_f}px solid ${photoBorderColor_f}`,
+                  zIndex: 6,
+                  boxShadow: `0 6px 28px ${hexToRgba(photoBorderColor_f, 0.30)}`,
+                }} />
+              </>
+            )}
             {/* Foto */}
             <div style={{
               position: "absolute",
@@ -418,10 +378,11 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               <div style={{
                 fontSize: nameFontSize, fontWeight: 800,
                 color: nameColor,
-                letterSpacing: "0.5px", lineHeight: 1.1,
+                letterSpacing: nameLetterSpacing_f, lineHeight: 1.1,
                 textTransform: "uppercase", wordBreak: "break-word",
                 fontFamily: nameFontStack,
-                ...(hasTemplate ? { textShadow: "0 1px 4px rgba(0,0,0,0.7)" } : {}),
+                ...(nameTextShadow_f ? { textShadow: nameTextShadow_f } : {}),
+                ...(nameTextStroke_f ? { WebkitTextStroke: nameTextStroke_f, paintOrder: "stroke fill" as const } : {}),
               }}>
                 {student.fullName}
               </div>
@@ -455,32 +416,14 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               boxSizing: "border-box" as const,
             }}>
 
-              {/* Columna izquierda 20%: Kanji solo para Natsuki; vacía para el resto */}
-              <div style={{
-                width: "20%", flexShrink: 0,
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                gap: 10,
-              }}>
-                {isNatsuki && (
-                  <div style={{
-                    transform: "rotate(-90deg)",
-                    fontSize: 62, fontWeight: 900,
-                    color: RED, letterSpacing: "0.06em",
-                    userSelect: "none", whiteSpace: "nowrap",
-                    fontFamily: "'Kosugi Maru', sans-serif",
-                  }}>道場夏月</div>
-                )}
-              </div>
+              {/* Columna izquierda 20%: espacio para el lema vertical */}
+              <div style={{ width: "20%", flexShrink: 0 }} />
 
               {/* Columna central 55%: QR con borde de color */}
-              {/* Ancho col ≈ (638-32) × 0.55 = 333px                      */}
-              {/* QR image: 333-4-24-24 = 281px, ≤ QH-4-24-8-18-24 = 208  */}
-              {/* Usamos maxWidth/maxHeight=210 para que encaje en alto      */}
               <div style={{
                 flex: "0 0 55%",
-                background: "#ffffff",
-                border: `2px solid ${RED}`,
+                background: qrBg_f,
+                border: qrBorderStr_f,
                 borderRadius: 12,
                 padding: 0,
                 boxShadow: `0 4px 22px ${hexToRgba(RED, 0.15)}`,
@@ -537,13 +480,6 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
                       <path d="M23.5 8.5A10.44 10.44 0 0 0 16 5.5C10.75 5.5 6.5 9.75 6.5 15a9.44 9.44 0 0 0 1.27 4.75L6.5 26.5l6.93-1.82A9.5 9.5 0 0 0 16 25.5c5.25 0 9.5-4.25 9.5-9.5a9.44 9.44 0 0 0-2-5.5zm-7.5 14.62a7.88 7.88 0 0 1-4.02-1.1l-.29-.17-3 .79.8-2.93-.19-.3A7.88 7.88 0 0 1 8.12 15c0-4.35 3.53-7.88 7.88-7.88S23.88 10.65 23.88 15 20.35 23.12 16 23.12zm4.33-5.9c-.24-.12-1.4-.69-1.61-.77-.22-.08-.38-.12-.54.12-.16.24-.62.77-.76.93-.14.16-.28.18-.52.06-.24-.12-1-.37-1.91-1.18-.7-.63-1.18-1.4-1.32-1.64-.14-.24-.01-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.52.1.46-.07 1.4-.57 1.6-1.12.2-.55.2-1.02.14-1.12-.06-.1-.22-.16-.46-.28z" fill="#fff"/>
                     </svg>
                   </div>
-                ) : isNatsuki ? (
-                  /* Si no hay contacto: decoración de kanji pequeño (solo Natsuki) */
-                  <div style={{
-                    writingMode: "vertical-rl" as const,
-                    fontSize: 22, color: RED,
-                    opacity: 0.18, userSelect: "none",
-                  }}>道場</div>
                 ) : null}
               </div>
 
