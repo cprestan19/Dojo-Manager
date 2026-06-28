@@ -40,10 +40,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Protección contra escalada de privilegios en cambio de rol:
-    // admin no puede asignar rol admin ni sysadmin
-    // sysadmin no puede convertir otro usuario en sysadmin vía API
+    // admin puede asignar admin o user/custom — nunca sysadmin
+    // sysadmin no puede elevar otro usuario a sysadmin vía API
     if (body.role !== undefined) {
-      if (role === "admin" && ["sysadmin", "admin"].includes(body.role)) {
+      if (role === "admin" && body.role === "sysadmin") {
         return NextResponse.json({ error: "No tienes permisos para asignar ese rol" }, { status: 403 });
       }
       if (role === "sysadmin" && body.role === "sysadmin" && target.role !== "sysadmin") {
@@ -146,6 +146,10 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
     if (role === "admin" && target.dojoId !== dojoId)
       return NextResponse.json({ error: "Sin permisos sobre este usuario" }, { status: 403 });
+
+    // Admin no puede eliminar usuarios sysadmin bajo ninguna circunstancia
+    if (role === "admin" && target.role === "sysadmin")
+      return NextResponse.json({ error: "No puedes eliminar un Super Administrador" }, { status: 403 });
 
     if (target.role === "sysadmin") {
       const count = await prisma.user.count({ where: { role: "sysadmin" } });

@@ -41,8 +41,10 @@ const emptyForm = () => ({
 
 export default function UsersPage() {
   const { data: session } = useSession();
+  const sessionUserId = (session?.user as { id?: string } | undefined)?.id;
   const role = (session?.user as { role?: string } | undefined)?.role;
   const isSysadmin = role === "sysadmin";
+  const isAdmin = role === "admin";
 
   const [users,      setUsers]     = useState<User[]>([]);
   const [loading,    setLoading]   = useState(true);
@@ -297,10 +299,12 @@ export default function UsersPage() {
                   title={u.active ? "Desactivar" : "Activar"}>
                   {toggling === u.id ? <Loader2 size={15} className="animate-spin" /> : u.active ? <UserX size={15} /> : <UserCheck size={15} />}
                 </button>
-                <button onClick={() => deleteUser(u)} disabled={deleting === u.id}
-                  className="btn-ghost p-1.5 text-dojo-muted hover:text-red-500" title="Eliminar">
-                  {deleting === u.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-                </button>
+                {(!isAdmin || u.role !== "sysadmin") && u.id !== sessionUserId && (
+                  <button onClick={() => deleteUser(u)} disabled={deleting === u.id}
+                    className="btn-ghost p-1.5 text-dojo-muted hover:text-red-500" title="Eliminar">
+                    {deleting === u.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  </button>
+                )}
               </div>
             </div>
             {/* Row 2: role + status + dojo */}
@@ -368,10 +372,12 @@ export default function UsersPage() {
                         title={u.active ? "Desactivar" : "Activar"}>
                         {toggling === u.id ? <Loader2 size={14} className="animate-spin" /> : u.active ? <UserX size={14} /> : <UserCheck size={14} />}
                       </button>
-                      <button onClick={() => deleteUser(u)} disabled={deleting === u.id}
-                        className="btn-ghost p-1.5 text-dojo-muted hover:text-red-500" title="Eliminar">
-                        {deleting === u.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                      </button>
+                      {(!isAdmin || u.role !== "sysadmin") && u.id !== sessionUserId && (
+                        <button onClick={() => deleteUser(u)} disabled={deleting === u.id}
+                          className="btn-ghost p-1.5 text-dojo-muted hover:text-red-500" title="Eliminar">
+                          {deleting === u.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -472,9 +478,12 @@ export default function UsersPage() {
             <div>
               <label className="form-label">Rol *</label>
               <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} className="form-input">
-                {roles.filter(r => r.roleName !== "student").map(r => (
-                  <option key={r.roleName} value={r.roleName}>{r.roleLabel}</option>
-                ))}
+                {roles
+                  .filter(r => r.roleName !== "student")
+                  .filter(r => isSysadmin || r.roleName !== "sysadmin")
+                  .map(r => (
+                    <option key={r.roleName} value={r.roleName}>{r.roleLabel}</option>
+                  ))}
               </select>
             </div>
           )}
