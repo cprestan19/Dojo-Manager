@@ -93,7 +93,7 @@ export function Sidebar() {
       {/* App branding — dojo logo when available, app logo as fallback */}
       <div className="px-4 py-4 border-b border-dojo-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-dojo-red flex items-center justify-center shadow shadow-dojo-red/30">
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-white flex items-center justify-center shadow shadow-black/10">
             <Image
               src={dojo?.logo && dojo.logo.startsWith("http") ? dojo.logo : "/logo.png"}
               alt={dojo?.name ?? "Dojo Master"}
