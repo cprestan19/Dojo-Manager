@@ -74,6 +74,11 @@ interface CardProps {
     tertiaryColor: string | null;
     cardTemplateImage: string | null;
     cardLayout?: unknown;
+    cardLayout2?: unknown;
+    cardTemplateImage2?: string | null;
+    cardLayout3?: unknown;
+    cardTemplateImage3?: string | null;
+    activeCardSlot?: number;
   };
   contact: { name: string | null; phone: string | null };
   qrDataUrl: string;
@@ -85,10 +90,17 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   const BLACK = dojo.secondaryColor && HEX_RE.test(dojo.secondaryColor) ? dojo.secondaryColor : DEFAULT_BLACK;
   const GOLD  = dojo.tertiaryColor  && HEX_RE.test(dojo.tertiaryColor)  ? dojo.tertiaryColor  : DEFAULT_GOLD;
 
+  // Seleccionar el slot activo (1, 2 o 3)
+  const slot = dojo.activeCardSlot ?? 1;
+  const activeLayoutRaw = slot === 3 ? dojo.cardLayout3
+                        : slot === 2 ? dojo.cardLayout2
+                        : dojo.cardLayout;
+  const activeTemplateImage = slot === 3 ? dojo.cardTemplateImage3
+                             : slot === 2 ? dojo.cardTemplateImage2
+                             : dojo.cardTemplateImage;
+
   // Layout personalizado del carnet (todos los dojos pueden configurarlo)
-  const customLayout: CardLayout | null = dojo.cardLayout
-    ? parseCardLayout(dojo.cardLayout)
-    : null;
+  const customLayout: CardLayout | null = activeLayoutRaw ? parseCardLayout(activeLayoutRaw) : null;
 
   // Dimensiones dinámicas según preset del layout
   const isLandscape = customLayout?.preset === "landscape";
@@ -152,7 +164,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   const qrBg_f = customLayout?.qr.bgTransparent ? "transparent" : "#ffffff";
 
   // Plantilla de fondo personalizada — oculta capas decorativas y superpone datos del alumno
-  const hasTemplate = !!dojo.cardTemplateImage;
+  const hasTemplate = !!activeTemplateImage;
 
   // Variante de layout determinística por dojo: alterna posición del logo
   // y orientación de las esquinas decorativas.
@@ -264,7 +276,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             {hasTemplate && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={dojo.cardTemplateImage!}
+                src={activeTemplateImage!}
                 alt=""
                 crossOrigin="anonymous"
                 style={{

@@ -677,6 +677,10 @@ function CollapsibleSection({ title, icon: Icon, children, defaultOpen = true, h
   );
 }
 
+// ── Tipo de slot de diseño ────────────────────────────────────────────────────
+type CardSlot = { layout: CardLayout; templateUrl: string | null };
+const EMPTY_SLOT: CardSlot = { layout: DEFAULT_CARD_LAYOUT, templateUrl: null };
+
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function CardTemplatePage() {
   const { data: session } = useSession();
@@ -688,13 +692,19 @@ export default function CardTemplatePage() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [dojoName,   setDojoName]   = useState("Mi Dojo");
 
-  const [templateUrl,  setTemplateUrl]  = useState<string | null>(null);
+  const [slots,       setSlots]       = useState<[CardSlot, CardSlot, CardSlot]>([EMPTY_SLOT, EMPTY_SLOT, EMPTY_SLOT]);
+  const [currentTab,  setCurrentTab]  = useState<1 | 2 | 3>(1);
+  const [activeSlot,  setActiveSlot]  = useState<1 | 2 | 3>(1);
   const [tplUploading, setTplUploading] = useState(false);
   const [tplError,     setTplError]     = useState("");
-  const [layout,       setLayout]       = useState<CardLayout>(DEFAULT_CARD_LAYOUT);
   const [loading,      setLoading]      = useState(true);
   const [saving,       setSaving]       = useState(false);
   const [saved,        setSaved]        = useState(false);
+
+  // Derivados del slot actual
+  const currentSlot = slots[currentTab - 1];
+  const layout      = currentSlot.layout;
+  const templateUrl = currentSlot.templateUrl;
 
   // ── Drag state ────────────────────────────────────────────────────────────
   const [draggingEl, setDraggingEl]   = useState<DragTarget>(null);
@@ -710,6 +720,19 @@ export default function CardTemplatePage() {
   const tplFileRef      = useRef<HTMLInputElement>(null);
   const previewRef      = useRef<HTMLDivElement>(null);
   const previewScaleRef = useRef(0.44);
+
+  // Ref del índice de tab actual (0-based) para uso seguro en useCallback de drag
+  const currentTabRef = useRef(0);
+  currentTabRef.current = currentTab - 1;
+
+  // Helper para actualizar solo el slot actual
+  function updateCurrentSlot(updater: (s: CardSlot) => CardSlot) {
+    setSlots(prev => {
+      const next = [...prev] as [CardSlot, CardSlot, CardSlot];
+      next[currentTab - 1] = updater(next[currentTab - 1]);
+      return next;
+    });
+  }
 
   // Dimensiones dinámicas según preset actual
   const { w: CW, h: CH } = getCardDimensions(layout.preset);
@@ -741,8 +764,21 @@ export default function CardTemplatePage() {
       .then(data => {
         if (data) {
           setDojoName(data.name ?? "Mi Dojo");
-          setTemplateUrl(data.cardTemplateImage ?? null);
-          setLayout(parseCardLayout(data.cardLayout) ?? DEFAULT_CARD_LAYOUT);
+          setActiveSlot((data.activeCardSlot ?? 1) as 1 | 2 | 3);
+          setSlots([
+            {
+              layout:      parseCardLayout(data.cardLayout)  ?? DEFAULT_CARD_LAYOUT,
+              templateUrl: data.cardTemplateImage  ?? null,
+            },
+            {
+              layout:      parseCardLayout(data.cardLayout2) ?? DEFAULT_CARD_LAYOUT,
+              templateUrl: data.cardTemplateImage2 ?? null,
+            },
+            {
+              layout:      parseCardLayout(data.cardLayout3) ?? DEFAULT_CARD_LAYOUT,
+              templateUrl: data.cardTemplateImage3 ?? null,
+            },
+          ]);
         }
         setLoading(false);
       });
@@ -753,6 +789,7 @@ export default function CardTemplatePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { alert("El archivo supera 5 MB"); return; }
+    const tabAtStart = currentTab; // capturar tab al inicio (async-safe)
     setTplError(""); setTplUploading(true);
     try {
       const fd = new FormData();
@@ -761,8 +798,16 @@ export default function CardTemplatePage() {
       fd.append("purpose", "card-template");
       const res  = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
-      if (res.ok) setTemplateUrl(data.url);
-      else        setTplError(data.error ?? "Error al subir la imagen");
+      if (res.ok) {
+        const idx = tabAtStart - 1;
+        setSlots(prev => {
+          const next = [...prev] as [CardSlot, CardSlot, CardSlot];
+          next[idx] = { ...next[idx], templateUrl: data.url };
+          return next;
+        });
+      } else {
+        setTplError(data.error ?? "Error al subir la imagen");
+      }
     } catch {
       setTplError("Error de conexión");
     } finally {
@@ -778,7 +823,15 @@ export default function CardTemplatePage() {
     const res = await fetch(url, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardTemplateImage: templateUrl, cardLayout: layout }),
+      body: JSON.stringify({
+        cardTemplateImage:  slots[0].templateUrl,
+        cardLayout:         slots[0].layout,
+        cardTemplateImage2: slots[1].templateUrl,
+        cardLayout2:        slots[1].layout,
+        cardTemplateImage3: slots[2].templateUrl,
+        cardLayout3:        slots[2].layout,
+        activeCardSlot:     activeSlot,
+      }),
     });
     if (res.ok) {
       setSaved(true);
@@ -791,7 +844,7 @@ export default function CardTemplatePage() {
 
   // ── Cambiar preset (portrait / landscape) ────────────────────────────────
   function handlePresetChange(preset: CardPreset) {
-    setLayout(preset === "landscape" ? DEFAULT_LANDSCAPE_LAYOUT : DEFAULT_CARD_LAYOUT);
+    updateCurrentSlot(s => ({ ...s, layout: preset === "landscape" ? DEFAULT_LANDSCAPE_LAYOUT : DEFAULT_CARD_LAYOUT }));
   }
 
   // ── Drag-and-drop en el preview ──────────────────────────────────────────
@@ -842,6 +895,16 @@ export default function CardTemplatePage() {
 
     const hit = draggingElRef.current;
 
+    // Helper local para actualizar el slot activo durante el drag
+    function dragUpdate(updater: (s: CardSlot) => CardSlot) {
+      setSlots(prev => {
+        const next = [...prev] as [CardSlot, CardSlot, CardSlot];
+        const i = currentTabRef.current;
+        next[i] = updater(next[i]);
+        return next;
+      });
+    }
+
     if (hit === "photo") {
       const rawX   = mx - dragOffsetX.current;
       const rawY   = my - dragOffsetY.current;
@@ -850,7 +913,7 @@ export default function CardTemplatePage() {
       const newX   = Math.max(0, Math.min(dCW - layout.photo.diameter, Math.round(snapVal(rawX, cX, snapCenter))));
       const newY   = Math.max(0, Math.min(dCH - layout.photo.diameter, Math.round(snapVal(rawY, cY, snapCenter))));
       setDragCoords({ x: newX, y: newY });
-      setLayout(prev => ({ ...prev, photo: { ...prev.photo, x: newX, y: newY } }));
+      dragUpdate(s => ({ ...s, layout: { ...s.layout, photo: { ...s.layout.photo, x: newX, y: newY } } }));
 
     } else if (hit === "photo-se") {
       // Resize: distancia desde el centro de la foto hasta el mouse = nuevo radio
@@ -858,7 +921,7 @@ export default function CardTemplatePage() {
       const photoCY = layout.photo.y + layout.photo.diameter / 2;
       const newD    = Math.max(60, Math.round(2 * Math.max(Math.abs(mx - photoCX), Math.abs(my - photoCY))));
       setDragCoords({ y: newD }); // reutilizamos dragCoords para mostrar el diámetro
-      setLayout(prev => ({ ...prev, photo: { ...prev.photo, diameter: newD } }));
+      dragUpdate(s => ({ ...s, layout: { ...s.layout, photo: { ...s.layout.photo, diameter: newD } } }));
 
     } else if (hit === "qr") {
       const rawX  = mx - dragOffsetX.current;
@@ -868,7 +931,7 @@ export default function CardTemplatePage() {
       const newX  = Math.max(0, Math.min(dCW - layout.qr.w, Math.round(snapVal(rawX, cX, snapCenter))));
       const newY  = Math.max(0, Math.min(dCH - layout.qr.height - 10, Math.round(snapVal(rawY, cY, snapCenter))));
       setDragCoords({ x: newX, y: newY });
-      setLayout(prev => ({ ...prev, qr: { ...prev.qr, x: newX, y: newY } }));
+      dragUpdate(s => ({ ...s, layout: { ...s.layout, qr: { ...s.layout.qr, x: newX, y: newY } } }));
 
     } else if (hit === "qr-se") {
       // Resize QR: anchor top-left, mouse define esquina inferior-derecha
@@ -877,32 +940,32 @@ export default function CardTemplatePage() {
       const clampedW = Math.min(dCW - layout.qr.x, newW);
       const clampedH = Math.min(dCH - layout.qr.y, newH);
       setDragCoords({ x: clampedW, y: clampedH });
-      setLayout(prev => ({ ...prev, qr: { ...prev.qr, w: clampedW, height: clampedH } }));
+      dragUpdate(s => ({ ...s, layout: { ...s.layout, qr: { ...s.layout.qr, w: clampedW, height: clampedH } } }));
 
     } else if (hit === "name") {
       const rawY = my - dragOffsetY.current;
       const newY = Math.max(0, Math.min(dCH - 60, Math.round(rawY)));
       setDragCoords({ y: newY });
-      setLayout(prev => ({ ...prev, name: { ...prev.name, y: newY } }));
+      dragUpdate(s => ({ ...s, layout: { ...s.layout, name: { ...s.layout.name, y: newY } } }));
 
     } else if (hit === "team") {
       const rawY = my - dragOffsetY.current;
       const newY = Math.max(0, Math.min(dCH - 30, Math.round(rawY)));
       setDragCoords({ y: newY });
-      setLayout(prev => ({ ...prev, team: { ...prev.team, y: newY } }));
+      dragUpdate(s => ({ ...s, layout: { ...s.layout, team: { ...s.layout.team, y: newY } } }));
 
     } else if (hit === "footer") {
       const rawY = my - dragOffsetY.current;
       const newY = Math.max(400, Math.min(dCH - 40, Math.round(rawY)));
       setDragCoords({ y: newY });
-      setLayout(prev => ({ ...prev, footer: { ...prev.footer, y: newY } }));
+      dragUpdate(s => ({ ...s, layout: { ...s.layout, footer: { ...s.layout.footer, y: newY } } }));
 
     } else if (hit === "contact") {
       // Arrastrar el contacto mueve la división QR/contacto (= ajusta qr.w)
       const splitX = mx - dragOffsetX.current;
       const newW = Math.max(80, Math.min(dCW - layout.qr.x - 50, Math.round(splitX - layout.qr.x)));
       setDragCoords({ x: newW, y: dCW - layout.qr.x - newW - 8 });
-      setLayout(prev => ({ ...prev, qr: { ...prev.qr, w: newW } }));
+      dragUpdate(s => ({ ...s, layout: { ...s.layout, qr: { ...s.layout.qr, w: newW } } }));
     }
   }, [layout, snapCenter]);
 
@@ -914,22 +977,22 @@ export default function CardTemplatePage() {
   }, []);
 
   function updatePhoto(key: keyof CardLayout["photo"], value: number | string | boolean) {
-    setLayout(prev => ({ ...prev, photo: { ...prev.photo, [key]: value } as CardLayout["photo"] }));
+    updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, photo: { ...s.layout.photo, [key]: value } as CardLayout["photo"] } }));
   }
   function updateQr(key: keyof CardLayout["qr"], value: number | string | boolean) {
-    setLayout(prev => ({ ...prev, qr: { ...prev.qr, [key]: value } as CardLayout["qr"] }));
+    updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, qr: { ...s.layout.qr, [key]: value } as CardLayout["qr"] } }));
   }
   function updateName(key: keyof CardLayout["name"], value: number | string | boolean) {
-    setLayout(prev => ({ ...prev, name: { ...prev.name, [key]: value } as CardLayout["name"] }));
+    updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, name: { ...s.layout.name, [key]: value } as CardLayout["name"] } }));
   }
   function updateTeam(key: keyof CardLayout["team"], value: number | string | boolean) {
-    setLayout(prev => ({ ...prev, team: { ...prev.team, [key]: value } as CardLayout["team"] }));
+    updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, team: { ...s.layout.team, [key]: value } as CardLayout["team"] } }));
   }
   function updateSlogan(key: keyof CardLayout["slogan"], value: number | string | boolean) {
-    setLayout(prev => ({ ...prev, slogan: { ...prev.slogan, [key]: value } as CardLayout["slogan"] }));
+    updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, slogan: { ...s.layout.slogan, [key]: value } as CardLayout["slogan"] } }));
   }
   function updateFooter(key: keyof CardLayout["footer"], value: number | string | boolean) {
-    setLayout(prev => ({ ...prev, footer: { ...prev.footer, [key]: value } as CardLayout["footer"] }));
+    updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, footer: { ...s.layout.footer, [key]: value } as CardLayout["footer"] } }));
   }
 
   if (loading) {
@@ -965,6 +1028,40 @@ export default function CardTemplatePage() {
           </select>
         </div>
       )}
+
+      {/* ── Tabs de diseños ─────────────────────────────────────────────── */}
+      <div className="flex gap-2 items-center flex-wrap">
+        {([1, 2, 3] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setCurrentTab(tab)}
+            className={cn(
+              "relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-colors",
+              currentTab === tab
+                ? "bg-dojo-red text-white border-dojo-red"
+                : "bg-transparent text-dojo-muted border-dojo-border hover:border-dojo-red/50"
+            )}
+          >
+            Diseño {tab}
+            {activeSlot === tab && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] bg-green-600 text-white px-1.5 py-0.5 rounded-full font-normal">
+                ✓ Activo
+              </span>
+            )}
+          </button>
+        ))}
+        {activeSlot !== currentTab && (
+          <button
+            onClick={() => setActiveSlot(currentTab)}
+            className="ml-2 px-3 py-2 rounded-lg text-xs font-semibold border border-green-600/50 text-green-400 hover:bg-green-600/10 transition-colors"
+          >
+            ✓ Usar este diseño
+          </button>
+        )}
+        {activeSlot === currentTab && (
+          <span className="ml-2 text-xs text-green-500">Este diseño está activo en el carnet</span>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 items-start">
 
@@ -1024,9 +1121,9 @@ export default function CardTemplatePage() {
 
             {/* Centrar foto H */}
             <button
-              onClick={() => setLayout(prev => ({
-                ...prev,
-                photo: { ...prev.photo, x: Math.round((CW - prev.photo.diameter) / 2) },
+              onClick={() => updateCurrentSlot(s => ({
+                ...s,
+                layout: { ...s.layout, photo: { ...s.layout.photo, x: Math.round((CW - s.layout.photo.diameter) / 2) } },
               }))}
               title="Centrar foto horizontalmente"
               className="px-2 py-1 rounded text-[10px] font-semibold border border-dojo-border text-dojo-muted hover:border-dojo-red/60 hover:text-dojo-white transition-colors"
@@ -1034,9 +1131,9 @@ export default function CardTemplatePage() {
 
             {/* Foto posición estándar Y */}
             <button
-              onClick={() => setLayout(prev => ({
-                ...prev,
-                photo: { ...prev.photo, y: Math.round(CH * 0.12) },
+              onClick={() => updateCurrentSlot(s => ({
+                ...s,
+                layout: { ...s.layout, photo: { ...s.layout.photo, y: Math.round(CH * 0.12) } },
               }))}
               title="Foto en posición estándar (arriba)"
               className="px-2 py-1 rounded text-[10px] font-semibold border border-dojo-border text-dojo-muted hover:border-dojo-red/60 hover:text-dojo-white transition-colors"
@@ -1049,7 +1146,7 @@ export default function CardTemplatePage() {
 
           {/* Botón reset */}
           <button
-            onClick={() => setLayout(layout.preset === "landscape" ? DEFAULT_LANDSCAPE_LAYOUT : DEFAULT_CARD_LAYOUT)}
+            onClick={() => updateCurrentSlot(s => ({ ...s, layout: s.layout.preset === "landscape" ? DEFAULT_LANDSCAPE_LAYOUT : DEFAULT_CARD_LAYOUT }))}
             className="btn-ghost text-xs flex items-center gap-1.5 text-dojo-muted"
           >
             <RefreshCw size={13} /> Restablecer posiciones por defecto
@@ -1100,7 +1197,7 @@ export default function CardTemplatePage() {
               </button>
               {templateUrl && !tplUploading && (
                 <button
-                  onClick={() => setTemplateUrl(null)}
+                  onClick={() => updateCurrentSlot(s => ({ ...s, templateUrl: null }))}
                   className="btn-ghost text-red-400 hover:text-red-300 flex items-center gap-1.5 text-sm"
                 >
                   <Trash2 size={14} /> Eliminar
@@ -1158,9 +1255,9 @@ export default function CardTemplatePage() {
             <ToggleRow
               label="Marco de la foto"
               checked={layout.photo.borderWidth > 0}
-              onChange={v => setLayout(prev => ({
-                ...prev,
-                photo: { ...prev.photo, borderWidth: v ? (prev.photo.borderWidth || 4) : 0 },
+              onChange={v => updateCurrentSlot(s => ({
+                ...s,
+                layout: { ...s.layout, photo: { ...s.layout.photo, borderWidth: v ? (s.layout.photo.borderWidth || 4) : 0 } },
               }))}
             />
             {layout.photo.borderWidth > 0 && (
@@ -1301,12 +1398,15 @@ export default function CardTemplatePage() {
               <ToggleRow
                 label="Marco del QR"
                 checked={layout.qr.frameBorderWidth > 0}
-                onChange={v => setLayout(prev => ({
-                  ...prev,
-                  qr: {
-                    ...prev.qr,
-                    frameBorderWidth: v ? (prev.qr.frameBorderWidth || 2) : 0,
-                    frameBorderColor: prev.qr.frameBorderColor || "#CC0000",
+                onChange={v => updateCurrentSlot(s => ({
+                  ...s,
+                  layout: {
+                    ...s.layout,
+                    qr: {
+                      ...s.layout.qr,
+                      frameBorderWidth: v ? (s.layout.qr.frameBorderWidth || 2) : 0,
+                      frameBorderColor: s.layout.qr.frameBorderColor || "#CC0000",
+                    },
                   },
                 }))}
               />
@@ -1379,7 +1479,7 @@ export default function CardTemplatePage() {
             <ColorRow
               label="Color del texto"
               value={layout.contactColor}
-              onChange={v => setLayout(prev => ({ ...prev, contactColor: v }))}
+              onChange={v => updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, contactColor: v } }))}
             />
           </CollapsibleSection>
 

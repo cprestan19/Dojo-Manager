@@ -47,6 +47,11 @@ export async function GET(req: NextRequest) {
       loginBgImage:     includeLoginBg,     // solo cuando Settings lo pide
       cardTemplateImage: includeLoginBg,    // solo cuando Settings lo pide
       cardLayout:        includeLoginBg,    // solo cuando card-template editor lo pide
+      cardTemplateImage2: includeLoginBg,
+      cardLayout2:        includeLoginBg,
+      cardTemplateImage3: includeLoginBg,
+      cardLayout3:        includeLoginBg,
+      activeCardSlot:     true,             // siempre incluir el slot activo
       contractPolicy:   includeLoginBg,     // solo cuando Settings lo pide
     },
   });
@@ -56,9 +61,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     {
       ...dojo,
-      logo:              dojo.logo              ? (dojo.logo.startsWith("http")              ? dojo.logo              : null) : null,
-      loginBgImage:      dojo.loginBgImage      ? (dojo.loginBgImage.startsWith("http")      ? dojo.loginBgImage      : null) : null,
-      cardTemplateImage: dojo.cardTemplateImage ? (dojo.cardTemplateImage.startsWith("http") ? dojo.cardTemplateImage : null) : null,
+      logo:               dojo.logo               ? (dojo.logo.startsWith("http")               ? dojo.logo               : null) : null,
+      loginBgImage:       dojo.loginBgImage       ? (dojo.loginBgImage.startsWith("http")       ? dojo.loginBgImage       : null) : null,
+      cardTemplateImage:  dojo.cardTemplateImage  ? (dojo.cardTemplateImage.startsWith("http")  ? dojo.cardTemplateImage  : null) : null,
+      cardTemplateImage2: dojo.cardTemplateImage2 ? (dojo.cardTemplateImage2.startsWith("http") ? dojo.cardTemplateImage2 : null) : null,
+      cardTemplateImage3: dojo.cardTemplateImage3 ? (dojo.cardTemplateImage3.startsWith("http") ? dojo.cardTemplateImage3 : null) : null,
     },
     { headers: { "Cache-Control": "no-store" } },
   );
@@ -105,12 +112,12 @@ export async function PUT(req: NextRequest) {
   }
 
   // Borrar imágenes antiguas de Cloudinary cuando se reemplazan o eliminan
-  const IMAGE_FIELDS = ["logo", "loginBgImage", "cardTemplateImage"] as const;
+  const IMAGE_FIELDS = ["logo", "loginBgImage", "cardTemplateImage", "cardTemplateImage2", "cardTemplateImage3"] as const;
   const hasImageChange = IMAGE_FIELDS.some(f => f in body);
   if (hasImageChange) {
     const current = await prisma.dojo.findUnique({
       where:  { id: targetId },
-      select: { logo: true, loginBgImage: true, cardTemplateImage: true },
+      select: { logo: true, loginBgImage: true, cardTemplateImage: true, cardTemplateImage2: true, cardTemplateImage3: true },
     });
     if (current) {
       const toDelete: string[] = [];
@@ -146,6 +153,11 @@ export async function PUT(req: NextRequest) {
       cardTertiaryColor:  "cardTertiaryColor"  in body ? (body.cardTertiaryColor  ?? null) : undefined,
       contractPolicy:     "contractPolicy"     in body ? (body.contractPolicy     ?? null) : undefined,
       cardLayout:         "cardLayout"         in body ? (body.cardLayout         ?? null) : undefined,
+      cardLayout2:        "cardLayout2"        in body ? (body.cardLayout2        ?? null) : undefined,
+      cardTemplateImage2: "cardTemplateImage2" in body ? (body.cardTemplateImage2 ?? null) : undefined,
+      cardLayout3:        "cardLayout3"        in body ? (body.cardLayout3        ?? null) : undefined,
+      cardTemplateImage3: "cardTemplateImage3" in body ? (body.cardTemplateImage3 ?? null) : undefined,
+      activeCardSlot:     "activeCardSlot"     in body ? Number(body.activeCardSlot ?? 1)  : undefined,
     },
     select: {
       id: true, name: true, slug: true, ownerName: true,

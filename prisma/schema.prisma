@@ -39,6 +39,11 @@ model Dojo {
   cardTertiaryColor  String? @map("card_tertiary_color")
   cardTemplateImage  String? @db.Text @map("card_template_image")
   cardLayout         Json?              @map("card_layout")
+  cardLayout2        Json?              @map("card_layout_2")
+  cardTemplateImage2 String? @db.Text  @map("card_template_image_2")
+  cardLayout3        Json?              @map("card_layout_3")
+  cardTemplateImage3 String? @db.Text  @map("card_template_image_3")
+  activeCardSlot     Int      @default(1) @map("active_card_slot")
 
   users           User[]
   students        Student[]

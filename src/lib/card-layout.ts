@@ -53,7 +53,9 @@ export interface CardPhotoLayout {
 }
 
 export interface CardQrLayout {
+  x: number;           // posición izquierda del bloque QR
   y: number;
+  w: number;           // ancho del bloque QR
   height: number;
   frameBorderColor: string;   // "" = sin marco personalizado
   frameBorderWidth: number;   // 0 = sin marco
@@ -108,7 +110,7 @@ export interface CardLayout {
 export const DEFAULT_CARD_LAYOUT: CardLayout = {
   preset: "portrait",
   photo: { x: 109, y: 120, diameter: 420, shape: "circle", borderColor: "#CC0000", borderWidth: 4 },
-  qr:    { y: 624, height: 310, frameBorderColor: "", frameBorderWidth: 2, bgTransparent: false },
+  qr:    { x: 128, y: 624, w: 340, height: 310, frameBorderColor: "", frameBorderWidth: 2, bgTransparent: false },
   name:  {
     y: 552, fontSize: 38, color: "#000000", fontFamily: "Montserrat",
     letterSpacing: 0,
@@ -124,7 +126,7 @@ export const DEFAULT_CARD_LAYOUT: CardLayout = {
 export const DEFAULT_LANDSCAPE_LAYOUT: CardLayout = {
   preset: "landscape",
   photo: { x: 375, y: 50, diameter: 250, shape: "circle", borderColor: "#CC0000", borderWidth: 4 },
-  qr:    { y: 390, height: 195, frameBorderColor: "", frameBorderWidth: 2, bgTransparent: false },
+  qr:    { x: 10, y: 390, w: 200, height: 195, frameBorderColor: "", frameBorderWidth: 2, bgTransparent: false },
   name:  {
     y: 315, fontSize: 30, color: "#000000", fontFamily: "Montserrat",
     letterSpacing: 0,
@@ -163,7 +165,9 @@ export function parseCardLayout(raw: unknown): CardLayout | null {
         borderWidth: n(ph.borderWidth) ? ph.borderWidth : d.photo.borderWidth,
       },
       qr: {
+        x:                n(qr.x)                ? qr.x                : d.qr.x,
         y:                n(qr.y)                ? qr.y                : d.qr.y,
+        w:                n(qr.w)                ? qr.w                : d.qr.w,
         height:           n(qr.height)           ? qr.height           : d.qr.height,
         frameBorderColor: s(qr.frameBorderColor) ? qr.frameBorderColor : d.qr.frameBorderColor,
         frameBorderWidth: n(qr.frameBorderWidth) ? qr.frameBorderWidth : d.qr.frameBorderWidth,
