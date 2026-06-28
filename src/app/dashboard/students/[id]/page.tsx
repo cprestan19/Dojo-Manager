@@ -1171,10 +1171,10 @@ export default function StudentDetailPage() {
           {/* Inscription */}
           {student.inscription && (
             <div className="card">
-              <p className="section-title flex items-center gap-2"><CreditCard size={13}/>Inscripción</p>
+              <p className="section-title flex items-center gap-2"><CreditCard size={13}/>Pagos</p>
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-dojo-muted">Inscripción</dt>
+                  <dt className="text-dojo-muted">Fecha inscripción</dt>
                   <dd>{formatDate(student.inscription.inscriptionDate)}</dd>
                 </div>
                 {student.inscription.annualPaymentDate && (
