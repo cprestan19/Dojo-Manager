@@ -115,7 +115,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
   const [step,     setStep]     = useState<Step>("splash");
   const [form,     setForm]     = useState<FormData>(INIT);
   const [errors,   setErrors]   = useState<FieldErrors>({});
-  const [sections, setSections] = useState({ personal: true, salud: false, contactos: false });
+  const [sections, setSections] = useState({ personal: true, salud: false, contactos: true });
   const [loading,   setLoading]   = useState(false);
   const [globalError, setGlobalError] = useState("");
   const [rawPhoto,  setRawPhoto]  = useState<string | null>(null);
@@ -165,16 +165,16 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
     if (!form.gender)             e.gender      = "Selecciona el género.";
     const effectiveNationality = form.nationality === "Otra" ? customNationality.trim() : form.nationality;
     if (!effectiveNationality) e.nationality = "La nacionalidad es obligatoria.";
-    // Acudiente principal — requerido si se llenó algún dato de contacto
-    const hasAnyGuardian = form.motherName.trim() || form.motherEmail.trim() ||
-                           form.fatherName.trim()  || form.fatherEmail.trim();
-    if (hasAnyGuardian && !form.primaryGuardian) {
+    // Contacto obligatorio: al menos un correo de madre o padre
+    const motherEmail = form.motherEmail.trim();
+    const fatherEmail = form.fatherEmail.trim();
+    if (!motherEmail && !fatherEmail) {
+      e.primaryGuardian = "Debes agregar el correo de al menos un acudiente (madre o padre).";
+    } else if (!form.primaryGuardian) {
       e.primaryGuardian = "Selecciona quién es el acudiente principal del alumno.";
-    }
-    if (form.primaryGuardian === "mother" && !form.motherEmail.trim()) {
+    } else if (form.primaryGuardian === "mother" && !motherEmail) {
       e.motherEmail = "El acudiente principal debe tener un correo electrónico.";
-    }
-    if (form.primaryGuardian === "father" && !form.fatherEmail.trim()) {
+    } else if (form.primaryGuardian === "father" && !fatherEmail) {
       e.fatherEmail = "El acudiente principal debe tener un correo electrónico.";
     }
     return e;
@@ -617,7 +617,9 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
           </label>
         </div>
 
-        <p className="text-dojo-muted text-xs">Al menos un contacto es recomendado para emergencias.</p>
+        <p className="text-dojo-muted text-xs">
+          Se requiere el correo de al menos un acudiente (madre o padre).<span className="text-dojo-red ml-0.5">*</span>
+        </p>
 
         {/* Error de acudiente principal */}
         {errors.primaryGuardian && (
