@@ -318,6 +318,19 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
             enlace de inscripción.
           </p>
         </div>
+        {/* Botón para quienes recibieron correo de rechazo */}
+        <div className="w-full max-w-sm border-t border-dojo-border pt-5 space-y-2">
+          <p className="text-xs text-dojo-muted">¿Recibiste un correo indicando que tu solicitud fue rechazada?</p>
+          <button
+            onClick={() => {
+              localStorage.removeItem(`registro-sent-${token}`);
+              setStep("splash");
+            }}
+            className="btn-secondary w-full text-sm"
+          >
+            Volver a completar el formulario
+          </button>
+        </div>
       </div>
     );
   }

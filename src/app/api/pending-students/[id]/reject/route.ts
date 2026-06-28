@@ -29,7 +29,8 @@ export async function POST(
       where:  { id },
       select: {
         dojoId: true, status: true, fullName: true,
-        motherEmail: true, fatherEmail: true,
+        motherEmail: true, fatherEmail: true, primaryGuardian: true,
+        registrationLinkId: true,
         registrationLink: {
           select: { token: true, dojo: { select: { name: true, email: true, phone: true, slogan: true, logo: true, ownerName: true } } },
         },
@@ -48,15 +49,22 @@ export async function POST(
     const notify = body.notify === true;
     const reviewerId = (session.user as { id?: string }).id ?? "";
 
-    await prisma.pendingStudent.update({
-      where: { id },
-      data: {
-        status:        "rejected",
-        reviewedBy:    reviewerId,
-        reviewedAt:    new Date(),
-        rejectionNote: note || null,
-      },
-    });
+    await prisma.$transaction([
+      prisma.pendingStudent.update({
+        where: { id },
+        data: {
+          status:        "rejected",
+          reviewedBy:    reviewerId,
+          reviewedAt:    new Date(),
+          rejectionNote: note || null,
+        },
+      }),
+      // Liberar el cupo del link para que el acudiente pueda volver a enviar
+      prisma.registrationLink.update({
+        where: { id: pending.registrationLinkId },
+        data:  { useCount: { decrement: 1 } },
+      }),
+    ]);
 
     const ctx = buildAuditCtx(session, req, { dojoId });
     await logAudit({
@@ -71,7 +79,9 @@ export async function POST(
 
     // Enviar link de reenvío con ?reset=1 si el admin lo solicitó
     if (notify) {
-      const to = pending.motherEmail || pending.fatherEmail;
+      const primaryEmail = pending.primaryGuardian === "mother" ? pending.motherEmail :
+                           pending.primaryGuardian === "father" ? pending.fatherEmail : null;
+      const to = primaryEmail || pending.motherEmail || pending.fatherEmail;
       if (to) {
         const appUrl  = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
         const linkUrl = `${appUrl}/registro/${pending.registrationLink.token}?reset=1`;
