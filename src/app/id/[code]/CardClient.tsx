@@ -111,6 +111,10 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   const TT_f  = customLayout ? customLayout.team.y         : TT;
   const QT_f  = customLayout ? customLayout.qr.y           : QT;
   const QH_f  = customLayout ? customLayout.qr.height      : qh;
+  // Para carnet sin customLayout (legacy), aproximar el layout flex original
+  // flex layout: padding-left 16px, col-izq 20% ≈ 128px, gap 8px, QR 55% ≈ 351px
+  const QX_f  = customLayout ? customLayout.qr.x : 152;
+  const QW_f  = customLayout ? customLayout.qr.w : 351;
   const FT_f  = customLayout ? customLayout.footer.y       : FT;
 
   const nameColor    = customLayout ? customLayout.name.color    : BLACK;
@@ -139,10 +143,12 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
     ? getGoogleFontsUrl([customLayout.name.fontFamily, customLayout.slogan.fontFamily])
     : "";
 
-  // Variables QR
-  const qrBorderStr_f = (customLayout && customLayout.qr.frameBorderWidth > 0 && customLayout.qr.frameBorderColor)
-    ? `${customLayout.qr.frameBorderWidth}px solid ${customLayout.qr.frameBorderColor}`
-    : `2px solid ${RED}`;
+  // Variables QR — sin borde cuando frameBorderWidth === 0
+  const qrBorderStr_f = (customLayout)
+    ? (customLayout.qr.frameBorderWidth > 0 && customLayout.qr.frameBorderColor)
+      ? `${customLayout.qr.frameBorderWidth}px solid ${customLayout.qr.frameBorderColor}`
+      : "none"
+    : `2px solid ${RED}`; // dojos sin cardLayout configurado usan borde rojo por defecto
   const qrBg_f = customLayout?.qr.bgTransparent ? "transparent" : "#ffffff";
 
   // Plantilla de fondo personalizada — oculta capas decorativas y superpone datos del alumno
@@ -405,87 +411,70 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               <div style={{ flex: 1, height: 1.5, background: teamColor, borderRadius: 2 }} />
             </div>
 
-            {/* ── LAYER 8: Zona QR — 3 columnas ─────────────────────────── */}
+            {/* ── LAYER 8a: QR box ──────────────────────────────────────── */}
             <div style={{
               position: "absolute",
-              top: QT_f, left: 0, right: 0, height: QH_f,
+              top: QT_f, left: QX_f,
+              width: QW_f, height: QH_f,
+              background: qrBg_f,
+              border: qrBorderStr_f,
+              borderRadius: 12,
+              overflow: "hidden",
+              boxShadow: `0 4px 22px ${hexToRgba(RED, 0.15)}`,
               zIndex: 7,
-              display: "flex", alignItems: "stretch",
-              padding: "0 0 0 16px",
-              gap: 8,
-              boxSizing: "border-box" as const,
             }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrDataUrl}
+                alt="QR"
+                style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            </div>
 
-              {/* Columna izquierda 20%: espacio para el lema vertical */}
-              <div style={{ width: "20%", flexShrink: 0 }} />
+            {/* ── LAYER 8b: Columna de contacto ─────────────────────────── */}
+            <div style={{
+              position: "absolute",
+              top: QT_f,
+              left: QX_f + QW_f + 8,
+              width: Math.max(80, W_card - (QX_f + QW_f + 8) - 4),
+              height: QH_f,
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              gap: 10, zIndex: 7,
+            }}>
+              {(contact.name || contact.phone) ? (
+                <div style={{
+                  width: "100%", height: "auto",
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center",
+                  gap: 10, marginRight: -10, marginTop: 60,
+                }}>
+                  {contact.name && (
+                    <div style={{
+                      writingMode: "vertical-lr" as const,
+                      transform: "rotate(180deg)",
+                      fontSize: 18, fontWeight: 700, color: contactColor,
+                      lineHeight: 1.2, textAlign: "center",
+                      maxHeight: 200, overflow: "hidden",
+                    }}>{contact.name}</div>
+                  )}
+                  {contact.phone && (
+                    <div style={{
+                      writingMode: "vertical-lr" as const,
+                      transform: "rotate(180deg)",
+                      fontSize: 18, fontWeight: 500, color: contactColor,
+                      maxHeight: 130, overflow: "hidden",
+                    }}>{contact.phone}</div>
+                  )}
+                  <svg width="46" height="46" viewBox="0 0 32 32" fill="none">
+                    <circle cx="16" cy="16" r="16" fill="#25D366"/>
+                    <path d="M23.5 8.5A10.44 10.44 0 0 0 16 5.5C10.75 5.5 6.5 9.75 6.5 15a9.44 9.44 0 0 0 1.27 4.75L6.5 26.5l6.93-1.82A9.5 9.5 0 0 0 16 25.5c5.25 0 9.5-4.25 9.5-9.5a9.44 9.44 0 0 0-2-5.5zm-7.5 14.62a7.88 7.88 0 0 1-4.02-1.1l-.29-.17-3 .79.8-2.93-.19-.3A7.88 7.88 0 0 1 8.12 15c0-4.35 3.53-7.88 7.88-7.88S23.88 10.65 23.88 15 20.35 23.12 16 23.12zm4.33-5.9c-.24-.12-1.4-.69-1.61-.77-.22-.08-.38-.12-.54.12-.16.24-.62.77-.76.93-.14.16-.28.18-.52.06-.24-.12-1-.37-1.91-1.18-.7-.63-1.18-1.4-1.32-1.64-.14-.24-.01-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.52.1.46-.07 1.4-.57 1.6-1.12.2-.55.2-1.02.14-1.12-.06-.1-.22-.16-.46-.28z" fill="#fff"/>
+                  </svg>
+                </div>
+              ) : null}
+            </div>
 
-              {/* Columna central 55%: QR con borde de color */}
-              <div style={{
-                flex: "0 0 55%",
-                background: qrBg_f,
-                border: qrBorderStr_f,
-                borderRadius: 12,
-                padding: 0,
-                boxShadow: `0 4px 22px ${hexToRgba(RED, 0.15)}`,
-                overflow: "hidden",
-              }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrDataUrl}
-                  alt="QR"
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                  }}
-                />
-              </div>
-
-              {/* Columna derecha 25%: contacto pegado al borde derecho */}
-              <div style={{
-                flex: "0 0 25%",
-                display: "flex", alignItems: "center", justifyContent: "flex-end",
-                paddingRight: 0,
-              }}>
-                {(contact.name || contact.phone) ? (
-                  <div style={{
-                    width: "100%", height: "auto",
-                    display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center",
-                    gap: 10, marginRight: -10, marginTop: 60,
-                  }}>
-                    {/* Nombre del tutor (texto vertical) */}
-                    {contact.name && (
-                      <div style={{
-                        writingMode: "vertical-lr" as const,
-                        transform: "rotate(180deg)",
-                        fontSize: 18, fontWeight: 700, color: contactColor,
-                        lineHeight: 1.2, textAlign: "center",
-                        maxHeight: 200, overflow: "hidden",
-                      }}>{contact.name}</div>
-                    )}
-                    {/* Teléfono (texto vertical) */}
-                    {contact.phone && (
-                      <div style={{
-                        writingMode: "vertical-lr" as const,
-                        transform: "rotate(180deg)",
-                        fontSize: 18, fontWeight: 500, color: contactColor,
-                        maxHeight: 130, overflow: "hidden",
-                      }}>{contact.phone}</div>
-                    )}
-                    {/* Ícono WhatsApp */}
-                    <svg width="46" height="46" viewBox="0 0 32 32" fill="none">
-                      <circle cx="16" cy="16" r="16" fill="#25D366"/>
-                      <path d="M23.5 8.5A10.44 10.44 0 0 0 16 5.5C10.75 5.5 6.5 9.75 6.5 15a9.44 9.44 0 0 0 1.27 4.75L6.5 26.5l6.93-1.82A9.5 9.5 0 0 0 16 25.5c5.25 0 9.5-4.25 9.5-9.5a9.44 9.44 0 0 0-2-5.5zm-7.5 14.62a7.88 7.88 0 0 1-4.02-1.1l-.29-.17-3 .79.8-2.93-.19-.3A7.88 7.88 0 0 1 8.12 15c0-4.35 3.53-7.88 7.88-7.88S23.88 10.65 23.88 15 20.35 23.12 16 23.12zm4.33-5.9c-.24-.12-1.4-.69-1.61-.77-.22-.08-.38-.12-.54.12-.16.24-.62.77-.76.93-.14.16-.28.18-.52.06-.24-.12-1-.37-1.91-1.18-.7-.63-1.18-1.4-1.32-1.64-.14-.24-.01-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.52.1.46-.07 1.4-.57 1.6-1.12.2-.55.2-1.02.14-1.12-.06-.1-.22-.16-.46-.28z" fill="#fff"/>
-                    </svg>
-                  </div>
-                ) : null}
-              </div>
-
-            </div>{/* fin zona QR */}
-
-            {/* ── Lema vertical — borde izquierdo ──────────────────────── */}
+            {/* ── LAYER 8c: Lema vertical izquierdo ─────────────────────── */}
             <div style={{
               position: "absolute",
               left: 4, top: QT_f,

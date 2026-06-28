@@ -16,26 +16,54 @@ import {
 } from "@/lib/card-layout";
 
 // ── Tipo de elemento arrastrable ──────────────────────────────────────────────
-type DragTarget = "photo" | "qr" | "name" | "team" | "footer" | null;
+type DragTarget =
+  | "photo" | "photo-se"   // foto: mover + resize esquina inferior-derecha
+  | "qr"    | "qr-se"      // QR: mover X+Y + resize esquina inferior-derecha
+  | "contact"              // columna de contacto: arrastrar para ajustar ancho del QR
+  | "name" | "team" | "footer"
+  | null;
 
 // ── Hit detection (función pura) ──────────────────────────────────────────────
+const HANDLE_R = 14; // radio de detección del handle de resize (px en espacio carnet)
+
 function getHitElement(
   mx: number, my: number,
   layout: CardLayout, CW: number, CH: number
 ): DragTarget {
   const ph = layout.photo;
-  // Foto: hit circular con 20px de tolerancia
+  const qr = layout.qr;
+
+  // ── Photo resize handle (esquina inferior-derecha) ────────────────────
+  const photoSeX = ph.x + ph.diameter;
+  const photoSeY = ph.y + ph.diameter;
+  if (Math.abs(mx - photoSeX) <= HANDLE_R && Math.abs(my - photoSeY) <= HANDLE_R) return "photo-se";
+
+  // ── QR resize handle (esquina inferior-derecha del bloque QR) ─────────
+  const qrSeX = qr.x + qr.w;
+  const qrSeY = qr.y + qr.height;
+  if (Math.abs(mx - qrSeX) <= HANDLE_R && Math.abs(my - qrSeY) <= HANDLE_R) return "qr-se";
+
+  // ── Foto (hit circular) ───────────────────────────────────────────────
   const photoCX = ph.x + ph.diameter / 2;
   const photoCY = ph.y + ph.diameter / 2;
   if (Math.sqrt((mx - photoCX) ** 2 + (my - photoCY) ** 2) <= ph.diameter / 2 + 20) return "photo";
-  // Nombre: banda horizontal centrada en name.y
+
+  // ── QR (hit rectangular) ──────────────────────────────────────────────
+  if (mx >= qr.x - 10 && mx <= qr.x + qr.w + 10 && my >= qr.y - 10 && my <= qr.y + qr.height + 10) return "qr";
+
+  // ── Contacto (zona a la derecha del QR) ───────────────────────────────
+  const cX = qr.x + qr.w + 8;
+  if (mx >= cX - 6 && mx <= CW && my >= qr.y - 10 && my <= qr.y + qr.height + 10) return "contact";
+
+  // ── Nombre ────────────────────────────────────────────────────────────
   if (my >= layout.name.y - 10 && my <= layout.name.y + layout.name.fontSize + 20) return "name";
-  // Línea de equipo: banda delgada
+
+  // ── Línea de equipo ───────────────────────────────────────────────────
   if (my >= layout.team.y - 20 && my <= layout.team.y + 20) return "team";
-  // Zona QR
-  if (my >= layout.qr.y - 10 && my <= layout.qr.y + layout.qr.height + 10) return "qr";
-  // Footer
+
+  // ── Footer ────────────────────────────────────────────────────────────
   if (my >= layout.footer.y - 20 && my <= CH) return "footer";
+
   // Suprimir warning de CW no usado
   void CW;
   return null;
@@ -115,10 +143,10 @@ function CardPreview({
   const footerH = CH - layout.footer.y;
   const photoRadius = ph.shape === "rectangle" ? 12 : "50%";
 
-  // QR border
+  // QR border — sin borde cuando frameBorderWidth === 0
   const qrBorder = (layout.qr.frameBorderWidth > 0 && layout.qr.frameBorderColor)
     ? `${layout.qr.frameBorderWidth}px solid ${layout.qr.frameBorderColor}`
-    : "2px solid #ccc";
+    : "none";
   const qrBg = layout.qr.bgTransparent ? "transparent" : "#fff";
 
   // Name styles
@@ -133,10 +161,18 @@ function CardPreview({
   const googleFontsUrl = getGoogleFontsUrl(allFontKeys);
 
   // Cursor dinámico
-  const cursor = draggingEl ? "grabbing"
-               : hoverEl === "photo" ? "grab"
-               : hoverEl ? "ns-resize"
-               : "default";
+  const cursor = draggingEl
+    ? (draggingEl === "photo-se" || draggingEl === "qr-se") ? "nwse-resize"
+      : draggingEl === "photo" ? "grabbing"
+      : draggingEl === "qr" ? "move"
+      : draggingEl === "contact" ? "ew-resize"
+      : "ns-resize"
+    : hoverEl === "photo-se" || hoverEl === "qr-se" ? "nwse-resize"
+    : hoverEl === "photo" ? "grab"
+    : hoverEl === "qr" ? "move"
+    : hoverEl === "contact" ? "ew-resize"
+    : hoverEl ? "ns-resize"
+    : "default";
 
   return (
     <>
@@ -284,47 +320,86 @@ function CardPreview({
               </div>
             )}
 
-            {/* ── Zona QR ──────────────────────────── */}
+            {/* ── QR — absolutamente posicionado ──────────── */}
             <div style={{
-              position: "absolute", top: layout.qr.y, left: 0, right: 0,
-              height: layout.qr.height,
-              zIndex: 7, display: "flex", alignItems: "center", justifyContent: "center",
-              gap: 8, padding: "0 16px",
+              position: "absolute",
+              left: layout.qr.x, top: layout.qr.y,
+              width: layout.qr.w, height: layout.qr.height,
+              background: qrBg, border: qrBorder,
+              borderRadius: 12, zIndex: 7,
+              display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <div style={{ width: "20%", flexShrink: 0 }} />
-              <div style={{
-                flex: "0 0 55%",
-                background: qrBg,
-                border: qrBorder,
-                borderRadius: 12, height: "90%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <span style={{ fontSize: 14, color: "#aaa", fontFamily: "monospace" }}>QR</span>
-              </div>
-              <div style={{
-                flex: "0 0 25%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <span style={{ fontSize: 11, color: layout.contactColor, fontFamily: "sans-serif" }}>
-                  Acudiente
-                </span>
-              </div>
+              <span style={{ fontSize: 14, color: "#aaa", fontFamily: "monospace" }}>QR</span>
             </div>
 
+            {/* ── Contacto — a la derecha del QR ──────────── */}
+            {(() => {
+              const cX = layout.qr.x + layout.qr.w + 8;
+              const cW = Math.max(40, CW - cX - 4);
+              return (
+                <div style={{
+                  position: "absolute",
+                  left: cX, top: layout.qr.y,
+                  width: cW, height: layout.qr.height,
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center",
+                  gap: 8, zIndex: 7,
+                  background: "rgba(128,128,128,0.08)",
+                  borderRadius: 8,
+                }}>
+                  <div style={{
+                    writingMode: "vertical-lr" as const,
+                    transform: "rotate(180deg)",
+                    fontSize: 16, fontWeight: 700,
+                    color: layout.contactColor,
+                    lineHeight: 1.2, textAlign: "center",
+                    maxHeight: layout.qr.height * 0.45, overflow: "hidden",
+                  }}>NOMBRE ACUDIENTE</div>
+                  <div style={{
+                    writingMode: "vertical-lr" as const,
+                    transform: "rotate(180deg)",
+                    fontSize: 13,
+                    color: layout.contactColor,
+                    maxHeight: layout.qr.height * 0.30, overflow: "hidden",
+                  }}>+507 6000-0000</div>
+                  <svg width="26" height="26" viewBox="0 0 32 32" fill="none" style={{ flexShrink: 0 }}>
+                    <circle cx="16" cy="16" r="16" fill="#25D366"/>
+                    <path d="M23.5 8.5A10.44 10.44 0 0 0 16 5.5C10.75 5.5 6.5 9.75 6.5 15a9.44 9.44 0 0 0 1.27 4.75L6.5 26.5l6.93-1.82A9.5 9.5 0 0 0 16 25.5c5.25 0 9.5-4.25 9.5-9.5a9.44 9.44 0 0 0-2-5.5z" fill="#fff"/>
+                  </svg>
+                  {/* Hover/drag indicator */}
+                  {(hoverEl === "contact" || draggingEl === "contact") && (
+                    <div style={{
+                      position: "absolute", inset: -3,
+                      border: "2px dashed rgba(99,179,237,0.8)",
+                      borderRadius: 10, pointerEvents: "none",
+                    }}>
+                      <span style={{
+                        position: "absolute", top: -14, left: 2,
+                        fontSize: 9, color: "rgba(99,179,237,0.9)",
+                        background: "rgba(0,0,0,0.6)", padding: "1px 4px", borderRadius: 3,
+                        fontFamily: "monospace", whiteSpace: "nowrap",
+                      }}>↔ CONTACTO — X:{cX} W:{cW}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* QR hover/drag indicator */}
-            {(hoverEl === "qr" || draggingEl === "qr") && (
+            {(hoverEl === "qr" || draggingEl === "qr" || hoverEl === "qr-se" || draggingEl === "qr-se") && (
               <div style={{
-                position: "absolute", top: layout.qr.y - 4, left: 10, right: 10,
-                height: layout.qr.height + 8, zIndex: 25,
-                border: "2px dashed rgba(99,179,237,0.7)",
-                borderRadius: 4, pointerEvents: "none",
+                position: "absolute",
+                left: layout.qr.x - 3, top: layout.qr.y - 3,
+                width: layout.qr.w + 6, height: layout.qr.height + 6,
+                border: "2px dashed rgba(99,179,237,0.8)",
+                borderRadius: 14, zIndex: 19, pointerEvents: "none",
               }}>
                 <span style={{
                   position: "absolute", top: -14, left: 4,
                   fontSize: 9, color: "rgba(99,179,237,0.9)",
                   background: "rgba(0,0,0,0.5)", padding: "1px 4px", borderRadius: 3,
                   fontFamily: "monospace", whiteSpace: "nowrap",
-                }}>↕ QR — Y:{layout.qr.y}</span>
+                }}>&#8596;&#8597; QR — X:{layout.qr.x} Y:{layout.qr.y} W:{layout.qr.w}</span>
               </div>
             )}
 
@@ -428,7 +503,7 @@ function CardPreview({
             </div>
 
             {/* Foto hover/drag indicator */}
-            {(hoverEl === "photo" || draggingEl === "photo") && (
+            {(hoverEl === "photo" || draggingEl === "photo" || hoverEl === "photo-se" || draggingEl === "photo-se") && (
               <div style={{
                 position: "absolute",
                 top: ph.y - 4, left: ph.x - 4,
@@ -447,16 +522,50 @@ function CardPreview({
               </div>
             )}
 
+            {/* ── Handle resize foto ───────────────────────────── */}
+            {(hoverEl === "photo" || hoverEl === "photo-se" || draggingEl === "photo" || draggingEl === "photo-se") && (
+              <div style={{
+                position: "absolute",
+                left: ph.x + ph.diameter - 10,
+                top:  ph.y + ph.diameter - 10,
+                width: 20, height: 20,
+                background: "#3B82F6",
+                border: "2px solid #fff",
+                borderRadius: 4,
+                zIndex: 25,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+                cursor: "nwse-resize",
+              }} />
+            )}
+
+            {/* ── Handle resize QR ─────────────────────────────── */}
+            {(hoverEl === "qr" || hoverEl === "qr-se" || draggingEl === "qr" || draggingEl === "qr-se") && (
+              <div style={{
+                position: "absolute",
+                left: layout.qr.x + layout.qr.w - 10,
+                top:  layout.qr.y + layout.qr.height - 10,
+                width: 20, height: 20,
+                background: "#3B82F6",
+                border: "2px solid #fff",
+                borderRadius: 4,
+                zIndex: 25,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+                cursor: "nwse-resize",
+              }} />
+            )}
+
             {/* ── Badge de coordenadas en tiempo real ──────────────────── */}
             {draggingEl && dragCoords && (
               <div style={{
-                position: "absolute", top: 8, right: 8,
-                zIndex: 30, background: "rgba(0,0,0,0.75)",
-                color: "#fff", fontSize: 10, fontFamily: "monospace",
+                position: "absolute", top: 8, right: 8, zIndex: 30,
+                background: "rgba(0,0,0,0.75)", color: "#fff",
+                fontSize: 10, fontFamily: "monospace",
                 padding: "3px 7px", borderRadius: 4, pointerEvents: "none",
-                backdropFilter: "blur(4px)",
               }}>
-                {dragCoords.x !== undefined ? `X:${dragCoords.x} Y:${dragCoords.y}` : `Y:${dragCoords.y}`}
+                {draggingEl === "photo-se" ? `⌀ ${dragCoords.y}` :
+                 draggingEl === "qr-se"   ? `W:${dragCoords.x} H:${dragCoords.y}` :
+                 dragCoords.x !== undefined ? `X:${dragCoords.x} Y:${dragCoords.y}` :
+                 `Y:${dragCoords.y}`}
               </div>
             )}
           </div>
@@ -702,13 +811,19 @@ export default function CardTemplatePage() {
     if (hit === "photo") {
       dragOffsetX.current = mx - layout.photo.x;
       dragOffsetY.current = my - layout.photo.y;
-    } else {
-      const yPos = hit === "qr"     ? layout.qr.y
-                 : hit === "name"   ? layout.name.y
-                 : hit === "team"   ? layout.team.y
-                 : layout.footer.y;
-      dragOffsetY.current = my - yPos;
+    } else if (hit === "qr") {
+      dragOffsetX.current = mx - layout.qr.x;
+      dragOffsetY.current = my - layout.qr.y;
+    } else if (hit === "name") {
+      dragOffsetY.current = my - layout.name.y;
+    } else if (hit === "team") {
+      dragOffsetY.current = my - layout.team.y;
+    } else if (hit === "footer") {
+      dragOffsetY.current = my - layout.footer.y;
+    } else if (hit === "contact") {
+      dragOffsetX.current = mx - (layout.qr.x + layout.qr.w);
     }
+    // photo-se y qr-se: sin offset, usan posición raw del mouse
     e.preventDefault();
   }, [layout]);
 
@@ -720,46 +835,74 @@ export default function CardTemplatePage() {
     const my    = (e.clientY - rect.top)   / scale;
     const { w: dCW, h: dCH } = getCardDimensions(layout.preset);
 
-    // Hover (cuando no hay drag activo)
     if (!draggingElRef.current) {
       setHoverEl(getHitElement(mx, my, layout, dCW, dCH));
       return;
     }
 
     const hit = draggingElRef.current;
+
     if (hit === "photo") {
-      const rawX    = mx - dragOffsetX.current;
-      const rawY    = my - dragOffsetY.current;
-      const centerX = (dCW - layout.photo.diameter) / 2;
-      const centerY = (dCH - layout.photo.diameter) / 2;
-      const newX = Math.max(0, Math.min(dCW - layout.photo.diameter,
-        Math.round(snapVal(rawX, centerX, snapCenter))));
-      const newY = Math.max(0, Math.min(dCH - layout.photo.diameter,
-        Math.round(snapVal(rawY, centerY, snapCenter))));
+      const rawX   = mx - dragOffsetX.current;
+      const rawY   = my - dragOffsetY.current;
+      const cX     = (dCW - layout.photo.diameter) / 2;
+      const cY     = (dCH - layout.photo.diameter) / 2;
+      const newX   = Math.max(0, Math.min(dCW - layout.photo.diameter, Math.round(snapVal(rawX, cX, snapCenter))));
+      const newY   = Math.max(0, Math.min(dCH - layout.photo.diameter, Math.round(snapVal(rawY, cY, snapCenter))));
       setDragCoords({ x: newX, y: newY });
       setLayout(prev => ({ ...prev, photo: { ...prev.photo, x: newX, y: newY } }));
-    } else {
-      const rawY   = my - dragOffsetY.current;
-      const centerY = dCH / 2;
-      let newY = Math.round(snapVal(rawY, centerY, snapCenter));
 
-      if (hit === "qr") {
-        newY = Math.max(layout.photo.y + layout.photo.diameter, Math.min(dCH - layout.qr.height - 20, newY));
-        setDragCoords({ y: newY });
-        setLayout(prev => ({ ...prev, qr: { ...prev.qr, y: newY } }));
-      } else if (hit === "name") {
-        newY = Math.max(0, Math.min(dCH - 60, newY));
-        setDragCoords({ y: newY });
-        setLayout(prev => ({ ...prev, name: { ...prev.name, y: newY } }));
-      } else if (hit === "team") {
-        newY = Math.max(0, Math.min(dCH - 30, newY));
-        setDragCoords({ y: newY });
-        setLayout(prev => ({ ...prev, team: { ...prev.team, y: newY } }));
-      } else if (hit === "footer") {
-        newY = Math.max(400, Math.min(dCH - 40, newY));
-        setDragCoords({ y: newY });
-        setLayout(prev => ({ ...prev, footer: { ...prev.footer, y: newY } }));
-      }
+    } else if (hit === "photo-se") {
+      // Resize: distancia desde el centro de la foto hasta el mouse = nuevo radio
+      const photoCX = layout.photo.x + layout.photo.diameter / 2;
+      const photoCY = layout.photo.y + layout.photo.diameter / 2;
+      const newD    = Math.max(60, Math.round(2 * Math.max(Math.abs(mx - photoCX), Math.abs(my - photoCY))));
+      setDragCoords({ y: newD }); // reutilizamos dragCoords para mostrar el diámetro
+      setLayout(prev => ({ ...prev, photo: { ...prev.photo, diameter: newD } }));
+
+    } else if (hit === "qr") {
+      const rawX  = mx - dragOffsetX.current;
+      const rawY  = my - dragOffsetY.current;
+      const cX    = (dCW - layout.qr.w) / 2;
+      const cY    = (dCH - layout.qr.height) / 2;
+      const newX  = Math.max(0, Math.min(dCW - layout.qr.w, Math.round(snapVal(rawX, cX, snapCenter))));
+      const newY  = Math.max(0, Math.min(dCH - layout.qr.height - 10, Math.round(snapVal(rawY, cY, snapCenter))));
+      setDragCoords({ x: newX, y: newY });
+      setLayout(prev => ({ ...prev, qr: { ...prev.qr, x: newX, y: newY } }));
+
+    } else if (hit === "qr-se") {
+      // Resize QR: anchor top-left, mouse define esquina inferior-derecha
+      const newW = Math.max(80,  Math.round(mx - layout.qr.x));
+      const newH = Math.max(60,  Math.round(my - layout.qr.y));
+      const clampedW = Math.min(dCW - layout.qr.x, newW);
+      const clampedH = Math.min(dCH - layout.qr.y, newH);
+      setDragCoords({ x: clampedW, y: clampedH });
+      setLayout(prev => ({ ...prev, qr: { ...prev.qr, w: clampedW, height: clampedH } }));
+
+    } else if (hit === "name") {
+      const rawY = my - dragOffsetY.current;
+      const newY = Math.max(0, Math.min(dCH - 60, Math.round(rawY)));
+      setDragCoords({ y: newY });
+      setLayout(prev => ({ ...prev, name: { ...prev.name, y: newY } }));
+
+    } else if (hit === "team") {
+      const rawY = my - dragOffsetY.current;
+      const newY = Math.max(0, Math.min(dCH - 30, Math.round(rawY)));
+      setDragCoords({ y: newY });
+      setLayout(prev => ({ ...prev, team: { ...prev.team, y: newY } }));
+
+    } else if (hit === "footer") {
+      const rawY = my - dragOffsetY.current;
+      const newY = Math.max(400, Math.min(dCH - 40, Math.round(rawY)));
+      setDragCoords({ y: newY });
+      setLayout(prev => ({ ...prev, footer: { ...prev.footer, y: newY } }));
+
+    } else if (hit === "contact") {
+      // Arrastrar el contacto mueve la división QR/contacto (= ajusta qr.w)
+      const splitX = mx - dragOffsetX.current;
+      const newW = Math.max(80, Math.min(dCW - layout.qr.x - 50, Math.round(splitX - layout.qr.x)));
+      setDragCoords({ x: newW, y: dCW - layout.qr.x - newW - 8 });
+      setLayout(prev => ({ ...prev, qr: { ...prev.qr, w: newW } }));
     }
   }, [layout, snapCenter]);
 
@@ -901,7 +1044,7 @@ export default function CardTemplatePage() {
           </div>
 
           <p className="text-[10px] text-dojo-muted text-center">
-            Arrastra foto · nombre · QR · team · footer en el preview · {CW} &times; {CH} px
+            Arrastra foto · QR · nombre · team · footer · usa &#9632; para redimensionar · {CW} &times; {CH} px
           </p>
 
           {/* Botón reset */}
@@ -1131,10 +1274,22 @@ export default function CardTemplatePage() {
           {/* 6. Zona QR */}
           <CollapsibleSection title="Zona QR" icon={CreditCard}>
             <SliderRow
+              label="Posición X (izquierda)"
+              value={layout.qr.x}
+              min={0} max={CW - 80}
+              onChange={v => updateQr("x", v)}
+            />
+            <SliderRow
               label="Posición Y (inicio)"
               value={layout.qr.y}
               min={200} max={800}
               onChange={v => updateQr("y", v)}
+            />
+            <SliderRow
+              label="Ancho"
+              value={layout.qr.w}
+              min={80} max={CW - layout.qr.x}
+              onChange={v => updateQr("w", v)}
             />
             <SliderRow
               label="Altura"
