@@ -8,14 +8,15 @@ const INSURANCE_COMPANIES = ["MAPFRE","PALIG","SURA","FEDPA","ANCON","ACERTA","I
 const MAX_PHOTO_BYTES   = 5 * 1024 * 1024;
 
 interface Props {
-  token:     string;
-  dojoName:  string;
-  dojoLogo:  string | null;
-  expiresAt: string | null;
-  reset?:    boolean;
+  token:          string;
+  dojoName:       string;
+  dojoLogo:       string | null;
+  expiresAt:      string | null;
+  reset?:         boolean;
+  contractPolicy: string | null;
 }
 
-type Step = "splash" | "form" | "done" | "already-submitted";
+type Step = "splash" | "contract" | "form" | "done" | "already-submitted";
 
 type FormData = {
   fullName: string;
@@ -88,7 +89,7 @@ function formatExpiry(iso: string): string {
   });
 }
 
-export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, reset }: Props) {
+export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, reset, contractPolicy }: Props) {
   const [step,     setStep]     = useState<Step>("splash");
   const [form,     setForm]     = useState<FormData>(INIT);
   const [errors,   setErrors]   = useState<FieldErrors>({});
@@ -96,6 +97,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
   const [loading,   setLoading]   = useState(false);
   const [globalError, setGlobalError] = useState("");
   const [rawPhoto,  setRawPhoto]  = useState<string | null>(null);
+  const [policyAccepted, setPolicyAccepted] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -277,8 +279,8 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
           </div>
         )}
 
-        <button onClick={() => setStep("form")} className="btn-primary w-full py-3 text-base">
-          Acepto · Completar el formulario
+        <button onClick={() => setStep(contractPolicy ? "contract" : "form")} className="btn-primary w-full py-3 text-base">
+          {contractPolicy ? "Ver términos y condiciones" : "Acepto · Completar el formulario"}
         </button>
 
         <p className="text-xs text-dojo-muted leading-relaxed">
@@ -334,6 +336,60 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
         <p className="text-dojo-muted text-xs max-w-xs">
           Si proporcionaste un correo electrónico recibirás una confirmación por email.
         </p>
+      </div>
+    );
+  }
+
+  // ── Términos y condiciones ────────────────────────────────────────────────
+  if (step === "contract" && contractPolicy) {
+    return (
+      <div className="flex flex-col gap-5">
+        {dojoLogo ? (
+          <img src={dojoLogo} alt={dojoName}
+            className="w-16 h-16 object-contain rounded-xl border border-dojo-border shadow-lg mx-auto" />
+        ) : (
+          <div className="w-16 h-16 bg-dojo-red rounded-xl flex items-center justify-center shadow-lg mx-auto">
+            <span className="text-3xl select-none">🥋</span>
+          </div>
+        )}
+
+        <div className="text-center space-y-0.5">
+          <p className="text-xs font-semibold uppercase tracking-widest text-dojo-gold">Términos y Condiciones</p>
+          <h2 className="text-lg font-bold text-dojo-white font-display">{dojoName}</h2>
+        </div>
+
+        {/* Texto del contrato */}
+        <div className="bg-dojo-darker border border-dojo-border rounded-lg p-4 max-h-72 overflow-y-auto text-sm text-dojo-muted leading-relaxed whitespace-pre-wrap">
+          {contractPolicy}
+        </div>
+
+        {/* Checkbox de aceptación */}
+        <label className="flex items-start gap-3 cursor-pointer select-none bg-dojo-card border border-dojo-border rounded-lg p-3">
+          <input
+            type="checkbox"
+            checked={policyAccepted}
+            onChange={e => setPolicyAccepted(e.target.checked)}
+            className="w-4 h-4 mt-0.5 accent-dojo-red shrink-0"
+          />
+          <span className="text-sm text-dojo-white leading-snug">
+            He leído y acepto los términos del contrato de inscripción de{" "}
+            <strong>{dojoName}</strong>.
+          </span>
+        </label>
+
+        <div className="flex gap-3">
+          <button type="button" onClick={() => setStep("splash")} className="btn-secondary flex-1">
+            Volver
+          </button>
+          <button
+            type="button"
+            disabled={!policyAccepted}
+            onClick={() => setStep("form")}
+            className="btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Acepto y continuar
+          </button>
+        </div>
       </div>
     );
   }

@@ -17,7 +17,7 @@ export default async function RegistroPage({ params, searchParams }: Props) {
     where:  { token },
     select: {
       id: true, isActive: true, activatesAt: true, expiresAt: true, maxUses: true, useCount: true,
-      dojo: { select: { name: true, logo: true } },
+      dojo: { select: { name: true, logo: true, contractPolicy: true } },
     },
   });
 
@@ -44,10 +44,10 @@ export default async function RegistroPage({ params, searchParams }: Props) {
     );
   }
 
-  const dojoName = link.dojo.name;
-  // Solo pasar URL Cloudinary — evitar base64 grande en prop de Server→Client
-  const dojoLogo = link.dojo.logo?.startsWith("http") ? link.dojo.logo : null;
-  const expiresAt = link.expiresAt?.toISOString() ?? null;
+  const dojoName       = link.dojo.name;
+  const dojoLogo       = link.dojo.logo?.startsWith("http") ? link.dojo.logo : null;
+  const expiresAt      = link.expiresAt?.toISOString() ?? null;
+  const contractPolicy = link.dojo.contractPolicy ?? null;
 
   return (
     <main className="min-h-screen bg-dojo-darker flex flex-col items-center justify-start p-4 py-8">
@@ -60,6 +60,7 @@ export default async function RegistroPage({ params, searchParams }: Props) {
             dojoLogo={dojoLogo}
             expiresAt={expiresAt}
             reset={reset === "1"}
+            contractPolicy={contractPolicy}
           />
         </div>
 

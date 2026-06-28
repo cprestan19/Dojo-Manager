@@ -4,7 +4,7 @@
  */
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2, QrCode } from "lucide-react";
+import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2, QrCode, FileText } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -48,6 +48,7 @@ export default function SettingsPage() {
   const [savingBg,        setSavingBg]        = useState(false);
   const [bgSaved,         setBgSaved]         = useState(false);
   const [cardTemplateImage,   setCardTemplateImage]   = useState<string | null>(null);
+  const [contractPolicy,      setContractPolicy]      = useState<string>("");
   const [tplUploading,        setTplUploading]        = useState(false);
   const [tplError,            setTplError]            = useState("");
   const [savingTpl,           setSavingTpl]           = useState(false);
@@ -97,6 +98,7 @@ export default function SettingsPage() {
           setLoginBgImage(data.loginBgImage ?? null);
           setLocale(data.locale ?? "es");
           setCardTemplateImage(data.cardTemplateImage ?? null);
+          setContractPolicy(data.contractPolicy ?? "");
         }
         setLoading(false);
       });
@@ -137,6 +139,7 @@ export default function SettingsPage() {
         autoRemindersEnabled,
         locale,
         cardTemplateImage,
+        contractPolicy: contractPolicy.trim() || null,
       }),
     });
     if (res.ok) {
@@ -697,6 +700,26 @@ export default function SettingsPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Políticas / Contrato de inscripción */}
+          <div className="card space-y-4">
+            <h2 className="text-dojo-white font-semibold text-lg border-b border-dojo-border pb-3 flex items-center gap-2">
+              <FileText size={18} className="text-dojo-red" /> Términos y Condiciones del Registro
+            </h2>
+            <p className="text-dojo-muted text-xs leading-relaxed">
+              Texto que los padres o tutores deberán <strong className="text-dojo-white">leer y aceptar</strong> antes de completar
+              el formulario de auto-registro. Si se deja en blanco, el paso de aceptación no aparecerá.
+              Cada dojo tiene sus propias políticas — este texto es exclusivo para este dojo.
+            </p>
+            <textarea
+              className="form-input resize-y min-h-[180px] text-sm font-mono leading-relaxed"
+              placeholder={"Escribe aquí los términos y condiciones de inscripción...\n\nEjemplo:\n• El alumno se compromete a asistir puntualmente a las clases.\n• Los pagos deben realizarse los primeros 5 días del mes.\n• ..."}
+              value={contractPolicy}
+              onChange={e => setContractPolicy(e.target.value)}
+              maxLength={10000}
+            />
+            <p className="text-xs text-dojo-muted text-right">{contractPolicy.length} / 10 000 caracteres</p>
           </div>
 
           {/* Guardar */}

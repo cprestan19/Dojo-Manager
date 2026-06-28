@@ -43,9 +43,10 @@ export async function GET(req: NextRequest) {
       reminderToleranceDays: true, lateInterestPct: true,
       autoRemindersEnabled: true,
       cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true,
-      logo:         true,              // siempre — es URL corta de Cloudinary
-      loginBgImage:      includeLoginBg,    // solo cuando Settings lo pide
+      logo:             true,              // siempre — es URL corta de Cloudinary
+      loginBgImage:     includeLoginBg,     // solo cuando Settings lo pide
       cardTemplateImage: includeLoginBg,    // solo cuando Settings lo pide
+      contractPolicy:   includeLoginBg,     // solo cuando Settings lo pide
     },
   });
   if (!dojo) return NextResponse.json({ error: "Dojo no encontrado" }, { status: 404 });
@@ -142,6 +143,7 @@ export async function PUT(req: NextRequest) {
       cardPrimaryColor:   "cardPrimaryColor"   in body ? (body.cardPrimaryColor   ?? null) : undefined,
       cardSecondaryColor: "cardSecondaryColor" in body ? (body.cardSecondaryColor ?? null) : undefined,
       cardTertiaryColor:  "cardTertiaryColor"  in body ? (body.cardTertiaryColor  ?? null) : undefined,
+      contractPolicy:     "contractPolicy"     in body ? (body.contractPolicy     ?? null) : undefined,
     },
     select: {
       id: true, name: true, slug: true, ownerName: true,

@@ -26,7 +26,8 @@ model Dojo {
   reminderToleranceDays Int     @default(5)
   lateInterestPct       Float   @default(10.0)
   autoRemindersEnabled  Boolean @default(false)
-  loginBgImage  String? @db.Text @map("login_bg_image")
+  loginBgImage    String? @db.Text @map("login_bg_image")
+  contractPolicy  String? @db.Text @map("contract_policy")  // texto de políticas/contrato mostrado en el auto-registro
   instagramUrl  String? @map("instagram_url")
   themeId       String  @default("dark-saas") @map("theme_id")
   locale        String  @default("es")        @map("locale")       // "es" | "en"
