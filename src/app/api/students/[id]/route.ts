@@ -67,6 +67,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const t0   = Date.now();
     const body = await req.json();
 
+    // Rechazar fotos base64 — deben subirse a Cloudinary antes de guardar
+    if (body.photo && typeof body.photo === "string" && body.photo.startsWith("data:")) {
+      return NextResponse.json({ error: "La foto debe subirse a Cloudinary antes de guardar. Usa el editor de foto en el formulario." }, { status: 400 });
+    }
+
     // Snapshot del estado anterior para el log (incluye portal user para sync de email)
     const before = await prisma.student.findUnique({
       where:  { id, dojoId },

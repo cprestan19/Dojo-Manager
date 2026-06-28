@@ -133,7 +133,6 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
 
   function validate(): FieldErrors {
     const e: FieldErrors = {};
-    if (!form.photo)              e.photo       = "La foto del alumno es obligatoria.";
     if (!form.fullName.trim())    e.fullName    = "El nombre completo es obligatorio.";
     if (!form.firstName.trim())   e.firstName   = "El primer nombre es obligatorio.";
     if (!form.lastName.trim())    e.lastName    = "El apellido es obligatorio.";
@@ -143,7 +142,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
     return e;
   }
 
-  const personalErrorKeys: (keyof FormData)[] = ["photo","fullName","firstName","lastName","birthDate","gender","nationality"];
+  const personalErrorKeys: (keyof FormData)[] = ["fullName","firstName","lastName","birthDate","gender","nationality"];
   const hasPersonalError = (errs: FieldErrors) => personalErrorKeys.some(k => errs[k]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -348,7 +347,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
         hasError={hasPersonalError(errors)}
       >
         {/* Foto */}
-        <Field label="Foto del alumno" required error={errors.photo}>
+        <Field label="Foto del alumno (opcional)" error={errors.photo}>
           <div className="space-y-2">
             <div className="flex items-start gap-3">
               {form.photo ? (

@@ -104,6 +104,11 @@ async function _POST(req: NextRequest) {
     const raw = await req.json().catch(() => null);
     if (!raw) return NextResponse.json({ error: "Cuerpo de solicitud inválido" }, { status: 400 });
 
+    // Rechazar fotos base64 — deben subirse a Cloudinary antes de guardar
+    if (raw.photo && typeof raw.photo === "string" && raw.photo.startsWith("data:")) {
+      return NextResponse.json({ error: "La foto debe subirse a Cloudinary antes de guardar." }, { status: 400 });
+    }
+
     const parsed = CreateStudentSchema.safeParse(raw);
     if (!parsed.success) return validationError(parsed.error);
     const body = parsed.data;
