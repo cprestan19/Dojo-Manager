@@ -109,7 +109,7 @@ export function StudentsClient({
   const [sortField,     setSortField]     = useState<SortField>("name");
   const [sortDir,       setSortDir]       = useState<SortDir>("asc");
   const [loading,       setLoading]       = useState(false);
-  const skipFirstFetch = useRef(true);
+  const isMounted = useRef(false);
 
   async function handleToggleActive(s: StudentRow) {
     if (s.active && !confirm(`¿Desactivar a ${s.fullName}? Quedará invisible en el scanner y la lista activa.`)) return;
@@ -125,21 +125,34 @@ export function StudentsClient({
     }
   }
 
-  const fetchStudents = useCallback(async () => {
-    setLoading(true);
+  const buildParams = useCallback(() => {
     const params = new URLSearchParams({ search });
     if (activeFilter !== "all") params.set("active", activeFilter === "active" ? "true" : "false");
-    const res = await fetch(`/api/students?${params}`);
-    if (res.ok) setStudents(await res.json());
-    setLoading(false);
+    return params;
   }, [search, activeFilter]);
 
+  const fetchStudents = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch(`/api/students?${buildParams()}`);
+    if (res.ok) setStudents(await res.json());
+    setLoading(false);
+  }, [buildParams]);
+
+  // Refresco silencioso al montar — trae datos frescos sin mostrar spinner
   useEffect(() => {
-    if (skipFirstFetch.current && search === "" && activeFilter === "active") {
-      skipFirstFetch.current = false;
+    fetch(`/api/students?active=true`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data) => { if (data) setStudents(data); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch con debounce cuando cambian filtros/búsqueda (después del primer mount)
+  useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
       return;
     }
-    skipFirstFetch.current = false;
     const t = setTimeout(fetchStudents, 300);
     return () => clearTimeout(t);
   }, [fetchStudents, search, activeFilter]);
