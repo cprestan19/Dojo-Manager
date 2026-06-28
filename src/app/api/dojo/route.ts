@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
       logo:             true,              // siempre — es URL corta de Cloudinary
       loginBgImage:     includeLoginBg,     // solo cuando Settings lo pide
       cardTemplateImage: includeLoginBg,    // solo cuando Settings lo pide
+      cardLayout:        includeLoginBg,    // solo cuando card-template editor lo pide
       contractPolicy:   includeLoginBg,     // solo cuando Settings lo pide
     },
   });
@@ -144,6 +145,7 @@ export async function PUT(req: NextRequest) {
       cardSecondaryColor: "cardSecondaryColor" in body ? (body.cardSecondaryColor ?? null) : undefined,
       cardTertiaryColor:  "cardTertiaryColor"  in body ? (body.cardTertiaryColor  ?? null) : undefined,
       contractPolicy:     "contractPolicy"     in body ? (body.contractPolicy     ?? null) : undefined,
+      cardLayout:         "cardLayout"         in body ? (body.cardLayout         ?? null) : undefined,
     },
     select: {
       id: true, name: true, slug: true, ownerName: true,

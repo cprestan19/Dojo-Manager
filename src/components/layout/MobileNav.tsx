@@ -36,7 +36,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/settings":           "Ajustes Generales",
   "/dashboard/settings/videos":    "Videos por Cinta",
   "/dashboard/settings/email":     "Correo / Notificaciones",
-  "/dashboard/settings/roles":     "Roles y Accesos",
+  "/dashboard/settings/roles":          "Roles y Accesos",
+  "/dashboard/settings/card-template": "Diseño de Carnet",
   "/dashboard/tournaments-pro":     "Torneo Pro",
   "/dashboard/tournaments-pro/new": "Nuevo Torneo",
 };
@@ -66,7 +67,8 @@ const settingsItems: NavItem[] = [
   { href: "/dashboard/settings/public-page", label: "Página Pública",    icon: Globe,       permKey: NAV_KEYS.PUBLIC_PAGE      },
   { href: "/dashboard/settings/videos",      label: "Videos por Cinta",  icon: Video,       permKey: NAV_KEYS.SETTINGS_VIDEOS  },
   { href: "/dashboard/settings/email",  label: "Parámetros Correo",    icon: Mail,        permKey: NAV_KEYS.SETTINGS_EMAIL   },
-  { href: "/dashboard/settings/roles",  label: "Roles y Accesos",      icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES   },
+  { href: "/dashboard/settings/roles",          label: "Roles y Accesos",  icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES },
+  { href: "/dashboard/settings/card-template",  label: "Diseño de Carnet", icon: CreditCard,  permKey: NAV_KEYS.SETTINGS_CARD  },
 ];
 
 // Quick-access items shown at the bottom bar (max 5, most used)
@@ -92,7 +94,8 @@ const backRoutes: Record<string, string> = {
   "/dashboard/settings":        "/dashboard",
   "/dashboard/settings/videos": "/dashboard/settings",
   "/dashboard/settings/email":  "/dashboard/settings",
-  "/dashboard/settings/roles":  "/dashboard/settings",
+  "/dashboard/settings/roles":          "/dashboard/settings",
+  "/dashboard/settings/card-template": "/dashboard/settings",
   "/scanner":                   "/dashboard",
   "/dashboard/tournaments-pro":     "/dashboard",
   "/dashboard/tournaments-pro/new": "/dashboard/tournaments-pro",

@@ -53,6 +53,7 @@ const SETTINGS_DEFS: NavItemDef[] = [
   { href: "/dashboard/settings/email",       icon: Mail,        permKey: NAV_KEYS.SETTINGS_EMAIL,   labelKey: "settingsEmail"   },
   { href: "/dashboard/settings/roles",       icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES,   labelKey: "settingsRoles"   },
   { href: "/dashboard/settings/import",      icon: Upload,      permKey: NAV_KEYS.SETTINGS_IMPORT,  labelKey: "importStudents"  },
+  { href: "/dashboard/settings/card-template", icon: CreditCard, permKey: NAV_KEYS.SETTINGS_CARD,   labelKey: "settingsCard"    },
 ];
 
 export function Sidebar() {

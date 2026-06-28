@@ -4,7 +4,7 @@
  */
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2, QrCode, FileText } from "lucide-react";
+import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2, FileText } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -47,15 +47,9 @@ export default function SettingsPage() {
   const [bgError,         setBgError]         = useState("");
   const [savingBg,        setSavingBg]        = useState(false);
   const [bgSaved,         setBgSaved]         = useState(false);
-  const [cardTemplateImage,   setCardTemplateImage]   = useState<string | null>(null);
-  const [contractPolicy,      setContractPolicy]      = useState<string>("");
-  const [tplUploading,        setTplUploading]        = useState(false);
-  const [tplError,            setTplError]            = useState("");
-  const [savingTpl,           setSavingTpl]           = useState(false);
-  const [tplSaved,            setTplSaved]            = useState(false);
+  const [contractPolicy,  setContractPolicy]  = useState<string>("");
   const fileRef    = useRef<HTMLInputElement>(null);
   const bgFileRef  = useRef<HTMLInputElement>(null);
-  const tplFileRef = useRef<HTMLInputElement>(null);
 
   // Cargar lista de dojos para sysadmin + pre-seleccionar el dojo del contexto activo
   useEffect(() => {
@@ -97,7 +91,6 @@ export default function SettingsPage() {
           setAutoRemindersEnabled(data.autoRemindersEnabled ?? false);
           setLoginBgImage(data.loginBgImage ?? null);
           setLocale(data.locale ?? "es");
-          setCardTemplateImage(data.cardTemplateImage ?? null);
           setContractPolicy(data.contractPolicy ?? "");
         }
         setLoading(false);
@@ -138,7 +131,6 @@ export default function SettingsPage() {
         lateInterestPct:       interestPct,
         autoRemindersEnabled,
         locale,
-        cardTemplateImage,
         contractPolicy: contractPolicy.trim() || null,
       }),
     });
@@ -190,45 +182,6 @@ export default function SettingsPage() {
       setBgUploading(false);
       if (bgFileRef.current) bgFileRef.current.value = "";
     }
-  }
-
-  async function handleTplFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert("El archivo supera 5 MB"); return; }
-    setTplError(""); setTplUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file",    file);
-      fd.append("type",    "image");
-      fd.append("purpose", "card-template");
-      const res  = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (res.ok) setCardTemplateImage(data.url);
-      else        setTplError(data.error ?? "Error al subir la imagen");
-    } catch {
-      setTplError("Error de conexión al subir la imagen");
-    } finally {
-      setTplUploading(false);
-      if (tplFileRef.current) tplFileRef.current.value = "";
-    }
-  }
-
-  async function handleSaveTpl() {
-    setSavingTpl(true); setTplSaved(false);
-    const url = role === "sysadmin" && selectedId ? `/api/dojo?id=${selectedId}` : "/api/dojo";
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardTemplateImage }),
-    });
-    if (res.ok) {
-      setTplSaved(true);
-      setTimeout(() => setTplSaved(false), 3000);
-      refreshDojo();
-      router.refresh();
-    }
-    setSavingTpl(false);
   }
 
   if (loading) {
@@ -341,106 +294,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-          </div>
-
-          {/* Plantilla de fondo del carnet */}
-          <div className="card space-y-5">
-            <h2 className="text-dojo-white font-semibold text-lg border-b border-dojo-border pb-3 flex items-center gap-2">
-              <ImageIcon size={18} className="text-dojo-red" /> Plantilla de Fondo del Carnet
-            </h2>
-            <div>
-              <label className="form-label">Imagen de fondo personalizada</label>
-              <p className="text-dojo-muted text-xs mb-4">
-                Sube una imagen de fondo para el carnet de tus alumnos. El sistema coloca la foto, nombre, QR y slogan encima. Tamaño recomendado: 638 × 1009 px (formato CR80 vertical).
-              </p>
-              <div className="flex gap-6 items-start">
-                {/* Preview proporcional del carnet (CR80 vertical ~0.632) */}
-                <div className="flex flex-col items-center gap-1.5 shrink-0">
-                  <div
-                    className="relative w-[140px] h-[222px] rounded-xl border-2 overflow-hidden shadow-lg"
-                    style={{
-                      borderColor: "#d1d5db",
-                      ...(cardTemplateImage
-                        ? { backgroundImage: `url(${cardTemplateImage})`, backgroundSize: "cover", backgroundPosition: "center" }
-                        : { backgroundColor: "#ffffff" }),
-                    }}
-                  >
-                    {/* Sin plantilla: llamada a acción prominente */}
-                    {!cardTemplateImage && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center">
-                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                          <Upload size={18} className="text-gray-400" />
-                        </div>
-                        <p className="text-[9px] font-semibold text-gray-500 leading-tight">Cargar plantilla</p>
-                        <p className="text-[8px] text-gray-400 leading-tight">638 × 1009 px recomendado</p>
-                      </div>
-                    )}
-
-                    {/* Con plantilla: overlay de representación de elementos */}
-                    {cardTemplateImage && (
-                      <>
-                        {/* Foto placeholder */}
-                        <div className="absolute top-[28px] inset-x-0 flex justify-center">
-                          <div className="w-[52px] h-[52px] rounded-full border-2 border-white/70 flex items-center justify-center bg-black/25">
-                            <User size={22} className="text-white/50" />
-                          </div>
-                        </div>
-
-                        {/* Nombre placeholder */}
-                        <div className="absolute top-[88px] inset-x-0 flex flex-col items-center gap-[3px] px-4">
-                          <div className="h-[5px] rounded-full w-3/4 bg-white/50" />
-                          <div className="h-[4px] rounded-full w-1/2 bg-white/35" />
-                        </div>
-
-                        {/* Chip cinta */}
-                        <div className="absolute top-[106px] inset-x-0 flex justify-center">
-                          <div className="h-[8px] w-[54px] rounded-full bg-white/40" />
-                        </div>
-
-                        {/* QR placeholder */}
-                        <div className="absolute bottom-[26px] inset-x-0 flex justify-center">
-                          <div className="w-[42px] h-[42px] rounded bg-white p-[3px]">
-                            <QrCode size={36} className="text-gray-800" />
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <p className="text-[9px] text-dojo-muted">Vista previa del carnet</p>
-                </div>
-                <div className="flex-1 space-y-2">
-                  <button
-                    onClick={() => !tplUploading && tplFileRef.current?.click()}
-                    disabled={tplUploading}
-                    className="btn-secondary flex items-center gap-2 w-full justify-center disabled:opacity-60"
-                  >
-                    {tplUploading
-                      ? <><Loader2 size={16} className="animate-spin" /> Subiendo a Cloudinary...</>
-                      : <><Upload size={16} /> Subir imagen (JPG, PNG, WEBP)</>
-                    }
-                  </button>
-                  {tplError && <p className="text-xs text-red-400">{tplError}</p>}
-                  {cardTemplateImage && !tplUploading && (
-                    <button
-                      onClick={() => setCardTemplateImage(null)}
-                      className="btn-ghost text-red-400 hover:text-red-300 flex items-center gap-2 w-full justify-center text-sm"
-                    >
-                      <Trash2 size={14} /> Eliminar plantilla
-                    </button>
-                  )}
-                  <input ref={tplFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleTplFileChange} />
-                  <p className="text-xs text-dojo-muted">Recomendado: 638 × 1009 px · Máximo 5 MB</p>
-                  <button
-                    onClick={handleSaveTpl}
-                    disabled={savingTpl}
-                    className="btn-primary flex items-center gap-2 w-full justify-center mt-2"
-                  >
-                    <Save size={15} /> {savingTpl ? "Guardando..." : "Guardar plantilla"}
-                  </button>
-                  {tplSaved && <p className="text-green-400 text-xs text-center">¡Plantilla guardada!</p>}
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Datos del dojo */}

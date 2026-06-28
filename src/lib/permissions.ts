@@ -17,6 +17,7 @@ export const NAV_KEYS = {
   SETTINGS_EMAIL:  "settings.email",
   SETTINGS_ROLES:  "settings.roles",
   SETTINGS_IMPORT: "settings.import",
+  SETTINGS_CARD:   "settings.card",
   KATAS_CATALOG:   "katas",
   TOURNAMENT_EVENTS: "tournament-events",  // Asistencia a Torneos (independiente de Torneo Pro)
   EVENTS:          "events",
@@ -45,6 +46,7 @@ export const ALL_DOJO_KEYS: NavKey[] = [
   NAV_KEYS.SETTINGS_EMAIL,
   NAV_KEYS.SETTINGS_ROLES,
   NAV_KEYS.SETTINGS_IMPORT,
+  NAV_KEYS.SETTINGS_CARD,
   NAV_KEYS.TOURNAMENT_EVENTS,
   NAV_KEYS.EVENTS,
   NAV_KEYS.LEADS,
@@ -102,6 +104,7 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "settings.email":   "Correo SMTP",
   "settings.roles":   "Roles y Accesos",
   "settings.import":  "Importar Alumnos",
+  "settings.card":    "Diseño de Carnet",
   "katas":            "Catálogo Katas",
   "tournament-events": "Asistencia de Torneos",
   "events":           "Eventos",

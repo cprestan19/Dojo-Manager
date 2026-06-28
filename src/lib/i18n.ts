@@ -25,6 +25,7 @@ const translations = {
       settingsEmail:  "Correo / Notificaciones",
       settingsRoles:  "Roles y Accesos",
       importStudents: "Importar Alumnos",
+      settingsCard:   "Diseño de Carnet",
     },
     topbar: {
       dashboard:          "Dashboard",
@@ -111,6 +112,7 @@ const translations = {
       settingsEmail:  "Email / Notifications",
       settingsRoles:  "Roles & Access",
       importStudents: "Import Students",
+      settingsCard:   "Card Design",
     },
     topbar: {
       dashboard:          "Dashboard",
