@@ -1083,8 +1083,8 @@ export default function StudentDetailPage() {
 
           {/* Photo — solo URLs de Cloudinary; base64 legacy se ignora */}
           {student.photo?.startsWith("http") && (
-            <div className="card p-0 overflow-hidden rounded-xl">
-              <div className="w-full h-52 relative">
+            <div className="card flex justify-center py-5">
+              <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-dojo-red/30 relative shrink-0 shadow-lg shadow-dojo-red/10">
                 <Image src={student.photo} alt={student.fullName} fill className="object-cover object-top" unoptimized />
               </div>
             </div>

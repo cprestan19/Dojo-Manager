@@ -112,7 +112,8 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
   // Variante de layout determinística por dojo: alterna forma de foto,
   // posición del logo y orientación de las esquinas decorativas.
   const variantB     = hashString(dojo.id) % 2 === 1;
-  const photoRadius: string | number = variantB ? 32 : "50%";
+  // Natsuki conserva su variante original; todos los demás dojos usan círculo
+  const photoRadius: string | number = isNatsuki ? (variantB ? 32 : "50%") : "50%";
   const logoPos = variantB ? { right: LOGO_X } : { left: LOGO_X };
   const corners = variantB
     ? {
