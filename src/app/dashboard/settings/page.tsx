@@ -245,11 +245,11 @@ export default function SettingsPage() {
 
               <div className="flex items-center gap-6">
                 {/* Preview */}
-                <div className="w-24 h-24 bg-dojo-red rounded-2xl flex items-center justify-center shadow-lg shadow-dojo-red/30 overflow-hidden flex-shrink-0">
+                <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-black/10 overflow-hidden flex-shrink-0 border border-dojo-border">
                   {logo ? (
                     <Image src={logo} alt="Logo" width={96} height={96} className="object-contain w-full h-full" />
                   ) : (
-                    <span className="text-white text-3xl font-display font-bold">
+                    <span className="text-dojo-darker text-3xl font-display font-bold">
                       {name?.[0]?.toUpperCase() ?? "D"}
                     </span>
                   )}
@@ -281,10 +281,10 @@ export default function SettingsPage() {
               <div className="mt-4 space-y-1">
                 <label className="form-label text-xs">Vista previa — Pantalla de Login</label>
                 <div className="bg-dojo-darker border border-dojo-border rounded-xl p-5 flex flex-col items-center gap-2">
-                  <div className="w-14 h-14 bg-dojo-red rounded-xl flex items-center justify-center overflow-hidden shadow">
+                  <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center overflow-hidden shadow border border-dojo-border">
                     {logo
                       ? <Image src={logo} alt="preview" width={56} height={56} className="object-contain w-full h-full" />
-                      : <span className="text-white font-display font-bold text-lg">{name?.[0]?.toUpperCase() ?? "D"}</span>
+                      : <span className="text-dojo-darker font-display font-bold text-lg">{name?.[0]?.toUpperCase() ?? "D"}</span>
                     }
                   </div>
                   <p className="font-display text-dojo-white font-bold tracking-widest text-sm">{name.toUpperCase() || "NOMBRE DOJO"}</p>
@@ -472,10 +472,10 @@ export default function SettingsPage() {
                       {/* Contenido del login */}
                       <div className="absolute inset-0 flex flex-col items-center justify-center px-2.5 gap-1.5">
                         {/* Logo */}
-                        <div className="w-[22px] h-[22px] rounded-md bg-dojo-red flex items-center justify-center shadow overflow-hidden">
+                        <div className="w-[22px] h-[22px] rounded-md bg-white flex items-center justify-center shadow overflow-hidden border border-dojo-border/60">
                           {logo
                             ? <img src={logo} alt="" className="w-full h-full object-contain" />
-                            : <span className="text-white text-[8px] font-bold">{name?.[0] ?? "D"}</span>
+                            : <span className="text-dojo-darker text-[8px] font-bold">{name?.[0] ?? "D"}</span>
                           }
                         </div>
                         <p className="text-[5.5px] font-bold text-white tracking-wider text-center leading-tight">
