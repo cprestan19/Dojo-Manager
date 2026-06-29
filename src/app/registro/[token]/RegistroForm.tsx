@@ -344,26 +344,13 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
             Está siendo revisada por el equipo del dojo.
           </p>
         </div>
-        <div className="bg-dojo-card border border-dojo-border rounded-lg p-4 text-sm text-dojo-muted text-left w-full max-w-sm leading-relaxed">
+        <div className="bg-dojo-card border border-dojo-border rounded-lg p-4 text-sm text-dojo-muted text-left w-full max-w-sm leading-relaxed space-y-2">
           <p>
-            Si necesitas <strong className="text-dojo-white">modificar</strong> tu información o
-            cometiste algún error, comunícate con{" "}
-            <strong className="text-dojo-white">{dojoName}</strong> para que te envíen un nuevo
-            enlace de inscripción.
+            Este enlace ya no está disponible para ti.
+            Si necesitas <strong className="text-dojo-white">corregir</strong> algún dato,
+            comunícate directamente con <strong className="text-dojo-white">{dojoName}</strong>
+            {" "}para que el administrador te habilite un nuevo acceso.
           </p>
-        </div>
-        {/* Botón para quienes recibieron correo de rechazo */}
-        <div className="w-full max-w-sm border-t border-dojo-border pt-5 space-y-2">
-          <p className="text-xs text-dojo-muted">¿Recibiste un correo indicando que tu solicitud fue rechazada?</p>
-          <button
-            onClick={() => {
-              localStorage.removeItem(`registro-sent-${token}`);
-              setStep("splash");
-            }}
-            className="btn-secondary w-full text-sm"
-          >
-            Volver a completar el formulario
-          </button>
         </div>
       </div>
     );
