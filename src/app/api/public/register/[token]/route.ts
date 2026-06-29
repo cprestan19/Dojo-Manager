@@ -74,19 +74,7 @@ export async function POST(
     },
   });
 
-  // Rate limit por IP + link (sin ventana de tiempo) — permite hasta 50 registros
-  // desde la misma IP/WiFi para el mismo link, sin importar cuánto tiempo tomen.
-  if (link) {
-    const countByIpAndLink = await prisma.pendingStudent.count({
-      where: { submitterIp: ip, registrationLinkId: link.id },
-    });
-    if (countByIpAndLink >= 50) {
-      return NextResponse.json(
-        { error: "Demasiadas solicitudes. Espera unos minutos antes de intentar de nuevo." },
-        { status: 429, headers: { "Retry-After": "600" } },
-      );
-    }
-  }
+  // Sin rate limit por IP — el link controla el acceso mediante expiración, maxUses e isActive.
 
   const now = new Date();
   const isValid =

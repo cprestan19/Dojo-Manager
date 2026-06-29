@@ -144,10 +144,7 @@ export async function middleware(req: NextRequest) {
     if (!rateLimit(`katas:${ip}`, 30, 60_000)) return tooManyRequests("60");
   }
 
-  // Self-registration form: 50 submissions per IP per 10 minutes — permite registros grupales desde el mismo WiFi del dojo
-  if (pathname.startsWith("/api/public/register/") && req.method === "POST") {
-    if (!rateLimit(`reg-submit:${ip}`, 50, 10 * 60_000)) return tooManyRequests("600");
-  }
+  // Sin rate limit en registro — el link controla el acceso con expiración, maxUses e isActive.
 
   // Tournament public registration: prevent spam
   if (pathname.includes("/api/public/tournaments/") && pathname.endsWith("/register") && req.method === "POST") {
