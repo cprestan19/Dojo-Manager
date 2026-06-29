@@ -92,13 +92,16 @@ export default function RegistrationActivityLog({ linkId }: { linkId?: string })
               <tr className="text-left text-xs text-dojo-muted border-b border-dojo-border">
                 <th className="pb-2 pr-4 font-medium">Fecha / Hora</th>
                 <th className="pb-2 pr-4 font-medium">Evento</th>
-                <th className="pb-2 pr-4 font-medium">Detalle</th>
+                <th className="pb-2 pr-4 font-medium">Nombre</th>
+                <th className="pb-2 pr-4 font-medium">Correo</th>
                 <th className="pb-2 font-medium">IP</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dojo-border/40">
               {events.map(ev => {
                 const d = parseDetails(ev.details);
+                const hasName  = !!(d.fullName);
+                const hasEmail = !!(d.email);
                 return (
                   <tr key={ev.id} className="hover:bg-dojo-card/40 transition-colors">
                     <td className="py-2.5 pr-4 text-xs text-dojo-muted whitespace-nowrap">
@@ -109,27 +112,28 @@ export default function RegistrationActivityLog({ linkId }: { linkId?: string })
                       })}
                     </td>
                     <td className="py-2.5 pr-4 whitespace-nowrap">
-                      <ActionBadge action={ev.action} />
+                      <div className="space-y-0.5">
+                        <ActionBadge action={ev.action} />
+                        {ev.action === "REGISTRATION_LINK_BLOCKED" && d.reason && (
+                          <p className="text-xs text-orange-300">{reasonLabel(d.reason)}</p>
+                        )}
+                        {ev.action === "REGISTRATION_DUPLICATE_BLOCKED" && d.field && (
+                          <p className="text-xs text-red-300">
+                            Campo: {d.field === "cedula" ? `Cédula${d.cedula ? ` (${d.cedula})` : ""}` : "Correo"}
+                          </p>
+                        )}
+                        {ev.action === "REGISTRATION_FORM_VIEWED" && d.reset === "true" && (
+                          <p className="text-xs text-blue-300">Reapertura ?reset=1</p>
+                        )}
+                      </div>
                     </td>
-                    <td className="py-2.5 pr-4">
-                      {ev.action === "REGISTRATION_LINK_BLOCKED" && d.reason && (
-                        <span className="text-xs text-orange-300">{reasonLabel(d.reason)}</span>
-                      )}
-                      {ev.action === "REGISTRATION_DUPLICATE_BLOCKED" && (
-                        <span className="text-xs text-red-300">
-                          {d.fullName ? `${d.fullName} · ` : ""}
-                          Campo: {d.field === "cedula" ? "Cédula" : "Correo"}
-                          {d.cedula ? ` (${d.cedula})` : ""}
-                        </span>
-                      )}
-                      {ev.action === "PENDING_STUDENT_SUBMITTED" && (
-                        <span className="text-xs text-green-300">{d.fullName ?? "—"}</span>
-                      )}
-                      {ev.action === "REGISTRATION_FORM_VIEWED" && d.reset === "true" && (
-                        <span className="text-xs text-blue-300">Reapertura con ?reset=1</span>
-                      )}
+                    <td className="py-2.5 pr-4 text-xs text-dojo-white">
+                      {hasName ? d.fullName : <span className="text-dojo-muted">—</span>}
                     </td>
-                    <td className="py-2.5 text-xs text-dojo-muted font-mono">
+                    <td className="py-2.5 pr-4 text-xs text-dojo-muted">
+                      {hasEmail ? d.email : <span className="text-dojo-muted">—</span>}
+                    </td>
+                    <td className="py-2.5 text-xs text-dojo-muted font-mono whitespace-nowrap">
                       {ev.ip ?? "—"}
                     </td>
                   </tr>

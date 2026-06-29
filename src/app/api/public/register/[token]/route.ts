@@ -142,7 +142,12 @@ export async function POST(
         resourceType: "RegistrationLink",
         resourceId:   link.id,
         ip,
-        details:      JSON.stringify({ field: "cedula", cedula: trimmedCedula, fullName: body.fullName }),
+        details:      JSON.stringify({
+          field:    "cedula",
+          cedula:   trimmedCedula,
+          fullName: body.fullName,
+          email:    trimmedMotherEmail || trimmedFatherEmail || null,
+        }),
       }).catch(() => {});
       return NextResponse.json({ error: msg, field: "cedula" }, { status: 409 });
     }
@@ -178,7 +183,11 @@ export async function POST(
             resourceType: "RegistrationLink",
             resourceId:   link.id,
             ip,
-            details:      JSON.stringify({ field: "email", fullName: body.fullName }),
+            details:      JSON.stringify({
+              field:    "email",
+              fullName: body.fullName,
+              email:    trimmedMotherEmail || trimmedFatherEmail || null,
+            }),
           }).catch(() => {});
           return NextResponse.json({ error: msg, field: "email" }, { status: 409 });
         }
@@ -225,19 +234,24 @@ export async function POST(
       });
     });
 
+    const confirmTo = body.primaryGuardian === "mother" ? trimmedMotherEmail :
+                      body.primaryGuardian === "father" ? trimmedFatherEmail :
+                      trimmedMotherEmail || trimmedFatherEmail;
+
     await logAudit({
       action:       "PENDING_STUDENT_SUBMITTED",
       module:       AUDIT_MODULE.STUDENTS,
       dojoId:       link.dojoId,
       resourceType: "PendingStudent",
       ip,
-      details:      JSON.stringify({ fullName: body.fullName, linkId: link.id }),
+      details:      JSON.stringify({
+        fullName:  body.fullName,
+        email:     confirmTo ?? null,
+        linkId:    link.id,
+      }),
     });
 
     // Enviar email de confirmación al acudiente principal (fire-and-forget)
-    const confirmTo = body.primaryGuardian === "mother" ? trimmedMotherEmail :
-                      body.primaryGuardian === "father" ? trimmedFatherEmail :
-                      trimmedMotherEmail || trimmedFatherEmail;
     if (confirmTo) {
       sendRegistrationConfirmation({
         to:          confirmTo,
