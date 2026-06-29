@@ -15,6 +15,7 @@ export const AUDIT_MODULE = {
   SYSADMIN:    "SYSADMIN",
   TOURNAMENTS: "TOURNAMENTS",
   PORTAL:      "PORTAL",
+  REGISTROS:   "REGISTROS",
 } as const;
 
 export type AuditModule = typeof AUDIT_MODULE[keyof typeof AUDIT_MODULE];

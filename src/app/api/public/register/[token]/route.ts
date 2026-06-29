@@ -78,6 +78,21 @@ export async function POST(
     (link.maxUses == null || link.useCount < link.maxUses);
 
   if (!isValid) {
+    if (link) {
+      const reason = !link.isActive ? "link_inactive"
+        : (link.expiresAt && link.expiresAt < now) ? "link_expired"
+        : (link.maxUses != null && link.useCount >= link.maxUses) ? "max_uses_reached"
+        : "not_activated_yet";
+      logAudit({
+        action:       "REGISTRATION_LINK_BLOCKED",
+        module:       "REGISTROS",
+        dojoId:       link.dojoId,
+        resourceType: "RegistrationLink",
+        resourceId:   link.id,
+        ip,
+        details:      JSON.stringify({ reason }),
+      }).catch(() => {});
+    }
     return NextResponse.json({ ok: true });
   }
 
@@ -120,6 +135,15 @@ export async function POST(
       const msg = cedulaStudent || cedulaPending?.status === "approved"
         ? "Esta cédula ya pertenece a un alumno registrado en este dojo."
         : "Esta cédula ya tiene una solicitud de inscripción pendiente de revisión.";
+      logAudit({
+        action:       "REGISTRATION_DUPLICATE_BLOCKED",
+        module:       "REGISTROS",
+        dojoId:       link.dojoId,
+        resourceType: "RegistrationLink",
+        resourceId:   link.id,
+        ip,
+        details:      JSON.stringify({ field: "cedula", cedula: trimmedCedula, fullName: body.fullName }),
+      }).catch(() => {});
       return NextResponse.json({ error: msg, field: "cedula" }, { status: 409 });
     }
   }
@@ -147,6 +171,15 @@ export async function POST(
           const msg = emailStudent || emailPending?.status === "approved"
             ? "Este correo electrónico ya está asociado a un alumno registrado en este dojo."
             : "Este correo electrónico ya tiene una solicitud de inscripción pendiente de revisión.";
+          logAudit({
+            action:       "REGISTRATION_DUPLICATE_BLOCKED",
+            module:       "REGISTROS",
+            dojoId:       link.dojoId,
+            resourceType: "RegistrationLink",
+            resourceId:   link.id,
+            ip,
+            details:      JSON.stringify({ field: "email", fullName: body.fullName }),
+          }).catch(() => {});
           return NextResponse.json({ error: msg, field: "email" }, { status: 409 });
         }
       }

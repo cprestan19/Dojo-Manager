@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import prisma from "@/lib/prisma";
 import RegistroForm from "./RegistroForm";
+import { logAudit, AUDIT_MODULE } from "@/lib/audit";
 
 interface Props {
   params:      Promise<{ token: string }>;
@@ -16,7 +18,7 @@ export default async function RegistroPage({ params, searchParams }: Props) {
   const link = await prisma.registrationLink.findUnique({
     where:  { token },
     select: {
-      id: true, isActive: true, activatesAt: true, expiresAt: true, maxUses: true, useCount: true,
+      id: true, dojoId: true, isActive: true, activatesAt: true, expiresAt: true, maxUses: true, useCount: true,
       dojo: { select: { name: true, logo: true, contractPolicy: true } },
     },
   });
@@ -48,6 +50,20 @@ export default async function RegistroPage({ params, searchParams }: Props) {
   const dojoLogo       = link.dojo.logo?.startsWith("http") ? link.dojo.logo : null;
   const expiresAt      = link.expiresAt?.toISOString() ?? null;
   const contractPolicy = link.dojo.contractPolicy ?? null;
+
+  // Log form view (fire-and-forget — no bloquea el render)
+  const h = await headers();
+  const viewIp = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "unknown";
+  logAudit({
+    action:       "REGISTRATION_FORM_VIEWED",
+    module:       AUDIT_MODULE.REGISTROS,
+    dojoId:       link.dojoId,
+    resourceType: "RegistrationLink",
+    resourceId:   link.id,
+    ip:           viewIp,
+    userAgent:    h.get("user-agent"),
+    details:      JSON.stringify({ reset: reset === "1" }),
+  }).catch(() => {});
 
   return (
     <main className="min-h-screen bg-dojo-darker flex flex-col items-center justify-start p-4 py-8">

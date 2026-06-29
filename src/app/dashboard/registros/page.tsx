@@ -1,11 +1,14 @@
 "use client";
 import { useState } from "react";
-import { Link2, Users } from "lucide-react";
-import RegistrationLinksManager from "@/components/registros/RegistrationLinksManager";
-import PendingStudentsQueue     from "@/components/registros/PendingStudentsQueue";
+import { Link2, Users, Activity } from "lucide-react";
+import RegistrationLinksManager  from "@/components/registros/RegistrationLinksManager";
+import PendingStudentsQueue       from "@/components/registros/PendingStudentsQueue";
+import RegistrationActivityLog    from "@/components/registros/RegistrationActivityLog";
+
+type Tab = "queue" | "links" | "activity";
 
 export default function RegistrosPage() {
-  const [tab, setTab]       = useState<"links" | "queue">("queue");
+  const [tab, setTab]         = useState<Tab>("queue");
   const [pending, setPending] = useState(0);
 
   return (
@@ -18,7 +21,7 @@ export default function RegistrosPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-dojo-darker p-1 rounded-lg w-fit">
+      <div className="flex gap-1 bg-dojo-darker p-1 rounded-lg w-fit flex-wrap">
         <button
           onClick={() => setTab("queue")}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -40,14 +43,20 @@ export default function RegistrosPage() {
           <Link2 size={14} />
           Mis enlaces
         </button>
+        <button
+          onClick={() => setTab("activity")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            tab === "activity" ? "bg-dojo-card text-dojo-white shadow-sm" : "text-dojo-muted hover:text-dojo-white"
+          }`}
+        >
+          <Activity size={14} />
+          Actividad
+        </button>
       </div>
 
-      {tab === "queue" && (
-        <PendingStudentsQueue onCountChange={setPending} />
-      )}
-      {tab === "links" && (
-        <RegistrationLinksManager />
-      )}
+      {tab === "queue"    && <PendingStudentsQueue onCountChange={setPending} />}
+      {tab === "links"    && <RegistrationLinksManager />}
+      {tab === "activity" && <RegistrationActivityLog />}
     </div>
   );
 }
