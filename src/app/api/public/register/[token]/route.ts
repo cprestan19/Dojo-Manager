@@ -4,7 +4,9 @@ import prisma from "@/lib/prisma";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
 import { sendRegistrationConfirmation } from "@/lib/email";
 
-const GENERIC_ERROR = "No se pudo procesar la solicitud. Verifica el enlace e intenta de nuevo.";
+const ERR_LINK_UNAVAILABLE = "Este enlace de inscripción ya no está disponible. Contacta al dojo para obtener un nuevo enlace.";
+const ERR_INVALID_DATA     = "Los datos enviados son inválidos. Revisa el formulario e intenta de nuevo.";
+const ERR_SAVE_FAILED      = "Ocurrió un error al guardar tu solicitud. Por favor intenta de nuevo en unos minutos o contacta al dojo.";
 
 const LOWER_PARTICLES = new Set(["de", "del", "la", "las", "los", "y", "e", "van", "von", "o"]);
 function toTitleCase(str: string): string {
@@ -93,15 +95,16 @@ export async function POST(
         details:      JSON.stringify({ reason }),
       }).catch(() => {});
     }
-    return NextResponse.json({ ok: true });
+    // Retornar error real — nunca mostrar "éxito" si no se guardó nada
+    return NextResponse.json({ error: ERR_LINK_UNAVAILABLE }, { status: 410 });
   }
 
   const raw = await req.json().catch(() => null);
-  if (!raw) return NextResponse.json({ error: GENERIC_ERROR }, { status: 400 });
+  if (!raw) return NextResponse.json({ error: ERR_INVALID_DATA }, { status: 400 });
 
   const parsed = RegisterSchema.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json({ error: GENERIC_ERROR }, { status: 400 });
+    return NextResponse.json({ error: ERR_INVALID_DATA }, { status: 400 });
   }
 
   const body = parsed.data;
@@ -273,6 +276,6 @@ export async function POST(
     return res;
   } catch (err) {
     console.error("POST /api/public/register error:", err);
-    return NextResponse.json({ error: GENERIC_ERROR }, { status: 500 });
+    return NextResponse.json({ error: ERR_SAVE_FAILED }, { status: 500 });
   }
 }
