@@ -52,6 +52,7 @@ type FormData = {
   address: string; photo: string;
   hasSiblingInDojo: boolean;
   primaryGuardian: "" | "mother" | "father";
+  honeypot: string;
 };
 
 type FieldErrors = Partial<Record<keyof FormData, string>>;
@@ -66,6 +67,7 @@ const INIT: FormData = {
   address: "", photo: "",
   hasSiblingInDojo: false,
   primaryGuardian: "",
+  honeypot: "",
 };
 
 function Section({ title, open, toggle, hasError, children }: {
@@ -439,6 +441,17 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
       />
     )}
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Campo trampa para bots — invisible para humanos, los bots lo rellenan */}
+      <input
+        type="text"
+        name="website"
+        value={form.honeypot}
+        onChange={e => set("honeypot", e.target.value)}
+        autoComplete="off"
+        tabIndex={-1}
+        aria-hidden="true"
+        style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }}
+      />
       <p className="text-xs text-dojo-muted">
         Los campos marcados con <span className="text-dojo-red font-bold">*</span> son obligatorios.
       </p>

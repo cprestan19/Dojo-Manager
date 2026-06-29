@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
 import { sendRegistrationConfirmation } from "@/lib/email";
+import { validateBase64Image } from "@/lib/file-validation";
 
 const ERR_LINK_UNAVAILABLE = "Este enlace de inscripción ya no está disponible. Contacta al dojo para obtener un nuevo enlace.";
 const ERR_INVALID_DATA     = "Los datos enviados son inválidos. Revisa el formulario e intenta de nuevo.";
@@ -46,6 +47,8 @@ const RegisterSchema = z.object({
   photo:            z.string().max(6_800_000).optional().nullable(), // ~5 MB como base64
   hasSiblingInDojo: z.boolean().optional().default(false),
   primaryGuardian:  z.enum(["mother", "father"]).optional().nullable(),
+  // Campo trampa para detección de bots — debe llegar vacío. No exponer en errores.
+  honeypot: z.string().optional().default(""),
 });
 
 function getIp(req: NextRequest): string {
@@ -62,6 +65,21 @@ export async function POST(
 ) {
   const { token } = await params;
   const ip = getIp(req);
+
+  // Rate limit respaldado en BD — robusto en entornos serverless multi-instancia.
+  // El middleware tiene un rate limit en memoria como primera capa; este es la capa confiable.
+  const recentByIp = await prisma.pendingStudent.count({
+    where: {
+      submitterIp: ip,
+      submittedAt: { gte: new Date(Date.now() - 10 * 60 * 1000) },
+    },
+  });
+  if (recentByIp >= 3) {
+    return NextResponse.json(
+      { error: "Demasiadas solicitudes. Espera unos minutos antes de intentar de nuevo." },
+      { status: 429, headers: { "Retry-After": "600" } },
+    );
+  }
 
   const link = await prisma.registrationLink.findUnique({
     where:  { token },
@@ -108,6 +126,28 @@ export async function POST(
   }
 
   const body = parsed.data;
+
+  // Honeypot: bots rellenan campos ocultos, humanos no.
+  // Respuesta exitosa silenciosa para no revelar la existencia del mecanismo.
+  if (body.honeypot) {
+    return NextResponse.json({ ok: true });
+  }
+
+  // Validar magic bytes de la foto — rechaza archivos maliciosos disfrazados de imagen
+  if (body.photo) {
+    if (!validateBase64Image(body.photo)) {
+      logAudit({
+        action:       "REGISTRATION_MALICIOUS_FILE_BLOCKED",
+        module:       "REGISTROS",
+        dojoId:       link.dojoId,
+        resourceType: "RegistrationLink",
+        resourceId:   link.id,
+        ip,
+        details:      JSON.stringify({ reason: "invalid_magic_bytes" }),
+      }).catch(() => {});
+      return NextResponse.json({ error: ERR_INVALID_DATA }, { status: 400 });
+    }
+  }
 
   // Normalizar nombres con capitalización correcta en español
   const fullNameTrimmed = toTitleCase(body.fullName);

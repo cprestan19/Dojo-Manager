@@ -1284,6 +1284,7 @@ model PendingStudent {
   rejectionNote String?   @map("rejection_note")
   submittedAt   DateTime  @default(now()) @map("submitted_at")
   submitterIp   String?   @map("submitter_ip")
+  resetToken    String?   @unique @map("reset_token") // token de un solo uso para re-envío autorizado por admin
 
   @@index([dojoId, status])
   @@index([registrationLinkId])

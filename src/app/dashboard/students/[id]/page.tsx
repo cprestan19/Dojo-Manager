@@ -43,6 +43,7 @@ interface Student {
   motherName: string | null; motherPhone: string | null; motherEmail: string | null;
   fatherName: string | null; fatherPhone: string | null; fatherEmail: string | null;
   address: string | null;
+  primaryGuardian: string | null;
   familyId: string | null;
   active: boolean;
   portalUser: { id: string; active: boolean; email: string } | null;
@@ -1145,7 +1146,12 @@ export default function StudentDetailPage() {
             <div className="space-y-3 text-sm">
               {student.motherName && (
                 <div>
-                  <p className="text-xs text-dojo-muted mb-0.5">Madre</p>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-xs text-dojo-muted">Madre</p>
+                    {student.primaryGuardian === "mother" && (
+                      <span className="badge-gold text-[10px] px-1.5 py-0 leading-4">Acudiente Principal</span>
+                    )}
+                  </div>
                   <p className="font-semibold text-dojo-white">{student.motherName}</p>
                   {student.motherPhone && <p className="text-dojo-muted">{student.motherPhone}</p>}
                   {student.motherEmail && <p className="text-dojo-muted text-xs">{student.motherEmail}</p>}
@@ -1153,7 +1159,12 @@ export default function StudentDetailPage() {
               )}
               {student.fatherName && (
                 <div>
-                  <p className="text-xs text-dojo-muted mb-0.5">Padre</p>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-xs text-dojo-muted">Padre</p>
+                    {student.primaryGuardian === "father" && (
+                      <span className="badge-gold text-[10px] px-1.5 py-0 leading-4">Acudiente Principal</span>
+                    )}
+                  </div>
                   <p className="font-semibold text-dojo-white">{student.fatherName}</p>
                   {student.fatherPhone && <p className="text-dojo-muted">{student.fatherPhone}</p>}
                   {student.fatherEmail && <p className="text-dojo-muted text-xs">{student.fatherEmail}</p>}

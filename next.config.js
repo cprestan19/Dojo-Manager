@@ -42,7 +42,7 @@ const nextConfig = {
       { protocol: "https", hostname: "res.cloudinary.com" },
       { protocol: "https", hostname: "api.dicebear.com" },
     ],
-    dangerouslyAllowSVG: true,
+    dangerouslyAllowSVG: false,
   },
 
   // Packages with native Node.js APIs — exclude from webpack bundling

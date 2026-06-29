@@ -40,6 +40,7 @@ interface FormData {
   fatherName: string;
   fatherPhone: string;
   fatherEmail: string;
+  primaryGuardian: string;
   address: string;
   inscription: InscriptionData;
 }
@@ -98,6 +99,7 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
       fatherName:  defaultValues?.fatherName  ?? "",
       fatherPhone: defaultValues?.fatherPhone ?? "",
       fatherEmail: defaultValues?.fatherEmail ?? "",
+      primaryGuardian: defaultValues?.primaryGuardian ?? "",
       address: defaultValues?.address ?? "",
       inscription: {
         inscriptionDate:  defaultValues?.inscription?.inscriptionDate
@@ -596,6 +598,28 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
                 <input type="email" {...register("fatherEmail")} className="form-input" placeholder="padre@email.com" />
               </div>
             </div>
+          </div>
+
+          {/* Acudiente Principal */}
+          <div>
+            <p className="text-xs font-bold text-dojo-muted uppercase tracking-widest mb-3 flex items-center gap-2">
+              <span className="w-4 h-px bg-dojo-border inline-block" /> Acudiente Principal (acceso al portal)
+            </p>
+            <div className="flex gap-4 flex-wrap">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value="mother" {...register("primaryGuardian")} className="accent-dojo-gold" />
+                <span className="text-sm text-dojo-white">Madre / Tutora</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value="father" {...register("primaryGuardian")} className="accent-dojo-gold" />
+                <span className="text-sm text-dojo-white">Padre / Tutor</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value="" {...register("primaryGuardian")} className="accent-dojo-gold" />
+                <span className="text-sm text-dojo-muted">Sin definir</span>
+              </label>
+            </div>
+            <p className="text-xs text-dojo-muted mt-1">El correo del acudiente principal se usa para el acceso al portal del alumno.</p>
           </div>
 
           {/* Dirección */}

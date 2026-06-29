@@ -7,13 +7,16 @@ import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-contex
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { formatStudentName } from "@/lib/utils";
 import { uploadBuffer } from "@/lib/cloudinary";
+import { validateBase64Image } from "@/lib/file-validation";
 
-/** Sube un base64 de foto a Cloudinary. Retorna la URL o null si falla. */
+/** Sube un base64 de foto a Cloudinary. Retorna la URL o null si falla o el contenido es inválido. */
 async function uploadBase64Photo(base64: string, dojoId: string): Promise<string | null> {
   try {
-    const [header, b64data] = base64.split(",");
+    // Validar magic bytes antes de subir — rechaza archivos maliciosos disfrazados de imagen
+    if (!validateBase64Image(base64)) return null;
+    const commaIdx = base64.indexOf(",");
+    const b64data  = commaIdx >= 0 ? base64.slice(commaIdx + 1) : base64;
     if (!b64data) return null;
-    const mime = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
     const buffer = Buffer.from(b64data, "base64");
     const folder = `dojo-manager/${dojoId}/students`;
     const result = await uploadBuffer(buffer, folder, "image");

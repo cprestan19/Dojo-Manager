@@ -21,6 +21,63 @@ export async function GET( req: NextRequest, { params }: Params) {
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
+  const isPrivileged = role === "admin" || role === "sysadmin";
+
+  if (!isPrivileged) {
+    // Roles no privilegiados: sin PII, sin datos de salud, sin contactos privados, sin montos
+    const student = await prisma.student.findUnique({
+      where: { id, dojoId },
+      include: {
+        portalUser: { select: { id: true, active: true } },
+        beltHistory: {
+          orderBy: { changeDate: "desc" },
+          take: 50,
+          select: {
+            id: true, beltColor: true, changeDate: true, isRanking: true, notes: true,
+            kataIds: true,
+            kata: { select: { id: true, name: true, beltColor: true } },
+          },
+        },
+        kataCompetitions: {
+          orderBy: { date: "desc" },
+          take: 50,
+          include: { kata: { select: { id: true, name: true } } },
+        },
+        dojo: { select: { name: true, slug: true } },
+        payments: {
+          orderBy: { dueDate: "desc" },
+          take: 24,
+          select: {
+            id: true, type: true, status: true,
+            dueDate: true, paidDate: true, reminderSent: true, createdAt: true,
+          },
+        },
+      },
+    });
+    if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+    // Retornar solo campos seguros — excluye cédula, salud, contactos y datos financieros
+    return NextResponse.json({
+      id:               student.id,
+      fullName:         student.fullName,
+      firstName:        student.firstName,
+      lastName:         student.lastName,
+      birthDate:        student.birthDate,
+      gender:           student.gender,
+      nationality:      student.nationality,
+      active:           student.active,
+      photo:            student.photo,
+      studentCode:      student.studentCode,
+      familyId:         student.familyId,
+      attendanceStatus: student.attendanceStatus,
+      portalUser:       student.portalUser,
+      beltHistory:      student.beltHistory,
+      kataCompetitions: student.kataCompetitions,
+      dojo:             student.dojo,
+      payments:         student.payments,
+    });
+  }
+
+  // Admin / sysadmin: datos completos
   const student = await prisma.student.findUnique({
     where: { id, dojoId },
     include: {
@@ -114,6 +171,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
         fatherName:          body.fatherName ?? null,
         fatherPhone:         body.fatherPhone ?? null,
         fatherEmail:         body.fatherEmail ?? null,
+        primaryGuardian:     body.primaryGuardian || null,
         address:             body.address ?? null,
         active:              body.active ?? true,
       },

@@ -57,6 +57,7 @@ export async function POST(
           reviewedBy:    reviewerId,
           reviewedAt:    new Date(),
           rejectionNote: note || null,
+          photo:         null, // Borrar foto biométrica del menor al rechazar
         },
       }),
       // Liberar el cupo del link para que el acudiente pueda volver a enviar
