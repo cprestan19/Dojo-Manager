@@ -165,6 +165,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
     if (!form.gender)             e.gender      = "Selecciona el género.";
     const effectiveNationality = form.nationality === "Otra" ? customNationality.trim() : form.nationality;
     if (!effectiveNationality) e.nationality = "La nacionalidad es obligatoria.";
+    if (!form.cedula.trim())      e.cedula      = "La cédula / documento de identidad es obligatorio.";
     // Contacto obligatorio: al menos un correo de madre o padre
     const motherEmail = form.motherEmail.trim();
     const fatherEmail = form.fatherEmail.trim();
@@ -180,7 +181,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
     return e;
   }
 
-  const personalErrorKeys: (keyof FormData)[] = ["fullName","birthDate","gender","nationality"];
+  const personalErrorKeys: (keyof FormData)[] = ["fullName","birthDate","gender","nationality","cedula"];
   const hasPersonalError  = (errs: FieldErrors) => personalErrorKeys.some(k => errs[k]);
   const contactErrorKeys:  (keyof FormData)[] = ["primaryGuardian","motherEmail","fatherEmail"];
   const hasContactError   = (errs: FieldErrors) => contactErrorKeys.some(k => errs[k]);
@@ -536,9 +537,9 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
             />
           )}
         </Field>
-        <Field label="Cédula / Documento" error={errors.cedula}>
+        <Field label="Cédula / Documento de identidad" required error={errors.cedula}>
           <input className={inputCls(errors.cedula)} value={form.cedula}
-            onChange={e => { set("cedula", e.target.value); clearError("cedula"); }} placeholder="Opcional" maxLength={30} />
+            onChange={e => { set("cedula", e.target.value); clearError("cedula"); }} placeholder="Ej: 8-123-456" maxLength={30} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="ID FEPAKA">

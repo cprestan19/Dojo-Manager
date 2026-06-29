@@ -24,7 +24,7 @@ const RegisterSchema = z.object({
   birthDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
   gender:      z.enum(["M", "F"]),
   nationality: z.string().min(2).max(100),
-  cedula:      z.string().max(30).optional().nullable(),
+  cedula:      z.string().min(1, "La cédula es obligatoria").max(30),
   fepakaId:    z.string().max(15).optional().nullable(),
   ryoBukaiId:  z.string().max(15).optional().nullable(),
 
@@ -200,7 +200,7 @@ export async function POST(
           birthDate:          new Date(body.birthDate),
           gender:             body.gender,
           nationality:        toTitleCase(body.nationality.trim()),
-          cedula:             body.cedula        || null,
+          cedula:             body.cedula.trim(),
           fepakaId:           body.fepakaId     ? body.fepakaId.toUpperCase()    : null,
           ryoBukaiId:         body.ryoBukaiId   ? body.ryoBukaiId.toUpperCase()  : null,
           bloodType:          body.bloodType    || null,
