@@ -508,6 +508,26 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
               }}>DISCIPLINA · RESPETO · CONSTANCIA</div>
             </div>
 
+            {/* ── Logo overlay (sobre todo, z=10) ──────────────────────── */}
+            {customLayout?.logoOverlay?.visible && customLayout.logoOverlay.url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={customLayout.logoOverlay.url}
+                alt="Logo"
+                crossOrigin="anonymous"
+                style={{
+                  position: "absolute",
+                  left:   customLayout.logoOverlay.x,
+                  top:    customLayout.logoOverlay.y,
+                  width:  customLayout.logoOverlay.width,
+                  height: "auto",
+                  objectFit: "contain",
+                  zIndex: 10,
+                  pointerEvents: "none",
+                }}
+              />
+            )}
+
           </div>{/* fin card */}
         </div>{/* fin scale */}
       </div>{/* fin wrapper */}

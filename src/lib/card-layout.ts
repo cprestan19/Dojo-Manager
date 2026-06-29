@@ -101,6 +101,14 @@ export interface CardContactLayout {
   width: number;
 }
 
+export interface CardLogoOverlayLayout {
+  url:     string;   // URL Cloudinary — vacío = sin logo
+  x:       number;
+  y:       number;
+  width:   number;   // ancho en px (mantiene aspect ratio)
+  visible: boolean;
+}
+
 export interface CardLayout {
   preset:       CardPreset;
   photo:        CardPhotoLayout;
@@ -111,6 +119,7 @@ export interface CardLayout {
   footer:       CardFooterLayout;
   contact:      CardContactLayout;
   contactColor: string;
+  logoOverlay:  CardLogoOverlayLayout;
 }
 
 // ── Valores por defecto ───────────────────────────────────────────────────────
@@ -129,6 +138,7 @@ export const DEFAULT_CARD_LAYOUT: CardLayout = {
   footer:  { y: 940, background: "#000000" },
   contact: { x: 476, y: 624, width: 158 }, // 128+340+8=476, 638-476-4=158
   contactColor: "#000000",
+  logoOverlay: { url: "", x: 20, y: 20, width: 120, visible: false },
 };
 
 export const DEFAULT_LANDSCAPE_LAYOUT: CardLayout = {
@@ -146,6 +156,7 @@ export const DEFAULT_LANDSCAPE_LAYOUT: CardLayout = {
   footer:  { y: 590, background: "#000000" },
   contact: { x: 220, y: 390, width: 120 }, // 10+200+10=220
   contactColor: "#000000",
+  logoOverlay: { url: "", x: 20, y: 20, width: 120, visible: false },
 };
 
 // ── Parse desde DB con deep-merge a defaults (backward compatible) ─────────────
@@ -161,6 +172,7 @@ export function parseCardLayout(raw: unknown): CardLayout | null {
     const sl = (r.slogan  && typeof r.slogan  === "object") ? r.slogan  as Record<string, unknown> : {};
     const ft = (r.footer  && typeof r.footer  === "object") ? r.footer  as Record<string, unknown> : {};
     const ct = (r.contact && typeof r.contact === "object") ? r.contact as Record<string, unknown> : {};
+    const lo = (r.logoOverlay && typeof r.logoOverlay === "object") ? r.logoOverlay as Record<string, unknown> : {};
     const n  = (v: unknown): v is number  => typeof v === "number";
     const s  = (v: unknown): v is string  => typeof v === "string";
     const b  = (v: unknown): v is boolean => typeof v === "boolean";
@@ -218,6 +230,13 @@ export function parseCardLayout(raw: unknown): CardLayout | null {
         width: n(ct.width) ? ct.width : d.contact.width,
       },
       contactColor: s(r.contactColor) ? r.contactColor : d.contactColor,
+      logoOverlay: {
+        url:     s(lo.url)     ? lo.url     : d.logoOverlay.url,
+        x:       n(lo.x)       ? lo.x       : d.logoOverlay.x,
+        y:       n(lo.y)       ? lo.y       : d.logoOverlay.y,
+        width:   n(lo.width)   ? lo.width   : d.logoOverlay.width,
+        visible: b(lo.visible) ? lo.visible : d.logoOverlay.visible,
+      },
     };
   } catch {
     return null;

@@ -21,6 +21,7 @@ type DragTarget =
   | "qr"    | "qr-se"      // QR: mover X+Y + resize esquina inferior-derecha
   | "contact"              // columna de contacto: arrastrar para ajustar ancho del QR
   | "name" | "team" | "footer"
+  | "logo" | "logo-se"     // logo overlay: mover + resize esquina inferior-derecha
   | null;
 
 // ── Hit detection (función pura) ──────────────────────────────────────────────
@@ -42,6 +43,17 @@ function getHitElement(
   const qrSeX = qr.x + qr.w;
   const qrSeY = qr.y + qr.height;
   if (Math.abs(mx - qrSeX) <= HANDLE_R && Math.abs(my - qrSeY) <= HANDLE_R) return "qr-se";
+
+  // ── Logo overlay resize ───────────────────────────────────────────────
+  const lo = layout.logoOverlay;
+  if (lo.visible && lo.url) {
+    // aspect ratio 1:1 approx para hit detection del resize
+    const loH = lo.width; // square handle area
+    const loSeX = lo.x + lo.width;
+    const loSeY = lo.y + loH;
+    if (Math.abs(mx - loSeX) <= HANDLE_R && Math.abs(my - loSeY) <= HANDLE_R) return "logo-se";
+    if (mx >= lo.x - 10 && mx <= lo.x + lo.width + 10 && my >= lo.y - 10 && my <= lo.y + loH + 10) return "logo";
+  }
 
   // ── Foto (hit circular) ───────────────────────────────────────────────
   const photoCX = ph.x + ph.diameter / 2;
@@ -161,14 +173,14 @@ function CardPreview({
 
   // Cursor dinámico
   const cursor = draggingEl
-    ? (draggingEl === "photo-se" || draggingEl === "qr-se") ? "nwse-resize"
+    ? (draggingEl === "photo-se" || draggingEl === "qr-se" || draggingEl === "logo-se") ? "nwse-resize"
       : draggingEl === "photo" ? "grabbing"
-      : draggingEl === "qr" ? "move"
+      : (draggingEl === "qr" || draggingEl === "logo") ? "move"
       : draggingEl === "contact" ? "ew-resize"
       : "ns-resize"
-    : hoverEl === "photo-se" || hoverEl === "qr-se" ? "nwse-resize"
+    : (hoverEl === "photo-se" || hoverEl === "qr-se" || hoverEl === "logo-se") ? "nwse-resize"
     : hoverEl === "photo" ? "grab"
-    : hoverEl === "qr" ? "move"
+    : (hoverEl === "qr" || hoverEl === "logo") ? "move"
     : hoverEl === "contact" ? "ew-resize"
     : hoverEl ? "ns-resize"
     : "default";
@@ -552,6 +564,63 @@ function CardPreview({
               }} />
             )}
 
+            {/* ── Logo overlay ──────────────────────────────────── */}
+            {layout.logoOverlay.visible && layout.logoOverlay.url && (() => {
+              const lg = layout.logoOverlay;
+              const isActive = hoverEl === "logo" || hoverEl === "logo-se" || draggingEl === "logo" || draggingEl === "logo-se";
+              return (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={lg.url}
+                    alt="Logo"
+                    style={{
+                      position: "absolute",
+                      left: lg.x, top: lg.y,
+                      width: lg.width,
+                      height: "auto",
+                      objectFit: "contain",
+                      zIndex: 9,
+                      pointerEvents: "none",
+                      userSelect: "none",
+                    }}
+                  />
+                  {isActive && (
+                    <div style={{
+                      position: "absolute",
+                      left: lg.x - 3, top: lg.y - 3,
+                      width: lg.width + 6,
+                      height: lg.width + 6,
+                      border: "2px dashed rgba(250,204,21,0.85)",
+                      borderRadius: 6,
+                      zIndex: 19, pointerEvents: "none",
+                    }}>
+                      <span style={{
+                        position: "absolute", top: -14, left: 4,
+                        fontSize: 9, color: "rgba(250,204,21,0.95)",
+                        background: "rgba(0,0,0,0.6)", padding: "1px 4px", borderRadius: 3,
+                        fontFamily: "monospace", whiteSpace: "nowrap",
+                      }}>&#8596;&#8597; LOGO — X:{lg.x} Y:{lg.y} W:{lg.width}</span>
+                    </div>
+                  )}
+                  {isActive && (
+                    <div style={{
+                      position: "absolute",
+                      left: lg.x + lg.width - 10,
+                      top:  lg.y + lg.width - 10,
+                      width: 20, height: 20,
+                      background: "#EAB308",
+                      border: "2px solid #fff",
+                      borderRadius: 4,
+                      zIndex: 25,
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+                      cursor: "nwse-resize",
+                    }} />
+                  )}
+                </>
+              );
+            })()}
+
             {/* ── Badge de coordenadas en tiempo real ──────────────────── */}
             {draggingEl && dragCoords && (
               <div style={{
@@ -562,6 +631,7 @@ function CardPreview({
               }}>
                 {draggingEl === "photo-se" ? `⌀ ${dragCoords.y}` :
                  draggingEl === "qr-se"   ? `W:${dragCoords.x} H:${dragCoords.y}` :
+                 draggingEl === "logo-se" ? `W:${dragCoords.x}` :
                  dragCoords.x !== undefined ? `X:${dragCoords.x} Y:${dragCoords.y}` :
                  `Y:${dragCoords.y}`}
               </div>
@@ -716,8 +786,11 @@ export default function CardTemplatePage() {
   const dragOffsetY   = useRef(0);
 
   const tplFileRef      = useRef<HTMLInputElement>(null);
+  const logoFileRef     = useRef<HTMLInputElement>(null);
   const previewRef      = useRef<HTMLDivElement>(null);
   const previewScaleRef = useRef(0.44);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError,     setLogoError]     = useState("");
 
   // Ref del índice de tab actual (0-based) para uso seguro en useCallback de drag
   const currentTabRef = useRef(0);
@@ -814,6 +887,44 @@ export default function CardTemplatePage() {
     }
   }
 
+  // ── Subir logo overlay ────────────────────────────────────────────────────
+  async function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert("El archivo supera 5 MB"); return; }
+    const tabAtStart = currentTab;
+    setLogoError(""); setLogoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "image");
+      fd.append("purpose", "card-logo");
+      const res  = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok) {
+        const idx = tabAtStart - 1;
+        setSlots(prev => {
+          const next = [...prev] as [CardSlot, CardSlot, CardSlot];
+          next[idx] = {
+            ...next[idx],
+            layout: {
+              ...next[idx].layout,
+              logoOverlay: { ...next[idx].layout.logoOverlay, url: data.url, visible: true },
+            },
+          };
+          return next;
+        });
+      } else {
+        setLogoError(data.error ?? "Error al subir el logo");
+      }
+    } catch {
+      setLogoError("Error de conexión");
+    } finally {
+      setLogoUploading(false);
+      if (logoFileRef.current) logoFileRef.current.value = "";
+    }
+  }
+
   // ── Guardar todo ──────────────────────────────────────────────────────────
   async function handleSave() {
     setSaving(true); setSaved(false);
@@ -874,8 +985,11 @@ export default function CardTemplatePage() {
     } else if (hit === "contact") {
       dragOffsetX.current = mx - layout.contact.x;
       dragOffsetY.current = my - layout.contact.y;
+    } else if (hit === "logo") {
+      dragOffsetX.current = mx - layout.logoOverlay.x;
+      dragOffsetY.current = my - layout.logoOverlay.y;
     }
-    // photo-se y qr-se: sin offset, usan posición raw del mouse
+    // photo-se, qr-se, logo-se: sin offset, usan posición raw del mouse
     e.preventDefault();
   }, [layout]);
 
@@ -967,6 +1081,20 @@ export default function CardTemplatePage() {
       const newY   = Math.max(0, Math.min(dCH - 50, Math.round(rawY)));
       setDragCoords({ x: newX, y: newY });
       dragUpdate(s => ({ ...s, layout: { ...s.layout, contact: { ...s.layout.contact, x: newX, y: newY } } }));
+
+    } else if (hit === "logo") {
+      const rawX = mx - dragOffsetX.current;
+      const rawY = my - dragOffsetY.current;
+      const lg   = layout.logoOverlay;
+      const newX = Math.max(0, Math.min(dCW - lg.width, Math.round(rawX)));
+      const newY = Math.max(0, Math.min(dCH - lg.width, Math.round(rawY)));
+      setDragCoords({ x: newX, y: newY });
+      dragUpdate(s => ({ ...s, layout: { ...s.layout, logoOverlay: { ...s.layout.logoOverlay, x: newX, y: newY } } }));
+
+    } else if (hit === "logo-se") {
+      const newW = Math.max(40, Math.min(dCW, Math.round(mx - layout.logoOverlay.x)));
+      setDragCoords({ x: newW, y: newW });
+      dragUpdate(s => ({ ...s, layout: { ...s.layout, logoOverlay: { ...s.layout.logoOverlay, width: newW } } }));
     }
   }, [layout, snapCenter]);
 
@@ -997,6 +1125,9 @@ export default function CardTemplatePage() {
   }
   function updateContact(key: keyof CardLayout["contact"], value: number) {
     updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, contact: { ...s.layout.contact, [key]: value } as CardLayout["contact"] } }));
+  }
+  function updateLogo(patch: Partial<CardLayout["logoOverlay"]>) {
+    updateCurrentSlot(s => ({ ...s, layout: { ...s.layout, logoOverlay: { ...s.layout.logoOverlay, ...patch } } }));
   }
 
   if (loading) {
@@ -1490,7 +1621,68 @@ export default function CardTemplatePage() {
             />
           </CollapsibleSection>
 
-          {/* 8. Acudiente / Contacto */}
+          {/* 8. Logo del Dojo (overlay) */}
+          <CollapsibleSection title="Logo del Dojo" icon={ImageIcon} defaultOpen={false} hint="Arrastrar en preview">
+            <ToggleRow
+              label="Mostrar logo en el carnet"
+              checked={layout.logoOverlay.visible}
+              onChange={v => updateLogo({ visible: v })}
+            />
+            <div className="flex gap-3 flex-wrap">
+              <button
+                onClick={() => !logoUploading && logoFileRef.current?.click()}
+                disabled={logoUploading}
+                className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-60"
+              >
+                {logoUploading
+                  ? <><Loader2 size={14} className="animate-spin" /> Subiendo...</>
+                  : <><Upload size={14} /> {layout.logoOverlay.url ? "Cambiar logo" : "Subir logo"}</>
+                }
+              </button>
+              {layout.logoOverlay.url && !logoUploading && (
+                <button
+                  onClick={() => updateLogo({ url: "", visible: false })}
+                  className="btn-ghost text-red-400 hover:text-red-300 flex items-center gap-1.5 text-sm"
+                >
+                  <Trash2 size={14} /> Eliminar
+                </button>
+              )}
+            </div>
+            {logoError && <p className="text-xs text-red-400">{logoError}</p>}
+            {layout.logoOverlay.url && <p className="text-xs text-green-400">&#10003; Logo cargado</p>}
+            <input
+              ref={logoFileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/svg+xml"
+              className="hidden"
+              onChange={handleLogoFileChange}
+            />
+            {layout.logoOverlay.visible && layout.logoOverlay.url && (
+              <>
+                <SliderRow
+                  label="Posición X"
+                  value={layout.logoOverlay.x}
+                  min={0} max={CW - layout.logoOverlay.width}
+                  onChange={v => updateLogo({ x: v })}
+                />
+                <SliderRow
+                  label="Posición Y"
+                  value={layout.logoOverlay.y}
+                  min={0} max={CH - layout.logoOverlay.width}
+                  onChange={v => updateLogo({ y: v })}
+                />
+                <SliderRow
+                  label="Tamaño (ancho)"
+                  value={layout.logoOverlay.width}
+                  min={40} max={400}
+                  onChange={v => updateLogo({ width: v })}
+                />
+                <p className="text-[10px] text-dojo-muted">Arrastra el logo en el preview para posicionarlo. El handle amarillo &#9632; redimensiona.</p>
+              </>
+            )}
+          </CollapsibleSection>
+
+          {/* 9. Acudiente / Contacto */}
           <CollapsibleSection title="Acudiente / Contacto" icon={Palette}>
             <ColorRow
               label="Color del texto"
