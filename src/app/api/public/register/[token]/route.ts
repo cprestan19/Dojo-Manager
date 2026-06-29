@@ -310,7 +310,7 @@ export async function POST(
       httpOnly: true,
       secure:   process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge:   365 * 24 * 60 * 60, // 1 año
+      maxAge:   30 * 24 * 60 * 60, // 30 días
       path:     "/",
     });
     return res;

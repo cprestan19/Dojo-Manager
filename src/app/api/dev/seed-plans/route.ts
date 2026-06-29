@@ -59,6 +59,10 @@ const PLANS = [
 ];
 
 export async function POST(req: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const secret = req.headers.get("x-seed-secret");
   if (secret !== SECRET) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
