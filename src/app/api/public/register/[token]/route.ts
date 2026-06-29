@@ -74,7 +74,7 @@ export async function POST(
       submittedAt: { gte: new Date(Date.now() - 10 * 60 * 1000) },
     },
   });
-  if (recentByIp >= 3) {
+  if (recentByIp >= 20) {
     return NextResponse.json(
       { error: "Demasiadas solicitudes. Espera unos minutos antes de intentar de nuevo." },
       { status: 429, headers: { "Retry-After": "600" } },
