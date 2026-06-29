@@ -247,7 +247,16 @@ export async function POST(
       }).catch(err => console.error("[registro] Confirmation email failed:", err));
     }
 
-    return NextResponse.json({ ok: true });
+    // Cookie de bloqueo: evita reenvío desde el mismo navegador
+    const res = NextResponse.json({ ok: true });
+    res.cookies.set(`reg-${token}`, "1", {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge:   365 * 24 * 60 * 60, // 1 año
+      path:     "/",
+    });
+    return res;
   } catch (err) {
     console.error("POST /api/public/register error:", err);
     return NextResponse.json({ error: GENERIC_ERROR }, { status: 500 });

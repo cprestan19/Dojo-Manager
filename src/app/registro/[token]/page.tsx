@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import RegistroForm from "./RegistroForm";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
@@ -51,6 +51,10 @@ export default async function RegistroPage({ params, searchParams }: Props) {
   const expiresAt      = link.expiresAt?.toISOString() ?? null;
   const contractPolicy = link.dojo.contractPolicy ?? null;
 
+  // Cookie de bloqueo: si el usuario ya envió desde este navegador, mostrar pantalla de "ya enviaste"
+  const c = await cookies();
+  const alreadySubmitted = reset !== "1" && !!c.get(`reg-${token}`)?.value;
+
   // Log form view (fire-and-forget — no bloquea el render)
   const h = await headers();
   const viewIp = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "unknown";
@@ -77,6 +81,7 @@ export default async function RegistroPage({ params, searchParams }: Props) {
             expiresAt={expiresAt}
             reset={reset === "1"}
             contractPolicy={contractPolicy}
+            alreadySubmitted={alreadySubmitted}
           />
         </div>
 

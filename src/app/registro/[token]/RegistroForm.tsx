@@ -30,12 +30,13 @@ function toTitleCase(str: string): string {
 }
 
 interface Props {
-  token:          string;
-  dojoName:       string;
-  dojoLogo:       string | null;
-  expiresAt:      string | null;
-  reset?:         boolean;
-  contractPolicy: string | null;
+  token:             string;
+  dojoName:          string;
+  dojoLogo:          string | null;
+  expiresAt:         string | null;
+  reset?:            boolean;
+  contractPolicy:    string | null;
+  alreadySubmitted?: boolean;
 }
 
 type Step = "splash" | "contract" | "form" | "done" | "already-submitted";
@@ -111,8 +112,8 @@ function formatExpiry(iso: string): string {
   });
 }
 
-export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, reset, contractPolicy }: Props) {
-  const [step,     setStep]     = useState<Step>("splash");
+export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, reset, contractPolicy, alreadySubmitted }: Props) {
+  const [step,     setStep]     = useState<Step>(alreadySubmitted ? "already-submitted" : "splash");
   const [form,     setForm]     = useState<FormData>(INIT);
   const [errors,   setErrors]   = useState<FieldErrors>({});
   const [sections, setSections] = useState({ personal: true, salud: false, contactos: true });
@@ -128,10 +129,11 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
     const key = `registro-sent-${token}`;
     if (reset) {
       localStorage.removeItem(key);
-    } else if (localStorage.getItem(key)) {
+    } else if (!alreadySubmitted && localStorage.getItem(key)) {
+      // Fallback: si el servidor no vio la cookie (ej: cookie limpiada manualmente) pero localStorage sí
       setStep("already-submitted");
     }
-  }, [token, reset]);
+  }, [token, reset, alreadySubmitted]);
 
   const set = (key: keyof FormData, value: string | boolean) =>
     setForm(prev => ({ ...prev, [key]: value }));
