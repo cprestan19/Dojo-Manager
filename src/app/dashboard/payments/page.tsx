@@ -233,7 +233,7 @@ function GenerateModal({
   result:     { created: number; skipped: number } | null;
 }) {
   const now       = new Date();
-  const monthName = now.toLocaleDateString("es-PA", { month: "long", year: "numeric" });
+  const monthName = now.toLocaleDateString("es-PA", { timeZone: "America/Panama", month: "long", year: "numeric" });
 
   return (
     <div className="space-y-5">

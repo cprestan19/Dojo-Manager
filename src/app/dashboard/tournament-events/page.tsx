@@ -92,7 +92,7 @@ function MedalGroup({ emoji, label, color, bg, students, medalKey }: MedalGroupP
 /* ── función de impresión ─────────────────────────────────────────── */
 
 function printMedalStats(stats: TEventStats, events: TEventSummary[]) {
-  const today = new Date().toLocaleDateString("es-PA", { day: "numeric", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "long", year: "numeric" });
 
   const goldList   = stats.students.filter(s => s.gold > 0)
     .sort((a, b) => b.gold - a.gold || b.silver - a.silver || b.bronze - a.bronze);
@@ -135,7 +135,7 @@ function printMedalStats(stats: TEventStats, events: TEventSummary[]) {
   const tournamentLines = events
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(e => {
-      const d = new Date(e.date).toLocaleDateString("es-PA", { day: "numeric", month: "short", year: "numeric" });
+      const d = new Date(e.date).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "short", year: "numeric" });
       return `<li style="margin-bottom:2px">${e.name} <span style="color:#aaa;font-size:11px">(${d})</span></li>`;
     }).join("");
 
@@ -414,7 +414,7 @@ export default function TournamentEventsPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {events.map(ev => {
           const date    = new Date(ev.date);
-          const dateStr = date.toLocaleDateString("es-PA", { weekday:"short", day:"numeric", month:"long", year:"numeric" });
+          const dateStr = date.toLocaleDateString("es-PA", { timeZone: "America/Panama", weekday:"short", day:"numeric", month:"long", year:"numeric" });
           const pct     = ev.totalStudents > 0 ? Math.round((ev.arrivedCount / ev.totalStudents) * 100) : 0;
 
           return (

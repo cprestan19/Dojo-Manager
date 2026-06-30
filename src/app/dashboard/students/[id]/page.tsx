@@ -590,7 +590,7 @@ function EventCard({ ev }: { ev: TournamentEvent }) {
   const isPast    = ev.status === "completed";
   const isActive  = ev.status === "active";
   const dateLabel = new Date(ev.date).toLocaleDateString("es-PA", {
-    weekday: "long", year: "numeric", month: "long", day: "numeric",
+    timeZone: "America/Panama", weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
 
   return (
@@ -896,7 +896,7 @@ export default function StudentDetailPage() {
     try {
       const res = await fetch(`/api/students/${id}`, { method: "DELETE" });
       if (res.ok) {
-        router.push("/dashboard/students");
+        router.replace("/dashboard/students");
       } else {
         const json = await res.json().catch(() => ({})) as { error?: string };
         alert(json.error ?? "Error al eliminar el alumno");
@@ -1484,9 +1484,9 @@ export default function StudentDetailPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-dojo-white">
-                            {new Date(a.markedAt).toLocaleDateString("es-PA")}
+                            {new Date(a.markedAt).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "2-digit", year: "numeric" })}
                             {" — "}
-                            {new Date(a.markedAt).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                            {new Date(a.markedAt).toLocaleTimeString("es-PA", { timeZone: "America/Panama", hour: "2-digit", minute: "2-digit", hour12: true })}
                           </p>
                           {a.schedule && <p className="text-xs text-dojo-muted truncate">{a.schedule.name}</p>}
                         </div>

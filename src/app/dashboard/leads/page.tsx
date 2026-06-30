@@ -34,7 +34,7 @@ const STATUS_CFG: Record<string, { label: string; color: string; icon: React.Ele
 };
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short", year: "numeric" });
 }
 function formatPhone(p: string) {
   const clean = p.replace(/\D/g, "");

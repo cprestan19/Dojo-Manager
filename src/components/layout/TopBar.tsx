@@ -68,7 +68,7 @@ function TodayDate() {
   const [date, setDate] = useState("");
   useEffect(() => {
     const fmt = new Intl.DateTimeFormat("es-PA", {
-      weekday: "long", day: "numeric", month: "long", year: "numeric",
+      timeZone: "America/Panama", weekday: "long", day: "numeric", month: "long", year: "numeric",
     });
     setDate(fmt.format(new Date()));
   }, []);
@@ -144,7 +144,7 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
                     {a.userEmail ?? "Email desconocido"}
                   </p>
                   <p className="text-[10px] text-dojo-sidebar-muted truncate">{a.details}</p>
-                  <p className="text-[9px] text-dojo-sidebar-muted/60 mt-0.5">IP: {a.ip} · {a.createdAt ? new Date(a.createdAt).toLocaleString("es-PA", { dateStyle:"short", timeStyle:"short" }) : ""}</p>
+                  <p className="text-[9px] text-dojo-sidebar-muted/60 mt-0.5">IP: {a.ip} · {a.createdAt ? new Date(a.createdAt).toLocaleString("es-PA", { timeZone: "America/Panama", dateStyle:"short", timeStyle:"short" }) : ""}</p>
                 </div>
               </div>
             ))}
@@ -213,7 +213,7 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
                   <p className="text-[10px] text-dojo-sidebar-muted truncate">✓ {r.eventTitle}</p>
                 </div>
                 <span className="text-[10px] text-dojo-muted shrink-0">
-                  {new Date(r.confirmedAt).toLocaleDateString("es-PA", { day:"2-digit", month:"short" })}
+                  {new Date(r.confirmedAt).toLocaleDateString("es-PA", { timeZone: "America/Panama", day:"2-digit", month:"short", year:"numeric" })}
                 </span>
               </Link>
             ))}

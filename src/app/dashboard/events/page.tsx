@@ -41,17 +41,18 @@ type Tab = "active" | "past";
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short", year: "numeric" });
 }
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true });
+  return new Date(iso).toLocaleTimeString("es-PA", { timeZone: "America/Panama", hour: "2-digit", minute: "2-digit", hour12: true });
 }
 function formatDateRange(start: string, end: string) {
   const s = new Date(start);
   const e = new Date(end);
-  if (s.toDateString() === e.toDateString())
-    return s.toLocaleDateString("es-PA", { day: "2-digit", month: "long", year: "numeric" });
-  return `${s.toLocaleDateString("es-PA", { day: "2-digit", month: "short" })} — ${e.toLocaleDateString("es-PA", { day: "2-digit", month: "long", year: "numeric" })}`;
+  const tz = "America/Panama";
+  if (s.toLocaleDateString("es-PA", { timeZone: tz }) === e.toLocaleDateString("es-PA", { timeZone: tz }))
+    return s.toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "long", year: "numeric" });
+  return `${s.toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "short", year: "numeric" })} — ${e.toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "long", year: "numeric" })}`;
 }
 function toIso(val: string): string {
   if (!val) return new Date().toISOString();
@@ -333,7 +334,7 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting }: {
                         )}
                         <p className="text-dojo-white text-sm font-medium truncate flex-1">{a.fullName}</p>
                         <span className="text-[10px] text-dojo-muted shrink-0">
-                          {new Date(a.createdAt).toLocaleDateString("es-PA", { day: "2-digit", month: "short" })}
+                          {new Date(a.createdAt).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short", year: "numeric" })}
                         </span>
                       </div>
                     ))}

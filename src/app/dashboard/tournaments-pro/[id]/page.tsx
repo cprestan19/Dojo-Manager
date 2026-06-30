@@ -445,7 +445,7 @@ export default function TournamentProDetailPage() {
               </select>
             </div>
             <p className="text-dojo-muted text-xs mt-0.5 ml-6">
-              {new Date(tournament.date).toLocaleDateString("es")} · {tournament.location} · {tournament.organization}
+              {new Date(tournament.date).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "2-digit", year: "numeric" })} · {tournament.location} · {tournament.organization}
             </p>
           </div>
         </div>

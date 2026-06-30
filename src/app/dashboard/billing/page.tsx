@@ -135,7 +135,7 @@ export default async function BillingPage() {
               <div>
                 <p className="text-xs text-dojo-muted">Próxima renovación</p>
                 <p className="text-dojo-white font-semibold">
-                  {sub.currentPeriodEnd.toLocaleDateString("es-PA")}
+                  {sub.currentPeriodEnd.toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "2-digit", year: "numeric" })}
                 </p>
               </div>
             )}

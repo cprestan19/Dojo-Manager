@@ -110,7 +110,7 @@ const GW_LABEL: Record<string, string> = { PAYPAL: "PayPal", MERCADOPAGO: "Merca
 
 function fmtDate(d: string | null) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(d).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short", year: "numeric" });
 }
 function fmtMoney(n: number, currency = "USD") {
   return new Intl.NumberFormat("es-PA", { style: "currency", currency }).format(n);

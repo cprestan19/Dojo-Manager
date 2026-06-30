@@ -60,7 +60,7 @@ function timeAgo(iso: string): string {
   if (mins < 60)  return `hace ${mins} min`;
   if (hours < 24) return `hace ${hours} h`;
   if (days < 7)   return `hace ${days} día${days !== 1 ? "s" : ""}`;
-  return new Date(iso).toLocaleDateString("es-PA", { day:"numeric", month:"short", year:"numeric" });
+  return new Date(iso).toLocaleDateString("es-PA", { timeZone: "America/Panama", day:"numeric", month:"short", year:"numeric" });
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────

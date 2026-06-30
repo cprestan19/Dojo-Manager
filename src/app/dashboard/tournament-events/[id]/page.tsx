@@ -7,9 +7,9 @@ import { getBeltInfo } from "@/lib/utils";
 
 function printParticipantList(data: TEventDetail) {
   const dateStr = new Date(data.date).toLocaleDateString("es-PA", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
+    timeZone: "America/Panama", weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
-  const today = new Date().toLocaleDateString("es-PA", { day: "numeric", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "long", year: "numeric" });
 
   const rows = data.participants.map((p, i) => {
     const arrived  = p.arrived
@@ -93,9 +93,9 @@ function parseMedal(result: string | null): "gold" | "silver" | "bronze" | null 
 
 function printEventStats(data: TEventDetail) {
   const dateStr = new Date(data.date).toLocaleDateString("es-PA", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
+    timeZone: "America/Panama", weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
-  const today = new Date().toLocaleDateString("es-PA", { day: "numeric", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "long", year: "numeric" });
 
   type MedalEntry = { fullName: string; studentCode: number | null; belt: string; age: number; categories: string[]; gold: number; silver: number; bronze: number };
   const map = new Map<string, MedalEntry>();
@@ -429,7 +429,7 @@ export default function TournamentEventDetailPage() {
   );
 
   const dateStr = new Date(data.date).toLocaleDateString("es-PA", {
-    weekday:"long", day:"numeric", month:"long", year:"numeric",
+    timeZone: "America/Panama", weekday:"long", day:"numeric", month:"long", year:"numeric",
   });
 
   return (

@@ -93,7 +93,7 @@ export default function NewTournamentEventPage() {
 
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Error al crear torneo"); return; }
-      router.push(`/dashboard/tournament-events/${data.id}`);
+      router.replace(`/dashboard/tournament-events/${data.id}`);
     } catch (e) {
       setError(`Error de conexión: ${e instanceof Error ? e.message : "verifica tu internet"}`);
     }
@@ -182,7 +182,7 @@ export default function NewTournamentEventPage() {
             </p>
             <p className="text-dojo-muted text-xs flex items-center gap-1.5">
               <Calendar size={11} />
-              {new Date(form.date).toLocaleDateString("es-PA", { dateStyle: "full" })}
+              {new Date(form.date).toLocaleDateString("es-PA", { timeZone: "America/Panama", weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </p>
             <p className="text-dojo-muted text-xs flex items-center gap-1.5">
               <MapPin size={11} /> {form.location}
