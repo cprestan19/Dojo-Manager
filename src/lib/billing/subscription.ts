@@ -113,8 +113,12 @@ export async function grantComplimentary(
   dojoId:    string,
   grantedBy: string,
   note?:     string,
+  planId?:   string,
 ): Promise<Subscription> {
-  const plan = await getOrCreateDefaultPlan();
+  const plan = planId
+    ? await prisma.plan.findUniqueOrThrow({ where: { id: planId } })
+    : await getOrCreateDefaultPlan();
+
   const sub  = await prisma.subscription.upsert({
     where:  { dojoId },
     create: {
@@ -128,6 +132,7 @@ export async function grantComplimentary(
       grantNote:   note ?? null,
     },
     update: {
+      planId:    plan.id,
       status:    SubscriptionStatus.COMPLIMENTARY,
       grantedBy,
       grantedAt: new Date(),

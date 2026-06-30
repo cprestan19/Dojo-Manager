@@ -39,6 +39,17 @@ interface PlanOption {
   monthlyPrice: number;
 }
 
+interface AccessEmailLogRow {
+  id:      string;
+  dojoId:  string;
+  email:   string;
+  daysLeft: number;
+  status:  string;
+  error:   string | null;
+  sentAt:  string;
+  dojo:    { name: string; slug: string };
+}
+
 interface UnsubDojo {
   id: string; name: string; slug: string;
   ownerName: string | null; email: string | null;
@@ -204,9 +215,9 @@ function GrantModal({
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState("");
 
-  // Load plans for special_access selector
+  // Load plans for plan selector (special_access y complimentary)
   useEffect(() => {
-    if (!hasSpecialStatus || isComplimentary) {
+    if (!hasSpecialStatus) {
       fetch("/api/billing/plans")
         .then(r => r.json())
         .then((data: PlanOption[]) => {
@@ -224,8 +235,9 @@ function GrantModal({
   async function apply() {
     setSaving(true); setError("");
     const body: Record<string, unknown> = { dojoId: dojo.id, action, note: note.trim() || undefined };
-    if (action === "free_month")      body.months = months;
-    if (action === "special_access")  { body.endsAt = new Date(endsAt).toISOString(); body.planId = planId; }
+    if (action === "free_month")     body.months = months;
+    if (action === "special_access") { body.endsAt = new Date(endsAt).toISOString(); body.planId = planId; }
+    if (action === "complimentary" && planId) body.planId = planId;
     const res = await fetch("/api/billing/admin/grant", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
@@ -401,13 +413,30 @@ function GrantModal({
           )}
 
           {action === "complimentary" && (
-            <div className="bg-dojo-gold/10 border border-dojo-gold/30 rounded-xl px-4 py-3 text-sm">
-              <p className="text-dojo-gold font-semibold flex items-center gap-2">
-                <Star size={14}/> Acceso permanente sin pago
-              </p>
-              <p className="text-dojo-muted text-xs mt-1">
-                Acceso completo indefinido. Sin límite de alumnos. Revocable en cualquier momento.
-              </p>
+            <div className="space-y-3">
+              <div className="bg-dojo-gold/10 border border-dojo-gold/30 rounded-xl px-4 py-3 text-sm">
+                <p className="text-dojo-gold font-semibold flex items-center gap-2">
+                  <Star size={14}/> Acceso permanente sin pago
+                </p>
+                <p className="text-dojo-muted text-xs mt-1">
+                  Acceso indefinido. Sin expiración. Revocable en cualquier momento.
+                </p>
+              </div>
+              {plans.length > 0 && (
+                <div>
+                  <label className="form-label">Plan (límite de alumnos)</label>
+                  <select value={planId} onChange={e => setPlanId(e.target.value)} className="form-input">
+                    {plans.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — {p.maxStudents != null ? `hasta ${p.maxStudents} alumnos` : "alumnos ilimitados"}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-dojo-muted mt-1">
+                    El límite de alumnos del plan aplica aunque el acceso sea permanente.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -875,10 +904,124 @@ function InvoicesTable({ initialDojoId }: { initialDojoId?: string }) {
   );
 }
 
+// ── Access Email Logs Table ───────────────────────────────────────────────────
+
+function AccessEmailLogsTable({ initialDojoId }: { initialDojoId?: string }) {
+  const [logs,    setLogs]    = useState<AccessEmailLogRow[]>([]);
+  const [total,   setTotal]   = useState(0);
+  const [page,    setPage]    = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [dojoFilter, setDojoFilter] = useState(initialDojoId ?? "");
+  const limit = 50;
+
+  const load = useCallback(async (p: number) => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(p), limit: String(limit) });
+    if (dojoFilter) params.set("dojoId", dojoFilter);
+    try {
+      const res  = await fetch(`/api/billing/admin/access-email-logs?${params}`);
+      const data = await res.json() as { logs: AccessEmailLogRow[]; total: number };
+      setLogs(data.logs ?? []);
+      setTotal(data.total ?? 0);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, [dojoFilter]);
+
+  useEffect(() => { setPage(1); void load(1); }, [load]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  return (
+    <div className="space-y-4">
+      <div className="card p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[700px]">
+            <thead>
+              <tr className="border-b border-dojo-border bg-dojo-darker/60">
+                {["Fecha", "Dojo", "Destinatario(s)", "Días restantes", "Estado"].map(h => (
+                  <th key={h} className="text-left text-xs font-semibold text-dojo-muted uppercase tracking-wider px-4 py-3 whitespace-nowrap">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={5} className="text-center py-10 text-dojo-muted">
+                  <Loader2 size={18} className="animate-spin mx-auto" />
+                </td></tr>
+              ) : logs.length === 0 ? (
+                <tr><td colSpan={5} className="text-center py-10 text-dojo-muted text-sm">
+                  Sin registros de correos
+                </td></tr>
+              ) : logs.map(row => (
+                <tr key={row.id} className="border-b border-dojo-border/50 hover:bg-dojo-border/10">
+                  <td className="px-4 py-3 text-xs text-dojo-muted whitespace-nowrap">
+                    <p className="text-dojo-white font-medium">{fmtDate(row.sentAt)}</p>
+                    <p className="text-[10px]">
+                      {new Date(row.sentAt).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", timeZone: "America/Panama" })}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-dojo-white">{row.dojo.name}</p>
+                    <p className="text-xs text-dojo-muted">{row.dojo.slug}</p>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-dojo-muted max-w-[200px] truncate" title={row.email}>
+                    {row.email}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      row.daysLeft === 0 ? "bg-red-500/20 text-red-300" :
+                      row.daysLeft === 1 ? "bg-amber-500/20 text-amber-300" :
+                      "bg-yellow-500/20 text-yellow-300"
+                    }`}>
+                      {row.daysLeft === 0 ? "Expira hoy" : `${row.daysLeft}d restantes`}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {row.status === "sent" ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-green-400">
+                        <CheckCircle2 size={12}/> Enviado
+                      </span>
+                    ) : (
+                      <div>
+                        <span className="inline-flex items-center gap-1 text-xs text-red-400">
+                          <XCircle size={12}/> Falló
+                        </span>
+                        {row.error && (
+                          <p className="text-[10px] text-red-400/70 mt-0.5 max-w-[160px] truncate" title={row.error}>
+                            {row.error}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-sm">
+        <p className="text-dojo-muted text-xs">{total} correo{total !== 1 ? "s" : ""} — página {page} de {totalPages || 1}</p>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => { const p = page - 1; setPage(p); void load(p); }} disabled={page === 1}
+              className="btn-ghost p-1.5 disabled:opacity-40"><ChevronLeft size={15}/></button>
+            <button onClick={() => { const p = page + 1; setPage(p); void load(p); }} disabled={page >= totalPages}
+              className="btn-ghost p-1.5 disabled:opacity-40"><ChevronRight size={15}/></button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 
 export function SuperadminBillingDashboard() {
-  const [tab,        setTab]        = useState<"subs" | "invoices">("subs");
+  const [tab,        setTab]        = useState<"subs" | "invoices" | "notifications">("subs");
   const [data,       setData]       = useState<{ subscriptions: DojoSub[]; unsubscribed: UnsubDojo[] } | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [jumpDojo,   setJumpDojo]   = useState<string | undefined>(undefined);
@@ -924,7 +1067,7 @@ export function SuperadminBillingDashboard() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-dojo-dark border border-dojo-border rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-dojo-dark border border-dojo-border rounded-xl p-1 w-fit flex-wrap">
         <button type="button" onClick={() => setTab("subs")}
           className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === "subs" ? "bg-dojo-red text-white" : "text-dojo-muted hover:text-dojo-white"}`}>
           Suscripciones
@@ -932,6 +1075,10 @@ export function SuperadminBillingDashboard() {
         <button type="button" onClick={() => { setTab("invoices"); setJumpDojo(undefined); }}
           className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === "invoices" ? "bg-dojo-red text-white" : "text-dojo-muted hover:text-dojo-white"}`}>
           Log de Pagos
+        </button>
+        <button type="button" onClick={() => setTab("notifications")}
+          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === "notifications" ? "bg-dojo-red text-white" : "text-dojo-muted hover:text-dojo-white"}`}>
+          Notificaciones
         </button>
       </div>
 
@@ -946,6 +1093,15 @@ export function SuperadminBillingDashboard() {
       )}
       {tab === "invoices" && (
         <InvoicesTable key={jumpDojo ?? "all"} initialDojoId={jumpDojo} />
+      )}
+      {tab === "notifications" && (
+        <div className="space-y-3">
+          <p className="text-dojo-muted text-sm">
+            Correos de aviso enviados a dojos con acceso especial por vencer (≤ 2 días).
+            El cron los envía una vez al día automáticamente.
+          </p>
+          <AccessEmailLogsTable />
+        </div>
       )}
     </div>
   );

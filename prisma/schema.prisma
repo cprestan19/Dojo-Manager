@@ -67,6 +67,7 @@ model Dojo {
   subscription            Subscription?
   registrationLinks       RegistrationLink[]
   pendingStudents         PendingStudent[]
+  specialAccessEmailLogs  SpecialAccessEmailLog[]
 
   @@map("dojos")
 }
@@ -1388,4 +1389,20 @@ model Invoice {
   @@index([dojoId])
   @@index([status])
   @@map("invoices")
+}
+
+// Log de correos de aviso de vencimiento de acceso especial
+model SpecialAccessEmailLog {
+  id       String   @id @default(cuid())
+  dojoId   String   @map("dojo_id")
+  dojo     Dojo     @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  email    String
+  daysLeft Int      @map("days_left")
+  status   String   // "sent" | "failed"
+  error    String?
+  sentAt   DateTime @default(now()) @map("sent_at")
+
+  @@index([dojoId])
+  @@index([sentAt])
+  @@map("special_access_email_logs")
 }

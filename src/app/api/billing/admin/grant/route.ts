@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case "complimentary":
-        sub = await grantComplimentary(dojoId, grantedBy, note);
+        sub = await grantComplimentary(dojoId, grantedBy, note, planId);
         break;
 
       case "revoke":
