@@ -354,6 +354,12 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
             {" "}para que el administrador te habilite un nuevo acceso.
           </p>
         </div>
+        <a
+          href={`/registro/${token}?reset=1`}
+          className="btn-primary w-full max-w-sm text-center"
+        >
+          Registrar otro alumno
+        </a>
       </div>
     );
   }
@@ -372,6 +378,12 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
         <p className="text-dojo-muted text-xs max-w-xs">
           Si proporcionaste un correo electrónico recibirás una confirmación por email.
         </p>
+        <a
+          href={`/registro/${token}?reset=1`}
+          className="btn-primary w-full max-w-sm text-center mt-2"
+        >
+          Registrar otro alumno
+        </a>
       </div>
     );
   }

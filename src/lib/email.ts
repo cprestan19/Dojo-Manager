@@ -52,15 +52,16 @@ async function createTransporter(): Promise<TransporterResult> {
 
   // Fallback to environment variables
   const envUser = process.env.EMAIL_USER ?? "";
+  const envPort = Number(process.env.EMAIL_PORT) || 587;
   return {
     transporter: nodemailer.createTransport({
       host:   process.env.EMAIL_HOST,
-      port:   Number(process.env.EMAIL_PORT) || 587,
-      secure: false,
+      port:   envPort,
+      secure: envPort === 465,
       auth:   { user: envUser, pass: process.env.EMAIL_PASS },
     }),
     smtpUser: envUser,
-    fromName: "Dojo Master",
+    fromName: process.env.EMAIL_FROM_NAME ?? "Dojo Master",
   };
 }
 

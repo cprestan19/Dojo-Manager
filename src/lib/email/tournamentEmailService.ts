@@ -33,15 +33,16 @@ async function makeTransporter() {
     }
   } catch { /* fallback */ }
 
-  const user = process.env.EMAIL_USER ?? "";
+  const user    = process.env.EMAIL_USER ?? "";
+  const envPort = Number(process.env.EMAIL_PORT) || 587;
   return {
     transporter: nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: Number(process.env.EMAIL_PORT) || 587,
-      secure: false,
-      auth: { user, pass: process.env.EMAIL_PASS },
+      host:   process.env.EMAIL_HOST,
+      port:   envPort,
+      secure: envPort === 465,
+      auth:   { user, pass: process.env.EMAIL_PASS },
     }),
-    from: process.env.EMAIL_FROM ?? `"Dojo Master" <${user}>`,
+    from: process.env.EMAIL_FROM ?? `"Dojo Master Latam" <${user}>`,
   };
 }
 
