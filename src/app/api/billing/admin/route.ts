@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
       const totalRevenue = paidInvoices.reduce((acc, i) => acc + i.amount, 0);
       const now          = new Date();
       const daysRemaining =
-        s.status === "TRIAL"
+        s.status === "TRIAL" || s.status === "SPECIAL_ACCESS"
           ? Math.max(0, Math.ceil((s.trialEndsAt.getTime() - now.getTime()) / 86_400_000))
           : null;
 
@@ -79,6 +79,9 @@ export async function GET(req: NextRequest) {
         cancelAtPeriodEnd:    s.cancelAtPeriodEnd,
         createdAt:            s.createdAt,
         updatedAt:            s.updatedAt,
+        grantedBy:            s.grantedBy,
+        grantedAt:            s.grantedAt,
+        grantNote:            s.grantNote,
         daysRemaining,
         invoiceCount:         s.invoices.length,
         paidCount:            paidInvoices.length,

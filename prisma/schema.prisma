@@ -1302,6 +1302,7 @@ enum SubscriptionStatus {
   CANCELED
   READ_ONLY
   COMPLIMENTARY   // acceso completo permanente sin pago
+  SPECIAL_ACCESS  // acceso especial con fecha de expiración configurable
 }
 
 enum BillingCycle {

@@ -4,6 +4,7 @@ import { logAudit, AUDIT_MODULE } from "@/lib/audit";
 
 export const FREE_STATUSES: SubscriptionStatus[] = [
   SubscriptionStatus.COMPLIMENTARY,
+  SubscriptionStatus.SPECIAL_ACCESS,
 ];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -27,10 +28,15 @@ export async function isDojoReadOnly(dojoId: string): Promise<boolean> {
     select: { status: true, trialEndsAt: true },
   });
 
-  if (!sub) return false; // No subscription yet → allow (grace period)
+  if (!sub) return false;
 
-  // Acceso especial permanente — nunca es read-only
+  // Acceso permanente — nunca es read-only
   if (sub.status === SubscriptionStatus.COMPLIMENTARY) return false;
+
+  // Acceso especial con fecha — read-only si expiró
+  if (sub.status === SubscriptionStatus.SPECIAL_ACCESS) {
+    return sub.trialEndsAt < new Date();
+  }
 
   if (sub.status === SubscriptionStatus.READ_ONLY) return true;
   if (sub.status === SubscriptionStatus.PAST_DUE)  return true;
@@ -40,30 +46,29 @@ export async function isDojoReadOnly(dojoId: string): Promise<boolean> {
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
+// Al crear un dojo nuevo se asigna suscripción ACTIVE directamente —
+// sin período de prueba ni limitación de días.
 export async function createTrialSubscription(
   dojoId: string,
   planId: string,
 ): Promise<Subscription> {
-  const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + 14);
-
   const sub = await prisma.subscription.create({
     data: {
       dojoId,
       planId,
-      status:      SubscriptionStatus.TRIAL,
+      status:      SubscriptionStatus.ACTIVE,
       cycle:       BillingCycle.MONTHLY,
-      trialEndsAt,
+      trialEndsAt: new Date(),
     },
   });
 
   await logAudit({
-    action:       "TRIAL_STARTED",
+    action:       "SUBSCRIPTION_CREATED",
     module:       AUDIT_MODULE.SYSADMIN,
     resourceType: "Subscription",
     resourceId:   sub.id,
     dojoId,
-    details:      JSON.stringify({ planId, trialEndsAt: trialEndsAt.toISOString() }),
+    details:      JSON.stringify({ planId }),
   });
 
   return sub;
@@ -81,14 +86,9 @@ export async function checkExpiredTrials(): Promise<number> {
 
   if (expired.length === 0) return 0;
 
-  // El período de prueba solo determina la duración del banner/onboarding.
-  // Al vencer, el dojo continúa operando con su plan actual (Bronce gratuito
-  // por defecto) — la única restricción real es el límite de alumnos del plan.
   await prisma.subscription.updateMany({
-    where: {
-      id: { in: expired.map(s => s.id) },
-    },
-    data: { status: SubscriptionStatus.ACTIVE },
+    where: { id: { in: expired.map(s => s.id) } },
+    data:  { status: SubscriptionStatus.ACTIVE },
   });
 
   await Promise.allSettled(
@@ -99,7 +99,7 @@ export async function checkExpiredTrials(): Promise<number> {
         resourceType: "Subscription",
         resourceId:   s.id,
         dojoId:       s.dojoId,
-        details:      "Trial expired — moved to ACTIVE (continúa con su plan)",
+        details:      "Trial expired — moved to ACTIVE",
       }),
     ),
   );
@@ -107,7 +107,7 @@ export async function checkExpiredTrials(): Promise<number> {
   return expired.length;
 }
 
-// ── Acceso especial otorgado por sysadmin ─────────────────────────────────────
+// ── Acceso especial permanente (COMPLIMENTARY) ────────────────────────────────
 
 export async function grantComplimentary(
   dojoId:    string,
@@ -122,7 +122,7 @@ export async function grantComplimentary(
       planId:      plan.id,
       status:      SubscriptionStatus.COMPLIMENTARY,
       cycle:       BillingCycle.MONTHLY,
-      trialEndsAt: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000), // 100 años
+      trialEndsAt: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000),
       grantedBy,
       grantedAt:   new Date(),
       grantNote:   note ?? null,
@@ -173,17 +173,87 @@ export async function revokeComplimentary(
   return sub;
 }
 
+// ── Acceso especial con fecha (SPECIAL_ACCESS) ────────────────────────────────
+
+export async function grantSpecialAccess(
+  dojoId:    string,
+  grantedBy: string,
+  endsAt:    Date,
+  planId:    string,
+  note?:     string,
+): Promise<Subscription> {
+  const sub = await prisma.subscription.upsert({
+    where:  { dojoId },
+    create: {
+      dojoId,
+      planId,
+      status:      SubscriptionStatus.SPECIAL_ACCESS,
+      cycle:       BillingCycle.MONTHLY,
+      trialEndsAt: endsAt,
+      grantedBy,
+      grantedAt:   new Date(),
+      grantNote:   note ?? null,
+    },
+    update: {
+      planId,
+      status:      SubscriptionStatus.SPECIAL_ACCESS,
+      trialEndsAt: endsAt,
+      grantedBy,
+      grantedAt:   new Date(),
+      grantNote:   note ?? null,
+    },
+  });
+
+  await logAudit({
+    action:       "GRANT_SPECIAL_ACCESS",
+    module:       AUDIT_MODULE.SYSADMIN,
+    resourceType: "Subscription",
+    resourceId:   sub.id,
+    dojoId,
+    details:      JSON.stringify({ grantedBy, endsAt: endsAt.toISOString(), planId, note }),
+  });
+
+  return sub;
+}
+
+export async function extendSpecialAccess(
+  dojoId:    string,
+  grantedBy: string,
+  newEndsAt: Date,
+): Promise<Subscription> {
+  const sub = await prisma.subscription.update({
+    where: { dojoId },
+    data:  {
+      trialEndsAt: newEndsAt,
+      grantedBy,
+      grantedAt:   new Date(),
+    },
+  });
+
+  await logAudit({
+    action:       "EXTEND_SPECIAL_ACCESS",
+    module:       AUDIT_MODULE.SYSADMIN,
+    resourceType: "Subscription",
+    resourceId:   sub.id,
+    dojoId,
+    details:      JSON.stringify({ grantedBy, newEndsAt: newEndsAt.toISOString() }),
+  });
+
+  return sub;
+}
+
+// ── Mes gratis (TRIAL) ────────────────────────────────────────────────────────
+
 export async function grantFreeMonth(
   dojoId:    string,
   grantedBy: string,
   months     = 1,
   note?:     string,
 ): Promise<Subscription> {
-  const plan     = await getOrCreateDefaultPlan();
-  const now      = new Date();
+  const plan      = await getOrCreateDefaultPlan();
+  const now       = new Date();
   const daysToAdd = months * 30;
 
-  // Get current subscription to know where to extend from
   const existing = await prisma.subscription.findUnique({ where: { dojoId } });
 
   const newTrialEnd = existing?.status === SubscriptionStatus.TRIAL
@@ -222,6 +292,8 @@ export async function grantFreeMonth(
 
   return sub;
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 export async function getOrCreateDefaultPlan(): Promise<Plan> {
   const existing = await prisma.plan.findFirst({

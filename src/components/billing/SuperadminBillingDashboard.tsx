@@ -25,8 +25,18 @@ interface DojoSub {
   totalRevenue: number;
   createdAt: string;
   updatedAt: string;
+  grantedBy: string | null;
+  grantedAt: string | null;
+  grantNote: string | null;
   plan: { id: string; name: string; monthlyPrice: number; annualPrice: number } | null;
   dojo: { id: string; name: string; slug: string; ownerName: string | null; email: string | null; active: boolean; createdAt: string };
+}
+
+interface PlanOption {
+  id: string;
+  name: string;
+  maxStudents: number | null;
+  monthlyPrice: number;
 }
 
 interface UnsubDojo {
@@ -59,22 +69,25 @@ interface InvoiceRow {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const STATUS_BADGE: Record<string, string> = {
-  TRIAL:         "bg-blue-500/20 text-blue-300 border border-blue-500/30",
-  ACTIVE:        "bg-green-500/20 text-green-300 border border-green-500/30",
-  PAST_DUE:      "bg-amber-500/20 text-amber-300 border border-amber-500/30",
-  CANCELED:      "bg-red-500/20 text-red-300 border border-red-500/30",
-  READ_ONLY:     "bg-red-500/20 text-red-300 border border-red-500/30",
-  COMPLIMENTARY: "bg-dojo-gold/20 text-dojo-gold border border-dojo-gold/40",
-  NONE:          "bg-dojo-border/60 text-dojo-muted border border-dojo-border",
+  TRIAL:          "bg-blue-500/20 text-blue-300 border border-blue-500/30",
+  ACTIVE:         "bg-green-500/20 text-green-300 border border-green-500/30",
+  PAST_DUE:       "bg-amber-500/20 text-amber-300 border border-amber-500/30",
+  CANCELED:       "bg-red-500/20 text-red-300 border border-red-500/30",
+  READ_ONLY:      "bg-red-500/20 text-red-300 border border-red-500/30",
+  COMPLIMENTARY:  "bg-dojo-gold/20 text-dojo-gold border border-dojo-gold/40",
+  SPECIAL_ACCESS: "bg-purple-500/20 text-purple-300 border border-purple-500/30",
+  NONE:           "bg-dojo-border/60 text-dojo-muted border border-dojo-border",
 };
 const STATUS_LABEL: Record<string, string> = {
   TRIAL: "Trial", ACTIVE: "Activa", PAST_DUE: "Vencida",
   CANCELED: "Cancelada", READ_ONLY: "Solo lectura",
-  COMPLIMENTARY: "Acceso especial", NONE: "Sin suscripción",
+  COMPLIMENTARY: "Acc. permanente", SPECIAL_ACCESS: "Acc. especial",
+  NONE: "Sin suscripción",
 };
 const STATUS_ICON: Record<string, React.ElementType> = {
   TRIAL: Clock, ACTIVE: CheckCircle2, PAST_DUE: AlertTriangle,
-  CANCELED: XCircle, READ_ONLY: XCircle, COMPLIMENTARY: Star, NONE: Building2,
+  CANCELED: XCircle, READ_ONLY: XCircle,
+  COMPLIMENTARY: Star, SPECIAL_ACCESS: Star, NONE: Building2,
 };
 const INV_BADGE: Record<string, string> = {
   PAID:     "bg-green-500/20 text-green-300",
@@ -112,20 +125,20 @@ function CopyBtn({ value }: { value: string }) {
 // ── Summary Cards ─────────────────────────────────────────────────────────────
 
 function SummaryCards({ subs, unsub }: { subs: DojoSub[]; unsub: UnsubDojo[] }) {
-  const totalDojos   = subs.length + unsub.length;
-  const trials       = subs.filter(s => s.status === "TRIAL").length;
-  const active       = subs.filter(s => s.status === "ACTIVE").length;
-  const problems     = subs.filter(s => s.status === "PAST_DUE" || s.status === "READ_ONLY").length;
-  const canceled     = subs.filter(s => s.status === "CANCELED").length;
-  const complimentary = subs.filter(s => s.status === "COMPLIMENTARY").length;
-  const noSub        = unsub.length;
-  const totalRevenue = subs.reduce((acc, s) => acc + s.totalRevenue, 0);
+  const totalDojos    = subs.length + unsub.length;
+  const trials        = subs.filter(s => s.status === "TRIAL").length;
+  const active        = subs.filter(s => s.status === "ACTIVE").length;
+  const problems      = subs.filter(s => s.status === "PAST_DUE" || s.status === "READ_ONLY").length;
+  const canceled      = subs.filter(s => s.status === "CANCELED").length;
+  const complimentary = subs.filter(s => s.status === "COMPLIMENTARY" || s.status === "SPECIAL_ACCESS").length;
+  const noSub         = unsub.length;
+  const totalRevenue  = subs.reduce((acc, s) => acc + s.totalRevenue, 0);
 
   const cards = [
     { label: "Total dojos",      value: totalDojos,  icon: Building2,    color: "text-dojo-gold"  },
     { label: "En trial",         value: trials,      icon: Clock,        color: "text-blue-400"   },
     { label: "Activos",          value: active,      icon: CheckCircle2, color: "text-green-400"  },
-    { label: "Acceso especial",  value: complimentary,icon: Star,        color: "text-dojo-gold"  },
+    { label: "Acc. especial",    value: complimentary,icon: Star,        color: "text-dojo-gold"  },
     { label: "Con problemas",    value: problems,    icon: AlertTriangle,color: "text-amber-400"  },
     { label: "Cancelados",       value: canceled,    icon: XCircle,      color: "text-red-400"    },
     { label: "Sin suscripción",  value: noSub,       icon: Building2,    color: "text-dojo-muted" },
@@ -154,49 +167,96 @@ function SummaryCards({ subs, unsub }: { subs: DojoSub[]; unsub: UnsubDojo[] }) 
 
 // ── Grant Modal ───────────────────────────────────────────────────────────────
 
+// Returns "YYYY-MM-DD" in local time (for input[type=date] min attribute)
+function toDateInputValue(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function GrantModal({
   dojo, onClose, onDone,
 }: {
-  dojo:    { id: string; name: string; status: string };
+  dojo:    { id: string; name: string; status: string; trialEndsAt: string; planId: string | null };
   onClose: () => void;
   onDone:  () => void;
 }) {
-  const [action,  setAction]  = useState<"complimentary"|"free_month">("free_month");
-  const [months,  setMonths]  = useState(1);
-  const [note,    setNote]    = useState("");
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState("");
-  const isComplimentary = dojo.status === "COMPLIMENTARY";
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  const defaultDate = toDateInputValue(new Date(Date.now() + 30 * 86_400_000));
+
+  const isComplimentary  = dojo.status === "COMPLIMENTARY";
+  const isSpecialAccess  = dojo.status === "SPECIAL_ACCESS";
+  const hasSpecialStatus = isComplimentary || isSpecialAccess;
+
+  const [action,   setAction]   = useState<"free_month"|"special_access"|"complimentary">("special_access");
+  const [months,   setMonths]   = useState(1);
+  const [note,     setNote]     = useState("");
+  const [endsAt,   setEndsAt]   = useState(defaultDate);
+  const [planId,   setPlanId]   = useState(dojo.planId ?? "");
+  const [plans,    setPlans]    = useState<PlanOption[]>([]);
+  const [newDate,  setNewDate]  = useState(
+    isSpecialAccess && dojo.trialEndsAt
+      ? toDateInputValue(new Date(dojo.trialEndsAt))
+      : defaultDate,
+  );
+  const [extMode,  setExtMode]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState("");
+
+  // Load plans for special_access selector
+  useEffect(() => {
+    if (!hasSpecialStatus || isComplimentary) {
+      fetch("/api/billing/plans")
+        .then(r => r.json())
+        .then((data: PlanOption[]) => {
+          setPlans(data);
+          if (!planId && data.length > 0) {
+            const gold = data.find(p => p.maxStudents === null) ?? data[data.length - 1];
+            setPlanId(gold.id);
+          }
+        })
+        .catch(() => null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function apply() {
     setSaving(true); setError("");
+    const body: Record<string, unknown> = { dojoId: dojo.id, action, note: note.trim() || undefined };
+    if (action === "free_month")      body.months = months;
+    if (action === "special_access")  { body.endsAt = new Date(endsAt).toISOString(); body.planId = planId; }
     const res = await fetch("/api/billing/admin/grant", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ dojoId: dojo.id, action, months, note: note.trim() || undefined }),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     setSaving(false);
     if (res.ok) { onDone(); onClose(); }
-    else {
-      const d = await res.json() as { error?: string };
-      setError(d.error ?? "Error al aplicar.");
-    }
+    else { const d = await res.json() as { error?: string }; setError(d.error ?? "Error al aplicar."); }
+  }
+
+  async function extend() {
+    setSaving(true); setError("");
+    const res = await fetch("/api/billing/admin/grant", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dojoId: dojo.id, action: "extend_special_access", endsAt: new Date(newDate).toISOString() }),
+    });
+    setSaving(false);
+    if (res.ok) { onDone(); onClose(); }
+    else { const d = await res.json() as { error?: string }; setError(d.error ?? "Error al extender."); }
   }
 
   async function revoke() {
     setSaving(true); setError("");
     const res = await fetch("/api/billing/admin/grant", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ dojoId: dojo.id, action: "revoke" }),
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dojoId: dojo.id, action: "revoke" }),
     });
     setSaving(false);
     if (res.ok) { onDone(); onClose(); }
-    else {
-      const d = await res.json() as { error?: string };
-      setError(d.error ?? "Error al revocar.");
-    }
+    else { const d = await res.json() as { error?: string }; setError(d.error ?? "Error al revocar."); }
   }
+
+  const minDate = toDateInputValue(tomorrow);
 
   return (
     <div className="space-y-5">
@@ -206,62 +266,105 @@ function GrantModal({
         <span className={`inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_BADGE[dojo.status] ?? ""}`}>
           {STATUS_LABEL[dojo.status] ?? dojo.status}
         </span>
+        {isSpecialAccess && dojo.trialEndsAt && (
+          <p className="text-purple-300 text-xs mt-1">
+            Acceso hasta: {fmtDate(dojo.trialEndsAt)}
+          </p>
+        )}
       </div>
 
       {error && (
         <p className="text-sm text-red-400 bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{error}</p>
       )}
 
-      {/* Revoke — only if currently complimentary */}
-      {isComplimentary && (
-        <div className="bg-amber-900/20 border border-amber-800/40 rounded-xl p-4 space-y-3">
-          <p className="text-amber-300 text-sm font-medium flex items-center gap-2">
-            <Ban size={15}/> Este dojo tiene acceso especial activo.
-          </p>
-          <p className="text-amber-400/70 text-xs">
-            Al revocar, pasará a Solo lectura hasta que configure un plan de pago.
-          </p>
-          <button
-            type="button"
-            onClick={() => void revoke()}
-            disabled={saving}
-            className="btn-secondary text-xs gap-1.5 border-amber-700/50 text-amber-300 hover:text-amber-200 disabled:opacity-50"
-          >
-            {saving ? <Loader2 size={13} className="animate-spin"/> : <Ban size={13}/>}
-            Revocar acceso especial
-          </button>
+      {/* ── SPECIAL_ACCESS: extender o revocar ── */}
+      {isSpecialAccess && !extMode && (
+        <div className="space-y-3">
+          <div className="bg-purple-900/20 border border-purple-800/40 rounded-xl p-4 space-y-3">
+            <p className="text-purple-300 text-sm font-medium flex items-center gap-2">
+              <Star size={15}/> Acceso especial con tiempo activo.
+            </p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setExtMode(true)}
+                className="btn-primary text-xs gap-1.5 flex-1 justify-center">
+                <CalendarPlus size={13}/> Cambiar fecha
+              </button>
+              <button type="button" onClick={() => void revoke()} disabled={saving}
+                className="btn-secondary text-xs gap-1.5 border-red-700/50 text-red-400 hover:text-red-300 disabled:opacity-50">
+                {saving ? <Loader2 size={13} className="animate-spin"/> : <Ban size={13}/>}
+                Revocar
+              </button>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="btn-secondary w-full justify-center">Cerrar</button>
         </div>
       )}
 
-      {/* Action selector */}
-      {!isComplimentary && (
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setAction("free_month")}
-              className={`p-3 rounded-xl border-2 text-left transition-colors ${
-                action === "free_month"
-                  ? "border-blue-500 bg-blue-500/10"
-                  : "border-dojo-border hover:border-dojo-border/80"
-              }`}
-            >
-              <CalendarPlus size={18} className="text-blue-400 mb-1.5"/>
-              <p className="text-dojo-white font-semibold text-sm">Mes gratis</p>
-              <p className="text-dojo-muted text-xs mt-0.5">Extiende el período de prueba</p>
+      {/* ── SPECIAL_ACCESS: cambiar fecha ── */}
+      {isSpecialAccess && extMode && (
+        <div className="space-y-4">
+          <div>
+            <label className="form-label">Nueva fecha de acceso</label>
+            <input type="date" value={newDate} min={minDate}
+              onChange={e => setNewDate(e.target.value)} className="form-input" />
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => void extend()} disabled={saving}
+              className="btn-primary flex-1 justify-center gap-1.5 disabled:opacity-50">
+              {saving ? <><Loader2 size={14} className="animate-spin"/> Guardando...</> : <><CalendarPlus size={14}/> Guardar nueva fecha</>}
             </button>
-            <button
-              type="button"
-              onClick={() => setAction("complimentary")}
+            <button type="button" onClick={() => setExtMode(false)} disabled={saving} className="btn-secondary">Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── COMPLIMENTARY: revocar ── */}
+      {isComplimentary && (
+        <div className="space-y-3">
+          <div className="bg-amber-900/20 border border-amber-800/40 rounded-xl p-4 space-y-3">
+            <p className="text-amber-300 text-sm font-medium flex items-center gap-2">
+              <Ban size={15}/> Este dojo tiene acceso permanente activo.
+            </p>
+            <p className="text-amber-400/70 text-xs">
+              Al revocar, pasará a Solo lectura hasta que configure un plan de pago.
+            </p>
+            <button type="button" onClick={() => void revoke()} disabled={saving}
+              className="btn-secondary text-xs gap-1.5 border-amber-700/50 text-amber-300 hover:text-amber-200 disabled:opacity-50">
+              {saving ? <Loader2 size={13} className="animate-spin"/> : <Ban size={13}/>}
+              Revocar acceso permanente
+            </button>
+          </div>
+          <button type="button" onClick={onClose} className="btn-secondary w-full justify-center">Cerrar</button>
+        </div>
+      )}
+
+      {/* ── Sin acceso especial: elegir tipo ── */}
+      {!hasSpecialStatus && (
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => setAction("free_month")}
               className={`p-3 rounded-xl border-2 text-left transition-colors ${
-                action === "complimentary"
-                  ? "border-dojo-gold bg-dojo-gold/10"
-                  : "border-dojo-border hover:border-dojo-border/80"
-              }`}
-            >
-              <Star size={18} className="text-dojo-gold mb-1.5"/>
-              <p className="text-dojo-white font-semibold text-sm">Acceso especial</p>
-              <p className="text-dojo-muted text-xs mt-0.5">Versión completa sin pago</p>
+                action === "free_month" ? "border-blue-500 bg-blue-500/10" : "border-dojo-border hover:border-dojo-border/80"
+              }`}>
+              <CalendarPlus size={16} className="text-blue-400 mb-1.5"/>
+              <p className="text-dojo-white font-semibold text-xs">Mes gratis</p>
+              <p className="text-dojo-muted text-[10px] mt-0.5">Extiende trial</p>
+            </button>
+            <button type="button" onClick={() => setAction("special_access")}
+              className={`p-3 rounded-xl border-2 text-left transition-colors ${
+                action === "special_access" ? "border-purple-500 bg-purple-500/10" : "border-dojo-border hover:border-dojo-border/80"
+              }`}>
+              <Star size={16} className="text-purple-400 mb-1.5"/>
+              <p className="text-dojo-white font-semibold text-xs">Acc. especial</p>
+              <p className="text-dojo-muted text-[10px] mt-0.5">Hasta fecha</p>
+            </button>
+            <button type="button" onClick={() => setAction("complimentary")}
+              className={`p-3 rounded-xl border-2 text-left transition-colors ${
+                action === "complimentary" ? "border-dojo-gold bg-dojo-gold/10" : "border-dojo-border hover:border-dojo-border/80"
+              }`}>
+              <Star size={16} className="text-dojo-gold mb-1.5"/>
+              <p className="text-dojo-white font-semibold text-xs">Permanente</p>
+              <p className="text-dojo-muted text-[10px] mt-0.5">Sin expirar</p>
             </button>
           </div>
 
@@ -273,9 +376,27 @@ function GrantModal({
                   <option key={m} value={m}>{m} {m === 1 ? "mes" : "meses"}</option>
                 ))}
               </select>
-              <p className="text-xs text-dojo-muted mt-1">
-                Se añaden {months * 30} días al período de prueba actual.
-              </p>
+              <p className="text-xs text-dojo-muted mt-1">Se añaden {months * 30} días al período actual.</p>
+            </div>
+          )}
+
+          {action === "special_access" && (
+            <div className="space-y-3">
+              <div>
+                <label className="form-label">Acceso hasta</label>
+                <input type="date" value={endsAt} min={minDate}
+                  onChange={e => setEndsAt(e.target.value)} className="form-input" />
+              </div>
+              <div>
+                <label className="form-label">Plan (límite de alumnos)</label>
+                <select value={planId} onChange={e => setPlanId(e.target.value)} className="form-input">
+                  {plans.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — {p.maxStudents != null ? `hasta ${p.maxStudents} alumnos` : "alumnos ilimitados"}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
 
@@ -285,45 +406,32 @@ function GrantModal({
                 <Star size={14}/> Acceso permanente sin pago
               </p>
               <p className="text-dojo-muted text-xs mt-1">
-                El dojo tendrá acceso completo indefinidamente sin necesidad de suscripción.
-                Puedes revocar este acceso en cualquier momento.
+                Acceso completo indefinido. Sin límite de alumnos. Revocable en cualquier momento.
               </p>
             </div>
           )}
 
           <div>
             <label className="form-label">Nota interna <span className="text-dojo-muted font-normal">(opcional)</span></label>
-            <textarea
-              value={note}
-              onChange={e => setNote(e.target.value)}
-              rows={2}
-              maxLength={300}
-              placeholder="Motivo del acceso especial, acuerdo con el sensei..."
-              className="form-input resize-none"
-            />
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} maxLength={300}
+              placeholder="Motivo, acuerdo con el sensei..." className="form-input resize-none" />
           </div>
 
           <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => void apply()}
-              disabled={saving}
-              className="btn-primary flex-1 justify-center disabled:opacity-50 gap-1.5"
-            >
+            <button type="button" onClick={() => void apply()} disabled={saving || (action === "special_access" && !planId)}
+              className="btn-primary flex-1 justify-center disabled:opacity-50 gap-1.5">
               {saving
                 ? <><Loader2 size={14} className="animate-spin"/> Aplicando...</>
                 : action === "free_month"
                   ? <><CalendarPlus size={14}/> Dar {months} {months === 1 ? "mes" : "meses"} gratis</>
-                  : <><Star size={14}/> Dar acceso especial</>
+                  : action === "special_access"
+                    ? <><Star size={14}/> Dar acceso hasta {endsAt}</>
+                    : <><Star size={14}/> Dar acceso permanente</>
               }
             </button>
             <button type="button" onClick={onClose} disabled={saving} className="btn-secondary">Cancelar</button>
           </div>
         </>
-      )}
-
-      {isComplimentary && (
-        <button type="button" onClick={onClose} className="btn-secondary w-full justify-center">Cerrar</button>
       )}
     </div>
   );
@@ -339,7 +447,9 @@ function SubsTable({ subs, unsub, onSelectDojo, onRefresh }: {
 }) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
-  const [grantTarget, setGrantTarget] = useState<{ id: string; name: string; status: string } | null>(null);
+  const [grantTarget, setGrantTarget] = useState<{
+    id: string; name: string; status: string; trialEndsAt: string; planId: string | null;
+  } | null>(null);
 
   const filtered = [
     ...subs.filter(s => {
@@ -374,7 +484,7 @@ function SubsTable({ subs, unsub, onSelectDojo, onRefresh }: {
           />
         </div>
         <div className="flex items-center gap-1 bg-dojo-dark border border-dojo-border rounded-lg p-1 flex-wrap">
-          {["ALL","TRIAL","ACTIVE","COMPLIMENTARY","PAST_DUE","READ_ONLY","CANCELED","NONE"].map(s => (
+          {["ALL","TRIAL","ACTIVE","COMPLIMENTARY","SPECIAL_ACCESS","PAST_DUE","READ_ONLY","CANCELED","NONE"].map(s => (
             <button
               key={s}
               type="button"
@@ -423,7 +533,9 @@ function SubsTable({ subs, unsub, onSelectDojo, onRefresh }: {
                         <Icon size={10} /> {STATUS_LABEL[s.status]}
                       </span>
                       {s.daysRemaining !== null && (
-                        <p className="text-[11px] text-blue-400 mt-1">{s.daysRemaining}d restantes</p>
+                        <p className={`text-[11px] mt-1 ${s.status === "SPECIAL_ACCESS" ? "text-purple-400" : "text-blue-400"}`}>
+                          {s.daysRemaining}d restantes
+                        </p>
                       )}
                     </td>
                     {/* Plan */}
@@ -435,6 +547,8 @@ function SubsTable({ subs, unsub, onSelectDojo, onRefresh }: {
                     <td className="px-4 py-3 text-xs text-dojo-muted">
                       {s.status === "TRIAL" ? (
                         <><span className="text-blue-400 font-medium">Vence:</span> {fmtDate(s.trialEndsAt)}</>
+                      ) : s.status === "SPECIAL_ACCESS" ? (
+                        <><span className="text-purple-300 font-medium">Hasta:</span> {fmtDate(s.trialEndsAt)}</>
                       ) : s.currentPeriodEnd ? (
                         <><span className="text-dojo-white font-medium">Renueva:</span> {fmtDate(s.currentPeriodEnd)}</>
                       ) : (
@@ -475,16 +589,19 @@ function SubsTable({ subs, unsub, onSelectDojo, onRefresh }: {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setGrantTarget({ id: s.dojo.id, name: s.dojo.name, status: s.status })}
+                          onClick={() => setGrantTarget({
+                            id: s.dojo.id, name: s.dojo.name, status: s.status,
+                            trialEndsAt: s.trialEndsAt, planId: s.plan?.id ?? null,
+                          })}
                           className={`btn-ghost text-xs px-2 py-1 gap-1 ${
-                            s.status === "COMPLIMENTARY"
+                            s.status === "COMPLIMENTARY" || s.status === "SPECIAL_ACCESS"
                               ? "text-dojo-gold hover:text-yellow-300"
                               : "text-dojo-muted hover:text-dojo-white"
                           }`}
-                          title={s.status === "COMPLIMENTARY" ? "Gestionar acceso especial" : "Dar acceso / mes gratis"}
+                          title="Gestionar acceso"
                         >
-                          {s.status === "COMPLIMENTARY" ? <Star size={12}/> : <Gift size={12}/>}
-                          {s.status === "COMPLIMENTARY" ? "Especial" : "Acceso"}
+                          <Star size={12}/>
+                          {s.status === "COMPLIMENTARY" || s.status === "SPECIAL_ACCESS" ? "Especial" : "Acceso"}
                         </button>
                       </div>
                     </td>
@@ -515,7 +632,7 @@ function SubsTable({ subs, unsub, onSelectDojo, onRefresh }: {
                     <td className="px-4 py-3">
                       <button
                         type="button"
-                        onClick={() => setGrantTarget({ id: d.id, name: d.name, status: "NONE" })}
+                        onClick={() => setGrantTarget({ id: d.id, name: d.name, status: "NONE", trialEndsAt: "", planId: null })}
                         className="btn-ghost text-xs px-2 py-1 gap-1 text-dojo-muted hover:text-dojo-white"
                       >
                         <Gift size={12}/> Acceso

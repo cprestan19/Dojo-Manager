@@ -8,7 +8,8 @@ import { getDojoSubscription } from "./subscription";
  */
 export async function dojoHasPaidFeatures(dojoId: string): Promise<boolean> {
   const sub = await getDojoSubscription(dojoId);
-  if (!sub) return true; // sin suscripción → sin restricción (periodo de gracia)
+  if (!sub) return true;
   if (sub.status === SubscriptionStatus.COMPLIMENTARY) return true;
+  if (sub.status === SubscriptionStatus.SPECIAL_ACCESS) return true;
   return (sub.plan?.monthlyPrice ?? 0) > 0;
 }

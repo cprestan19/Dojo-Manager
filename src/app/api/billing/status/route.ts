@@ -36,24 +36,30 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const isInTrial  = sub.status === SubscriptionStatus.TRIAL;
-    const isComplimentary = sub.status === SubscriptionStatus.COMPLIMENTARY;
-    const readOnly   =
-      !isComplimentary && (
-        sub.status === SubscriptionStatus.READ_ONLY ||
-        sub.status === SubscriptionStatus.PAST_DUE
-      );
-    let daysRemaining: number | null = null;
+    const isComplimentary   = sub.status === SubscriptionStatus.COMPLIMENTARY;
+    const isSpecialAccess   = sub.status === SubscriptionStatus.SPECIAL_ACCESS;
+    const isInTrial         = sub.status === SubscriptionStatus.TRIAL;
+    const now               = new Date();
 
-    if (isInTrial) {
-      const diff = sub.trialEndsAt.getTime() - Date.now();
+    // SPECIAL_ACCESS expira cuando pasa la fecha de acceso
+    const specialExpired = isSpecialAccess && sub.trialEndsAt < now;
+
+    const readOnly =
+      specialExpired ||
+      sub.status === SubscriptionStatus.READ_ONLY ||
+      sub.status === SubscriptionStatus.PAST_DUE;
+
+    let daysRemaining: number | null = null;
+    if (isInTrial || isSpecialAccess) {
+      const diff = sub.trialEndsAt.getTime() - now.getTime();
       daysRemaining = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
     }
 
-    // Student limit — only relevant if plan has a maxStudents cap and not complimentary
+    // Student limit — se aplica a todos excepto COMPLIMENTARY permanente
     const maxStudents = sub.plan?.maxStudents ?? null;
     let activeStudents: number | null = null;
-    if (maxStudents != null && !isComplimentary) {
+    const enforceLimit = !isComplimentary && maxStudents != null;
+    if (enforceLimit) {
       activeStudents = await prisma.student.count({
         where: { dojoId, active: true },
       });
@@ -63,6 +69,7 @@ export async function GET(req: NextRequest) {
       status:           sub.status,
       isReadOnly:       readOnly,
       isInTrial,
+      isSpecialAccess,
       daysRemaining,
       plan: sub.plan
         ? {
@@ -72,13 +79,14 @@ export async function GET(req: NextRequest) {
             maxStudents,
           }
         : null,
-      currentPeriodEnd: sub.currentPeriodEnd ?? null,
-      gateway:          sub.gateway ?? null,
-      studentLimit:     maxStudents,
+      currentPeriodEnd:   sub.currentPeriodEnd ?? null,
+      gateway:            sub.gateway ?? null,
+      studentLimit:       maxStudents,
       activeStudents,
-      atStudentLimit:   maxStudents != null && activeStudents != null && activeStudents >= maxStudents,
-      // Torneos, Tienda y Página pública — solo planes pagos (Silver/Gold)
-      hasPaidFeatures:  isComplimentary || (sub.plan?.monthlyPrice ?? 0) > 0,
+      atStudentLimit:     enforceLimit && activeStudents != null && activeStudents >= maxStudents!,
+      hasPaidFeatures:    isComplimentary || isSpecialAccess || (sub.plan?.monthlyPrice ?? 0) > 0,
+      // Info de acceso especial con fecha
+      specialAccessEndsAt: isSpecialAccess ? sub.trialEndsAt : null,
     });
   } catch (err) {
     console.error("GET /api/billing/status error:", err);
