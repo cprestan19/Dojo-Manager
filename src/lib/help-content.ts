@@ -612,6 +612,33 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
     ],
   },
 
+  "/dashboard/settings/certificados": {
+    title:       "Plantillas de Diplomas",
+    emoji:       "🎓",
+    description: "Editor visual para diseñar plantillas de diplomas y certificados que se generan automáticamente al concluir un examen.",
+    steps: [
+      "Haz clic en 'Nueva Plantilla' en el panel izquierdo para comenzar.",
+      "Sube la imagen de fondo del diploma (JPG o PNG) — esta imagen será la base visual del certificado.",
+      "Haz clic en 'Agregar elemento' para añadir un campo de texto al diploma y posicionarlo en el canvas.",
+      "Cada elemento se puede arrastrar y soltar directamente sobre la imagen para reubicarlo.",
+      "Selecciona el tipo de campo: Nombre del alumno, Cinta obtenida, Fecha de emisión, Instructor o Texto libre.",
+      "Elige la fuente en el selector — dispones de 10 opciones incluyendo tipografías elegantes como Cinzel, Playfair Display, Dancing Script y Great Vibes.",
+      "Usa los botones B / I / U para activar Negrita, Cursiva o Subrayado en el elemento seleccionado.",
+      "Ajusta el tamaño, color, alineación y rotación desde el mismo panel de propiedades.",
+      "Haz clic en 'Vista Previa' para ver el diploma con datos de ejemplo antes de guardar.",
+      "Presiona 'Guardar' cuando estés satisfecho con el diseño — la plantilla queda disponible para generar diplomas.",
+      "Para generar diplomas reales, ve a Postulaciones → selecciona un examen finalizado → pestaña Certificados.",
+    ],
+    tips: [
+      "Cinzel y Playfair Display son ideales para diplomas formales con un toque clásico.",
+      "Dancing Script y Great Vibes dan un aspecto caligráfico elegante, perfecto para el nombre del alumno.",
+      "La Vista Previa muestra datos de ejemplo — úsala para verificar posición, tamaño y fuente antes de guardar.",
+      "El elemento Texto libre te permite agregar el título del diploma, lemas o textos fijos de la organización.",
+      "No puedes eliminar una plantilla si ya tiene diplomas EMITIDOS — primero deberás revocarlos desde el módulo de diplomas.",
+      "La rotación es útil para alinear texto en diplomas con diseños creativos o líneas diagonales.",
+    ],
+  },
+
   "/portal/live": {
     title:       "En Vivo",
     emoji:       "📺",
