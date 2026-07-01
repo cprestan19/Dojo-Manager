@@ -29,6 +29,7 @@ const translations = {
       postulaciones:          "Postulaciones",
       certificados:           "Diplomas/Certificados",
       "tournament-events":    "Asistencia de Eventos",
+      settingsTerms:          "Políticas y Términos",
     },
     topbar: {
       dashboard:          "Dashboard",
@@ -119,6 +120,7 @@ const translations = {
       postulaciones:          "Exam Applications",
       certificados:           "Certificates",
       "tournament-events":    "Event Attendance",
+      settingsTerms:          "Policies & Terms",
     },
     topbar: {
       dashboard:          "Dashboard",

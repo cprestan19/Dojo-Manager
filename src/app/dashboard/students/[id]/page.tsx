@@ -7,7 +7,8 @@ import {
   ArrowLeft, Edit, Award, CreditCard, Phone,
   Heart, Calendar, Plus, Shield, Trophy, Fingerprint, Trash2, Pencil, Star,
   ClipboardList, LogIn, LogOut, UserX, UserCheck, KeyRound, PlayCircle, Video,
-  MapPin, Building2, ChevronDown, ChevronUp, Users, Flag, IdCard,
+  MapPin, Building2, ChevronDown, ChevronUp, Users, Flag, IdCard, ScrollText,
+  CheckCircle2, AlertCircle,
 } from "lucide-react";
 import { StudentQR } from "@/components/students/StudentQR";
 import { FamilyManager } from "@/components/students/FamilyManager";
@@ -765,6 +766,10 @@ export default function StudentDetailPage() {
   const [attList,     setAttList]   = useState<{ id: string; type: string; markedAt: string; schedule: { name: string } | null; corrected: boolean }[]>([]);
   const [attLoading,  setAttLoading] = useState(false);
   const [attLoaded,   setAttLoaded]  = useState(false);
+  const [termsStatus, setTermsStatus] = useState<{
+    enabled: boolean; version: number;
+    accepted: boolean; acceptedAt: string | null; acceptedVersion: number | null;
+  } | null>(null);
 
   async function loadAttendance() {
     setAttLoading(true);
@@ -776,8 +781,12 @@ export default function StudentDetailPage() {
   }
 
   const fetchStudent = useCallback(async () => {
-    const res = await fetch(`/api/students/${id}`);
-    if (res.ok) setStudent(await res.json());
+    const [stuRes, termsRes] = await Promise.all([
+      fetch(`/api/students/${id}`),
+      fetch(`/api/students/${id}/terms-status`),
+    ]);
+    if (stuRes.ok)   setStudent(await stuRes.json());
+    if (termsRes.ok) setTermsStatus(await termsRes.json());
     setLoading(false);
   }, [id]);
 
@@ -1102,6 +1111,34 @@ export default function StudentDetailPage() {
               )}
             </dl>
           </div>
+
+          {/* Términos y Condiciones */}
+          {termsStatus?.enabled && (
+            <div className="card">
+              <p className="section-title flex items-center gap-2"><ScrollText size={13}/>Políticas y Términos</p>
+              {termsStatus.accepted ? (
+                <div className="flex items-start gap-2 text-sm">
+                  <CheckCircle2 size={15} className="text-green-400 mt-0.5 shrink-0"/>
+                  <div>
+                    <p className="text-green-400 font-medium">Aceptados</p>
+                    {termsStatus.acceptedAt && (
+                      <p className="text-xs text-dojo-muted mt-0.5">
+                        {formatDate(termsStatus.acceptedAt)} — v{termsStatus.acceptedVersion}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 text-sm">
+                  <AlertCircle size={15} className="text-yellow-400 mt-0.5 shrink-0"/>
+                  <div>
+                    <p className="text-yellow-400 font-medium">Pendiente de aceptación</p>
+                    <p className="text-xs text-dojo-muted mt-0.5">v{termsStatus.version}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* QR / ID Card */}
           <StudentQR

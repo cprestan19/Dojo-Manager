@@ -612,6 +612,28 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
     ],
   },
 
+  "/dashboard/settings/terms": {
+    title:       "Políticas y Términos",
+    emoji:       "📜",
+    description: "Define el contrato del dojo que los alumnos deben leer y aceptar antes de acceder a su portal.",
+    steps: [
+      "Escribe el contenido de las políticas, términos y condiciones en el área de texto — usa párrafos separados por líneas en blanco para mayor claridad.",
+      "Activa el toggle 'Requerir aceptación' para que los alumnos vean y acepten los términos al entrar a su portal.",
+      "Haz clic en 'Guardar cambios' para aplicar el contenido y el estado del toggle.",
+      "Las estadísticas en la parte superior muestran cuántos alumnos activos han aceptado la versión actual.",
+      "Si actualizas el contenido sin cambiar la versión, los alumnos que ya aceptaron NO tendrán que volver a hacerlo.",
+      "Para obligar a todos a re-aceptar (por ejemplo, tras un cambio importante), usa el botón 'Nueva versión (forzar re-aceptación)'.",
+      "En el perfil de cada alumno puedes ver si ha aceptado los términos y en qué fecha lo hizo.",
+    ],
+    tips: [
+      "Comienza con un encabezado claro como 'TÉRMINOS Y CONDICIONES DEL DOJO [Nombre]' para que el documento se vea oficial.",
+      "Incluye secciones como: Inscripción, Pagos, Normas de conducta, Responsabilidad por lesiones, Política de imágenes.",
+      "Usa el botón 'Nueva versión' solo cuando hayas hecho cambios sustanciales que requieran nueva confirmación de los alumnos.",
+      "El historial de aceptación queda registrado con fecha e IP — sirve como respaldo legal de que el alumno leyó el contrato.",
+      "Puedes desactivar el toggle temporalmente sin borrar el contenido — útil si quieres hacer cambios sin bloquear a los alumnos.",
+    ],
+  },
+
   "/dashboard/settings/certificados": {
     title:       "Plantillas de Diplomas",
     emoji:       "🎓",

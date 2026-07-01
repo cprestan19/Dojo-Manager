@@ -56,6 +56,7 @@ const SETTINGS_DEFS: NavItemDef[] = [
   { href: "/dashboard/settings/import",      icon: Upload,      permKey: NAV_KEYS.SETTINGS_IMPORT,  labelKey: "importStudents"  },
   { href: "/dashboard/settings/card-template", icon: CreditCard, permKey: NAV_KEYS.SETTINGS_CARD,   labelKey: "settingsCard"    },
   { href: "/dashboard/settings/certificados",  icon: Award,      permKey: NAV_KEYS.CERTIFICADOS,    labelKey: "certificados"    },
+  { href: "/dashboard/settings/terms",         icon: ScrollText, permKey: NAV_KEYS.SETTINGS_TERMS,   labelKey: "settingsTerms"   },
 ];
 
 export function Sidebar() {

@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import PortalNav from "./PortalNav";
+import TermsGate from "./TermsGate";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -16,12 +17,36 @@ export default async function PortalLayout({ children }: { children: React.React
     where:  { id: user.studentId },
     select: {
       id: true, fullName: true, photo: true,
+      dojoId: true,
       dojo: { select: { name: true, logo: true } },
       beltHistory: { orderBy: { changeDate: "desc" }, take: 1, select: { beltColor: true } },
     },
   });
 
   if (!student) redirect("/login");
+
+  // ── Verificar si el alumno necesita aceptar los términos del dojo ──
+  const [termsPolicy, termsAcceptance] = await Promise.all([
+    prisma.dojoTermsPolicy.findUnique({ where: { dojoId: student.dojoId } }),
+    prisma.termsAcceptance.findUnique({
+      where: { studentId_dojoId: { studentId: user.studentId, dojoId: student.dojoId } },
+    }),
+  ]);
+
+  const needsAcceptance =
+    !!termsPolicy &&
+    termsPolicy.enabled &&
+    (!termsAcceptance || termsAcceptance.version < termsPolicy.version);
+
+  if (needsAcceptance) {
+    return (
+      <TermsGate
+        content={termsPolicy!.content}
+        version={termsPolicy!.version}
+        dojoName={student.dojo.name}
+      />
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] w-full flex flex-col bg-dojo-darker overflow-x-hidden">

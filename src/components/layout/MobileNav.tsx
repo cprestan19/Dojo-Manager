@@ -26,6 +26,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/belts":              "Cintas o Grados",
   "/dashboard/schedules":          "Horarios",
   "/dashboard/attendance":               "Asistencia",
+  "/dashboard/settings/terms":           "Políticas y Términos",
   "/dashboard/tournament-events":        "Asistencia de Eventos",
   "/dashboard/tournament-events/new":    "Nuevo Torneo",
   "/dashboard/registros":               "Auto-registro",

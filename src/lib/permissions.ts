@@ -27,6 +27,7 @@ export const NAV_KEYS = {
   REGISTROS:       "registros",
   POSTULACIONES:   "postulaciones",
   CERTIFICADOS:    "certificados",
+  SETTINGS_TERMS:  "settings.terms",
 } as const;
 
 export type NavKey = typeof NAV_KEYS[keyof typeof NAV_KEYS];
@@ -57,6 +58,7 @@ export const ALL_DOJO_KEYS: NavKey[] = [
   NAV_KEYS.REGISTROS,
   NAV_KEYS.POSTULACIONES,
   NAV_KEYS.CERTIFICADOS,
+  NAV_KEYS.SETTINGS_TERMS,
 ];
 
 // Permisos del sysadmin SIN dojo activo — solo gestión global de la plataforma
@@ -118,6 +120,7 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "registros":        "Auto-registro",
   "postulaciones":    "Postulaciones",
   "certificados":     "Certificados",
+  "settings.terms":   "Políticas y Términos",
 };
 
 export const ROLE_COLORS = [
