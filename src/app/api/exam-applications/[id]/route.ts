@@ -87,8 +87,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const existing = await prisma.examApplication.findFirst({ where: { id, dojoId } });
     if (!existing) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
-    if (existing.status !== "DRAFT" && existing.status !== "PUBLISHED") {
-      return NextResponse.json({ error: "Solo se puede editar en estado DRAFT o PUBLISHED" }, { status: 400 });
+    if (existing.status === "FINALIZED") {
+      return NextResponse.json({ error: "No se puede editar una postulación finalizada" }, { status: 400 });
     }
 
     const body = await req.json() as {
@@ -149,10 +149,6 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
     const existing = await prisma.examApplication.findFirst({ where: { id, dojoId } });
     if (!existing) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
-
-    if (existing.status !== "DRAFT") {
-      return NextResponse.json({ error: "Solo se pueden eliminar postulaciones en estado DRAFT" }, { status: 400 });
-    }
 
     await prisma.examApplication.delete({ where: { id } });
 

@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { formatDate, getBeltInfo } from "@/lib/utils";
 import {
-  ChevronLeft, Loader2, CheckCircle, XCircle, Clock, Users, Award, ClipboardList
+  ChevronLeft, Loader2, CheckCircle, XCircle, Clock, Users, Award, ClipboardList,
+  Pencil, Archive, Trash2
 } from "lucide-react";
 
 interface Invitee {
@@ -31,6 +33,7 @@ interface Application {
   amount:      number;
   description: string | null;
   status:      string;
+  archivedAt:  string | null;
   invitees:    Invitee[];
 }
 
@@ -59,6 +62,10 @@ export default function PostulacionDetallePage() {
   const [filter,    setFilter]    = useState<ResponseFilter>("all");
   const [actioning, setActioning] = useState<string | null>(null);
 
+  // Archive / delete from detail
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmDelete,  setConfirmDelete]  = useState(false);
+
   // Certificados
   const [templates,    setTemplates]    = useState<CertTemplate[]>([]);
   const [selTemplate,  setSelTemplate]  = useState("");
@@ -78,6 +85,24 @@ export default function PostulacionDetallePage() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function handleArchive() {
+    setActioning("archive");
+    try {
+      const res = await fetch(`/api/exam-applications/${id}/archive`, { method: "POST" });
+      if (res.ok) { router.replace("/dashboard/postulaciones"); }
+      else { const d = await res.json() as { error?: string }; setError(d.error ?? "Error al archivar"); }
+    } finally { setActioning(null); setConfirmArchive(false); }
+  }
+
+  async function handleDelete() {
+    setActioning("delete");
+    try {
+      const res = await fetch(`/api/exam-applications/${id}`, { method: "DELETE" });
+      if (res.ok) { router.replace("/dashboard/postulaciones"); }
+      else { const d = await res.json() as { error?: string }; setError(d.error ?? "Error al eliminar"); }
+    } finally { setActioning(null); setConfirmDelete(false); }
+  }
 
   async function changeStatus(action: "publish" | "close" | "finalize") {
     setActioning(action);
@@ -173,8 +198,8 @@ export default function PostulacionDetallePage() {
             {app.amount > 0 && ` · $${app.amount.toFixed(2)}`}
           </p>
         </div>
-        {/* Acciones de estado */}
-        <div className="flex gap-2 shrink-0">
+        {/* Acciones */}
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
           {app.status === "DRAFT" && (
             <button onClick={() => changeStatus("publish")} disabled={!!actioning} className="btn-primary text-sm">
               {actioning === "publish" ? <Loader2 size={14} className="animate-spin" /> : "Publicar"}
@@ -190,6 +215,25 @@ export default function PostulacionDetallePage() {
               {actioning === "finalize" ? <Loader2 size={14} className="animate-spin" /> : "Finalizar"}
             </button>
           )}
+          {app.status !== "FINALIZED" && (
+            <Link href={`/dashboard/postulaciones/${id}/edit`}
+              className="p-1.5 rounded-lg text-dojo-muted hover:text-dojo-white hover:bg-dojo-border transition-colors"
+              title="Editar">
+              <Pencil size={16} />
+            </Link>
+          )}
+          {!app.archivedAt && (
+            <button onClick={() => setConfirmArchive(true)} disabled={!!actioning}
+              className="p-1.5 rounded-lg text-dojo-muted hover:text-orange-400 hover:bg-orange-900/20 transition-colors"
+              title="Archivar">
+              <Archive size={16} />
+            </button>
+          )}
+          <button onClick={() => setConfirmDelete(true)} disabled={!!actioning}
+            className="p-1.5 rounded-lg text-dojo-muted hover:text-dojo-red hover:bg-dojo-red/10 transition-colors"
+            title="Eliminar">
+            <Trash2 size={16} />
+          </button>
         </div>
       </div>
 
@@ -449,6 +493,69 @@ export default function PostulacionDetallePage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal archivar */}
+      {confirmArchive && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dojo-dark border border-dojo-border rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-orange-900/30 flex items-center justify-center">
+                <Archive size={20} className="text-orange-400" />
+              </div>
+              <div>
+                <p className="font-semibold text-dojo-white">Archivar postulación</p>
+                <p className="text-xs text-dojo-muted">Se moverá al historial</p>
+              </div>
+            </div>
+            <p className="text-sm text-dojo-muted">
+              ¿Mover <span className="text-dojo-white font-medium">"{app.title}"</span> al historial?
+              Esta acción no elimina los datos.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmArchive(false)} className="btn-secondary flex-1 text-sm" disabled={actioning === "archive"}>
+                Cancelar
+              </button>
+              <button onClick={handleArchive}
+                className="flex-1 text-sm bg-orange-700 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+                disabled={actioning === "archive"}>
+                {actioning === "archive" ? <Loader2 size={14} className="animate-spin inline" /> : "Sí, archivar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal eliminar */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dojo-dark border border-dojo-border rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-dojo-red/10 flex items-center justify-center">
+                <Trash2 size={20} className="text-dojo-red" />
+              </div>
+              <div>
+                <p className="font-semibold text-dojo-white">Eliminar postulación</p>
+                <p className="text-xs text-red-400">Esta acción no se puede deshacer</p>
+              </div>
+            </div>
+            <p className="text-sm text-dojo-muted">
+              ¿Eliminar definitivamente{" "}
+              <span className="text-dojo-white font-medium">"{app.title}"</span>?
+              Se borrarán todos los invitados y respuestas.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDelete(false)} className="btn-secondary flex-1 text-sm" disabled={actioning === "delete"}>
+                Cancelar
+              </button>
+              <button onClick={handleDelete}
+                className="btn-primary flex-1 text-sm bg-dojo-red hover:bg-red-700"
+                disabled={actioning === "delete"}>
+                {actioning === "delete" ? <Loader2 size={14} className="animate-spin inline" /> : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

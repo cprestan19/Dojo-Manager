@@ -1426,16 +1426,18 @@ model ExamApplication {
   deadline    DateTime?
   amount      Float    @default(0)
   description String?  @db.Text
-  status      String   @default("DRAFT")
-  createdById String   @map("created_by_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  status      String    @default("DRAFT")
+  archivedAt  DateTime? @map("archived_at")
+  createdById String    @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   dojo     Dojo                     @relation(fields: [dojoId], references: [id], onDelete: Cascade)
   invitees ExamApplicationInvitee[]
 
   @@index([dojoId, status])
   @@index([dojoId, examDate])
+  @@index([dojoId, archivedAt])
   @@map("exam_applications")
 }
 

@@ -26,6 +26,7 @@ export default async function PostulacionesPage() {
     deadline: Date | null;
     amount: number;
     status: string;
+    archivedAt: Date | null;
     createdAt: Date;
     totalInvitees: number;
     accepted: number;
@@ -39,7 +40,8 @@ export default async function PostulacionesPage() {
       orderBy: { examDate: "desc" },
       select: {
         id: true, title: true, location: true, examDate: true,
-        examTime: true, deadline: true, amount: true, status: true, createdAt: true,
+        examTime: true, deadline: true, amount: true, status: true,
+        archivedAt: true, createdAt: true,
         _count:   { select: { invitees: true } },
         invitees: { select: { response: true } },
       },
@@ -54,6 +56,7 @@ export default async function PostulacionesPage() {
       deadline:      a.deadline,
       amount:        a.amount,
       status:        a.status,
+      archivedAt:    a.archivedAt,
       createdAt:     a.createdAt,
       totalInvitees: a._count.invitees,
       accepted:      a.invitees.filter(i => i.response === "ACCEPTED").length,

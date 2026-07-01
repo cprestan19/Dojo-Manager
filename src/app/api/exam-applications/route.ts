@@ -20,11 +20,24 @@ export async function GET(req: NextRequest) {
     if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
     const statusFilter = req.nextUrl.searchParams.get("status");
+    const view         = req.nextUrl.searchParams.get("view"); // "active" | "history"
+    const now          = new Date();
+
+    // Filtro por vista: activas vs historial
+    // Activas  : archivedAt IS NULL AND examDate >= hoy
+    // Historial: archivedAt IS NOT NULL OR examDate < hoy
+    let viewWhere: Record<string, unknown> = {};
+    if (view === "active") {
+      viewWhere = { archivedAt: null, examDate: { gte: now } };
+    } else if (view === "history") {
+      viewWhere = { OR: [{ archivedAt: { not: null } }, { examDate: { lt: now } }] };
+    }
 
     const applications = await prisma.examApplication.findMany({
       where: {
         dojoId,
         ...(statusFilter ? { status: statusFilter } : {}),
+        ...viewWhere,
       },
       orderBy: { examDate: "desc" },
       select: {
@@ -36,11 +49,10 @@ export async function GET(req: NextRequest) {
         deadline:    true,
         amount:      true,
         status:      true,
+        archivedAt:  true,
         createdAt:   true,
         _count: { select: { invitees: true } },
-        invitees: {
-          select: { response: true },
-        },
+        invitees: { select: { response: true } },
       },
     });
 
@@ -57,6 +69,7 @@ export async function GET(req: NextRequest) {
         deadline:    a.deadline,
         amount:      a.amount,
         status:      a.status,
+        archivedAt:  a.archivedAt,
         createdAt:   a.createdAt,
         totalInvitees: a._count.invitees,
         accepted,
