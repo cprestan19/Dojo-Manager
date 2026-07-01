@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { deleteResource } from "@/lib/cloudinary";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -149,6 +150,15 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
     const existing = await prisma.examApplication.findFirst({ where: { id, dojoId } });
     if (!existing) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+
+    // Limpiar PDFs de Cloudinary antes de borrar (el schema cascade elimina los registros)
+    const certs = await prisma.generatedCertificate.findMany({
+      where:  { invitee: { applicationId: id } },
+      select: { pdfPublicId: true },
+    });
+    await Promise.allSettled(
+      certs.filter(c => c.pdfPublicId).map(c => deleteResource(c.pdfPublicId!, "image"))
+    );
 
     await prisma.examApplication.delete({ where: { id } });
 
