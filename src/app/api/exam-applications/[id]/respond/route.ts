@@ -1,0 +1,79 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+
+type Params = { params: Promise<{ id: string }> };
+
+// POST /api/exam-applications/[id]/respond — alumno responde su invitación
+export async function POST(req: NextRequest, { params }: Params) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const user = session.user as { role?: string; studentId?: string | null };
+    if (user.role !== "student" || !user.studentId) {
+      return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+    }
+
+    const { id: applicationId } = await params;
+
+    const application = await prisma.examApplication.findUnique({
+      where: { id: applicationId },
+    });
+    if (!application) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+    if (application.status !== "PUBLISHED") {
+      return NextResponse.json({ error: "La postulación no está disponible para responder" }, { status: 400 });
+    }
+
+    // Verificar deadline
+    if (application.deadline && new Date() > application.deadline) {
+      return NextResponse.json({ error: "El período de respuesta ha cerrado" }, { status: 400 });
+    }
+
+    // Verificar que el alumno sea invitado
+    const invitee = await prisma.examApplicationInvitee.findUnique({
+      where: {
+        applicationId_studentId: {
+          applicationId,
+          studentId: user.studentId!,
+        },
+      },
+    });
+    if (!invitee) return NextResponse.json({ error: "No estás invitado a esta postulación" }, { status: 403 });
+
+    const body = await req.json() as { response: "ACCEPTED" | "REJECTED"; responseNote?: string };
+    if (!body.response || !["ACCEPTED", "REJECTED"].includes(body.response)) {
+      return NextResponse.json({ error: "Respuesta inválida. Use ACCEPTED o REJECTED" }, { status: 400 });
+    }
+    if (body.response === "REJECTED" && !body.responseNote?.trim()) {
+      return NextResponse.json({ error: "El motivo es requerido al rechazar" }, { status: 400 });
+    }
+
+    const updated = await prisma.examApplicationInvitee.update({
+      where: { id: invitee.id },
+      data: {
+        response:     body.response,
+        responseNote: body.responseNote?.trim() ?? null,
+        respondedAt:  new Date(),
+      },
+    });
+
+    const ctx = buildAuditCtx(session, req, { dojoId: null });
+    await logAudit({
+      ...ctx,
+      action:       "EXAM_INVITATION_RESPONDED",
+      module:       AUDIT_MODULE.PORTAL,
+      resourceType: "ExamApplicationInvitee",
+      resourceId:   invitee.id,
+      statusCode:   200,
+      details:      JSON.stringify({ applicationId, response: body.response }),
+    });
+
+    return NextResponse.json(updated);
+  } catch (err) {
+    console.error("POST /api/exam-applications/[id]/respond", err);
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+  }
+}

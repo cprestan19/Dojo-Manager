@@ -68,6 +68,9 @@ model Dojo {
   registrationLinks       RegistrationLink[]
   pendingStudents         PendingStudent[]
   specialAccessEmailLogs  SpecialAccessEmailLog[]
+  examApplications      ExamApplication[]
+  certificateTemplates  CertificateTemplate[]
+  generatedCertificates GeneratedCertificate[]
 
   @@map("dojos")
 }
@@ -258,6 +261,8 @@ model Student {
   tournamentParticipations  TournamentParticipant[]
   tournamentRegistrations   TournamentRegistration[]
   eventRsvps                EventRSVP[]
+  examInvitees          ExamApplicationInvitee[]
+  certificates          GeneratedCertificate[]
 
   @@index([dojoId, active])
   @@index([dojoId, lastName, firstName])
@@ -1405,4 +1410,103 @@ model SpecialAccessEmailLog {
   @@index([dojoId])
   @@index([sentAt])
   @@map("special_access_email_logs")
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// MÓDULO EXÁMENES Y CERTIFICADOS
+// ════════════════════════════════════════════════════════════════════════════
+
+model ExamApplication {
+  id          String   @id @default(cuid())
+  dojoId      String   @map("dojo_id")
+  title       String
+  location    String
+  examDate    DateTime @map("exam_date")
+  examTime    String   @map("exam_time")
+  deadline    DateTime?
+  amount      Float    @default(0)
+  description String?  @db.Text
+  status      String   @default("DRAFT")
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  dojo     Dojo                     @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  invitees ExamApplicationInvitee[]
+
+  @@index([dojoId, status])
+  @@index([dojoId, examDate])
+  @@map("exam_applications")
+}
+
+model ExamApplicationInvitee {
+  id              String   @id @default(cuid())
+  applicationId   String   @map("application_id")
+  studentId       String   @map("student_id")
+  beltToPresent   String   @map("belt_to_present")
+  response        String   @default("PENDING")
+  responseNote    String?  @db.Text @map("response_note")
+  respondedAt     DateTime? @map("responded_at")
+  paymentStatus   String   @default("PENDING") @map("payment_status")
+  paidAt          DateTime? @map("paid_at")
+  attended        Boolean  @default(false)
+  passed          Boolean?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  application  ExamApplication       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  student      Student               @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  certificate  GeneratedCertificate?
+
+  @@unique([applicationId, studentId])
+  @@index([studentId])
+  @@index([applicationId, response])
+  @@map("exam_application_invitees")
+}
+
+model CertificateTemplate {
+  id            String   @id @default(cuid())
+  dojoId        String   @map("dojo_id")
+  name          String
+  imageUrl      String   @db.Text @map("image_url")
+  imagePublicId String   @map("image_public_id")
+  canvasWidth   Int      @default(1000) @map("canvas_width")
+  canvasHeight  Int      @default(700)  @map("canvas_height")
+  elements      Json
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  dojo         Dojo                   @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  certificates GeneratedCertificate[]
+
+  @@index([dojoId, active])
+  @@map("certificate_templates")
+}
+
+model GeneratedCertificate {
+  id             String   @id @default(cuid())
+  dojoId         String   @map("dojo_id")
+  studentId      String   @map("student_id")
+  inviteeId      String?  @unique @map("invitee_id")
+  templateId     String   @map("template_id")
+  title          String
+  beltColor      String   @map("belt_color")
+  issuedDate     DateTime @map("issued_date")
+  instructorName String?  @map("instructor_name")
+  pdfUrl         String?  @db.Text @map("pdf_url")
+  pdfPublicId    String?  @map("pdf_public_id")
+  status         String   @default("DRAFT")
+  revokedReason  String?  @db.Text @map("revoked_reason")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  dojo     Dojo                    @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  student  Student                 @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  invitee  ExamApplicationInvitee? @relation(fields: [inviteeId], references: [id], onDelete: SetNull)
+  template CertificateTemplate     @relation(fields: [templateId], references: [id], onDelete: Restrict)
+
+  @@index([studentId])
+  @@index([dojoId, status])
+  @@index([dojoId, beltColor])
+  @@map("generated_certificates")
 }

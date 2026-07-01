@@ -25,6 +25,8 @@ export const NAV_KEYS = {
   PUBLIC_PAGE:     "public-page",
   STORE:           "store",
   REGISTROS:       "registros",
+  POSTULACIONES:   "postulaciones",
+  CERTIFICADOS:    "certificados",
 } as const;
 
 export type NavKey = typeof NAV_KEYS[keyof typeof NAV_KEYS];
@@ -53,6 +55,8 @@ export const ALL_DOJO_KEYS: NavKey[] = [
   NAV_KEYS.PUBLIC_PAGE,
   NAV_KEYS.STORE,
   NAV_KEYS.REGISTROS,
+  NAV_KEYS.POSTULACIONES,
+  NAV_KEYS.CERTIFICADOS,
 ];
 
 // Permisos del sysadmin SIN dojo activo — solo gestión global de la plataforma
@@ -112,6 +116,8 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "public-page":      "Página Pública",
   "store":            "Tienda",
   "registros":        "Auto-registro",
+  "postulaciones":    "Postulaciones",
+  "certificados":     "Certificados",
 };
 
 export const ROLE_COLORS = [
@@ -138,6 +144,8 @@ export const BADGE_BY_COLOR: Record<string, string> = {
 const NEWLY_ADDED_FOR_ADMIN: NavKey[] = [
   NAV_KEYS.SETTINGS_CARD,
   NAV_KEYS.REGISTROS,
+  NAV_KEYS.POSTULACIONES,
+  NAV_KEYS.CERTIFICADOS,
 ];
 
 // Resolve permissions: DB record > default > empty

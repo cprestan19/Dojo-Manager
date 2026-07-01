@@ -16,7 +16,7 @@ import {
   BarChart2, Settings, LogOut, Shield, Building2, ClipboardList, ExternalLink,
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
   Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Upload,
-  Receipt, LayoutList,
+  Receipt, LayoutList, FileText,
 } from "lucide-react";
 
 interface NavItem {
@@ -32,6 +32,7 @@ const NAV_DEFS: NavItemDef[] = [
   { href: "/dashboard",                  icon: LayoutDashboard, permKey: NAV_KEYS.DASHBOARD,       labelKey: "dashboard"   },
   { href: "/dashboard/students",         icon: Users,           permKey: NAV_KEYS.STUDENTS,        labelKey: "students"    },
   { href: "/dashboard/registros",        icon: Receipt,         permKey: NAV_KEYS.REGISTROS,       labelKey: "registros"   },
+  { href: "/dashboard/postulaciones",   icon: FileText,        permKey: NAV_KEYS.POSTULACIONES,   labelKey: "postulaciones" },
   { href: "/dashboard/leads",            icon: UserPlus,        permKey: NAV_KEYS.LEADS,           labelKey: "leads"       },
   { href: "/dashboard/attendance",         icon: ClipboardList, permKey: NAV_KEYS.ATTENDANCE,        labelKey: "attendance"        },
   { href: "/dashboard/tournament-events", icon: Trophy,        permKey: NAV_KEYS.TOURNAMENT_EVENTS, labelKey: "tournament-events"  },
@@ -54,6 +55,7 @@ const SETTINGS_DEFS: NavItemDef[] = [
   { href: "/dashboard/settings/roles",       icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES,   labelKey: "settingsRoles"   },
   { href: "/dashboard/settings/import",      icon: Upload,      permKey: NAV_KEYS.SETTINGS_IMPORT,  labelKey: "importStudents"  },
   { href: "/dashboard/settings/card-template", icon: CreditCard, permKey: NAV_KEYS.SETTINGS_CARD,   labelKey: "settingsCard"    },
+  { href: "/dashboard/settings/certificados",  icon: Award,      permKey: NAV_KEYS.CERTIFICADOS,    labelKey: "certificados"    },
 ];
 
 export function Sidebar() {

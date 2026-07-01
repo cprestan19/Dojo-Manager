@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useEffect, useState, useCallback } from "react";
-import { User, CreditCard, Clock, ClipboardList, LogOut, Video, Calendar, Radio, X, Bell } from "lucide-react";
+import { User, CreditCard, Clock, ClipboardList, LogOut, Video, Calendar, Radio, X, Bell, FileText, Award } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 import Image from "next/image";
 
@@ -23,6 +23,7 @@ interface PortalNotifications {
   newVideos:       number;
   newSchedules:    number;
   pendingPayments: number;
+  pendingExams:    number;
   events:     { id: string; title: string; startDate: string }[];
   videos:     { id: string; title: string; beltColor: string }[];
 }
@@ -33,7 +34,9 @@ const BASE_TABS = [
   { href: "/portal/schedules",  label: "Horarios",    icon: Clock         },
   { href: "/portal/attendance", label: "Asistencia",  icon: ClipboardList },
   { href: "/portal/videos",     label: "Videos",      icon: Video         },
-  { href: "/portal/events",     label: "Eventos",     icon: Calendar      },
+  { href: "/portal/events",          label: "Eventos",    icon: Calendar  },
+  { href: "/portal/postulaciones",   label: "Exámenes",   icon: FileText  },
+  { href: "/portal/certificados",    label: "Diplomas",   icon: Award     },
 ];
 
 const STORAGE_KEY = "portal_notif_seen_at";
@@ -109,9 +112,10 @@ export default function PortalNav({ student }: Props) {
       badge: hasLive && t.href === "/portal/live" ? true : false,
       // Punto dorado — contenido nuevo descartable
       notif:
-        (t.href === "/portal/events"    && (notifs?.newEvents    ?? 0) > 0 && !dismissed) ||
-        (t.href === "/portal/videos"    && (notifs?.newVideos    ?? 0) > 0 && !dismissed) ||
-        (t.href === "/portal/schedules" && (notifs?.newSchedules ?? 0) > 0 && !dismissed),
+        (t.href === "/portal/events"         && (notifs?.newEvents    ?? 0) > 0 && !dismissed) ||
+        (t.href === "/portal/videos"         && (notifs?.newVideos    ?? 0) > 0 && !dismissed) ||
+        (t.href === "/portal/schedules"      && (notifs?.newSchedules ?? 0) > 0 && !dismissed) ||
+        (t.href === "/portal/postulaciones"  && (notifs?.pendingExams ?? 0) > 0),
       // Punto naranja — pagos pendientes (persistente, no se descarta)
       warn: t.href === "/portal/payments" && (notifs?.pendingPayments ?? 0) > 0,
     })),

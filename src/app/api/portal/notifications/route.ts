@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   const now = new Date();
 
-  const [newEvents, newVideos, newSchedules, pendingPayments] = await Promise.all([
+  const [newEvents, newVideos, newSchedules, pendingPayments, pendingExams] = await Promise.all([
     // Eventos próximos creados después de `since`
     prisma.event.findMany({
       where: {
@@ -67,6 +67,15 @@ export async function GET(req: NextRequest) {
         status:    { in: ["pending", "late"] },
       },
     }),
+
+    // Postulaciones de examen pendientes de respuesta (solo publicadas)
+    prisma.examApplicationInvitee.count({
+      where: {
+        studentId:   user.studentId!,
+        response:    "PENDING",
+        application: { status: "PUBLISHED" },
+      },
+    }),
   ]);
 
   return NextResponse.json({
@@ -74,6 +83,7 @@ export async function GET(req: NextRequest) {
     newVideos:       newVideos.length,
     newSchedules,
     pendingPayments,
+    pendingExams,
     // total = contenido nuevo descartable (no incluye pagos pendientes)
     total:           newEvents.length + newVideos.length + newSchedules,
     events:          newEvents,
