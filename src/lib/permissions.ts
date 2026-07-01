@@ -110,7 +110,7 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "settings.import":  "Importar Alumnos",
   "settings.card":    "Diseño de Carnet",
   "katas":            "Catálogo Katas",
-  "tournament-events": "Asistencia de Torneos",
+  "tournament-events": "Asistencia de Eventos",
   "events":           "Eventos",
   "leads":            "Prospectos",
   "public-page":      "Página Pública",

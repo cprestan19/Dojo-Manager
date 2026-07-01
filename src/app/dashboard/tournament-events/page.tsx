@@ -281,7 +281,7 @@ export default function TournamentEventsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-bold text-dojo-white tracking-wide flex items-center gap-3">
-            <Trophy size={28} className="text-dojo-red" /> Asistencia de Torneos
+            <Trophy size={28} className="text-dojo-red" /> Asistencia de Eventos
           </h1>
           <p className="text-dojo-muted text-sm mt-1">
             Controla la llegada y resultados de tus alumnos en cada torneo

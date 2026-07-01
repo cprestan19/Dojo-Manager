@@ -26,6 +26,9 @@ const translations = {
       settingsRoles:  "Roles y Accesos",
       importStudents: "Importar Alumnos",
       settingsCard:   "Diseño de Carnet",
+      postulaciones:          "Postulaciones",
+      certificados:           "Diplomas/Certificados",
+      "tournament-events":    "Asistencia de Eventos",
     },
     topbar: {
       dashboard:          "Dashboard",
@@ -113,6 +116,9 @@ const translations = {
       settingsRoles:  "Roles & Access",
       importStudents: "Import Students",
       settingsCard:   "Card Design",
+      postulaciones:          "Exam Applications",
+      certificados:           "Certificates",
+      "tournament-events":    "Event Attendance",
     },
     topbar: {
       dashboard:          "Dashboard",

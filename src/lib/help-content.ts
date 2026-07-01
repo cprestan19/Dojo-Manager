@@ -122,7 +122,7 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
   },
 
   "/dashboard/tournament-events": {
-    title:       "Asistencia de Torneos",
+    title:       "Asistencia de Eventos",
     emoji:       "🥋",
     description: "Control de asistencia y resultados para el día del torneo. Soporta múltiples escáneres simultáneos sin conflictos.",
     steps: [
