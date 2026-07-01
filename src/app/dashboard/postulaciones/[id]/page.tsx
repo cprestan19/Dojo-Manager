@@ -2,11 +2,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { formatDate, getBeltInfo } from "@/lib/utils";
+import { formatDate, getBeltInfo, BELT_COLORS } from "@/lib/utils";
 import {
   ChevronLeft, Loader2, CheckCircle, XCircle, Clock, Users, Award, ClipboardList,
-  Pencil, Archive, Trash2
+  Pencil, Archive, Trash2, UserPlus, Search, Lock, ChevronDown, ChevronUp
 } from "lucide-react";
+
+interface StudentOption {
+  id:          string;
+  fullName:    string;
+  studentCode: number | null;
+  beltHistory: { beltColor: string }[];
+}
 
 interface Invitee {
   id:            string;
@@ -65,6 +72,16 @@ export default function PostulacionDetallePage() {
   // Archive / delete from detail
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDelete,  setConfirmDelete]  = useState(false);
+
+  // Panel agregar alumno
+  const [addOpen,      setAddOpen]      = useState(false);
+  const [addStudents,  setAddStudents]  = useState<StudentOption[]>([]);
+  const [addSearch,    setAddSearch]    = useState("");
+  const [addLoading,   setAddLoading]   = useState(false);
+  const [addSel,       setAddSel]       = useState<StudentOption | null>(null);
+  const [addBelt,      setAddBelt]      = useState("blanca");
+  const [addSaving,    setAddSaving]    = useState(false);
+  const [addError,     setAddError]     = useState("");
 
   // Certificados
   const [templates,    setTemplates]    = useState<CertTemplate[]>([]);
@@ -166,6 +183,42 @@ export default function PostulacionDetallePage() {
     } finally { setGenLoading(false); }
   }
 
+  async function openAddPanel() {
+    setAddOpen(true);
+    setAddError("");
+    setAddSel(null);
+    setAddSearch("");
+    if (addStudents.length > 0) return;
+    setAddLoading(true);
+    try {
+      const res = await fetch("/api/students?active=true&limit=500");
+      if (res.ok) {
+        const data = await res.json() as { students?: StudentOption[] } | StudentOption[];
+        const list = Array.isArray(data) ? data : (data as { students?: StudentOption[] }).students ?? [];
+        setAddStudents(list);
+      }
+    } finally { setAddLoading(false); }
+  }
+
+  async function handleAddInvitee() {
+    if (!addSel) return;
+    setAddSaving(true);
+    setAddError("");
+    try {
+      const res = await fetch(`/api/exam-applications/${id}/invitees`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ studentId: addSel.id, beltToPresent: addBelt }),
+      });
+      const d = await res.json() as { error?: string };
+      if (!res.ok) { setAddError(d.error ?? "Error al agregar"); return; }
+      setAddSel(null);
+      setAddSearch("");
+      setAddOpen(false);
+      await load();
+    } finally { setAddSaving(false); }
+  }
+
   if (loading) return <div className="p-6 flex justify-center"><Loader2 size={24} className="animate-spin text-dojo-gold" /></div>;
   if (error)   return <div className="p-6 text-red-400">{error}</div>;
   if (!app)    return null;
@@ -178,6 +231,18 @@ export default function PostulacionDetallePage() {
   const pendingCount     = app.invitees.filter(i => i.response === "PENDING").length;
   const canShowAttendance   = app.status === "CLOSED" || app.status === "FINALIZED";
   const canShowCertificates = app.status === "CLOSED" || app.status === "FINALIZED";
+  const deadlinePassed      = !!app.deadline && new Date(app.deadline) < new Date();
+  const canAddStudents      = (app.status === "DRAFT" || app.status === "PUBLISHED") && !deadlinePassed;
+
+  // Alumnos ya invitados (para excluirlos del picker)
+  const invitedIds = new Set(app.invitees.map(i => i.studentId));
+
+  // Filtrar picker
+  const addFiltered = addStudents.filter(s =>
+    !invitedIds.has(s.id) &&
+    (s.fullName.toLowerCase().includes(addSearch.toLowerCase()) ||
+     String(s.studentCode ?? "").includes(addSearch))
+  );
 
   return (
     <div className="p-6 space-y-4 max-w-5xl mx-auto">
@@ -374,6 +439,133 @@ export default function PostulacionDetallePage() {
               })}
             </div>
           </div>
+
+          {/* ── Panel agregar alumno ─────────────────────────────── */}
+          {(app.status === "DRAFT" || app.status === "PUBLISHED") && (
+            <div className="mt-2">
+              {/* Bloqueado por deadline vencido */}
+              {deadlinePassed ? (
+                <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-dojo-border/20 border border-dojo-border text-dojo-muted text-sm">
+                  <Lock size={14} className="text-orange-400 shrink-0" />
+                  <span>El plazo de respuesta venció el <strong className="text-dojo-white">{formatDate(app.deadline!)}</strong> — no se pueden agregar más alumnos.</span>
+                </div>
+              ) : (
+                <>
+                  {/* Botón de abrir/cerrar */}
+                  <button
+                    onClick={() => (addOpen ? setAddOpen(false) : openAddPanel())}
+                    className="flex items-center gap-2 text-sm text-dojo-gold hover:text-yellow-300 transition-colors font-medium"
+                  >
+                    <UserPlus size={15} />
+                    Agregar alumno
+                    {addOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+
+                  {/* Panel expandido */}
+                  {addOpen && (
+                    <div className="mt-3 card space-y-3 border-dojo-gold/20">
+                      {addError && (
+                        <div className="text-red-400 text-sm bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">
+                          {addError}
+                        </div>
+                      )}
+
+                      {/* Buscador */}
+                      <div className="relative">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
+                        <input
+                          className="form-input pl-9 text-sm"
+                          placeholder="Buscar por nombre o código..."
+                          value={addSearch}
+                          onChange={e => { setAddSearch(e.target.value); setAddSel(null); }}
+                        />
+                      </div>
+
+                      {addLoading ? (
+                        <div className="flex justify-center py-4">
+                          <Loader2 size={20} className="animate-spin text-dojo-gold" />
+                        </div>
+                      ) : (
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {addFiltered.slice(0, 30).map(s => {
+                            const belt = getBeltInfo(s.beltHistory[0]?.beltColor ?? "blanca");
+                            const isSel = addSel?.id === s.id;
+                            return (
+                              <button
+                                key={s.id}
+                                onClick={() => { setAddSel(s); setAddBelt(s.beltHistory[0]?.beltColor ?? "blanca"); }}
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors text-sm ${
+                                  isSel
+                                    ? "bg-dojo-gold/10 border border-dojo-gold/40"
+                                    : "hover:bg-dojo-border/40"
+                                }`}
+                              >
+                                <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${isSel ? "border-dojo-gold bg-dojo-gold" : "border-dojo-border"}`}>
+                                  {isSel && <span className="w-1.5 h-1.5 rounded-full bg-black" />}
+                                </span>
+                                <span className="flex-1 min-w-0 text-dojo-white truncate">{s.fullName}</span>
+                                {s.studentCode && <span className="text-xs text-dojo-muted shrink-0">#{s.studentCode}</span>}
+                                <span className="text-xs px-1.5 py-0.5 rounded-full shrink-0"
+                                  style={{ backgroundColor: belt.hex + "25", color: belt.hex === "#FFFFFF" ? "#aaa" : belt.hex }}>
+                                  {belt.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                          {addFiltered.length === 0 && (
+                            <p className="text-center text-dojo-muted text-sm py-4">
+                              {addStudents.length === 0 ? "No hay alumnos activos" : "Sin resultados"}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Cinta a presentar (cuando hay selección) */}
+                      {addSel && (
+                        <div className="pt-2 border-t border-dojo-border space-y-2">
+                          <p className="text-sm text-dojo-muted">
+                            Alumno: <span className="text-dojo-white font-medium">{addSel.fullName}</span>
+                          </p>
+                          <div>
+                            <label className="form-label text-xs">Cinta a presentar</label>
+                            <select
+                              className="form-input text-sm"
+                              value={addBelt}
+                              onChange={e => setAddBelt(e.target.value)}
+                            >
+                              {BELT_COLORS.map(bc => (
+                                <option key={bc.value} value={bc.value}>{bc.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setAddSel(null); setAddSearch(""); }}
+                              className="btn-secondary text-sm flex-1"
+                              disabled={addSaving}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={handleAddInvitee}
+                              disabled={addSaving}
+                              className="btn-primary text-sm flex-1 flex items-center justify-center gap-2"
+                            >
+                              {addSaving
+                                ? <Loader2 size={14} className="animate-spin" />
+                                : <UserPlus size={14} />
+                              }
+                              Agregar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 

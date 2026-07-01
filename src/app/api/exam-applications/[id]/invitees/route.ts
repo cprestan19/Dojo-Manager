@@ -30,6 +30,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Solo se pueden agregar invitados en DRAFT o PUBLISHED" }, { status: 400 });
     }
 
+    // Bloquear si el plazo de respuesta ya venció
+    if (application.deadline && application.deadline < new Date()) {
+      return NextResponse.json({ error: "El plazo de respuesta ha vencido — no se pueden agregar más invitados" }, { status: 400 });
+    }
+
     const body = await req.json() as { studentId: string; beltToPresent: string };
     if (!body.studentId?.trim())    return NextResponse.json({ error: "studentId requerido" }, { status: 400 });
     if (!body.beltToPresent?.trim()) return NextResponse.json({ error: "beltToPresent requerido" }, { status: 400 });
