@@ -27,9 +27,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "La postulación no está disponible para responder" }, { status: 400 });
     }
 
-    // Verificar deadline
-    if (application.deadline && new Date() > application.deadline) {
-      return NextResponse.json({ error: "El período de respuesta ha cerrado" }, { status: 400 });
+    // Verificar deadline comparando solo la fecha en Panama (UTC-5).
+    // El deadline se guarda como medianoche UTC; comparar timestamps exactos
+    // expiraría 7 horas antes del día real en Panama.
+    if (application.deadline) {
+      const toYMD = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Panama" });
+      if (toYMD(new Date()) > toYMD(application.deadline)) {
+        return NextResponse.json({ error: "El período de respuesta ha cerrado" }, { status: 400 });
+      }
     }
 
     // Verificar que el alumno sea invitado

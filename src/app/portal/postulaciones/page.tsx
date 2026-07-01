@@ -97,7 +97,11 @@ function ExamCard({
   const beltInfo = getBeltInfo(item.beltToPresent);
   const now      = new Date();
   const deadline = app.deadline ? new Date(app.deadline) : null;
-  const expired  = deadline ? now > deadline : false;
+  // Comparar sólo la parte de fecha en Panama (UTC-5).
+  // El deadline "2026-07-01" guardado como medianoche UTC = 19:00 Panama del 30/jun,
+  // lo cual expiría 7h antes del día real. Con en-CA obtenemos YYYY-MM-DD comparable.
+  const toYMD    = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Panama" });
+  const expired  = deadline ? toYMD(now) > toYMD(deadline) : false;
   const canRespond = (item.response === "PENDING" || editing) && !expired && app.status === "PUBLISHED";
 
   async function handleSubmit() {
@@ -136,9 +140,17 @@ function ExamCard({
         <p className="text-sm text-dojo-gold font-semibold">Valor: ${app.amount.toFixed(2)}</p>
       )}
       {deadline && (
-        <p className={`text-xs ${expired ? "text-red-400" : "text-dojo-muted"}`}>
-          {expired ? "⚠ Período de respuesta cerrado" : `Responder antes del ${formatDate(app.deadline!)}`}
-        </p>
+        <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg w-fit ${
+          expired
+            ? "bg-red-900/20 border border-red-800/40 text-red-400"
+            : "bg-dojo-border/40 text-dojo-muted"
+        }`}>
+          <span>📅</span>
+          {expired
+            ? "Período de respuesta cerrado"
+            : <>Fecha límite para responder: <strong className="text-dojo-white ml-1">{formatDate(app.deadline!)}</strong></>
+          }
+        </div>
       )}
       {app.description && <p className="text-xs text-dojo-muted">{app.description}</p>}
 

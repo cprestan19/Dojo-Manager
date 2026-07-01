@@ -30,9 +30,12 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Solo se pueden agregar invitados en DRAFT o PUBLISHED" }, { status: 400 });
     }
 
-    // Bloquear si el plazo de respuesta ya venció
-    if (application.deadline && application.deadline < new Date()) {
-      return NextResponse.json({ error: "El plazo de respuesta ha vencido — no se pueden agregar más invitados" }, { status: 400 });
+    // Bloquear si el plazo de respuesta ya venció (comparar por fecha en Panama, no timestamp)
+    if (application.deadline) {
+      const toYMD = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Panama" });
+      if (toYMD(new Date()) > toYMD(application.deadline)) {
+        return NextResponse.json({ error: "El plazo de respuesta ha vencido — no se pueden agregar más invitados" }, { status: 400 });
+      }
     }
 
     const body = await req.json() as { studentId: string; beltToPresent: string };
