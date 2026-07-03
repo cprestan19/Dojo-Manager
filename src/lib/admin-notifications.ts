@@ -75,6 +75,15 @@ export function buildPasswordChangedEmail(userName: string, userEmail: string, d
   ]);
 }
 
+export function buildFirstPortalAccessEmail(studentName: string, email: string, dojoName: string | null): string {
+  return wrap("🎓 Alumno activó su acceso al portal", [
+    ["Alumno", studentName],
+    ["Email",  email],
+    ["Dojo",   dojoName ?? "Sin dojo"],
+    ["Fecha",  new Date().toLocaleString("es-PA", { timeZone: "America/Panama" })],
+  ], `El alumno acaba de entrar al portal por primera vez usando sus credenciales de acceso.`);
+}
+
 export function buildPendingStudentEmail(studentName: string, dojoName: string, cedula: string, ip: string): string {
   return wrap("📋 Nueva solicitud de auto-registro", [
     ["Alumno",  studentName],

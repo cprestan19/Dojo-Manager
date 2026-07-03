@@ -4,15 +4,15 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
-import { notifyAdmin, buildPasswordChangedEmail } from "@/lib/admin-notifications";
+import { notifyAdmin, buildPasswordChangedEmail, buildFirstPortalAccessEmail } from "@/lib/admin-notifications";
 
-type SessionUser = { id?: string; email?: string; dojoId?: string | null };
+type SessionUser = { id?: string; email?: string; dojoId?: string | null; mustChangePassword?: boolean; role?: string };
 
 export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { id: userId, email, dojoId } = session.user as SessionUser;
+  const { id: userId, email, dojoId, mustChangePassword, role } = session.user as SessionUser;
   const body = await req.json();
   const { currentPassword, newPassword } = body as { currentPassword: string; newPassword: string };
 
@@ -59,10 +59,22 @@ export async function PUT(req: NextRequest) {
   });
 
   // Notificación al propietario de la plataforma (fire-and-forget)
-  notifyAdmin(
-    `🔐 Cambio de contraseña — ${user.name ?? email}`,
-    buildPasswordChangedEmail(user.name ?? "Sin nombre", email ?? "", dojoId ?? null),
-  ).catch(() => {});
+  // Si mustChangePassword era true en la sesión → primer acceso al portal (alumno recién activado)
+  const dojoName = dojoId
+    ? (await prisma.dojo.findUnique({ where: { id: dojoId }, select: { name: true } }))?.name ?? null
+    : null;
+
+  if (mustChangePassword && role === "student") {
+    notifyAdmin(
+      `🎓 Primer acceso al portal — ${user.name ?? email} (${dojoName ?? dojoId ?? "?"})`,
+      buildFirstPortalAccessEmail(user.name ?? "Sin nombre", email ?? "", dojoName),
+    ).catch(() => {});
+  } else {
+    notifyAdmin(
+      `🔐 Cambio de contraseña — ${user.name ?? email}`,
+      buildPasswordChangedEmail(user.name ?? "Sin nombre", email ?? "", dojoName),
+    ).catch(() => {});
+  }
 
   return NextResponse.json({ ok: true });
 }
