@@ -13,6 +13,7 @@ interface ApplicationInfo {
   amount:      number;
   status:      string;
   description: string | null;
+  imageUrl:    string | null;
 }
 
 interface ExamItem {
@@ -153,6 +154,13 @@ function ExamCard({
         </div>
       )}
       {app.description && <p className="text-xs text-dojo-muted">{app.description}</p>}
+      {app.imageUrl && (
+        <img
+          src={app.imageUrl}
+          alt="Imagen del examen"
+          className="w-full rounded-xl object-cover max-h-64 border border-dojo-border/50"
+        />
+      )}
 
       {/* Estado / formulario */}
       {!canRespond && item.response !== "PENDING" && !editing ? (

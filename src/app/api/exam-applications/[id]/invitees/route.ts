@@ -93,8 +93,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const application = await prisma.examApplication.findFirst({ where: { id: applicationId, dojoId } });
     if (!application) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
-    if (application.status !== "DRAFT") {
-      return NextResponse.json({ error: "Solo se pueden quitar invitados en estado DRAFT" }, { status: 400 });
+    if (application.status !== "DRAFT" && application.status !== "PUBLISHED") {
+      return NextResponse.json({ error: "Solo se pueden quitar invitados en estado DRAFT o PUBLISHED" }, { status: 400 });
     }
 
     const body = await req.json() as { inviteeId: string };

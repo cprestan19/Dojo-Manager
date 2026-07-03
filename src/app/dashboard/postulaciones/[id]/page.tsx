@@ -5,7 +5,7 @@ import Link from "next/link";
 import { formatDate, getBeltInfo, BELT_COLORS } from "@/lib/utils";
 import {
   ChevronLeft, Loader2, CheckCircle, XCircle, Clock, Users, Award, ClipboardList,
-  Pencil, Archive, Trash2, UserPlus, Search, Lock, ChevronDown, ChevronUp
+  Pencil, Archive, Trash2, UserPlus, UserMinus, Search, Lock, ChevronDown, ChevronUp
 } from "lucide-react";
 
 interface StudentOption {
@@ -70,8 +70,9 @@ export default function PostulacionDetallePage() {
   const [actioning, setActioning] = useState<string | null>(null);
 
   // Archive / delete from detail
-  const [confirmArchive, setConfirmArchive] = useState(false);
-  const [confirmDelete,  setConfirmDelete]  = useState(false);
+  const [confirmArchive,       setConfirmArchive]       = useState(false);
+  const [confirmDelete,        setConfirmDelete]        = useState(false);
+  const [confirmRemoveInvitee, setConfirmRemoveInvitee] = useState<Invitee | null>(null);
 
   // Panel agregar alumno
   const [addOpen,      setAddOpen]      = useState(false);
@@ -191,6 +192,19 @@ export default function PostulacionDetallePage() {
       setSelInvitees(new Set());
       await load();
     } finally { setGenLoading(false); }
+  }
+
+  async function handleRemoveInvitee(invitee: Invitee) {
+    setActioning(invitee.id + "_remove");
+    try {
+      const res = await fetch(`/api/exam-applications/${id}/invitees`, {
+        method:  "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ inviteeId: invitee.id }),
+      });
+      if (res.ok) { setConfirmRemoveInvitee(null); await load(); }
+      else { const d = await res.json() as { error?: string }; setError(d.error ?? "Error al quitar alumno"); }
+    } finally { setActioning(null); }
   }
 
   async function openAddPanel() {
@@ -449,7 +463,18 @@ export default function PostulacionDetallePage() {
                       <td className="py-2.5 px-3 text-xs text-dojo-muted">
                         {inv.responseNote}
                       </td>
-                      <td className="py-2.5 px-3" />
+                      <td className="py-2.5 px-3 text-right">
+                        {canAddStudents && (
+                          <button
+                            onClick={() => setConfirmRemoveInvitee(inv)}
+                            disabled={!!actioning}
+                            className="p-1.5 rounded-lg text-dojo-muted hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                            title="Quitar alumno"
+                          >
+                            <UserMinus size={14} />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -462,12 +487,24 @@ export default function PostulacionDetallePage() {
                 const beltInfo = getBeltInfo(inv.beltToPresent);
                 return (
                   <div key={inv.id} className={`card space-y-2 ${inv.response === "REJECTED" ? "border-red-800/40 bg-red-900/10" : ""}`}>
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-dojo-white text-sm">{inv.student.fullName}</p>
-                      <span className="text-xs px-2 py-0.5 rounded-full"
-                        style={{ backgroundColor: beltInfo.hex + "30", color: beltInfo.hex === "#FFFFFF" ? "#aaa" : beltInfo.hex }}>
-                        {beltInfo.label}
-                      </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-dojo-white text-sm flex-1 min-w-0 truncate">{inv.student.fullName}</p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: beltInfo.hex + "30", color: beltInfo.hex === "#FFFFFF" ? "#aaa" : beltInfo.hex }}>
+                          {beltInfo.label}
+                        </span>
+                        {canAddStudents && (
+                          <button
+                            onClick={() => setConfirmRemoveInvitee(inv)}
+                            disabled={!!actioning}
+                            className="p-1 rounded-lg text-dojo-muted hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                            title="Quitar alumno"
+                          >
+                            <UserMinus size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 text-xs">
                       {inv.response === "ACCEPTED" ? (
@@ -741,6 +778,47 @@ export default function PostulacionDetallePage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal quitar alumno */}
+      {confirmRemoveInvitee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dojo-dark border border-dojo-border rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-dojo-red/10 flex items-center justify-center">
+                <UserMinus size={20} className="text-dojo-red" />
+              </div>
+              <div>
+                <p className="font-semibold text-dojo-white">Quitar alumno</p>
+                <p className="text-xs text-dojo-muted">Se eliminará de esta postulación</p>
+              </div>
+            </div>
+            <p className="text-sm text-dojo-muted">
+              ¿Quitar a{" "}
+              <span className="text-dojo-white font-medium">{confirmRemoveInvitee.student.fullName}</span>{" "}
+              de la postulación? Esta acción no afecta al alumno ni a su historial.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmRemoveInvitee(null)}
+                className="btn-secondary flex-1 text-sm"
+                disabled={actioning === confirmRemoveInvitee.id + "_remove"}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleRemoveInvitee(confirmRemoveInvitee)}
+                className="flex-1 text-sm bg-dojo-red hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                disabled={actioning === confirmRemoveInvitee.id + "_remove"}
+              >
+                {actioning === confirmRemoveInvitee.id + "_remove"
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <UserMinus size={14} />}
+                Quitar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

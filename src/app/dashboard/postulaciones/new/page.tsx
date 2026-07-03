@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { BELT_COLORS, getBeltInfo } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Save, Loader2, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Loader2, Search, ImagePlus, X } from "lucide-react";
 
 interface StudentOption {
   id:          string;
@@ -28,6 +28,10 @@ export default function NewPostulacionPage() {
   const [deadline, setDeadline]       = useState("");
   const [amount, setAmount]           = useState(0);
   const [description, setDescription] = useState("");
+  const [imageUrl,      setImageUrl]      = useState<string | null>(null);
+  const [imagePublicId, setImagePublicId] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Step 2 fields
   const [students, setStudents]         = useState<StudentOption[]>([]);
@@ -91,6 +95,23 @@ export default function NewPostulacionPage() {
     setSelected(next);
   }
 
+  async function handleImageUpload(file: File) {
+    setImageUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("type", "image");
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      if (res.ok) {
+        const d = await res.json() as { url: string; publicId: string };
+        setImageUrl(d.url);
+        setImagePublicId(d.publicId);
+      } else {
+        setError("No se pudo subir la imagen");
+      }
+    } finally { setImageUploading(false); }
+  }
+
   async function handleSave(publish: boolean) {
     setError("");
     setSaving(true);
@@ -100,13 +121,15 @@ export default function NewPostulacionPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title:       title.trim(),
-          location:    location.trim(),
+          title:        title.trim(),
+          location:     location.trim(),
           examDate,
-          examTime:    examTime.trim(),
-          deadline:    deadline || null,
+          examTime:     examTime.trim(),
+          deadline:     deadline || null,
           amount,
-          description: description.trim() || null,
+          description:  description.trim() || null,
+          imageUrl,
+          imagePublicId,
           invitees,
         }),
       });
@@ -186,6 +209,43 @@ export default function NewPostulacionPage() {
             <label className="form-label">Descripción (opcional)</label>
             <textarea className="form-input min-h-24 resize-y" value={description} onChange={e => setDescription(e.target.value)} placeholder="Instrucciones, requisitos, información adicional..." />
           </div>
+
+          {/* Imagen para alumnos */}
+          <div>
+            <label className="form-label">Imagen informativa (opcional)</label>
+            <p className="text-xs text-dojo-muted mb-2">Solo la verán los alumnos postulados en su portal.</p>
+            {imageUrl ? (
+              <div className="relative inline-block">
+                <img src={imageUrl} alt="Imagen postulación" className="rounded-xl max-h-48 object-cover border border-dojo-border" />
+                <button
+                  type="button"
+                  onClick={() => { setImageUrl(null); setImagePublicId(null); }}
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-dojo-red flex items-center justify-center shadow-lg hover:bg-red-700 transition-colors"
+                >
+                  <X size={12} className="text-white" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={imageUploading}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-dojo-border hover:border-dojo-gold/50 text-dojo-muted hover:text-dojo-gold transition-colors text-sm"
+              >
+                {imageUploading
+                  ? <><Loader2 size={15} className="animate-spin" /> Subiendo...</>
+                  : <><ImagePlus size={15} /> Subir imagen</>}
+              </button>
+            )}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }}
+            />
+          </div>
+
           <div className="flex justify-end">
             <button onClick={goStep2} className="btn-primary flex items-center gap-2">
               Siguiente — Seleccionar Alumnos <ChevronRight size={16} />

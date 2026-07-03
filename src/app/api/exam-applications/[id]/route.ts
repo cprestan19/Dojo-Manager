@@ -93,25 +93,34 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     const body = await req.json() as {
-      title?:       string;
-      location?:    string;
-      examDate?:    string;
-      examTime?:    string;
-      deadline?:    string | null;
-      amount?:      number;
-      description?: string | null;
+      title?:         string;
+      location?:      string;
+      examDate?:      string;
+      examTime?:      string;
+      deadline?:      string | null;
+      amount?:        number;
+      description?:   string | null;
+      imageUrl?:      string | null;
+      imagePublicId?: string | null;
     };
+
+    // Si se borra la imagen, eliminar el recurso viejo de Cloudinary
+    if (body.imageUrl === null && existing.imagePublicId) {
+      await deleteResource(existing.imagePublicId, "image").catch(() => {});
+    }
 
     const updated = await prisma.examApplication.update({
       where: { id },
       data: {
-        ...(body.title       != null ? { title:       body.title.trim() }       : {}),
-        ...(body.location    != null ? { location:    body.location.trim() }    : {}),
-        ...(body.examDate    != null ? { examDate:    new Date(body.examDate) }  : {}),
-        ...(body.examTime    != null ? { examTime:    body.examTime.trim() }     : {}),
-        ...(body.deadline    !== undefined ? { deadline: body.deadline ? new Date(body.deadline) : null } : {}),
-        ...(body.amount      != null ? { amount:      body.amount }             : {}),
-        ...(body.description !== undefined ? { description: body.description?.trim() ?? null } : {}),
+        ...(body.title         != null     ? { title:         body.title.trim() }        : {}),
+        ...(body.location      != null     ? { location:      body.location.trim() }     : {}),
+        ...(body.examDate      != null     ? { examDate:      new Date(body.examDate) }  : {}),
+        ...(body.examTime      != null     ? { examTime:      body.examTime.trim() }     : {}),
+        ...(body.deadline      !== undefined ? { deadline: body.deadline ? new Date(body.deadline) : null } : {}),
+        ...(body.amount        != null     ? { amount:        body.amount }              : {}),
+        ...(body.description   !== undefined ? { description: body.description?.trim() ?? null } : {}),
+        ...(body.imageUrl      !== undefined ? { imageUrl:      body.imageUrl ?? null }  : {}),
+        ...(body.imagePublicId !== undefined ? { imagePublicId: body.imagePublicId ?? null } : {}),
       },
     });
 
@@ -151,14 +160,15 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const existing = await prisma.examApplication.findFirst({ where: { id, dojoId } });
     if (!existing) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
-    // Limpiar PDFs de Cloudinary antes de borrar (el schema cascade elimina los registros)
+    // Limpiar imagen de postulación + PDFs de Cloudinary
     const certs = await prisma.generatedCertificate.findMany({
       where:  { invitee: { applicationId: id } },
       select: { pdfPublicId: true },
     });
-    await Promise.allSettled(
-      certs.filter(c => c.pdfPublicId).map(c => deleteResource(c.pdfPublicId!, "image"))
-    );
+    await Promise.allSettled([
+      ...(existing.imagePublicId ? [deleteResource(existing.imagePublicId, "image")] : []),
+      ...certs.filter(c => c.pdfPublicId).map(c => deleteResource(c.pdfPublicId!, "image")),
+    ]);
 
     await prisma.examApplication.delete({ where: { id } });
 

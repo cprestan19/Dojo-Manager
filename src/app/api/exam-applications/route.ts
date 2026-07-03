@@ -100,14 +100,16 @@ export async function POST(req: NextRequest) {
     if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
     const body = await req.json() as {
-      title:       string;
-      location:    string;
-      examDate:    string;
-      examTime:    string;
-      deadline?:   string | null;
-      amount?:     number;
-      description?: string | null;
-      invitees?:   { studentId: string; beltToPresent: string }[];
+      title:          string;
+      location:       string;
+      examDate:       string;
+      examTime:       string;
+      deadline?:      string | null;
+      amount?:        number;
+      description?:   string | null;
+      imageUrl?:      string | null;
+      imagePublicId?: string | null;
+      invitees?:      { studentId: string; beltToPresent: string }[];
     };
 
     if (!body.title?.trim())    return NextResponse.json({ error: "Nombre requerido" }, { status: 400 });
@@ -124,8 +126,10 @@ export async function POST(req: NextRequest) {
         examTime:    body.examTime.trim(),
         deadline:    body.deadline ? new Date(body.deadline) : null,
         amount:      body.amount ?? 0,
-        description: body.description?.trim() ?? null,
-        status:      "DRAFT",
+        description:   body.description?.trim() ?? null,
+        imageUrl:      body.imageUrl ?? null,
+        imagePublicId: body.imagePublicId ?? null,
+        status:        "DRAFT",
         createdById: user.id ?? "",
         invitees: body.invitees?.length
           ? {

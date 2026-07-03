@@ -1447,9 +1447,11 @@ model ExamApplication {
   examTime    String   @map("exam_time")
   deadline    DateTime?
   amount      Float    @default(0)
-  description String?  @db.Text
-  status      String    @default("DRAFT")
-  archivedAt  DateTime? @map("archived_at")
+  description   String?  @db.Text
+  imageUrl      String?  @db.Text @map("image_url")
+  imagePublicId String?  @map("image_public_id")
+  status        String    @default("DRAFT")
+  archivedAt    DateTime? @map("archived_at")
   createdById String    @map("created_by_id")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")

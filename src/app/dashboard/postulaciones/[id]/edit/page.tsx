@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronLeft, Save, Loader2 } from "lucide-react";
+import { ChevronLeft, Save, Loader2, ImagePlus, X } from "lucide-react";
 
 export default function EditPostulacionPage() {
   const { id }  = useParams<{ id: string }>();
@@ -11,13 +11,17 @@ export default function EditPostulacionPage() {
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState("");
 
-  const [title,       setTitle]       = useState("");
-  const [location,    setLocation]    = useState("");
-  const [examDate,    setExamDate]    = useState("");
-  const [examTime,    setExamTime]    = useState("");
-  const [deadline,    setDeadline]    = useState("");
-  const [amount,      setAmount]      = useState(0);
-  const [description, setDescription] = useState("");
+  const [title,         setTitle]         = useState("");
+  const [location,      setLocation]      = useState("");
+  const [examDate,      setExamDate]      = useState("");
+  const [examTime,      setExamTime]      = useState("");
+  const [deadline,      setDeadline]      = useState("");
+  const [amount,        setAmount]        = useState(0);
+  const [description,   setDescription]   = useState("");
+  const [imageUrl,      setImageUrl]      = useState<string | null>(null);
+  const [imagePublicId, setImagePublicId] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -27,6 +31,7 @@ export default function EditPostulacionPage() {
       const data = await res.json() as {
         title: string; location: string; examDate: string; examTime: string;
         deadline: string | null; amount: number; description: string | null;
+        imageUrl: string | null; imagePublicId: string | null;
       };
       setTitle(data.title);
       setLocation(data.location);
@@ -35,10 +40,29 @@ export default function EditPostulacionPage() {
       setDeadline(data.deadline ? data.deadline.slice(0, 10) : "");
       setAmount(data.amount);
       setDescription(data.description ?? "");
+      setImageUrl(data.imageUrl ?? null);
+      setImagePublicId(data.imagePublicId ?? null);
     } finally { setLoading(false); }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function handleImageUpload(file: File) {
+    setImageUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("type", "image");
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      if (res.ok) {
+        const d = await res.json() as { url: string; publicId: string };
+        setImageUrl(d.url);
+        setImagePublicId(d.publicId);
+      } else {
+        setError("No se pudo subir la imagen");
+      }
+    } finally { setImageUploading(false); }
+  }
 
   async function handleSave() {
     setError("");
@@ -53,13 +77,15 @@ export default function EditPostulacionPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title:       title.trim(),
-          location:    location.trim(),
+          title:        title.trim(),
+          location:     location.trim(),
           examDate,
-          examTime:    examTime.trim(),
-          deadline:    deadline || null,
+          examTime:     examTime.trim(),
+          deadline:     deadline || null,
           amount,
-          description: description.trim() || null,
+          description:  description.trim() || null,
+          imageUrl,
+          imagePublicId,
         }),
       });
       const data = await res.json() as { error?: string };
@@ -135,6 +161,42 @@ export default function EditPostulacionPage() {
             className="form-input min-h-24 resize-y"
             value={description}
             onChange={e => setDescription(e.target.value)}
+          />
+        </div>
+
+        {/* Imagen para alumnos */}
+        <div>
+          <label className="form-label">Imagen informativa (opcional)</label>
+          <p className="text-xs text-dojo-muted mb-2">Solo la verán los alumnos postulados en su portal.</p>
+          {imageUrl ? (
+            <div className="relative inline-block">
+              <img src={imageUrl} alt="Imagen postulación" className="rounded-xl max-h-48 object-cover border border-dojo-border" />
+              <button
+                type="button"
+                onClick={() => { setImageUrl(null); setImagePublicId(null); }}
+                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-dojo-red flex items-center justify-center shadow-lg hover:bg-red-700 transition-colors"
+              >
+                <X size={12} className="text-white" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={imageUploading}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-dojo-border hover:border-dojo-gold/50 text-dojo-muted hover:text-dojo-gold transition-colors text-sm"
+            >
+              {imageUploading
+                ? <><Loader2 size={15} className="animate-spin" /> Subiendo...</>
+                : <><ImagePlus size={15} /> Subir imagen</>}
+            </button>
+          )}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }}
           />
         </div>
 
