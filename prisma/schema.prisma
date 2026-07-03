@@ -202,8 +202,9 @@ model User {
   resetTokenExpiry DateTime? @map("reset_token_expiry")
   pushSubscriptions PushSubscription[]
 
-  lastSeenNewsAt DateTime? @map("last_seen_news_at")
-  lastActiveAt   DateTime? @map("last_active_at")
+  lastSeenNewsAt  DateTime? @map("last_seen_news_at")
+  lastActiveAt    DateTime? @map("last_active_at")
+  lastVisitedPage String?   @map("last_visited_page")
 
   @@index([email])
   @@index([dojoId])

@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
-import { Globe, MapPin, Monitor, ArrowLeft } from "lucide-react";
+import { Globe, MapPin, Monitor, ArrowLeft, Users, LogIn } from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -30,14 +30,49 @@ function browserName(ua: string | null): string {
   return "Otro";
 }
 
+const PATH_LABELS: Record<string, string> = {
+  "/":                                    "Inicio público",
+  "/login":                               "Login",
+  "/forgot-password":                     "Recuperar contraseña",
+  "/reset-password":                      "Resetear contraseña",
+  "/dashboard":                           "Dashboard — Inicio",
+  "/dashboard/students":                  "Alumnos",
+  "/dashboard/payments":                  "Pagos",
+  "/dashboard/belts":                     "Cintas",
+  "/dashboard/schedules":                 "Horarios",
+  "/dashboard/attendance":                "Asistencia",
+  "/dashboard/katas":                     "Catálogo de Katas",
+  "/dashboard/reports":                   "Reportes",
+  "/dashboard/users":                     "Usuarios",
+  "/dashboard/dojos":                     "Dojos",
+  "/dashboard/settings":                  "Configuración",
+  "/dashboard/settings/katas":            "Config — Katas",
+  "/dashboard/settings/email":            "Config — Email",
+  "/dashboard/settings/push":             "Config — Push",
+  "/dashboard/settings/public-page":      "Config — Página Pública",
+  "/dashboard/settings/card-template":    "Config — Carnet",
+  "/dashboard/settings/certificados":     "Config — Certificados",
+  "/dashboard/settings/terms":            "Config — Términos",
+  "/dashboard/novedades-sistema":         "Novedades del Sistema",
+  "/dashboard/visitors":                  "Visitantes",
+  "/dashboard/events":                    "Eventos",
+  "/portal":                              "Portal — Inicio",
+  "/portal/payments":                     "Portal — Pagos",
+  "/portal/attendance":                   "Portal — Asistencia",
+  "/portal/schedules":                    "Portal — Horarios",
+  "/portal/videos":                       "Portal — Videos",
+  "/portal/events":                       "Portal — Eventos",
+  "/scanner":                             "Scanner QR",
+};
+
 function pathLabel(path: string): string {
-  const map: Record<string, string> = {
-    "/":                 "Inicio",
-    "/login":            "Login",
-    "/forgot-password":  "Recuperar contraseña",
-    "/reset-password":   "Resetear contraseña",
-  };
-  return map[path] ?? path;
+  if (PATH_LABELS[path]) return PATH_LABELS[path]!;
+  // Rutas dinámicas
+  if (path.startsWith("/dashboard/students/") && path.endsWith("/edit")) return "Editar Alumno";
+  if (path.startsWith("/dashboard/students/")) return "Perfil Alumno";
+  if (path.startsWith("/dashboard/postulaciones/")) return "Detalle Postulación";
+  if (path.startsWith("/dashboard/tournament-events/")) return "Evento de Torneo";
+  return path;
 }
 
 export default async function VisitorsPage() {
@@ -54,7 +89,7 @@ export default async function VisitorsPage() {
   const weekAgo  = new Date(today); weekAgo.setDate(today.getDate() - 6);
   const monthAgo = new Date(today); monthAgo.setDate(today.getDate() - 29);
 
-  const [totalToday, totalWeek, totalMonth, byCountry, byPage, recent] = await Promise.all([
+  const [totalToday, totalWeek, totalMonth, byCountry, byPage, recent, authUsers] = await Promise.all([
     prisma.visitorLog.count({ where: { visitedAt: { gte: today } } }),
     prisma.visitorLog.count({ where: { visitedAt: { gte: weekAgo } } }),
     prisma.visitorLog.count({ where: { visitedAt: { gte: monthAgo } } }),
@@ -75,6 +110,16 @@ export default async function VisitorsPage() {
       orderBy: { visitedAt: "desc" },
       take:    100,
       select:  { id: true, ip: true, country: true, countryCode: true, city: true, region: true, lat: true, lng: true, path: true, userAgent: true, referer: true, visitedAt: true },
+    }),
+    prisma.user.findMany({
+      where:   { lastActiveAt: { not: null } },
+      orderBy: { lastActiveAt: "desc" },
+      take:    200,
+      select: {
+        id: true, name: true, email: true, role: true,
+        lastActiveAt: true, lastVisitedPage: true,
+        dojo: { select: { name: true } },
+      },
     }),
   ]);
 
@@ -160,6 +205,66 @@ export default async function VisitorsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Usuarios autenticados — última actividad */}
+      <div className="card p-0 overflow-hidden">
+        <div className="px-4 py-3 border-b border-dojo-border flex items-center gap-2">
+          <Users size={16} className="text-dojo-gold" />
+          <p className="text-sm font-bold text-dojo-white">Usuarios autenticados — última sesión y sección visitada</p>
+          <span className="ml-auto badge-blue">{authUsers.length}</span>
+        </div>
+        {authUsers.length === 0 ? (
+          <div className="text-center py-10 text-dojo-muted">
+            <LogIn size={28} className="mx-auto mb-2 opacity-30" />
+            <p className="text-sm">Aún sin datos de actividad. Se registrará en el próximo login.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-dojo-border text-xs text-dojo-muted">
+                  <th className="px-4 py-2.5 text-left">Usuario</th>
+                  <th className="px-4 py-2.5 text-left">Correo</th>
+                  <th className="px-4 py-2.5 text-left hidden sm:table-cell">Rol</th>
+                  <th className="px-4 py-2.5 text-left hidden md:table-cell">Dojo</th>
+                  <th className="px-4 py-2.5 text-left">Última sección visitada</th>
+                  <th className="px-4 py-2.5 text-left">Última actividad</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-dojo-border/50">
+                {authUsers.map(u => (
+                  <tr key={u.id} className="hover:bg-dojo-border/20 transition-colors">
+                    <td className="px-4 py-2.5 font-medium text-dojo-white whitespace-nowrap">
+                      {u.name ?? "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-dojo-muted font-mono text-xs">{u.email}</td>
+                    <td className="px-4 py-2.5 hidden sm:table-cell">
+                      <span className="text-xs capitalize px-2 py-0.5 rounded-full bg-dojo-border text-dojo-muted">
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-dojo-muted text-xs hidden md:table-cell">
+                      {u.dojo?.name ?? "—"}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {u.lastVisitedPage ? (
+                        <span className="text-xs font-mono text-dojo-gold" title={u.lastVisitedPage}>
+                          {pathLabel(u.lastVisitedPage)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-dojo-muted italic">Sin página registrada</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-dojo-muted text-xs whitespace-nowrap">
+                      {u.lastActiveAt ? fmtDate(u.lastActiveAt) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Tabla de visitas recientes */}

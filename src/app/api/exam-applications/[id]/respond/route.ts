@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { sendPushToDojoAdminsAsync } from "@/lib/push";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -20,7 +21,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     const { id: applicationId } = await params;
 
     const application = await prisma.examApplication.findUnique({
-      where: { id: applicationId },
+      where:  { id: applicationId },
+      select: { id: true, status: true, deadline: true, dojoId: true, title: true },
     });
     if (!application) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
     if (application.status !== "PUBLISHED") {
@@ -45,6 +47,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           studentId: user.studentId!,
         },
       },
+      include: { student: { select: { fullName: true } } },
     });
     if (!invitee) return NextResponse.json({ error: "No estás invitado a esta postulación" }, { status: 403 });
 
@@ -75,6 +78,16 @@ export async function POST(req: NextRequest, { params }: Params) {
       statusCode:   200,
       details:      JSON.stringify({ applicationId, response: body.response }),
     });
+
+    // Notificar a admins del dojo
+    const studentName = invitee.student.fullName;
+    const accepted    = body.response === "ACCEPTED";
+    sendPushToDojoAdminsAsync(application.dojoId, {
+      title: `${accepted ? "✅" : "❌"} Respuesta a postulación`,
+      body:  `${studentName} ${accepted ? "aceptó" : "rechazó"} la invitación a ${application.title}`,
+      url:   `/dashboard/postulaciones/${applicationId}`,
+      tag:   `exam-respond-${applicationId}`,
+    }, { type: "exam_response" });
 
     return NextResponse.json(updated);
   } catch (err) {

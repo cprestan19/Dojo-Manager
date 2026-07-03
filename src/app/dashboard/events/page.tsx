@@ -186,18 +186,32 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting }: {
   const [activeTab,   setActiveTab]   = useState<"info" | "attendees">("info");
   const [rsvpData,    setRsvpData]    = useState<RsvpData | null>(null);
   const [rsvpLoading, setRsvpLoading] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const fetched = useRef(false);
+
+  const fetchRsvp = useCallback((silent = false) => {
+    if (!silent) setRsvpLoading(true);
+    fetch(`/api/events/${ev.id}/rsvp`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: RsvpData | null) => { if (d) { setRsvpData(d); setLastRefresh(new Date()); } })
+      .catch(() => {})
+      .finally(() => { if (!silent) setRsvpLoading(false); });
+  }, [ev.id]);
 
   function loadAttendees() {
     if (fetched.current) return;
     fetched.current = true;
-    setRsvpLoading(true);
-    fetch(`/api/events/${ev.id}/rsvp`)
-      .then(r => r.ok ? r.json() : null)
-      .then((d: RsvpData | null) => { if (d) setRsvpData(d); })
-      .catch(() => {})
-      .finally(() => setRsvpLoading(false));
+    fetchRsvp(false);
   }
+
+  // Auto-polling cada 15s mientras el tab de asistencias está activo
+  useEffect(() => {
+    if (activeTab !== "attendees" || !fetched.current) return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") fetchRsvp(true);
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, [activeTab, fetchRsvp]);
 
   function switchToAttendees() {
     setActiveTab("attendees");
@@ -308,6 +322,13 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting }: {
               </div>
             ) : (
               <div className="p-4 space-y-4 overflow-y-auto max-h-96">
+                {/* Indicador de auto-actualización */}
+                {lastRefresh && (
+                  <div className="flex items-center gap-1.5 text-[10px] text-dojo-muted">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    Actualiza automáticamente · última vez {lastRefresh.toLocaleTimeString("es-PA", { timeZone: "America/Panama", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                  </div>
+                )}
                 {rsvpLoading ? (
                   <div className="flex justify-center py-8">
                     <div className="w-5 h-5 rounded-full border-2 border-dojo-red border-t-transparent animate-spin" />

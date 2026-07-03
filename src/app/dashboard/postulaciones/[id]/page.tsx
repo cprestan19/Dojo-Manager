@@ -92,16 +92,26 @@ export default function PostulacionDetallePage() {
   const [genLoading,   setGenLoading]   = useState(false);
   const [certError,    setCertError]    = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch(`/api/exam-applications/${id}`);
-      if (res.ok) setApp(await res.json() as Application);
-      else setError("No se pudo cargar la postulación");
-    } finally { setLoading(false); }
+      if (res.ok) { setApp(await res.json() as Application); setLastRefresh(new Date()); }
+      else if (!silent) setError("No se pudo cargar la postulación");
+    } finally { if (!silent) setLoading(false); }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Auto-polling cada 15s mientras la página es visible
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") load(true);
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   async function handleArchive() {
     setActioning("archive");
@@ -246,6 +256,13 @@ export default function PostulacionDetallePage() {
 
   return (
     <div className="p-6 space-y-4 max-w-5xl mx-auto">
+      {/* Indicador de auto-actualización */}
+      {lastRefresh && (
+        <div className="flex items-center gap-1.5 text-[11px] text-dojo-muted">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
+          Actualización en tiempo real · última vez {lastRefresh.toLocaleTimeString("es-PA", { timeZone: "America/Panama", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={() => router.push("/dashboard/postulaciones")} className="btn-ghost p-2">

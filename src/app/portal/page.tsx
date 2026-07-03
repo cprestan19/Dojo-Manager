@@ -6,13 +6,13 @@ import prisma from "@/lib/prisma";
 import { formatDate, getBeltInfo } from "@/lib/utils";
 import {
   Award, CreditCard, Calendar, Fingerprint, PlayCircle,
-  Heart, Phone, User, Trophy, Star,
+  Heart, Phone, User, Trophy, Star, Bell,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { StudentQR } from "@/components/students/StudentQR";
 import { FamilyMemberAccordion, type FamilyMember } from "@/components/portal/FamilyMemberAccordion";
-import PushPrompt from "@/components/push/PushPrompt";
+import PushPrompt, { PushToggleButton } from "@/components/push/PushPrompt";
 import { DisciplineStarHero } from "@/components/discipline/DisciplineBar";
 
 export default async function PortalProfilePage() {
@@ -317,7 +317,15 @@ export default async function PortalProfilePage() {
 
       {/* ── Familia (acordeón) O vista individual ── */}
       {familyMembers.length > 0 ? (
-        <FamilyMemberAccordion members={familyMembers} />
+        <>
+          <div className="card flex items-center justify-between gap-3 py-3">
+            <p className="text-xs text-dojo-muted flex items-center gap-1.5">
+              <Bell size={13} /> Notificaciones push
+            </p>
+            <PushToggleButton />
+          </div>
+          <FamilyMemberAccordion members={familyMembers} />
+        </>
       ) : (
         <>
           {/* ── Accesos rápidos ── */}
@@ -600,6 +608,14 @@ export default async function PortalProfilePage() {
                 </dl>
               </div>
             )}
+
+            {/* Notificaciones */}
+            <div className="mt-4 pt-3 border-t border-dojo-border/60">
+              <p className="text-[10px] text-dojo-muted uppercase tracking-wide font-semibold mb-2 flex items-center gap-1">
+                <Bell size={11} /> Notificaciones
+              </p>
+              <PushToggleButton />
+            </div>
           </div>
         </>
       )}

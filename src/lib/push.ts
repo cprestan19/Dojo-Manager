@@ -100,6 +100,15 @@ export async function getDojoStudentSubscriptions(dojoId: string): Promise<Subsc
   return subs;
 }
 
+// Obtiene suscripciones activas de admins/usuarios de un dojo
+export async function getDojoAdminSubscriptions(dojoId: string): Promise<SubscriptionData[]> {
+  const subs = await prisma.pushSubscription.findMany({
+    where:  { dojoId, active: true, userId: { not: null } },
+    select: { endpoint: true, p256dh: true, auth: true },
+  });
+  return subs;
+}
+
 // Obtiene suscripciones activas de UN alumno específico
 export async function getStudentSubscriptions(studentId: string): Promise<SubscriptionData[]> {
   const subs = await prisma.pushSubscription.findMany({
@@ -158,6 +167,30 @@ export function sendPushToDojoStudentsAsync(
       );
     })
     .catch((err) => console.error("[push] sendPushToDojoStudentsAsync:", err));
+}
+
+// Helper: envía push a todos los admins del dojo (fire-and-forget)
+export function sendPushToDojoAdminsAsync(
+  dojoId: string,
+  payload: PushPayload,
+  opts?: { type?: string; sentBy?: string },
+): void {
+  getDojoAdminSubscriptions(dojoId)
+    .then((subs) => {
+      if (subs.length === 0) return;
+      return sendPushToSubscriptions(subs, payload).then((result) =>
+        logPushSent({
+          dojoId,
+          type:   opts?.type  ?? "admin_notification",
+          title:  payload.title,
+          body:   payload.body,
+          url:    payload.url,
+          result,
+          sentBy: opts?.sentBy,
+        })
+      );
+    })
+    .catch((err) => console.error("[push] sendPushToDojoAdminsAsync:", err));
 }
 
 // Helper: envía push al alumno específico (fire-and-forget)

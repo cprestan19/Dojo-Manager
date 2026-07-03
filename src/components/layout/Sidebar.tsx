@@ -16,8 +16,9 @@ import {
   BarChart2, Settings, LogOut, Shield, Building2, ClipboardList, ExternalLink,
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
   Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Upload,
-  Receipt, LayoutList, FileText, Bell, Sparkles,
+  Receipt, LayoutList, FileText, Bell, BellOff, Sparkles,
 } from "lucide-react";
+import { usePushSubscription } from "@/lib/hooks/usePushSubscription";
 
 interface NavItem {
   href:    string;
@@ -133,6 +134,15 @@ export function Sidebar() {
 
   const isSysadmin   = role === "sysadmin";
   const hasProAccess = isSysadmin || !!dojo?.tournamentPro;
+
+  const { state: pushState, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushSubscription();
+  const [pushLoading, setPushLoading] = useState(false);
+  async function togglePush() {
+    setPushLoading(true);
+    if (pushState === "subscribed") await pushUnsubscribe();
+    else await pushSubscribe();
+    setPushLoading(false);
+  }
 
   const PAID_PLAN_KEYS = new Set<NavKey>([NAV_KEYS.TOURNAMENT_EVENTS, NAV_KEYS.STORE, NAV_KEYS.PUBLIC_PAGE, NAV_KEYS.LEADS]);
   const planAllowed = (key: NavKey) => hasPaidFeatures || !PAID_PLAN_KEYS.has(key);
@@ -445,6 +455,24 @@ export function Sidebar() {
             <p className="text-xs text-dojo-sidebar-muted capitalize">{roleLabel}</p>
           </div>
         </div>
+        {pushState !== "unsupported" && pushState !== "loading" && (
+          <button
+            onClick={togglePush}
+            disabled={pushLoading || pushState === "denied"}
+            title={pushState === "denied" ? "Permisos bloqueados en el navegador" : undefined}
+            className={cn(
+              "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors mb-1 disabled:opacity-50",
+              pushState === "subscribed"
+                ? "text-green-400 hover:bg-red-900/20 hover:text-red-400"
+                : "text-dojo-muted hover:bg-dojo-border/60 hover:text-dojo-gold",
+            )}
+          >
+            {pushState === "subscribed"
+              ? <><BellOff size={14} /> {pushLoading ? "..." : "Notificaciones activas"}</>
+              : <><Bell    size={14} /> {pushLoading ? "..." : "Activar notificaciones"}</>
+            }
+          </button>
+        )}
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           className="w-full btn-ghost text-sm justify-start"

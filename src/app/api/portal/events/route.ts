@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sendPushToDojoAdminsAsync } from "@/lib/push";
 
 type PortalUser = { role?: string; studentId?: string | null };
 
@@ -138,6 +139,16 @@ export async function POST(req: NextRequest) {
     const attendingCount = await prisma.eventRSVP.count({
       where: { eventId, status: "attending" },
     });
+
+    // Notificar a admins del dojo
+    const studentName = family.members.find(m => m.id === rsvpStudentId)?.fullName ?? "Un alumno";
+    const emoji = rsvpStatus === "attending" ? "✅" : "❌";
+    sendPushToDojoAdminsAsync(family.dojoId, {
+      title: `${emoji} Confirmación de evento`,
+      body:  `${studentName} ${rsvpStatus === "attending" ? "confirmó asistencia" : "no asistirá"} a ${event.title}`,
+      url:   "/dashboard/events",
+      tag:   `event-rsvp-${eventId}`,
+    }, { type: "event_rsvp" });
 
     return NextResponse.json({ rsvp, attendingCount });
   } catch (err) {
