@@ -59,6 +59,13 @@ function minYMD(a: string, b: string): string {
   return a < b ? a : b;
 }
 
+function monthEndYMD(): string {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+  const [y, m] = today.split("-").map(Number);
+  // Date.UTC con mes 0-indexado: m! como "siguiente mes" → día 0 = último día del mes actual
+  return new Date(Date.UTC(y!, m!, 0, 12)).toISOString().slice(0, 10);
+}
+
 function dateToYMD(d: Date): string {
   return d.toLocaleDateString("en-CA", { timeZone: TZ });
 }
@@ -107,6 +114,7 @@ function getDisciplineMessage(status: DisciplineStatus): string {
 export async function calcMonthlyDiscipline(studentId: string): Promise<DisciplineData> {
   const today      = todayYMD();
   const monthStart = monthStartYMD();
+  const monthEnd   = monthEndYMD();
   const msFrom     = new Date(monthStart + "T00:00:00-05:00");
   const msTo       = new Date(today      + "T23:59:59-05:00");
 
@@ -164,10 +172,11 @@ export async function calcMonthlyDiscipline(studentId: string): Promise<Discipli
     // Start = latest of (month-start, inscription-date, assignment-date)
     const effectiveFrom = maxYMD(monthStart, inscYMD, assignedYMD);
 
-    // End = earliest of (today, day-before-removal)
+    // End = earliest of (fin de mes, día-antes-de-baja)
+    // Usar monthEnd (no today) para que el denominador sea el mes completo
     const effectiveTo = removedYMD
-      ? minYMD(today, addDays(removedYMD, -1))
-      : today;
+      ? minYMD(monthEnd, addDays(removedYMD, -1))
+      : monthEnd;
 
     if (effectiveFrom > effectiveTo) continue;
 
