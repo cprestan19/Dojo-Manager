@@ -814,18 +814,18 @@ export default function ScannerPage() {
         {!cameraError && (
           hasNativeDetector ? (
             // BarcodeDetector nativo: video con max-height controlado por CSS
-            <div className="relative w-full bg-black" style={{ maxHeight: "55vh" }}>
+            <div className="relative w-full bg-black max-h-[55vh] md:max-h-[70vh]">
               <video
                 ref={videoRef}
-                className={`w-full object-cover${facingMode === "user" ? " scale-x-[-1]" : ""}`}
-                style={{ maxHeight: "55vh", display: "block" }}
+                className={`w-full object-cover max-h-[55vh] md:max-h-[70vh]${facingMode === "user" ? " scale-x-[-1]" : ""}`}
+                style={{ display: "block" }}
                 playsInline
                 muted
               />
               {/* Visor de encuadre — guía visual para posicionar el QR */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                {/* min() adapta el marco al ancho real del visor: ~65% en móvil, tope 320px en tablet */}
-                <div className="relative" style={{ width: "min(65vw, 320px)", height: "min(65vw, 320px)" }}>
+                {/* min() adapta el marco al ancho real del visor: ~65% en móvil, tope 460px en tablet */}
+                <div className="relative" style={{ width: "min(65vw, 460px)", height: "min(65vw, 460px)" }}>
                   {/* Esquinas: 18% del marco para mantener proporción en cualquier tamaño */}
                   <div className="absolute top-0 left-0 border-t-[3px] border-l-[3px] border-dojo-red" style={{ width: "18%", height: "18%" }} />
                   <div className="absolute top-0 right-0 border-t-[3px] border-r-[3px] border-dojo-red" style={{ width: "18%", height: "18%" }} />
@@ -836,7 +836,7 @@ export default function ScannerPage() {
             </div>
           ) : (
             // html5-qrcode fallback: contenedor con altura máxima para tablet/PC
-            <div className="w-full overflow-hidden" style={{ maxHeight: "55vh" }}>
+            <div className="w-full overflow-hidden max-h-[55vh] md:max-h-[70vh]">
               <div id="qr-reader" className="w-full" />
             </div>
           )
