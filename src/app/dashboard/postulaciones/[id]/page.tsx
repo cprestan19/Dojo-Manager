@@ -437,7 +437,7 @@ export default function PostulacionDetallePage() {
               <thead>
                 <tr className="border-b border-dojo-border text-dojo-muted text-xs">
                   <th className="text-left py-2 px-3">Alumno</th>
-                  <th className="text-left py-2 px-3">Cinta</th>
+                  <th className="text-left py-2 px-3">Nueva Cinta</th>
                   <th className="text-left py-2 px-3">Respuesta</th>
                   <th className="text-left py-2 px-3">Pago</th>
                   <th className="text-left py-2 px-3">Nota</th>
@@ -469,17 +469,29 @@ export default function PostulacionDetallePage() {
                       </td>
                       <td className="py-2.5 px-3">
                         {app.amount > 0 && inv.response !== "REJECTED" && (
-                          <button
-                            onClick={() => togglePayment(inv)}
-                            disabled={actioning === inv.id + "_pay"}
-                            className={`text-xs px-2 py-1 rounded font-medium transition-colors ${
-                              inv.paymentStatus === "PAID"
-                                ? "bg-green-900/40 text-green-400 border border-green-800/50"
-                                : "bg-dojo-border text-dojo-muted hover:text-dojo-white"
-                            }`}
-                          >
-                            {inv.paymentStatus === "PAID" ? "Pagado ✓" : "Marcar pagado"}
-                          </button>
+                          inv.paymentStatus === "PAID" ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs px-2 py-1 rounded font-medium bg-green-900/40 text-green-400 border border-green-800/50">
+                                ✓ Pagado
+                              </span>
+                              <button
+                                onClick={() => togglePayment(inv)}
+                                disabled={actioning === inv.id + "_pay"}
+                                className="text-xs px-1.5 py-1 rounded font-medium transition-colors text-dojo-muted hover:text-red-400 hover:bg-red-900/20"
+                                title="Desmarcar pago"
+                              >
+                                Desmarcar
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => togglePayment(inv)}
+                              disabled={actioning === inv.id + "_pay"}
+                              className="text-xs px-2 py-1 rounded font-medium transition-colors bg-dojo-border text-dojo-muted hover:text-dojo-white"
+                            >
+                              Marcar pagado
+                            </button>
+                          )
                         )}
                       </td>
                       <td className="py-2.5 px-3 text-xs text-dojo-muted">
@@ -555,11 +567,21 @@ export default function PostulacionDetallePage() {
                         <span className="flex items-center gap-1 text-dojo-muted"><Clock size={12} /> Pendiente</span>
                       )}
                       {app.amount > 0 && inv.response !== "REJECTED" && (
-                        <button onClick={() => togglePayment(inv)} className={`px-2 py-0.5 rounded font-medium transition-colors ${
-                          inv.paymentStatus === "PAID" ? "bg-green-900/40 text-green-400" : "bg-dojo-border text-dojo-muted"
-                        }`}>
-                          {inv.paymentStatus === "PAID" ? "Pagado ✓" : "Marcar pagado"}
-                        </button>
+                        inv.paymentStatus === "PAID" ? (
+                          <div className="flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded font-medium bg-green-900/40 text-green-400 text-xs">✓ Pagado</span>
+                            <button
+                              onClick={() => togglePayment(inv)}
+                              className="text-xs text-dojo-muted hover:text-red-400 transition-colors"
+                            >
+                              Desmarcar
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => togglePayment(inv)} className="px-2 py-0.5 rounded font-medium transition-colors bg-dojo-border text-dojo-muted">
+                            Marcar pagado
+                          </button>
+                        )
                       )}
                     </div>
                     {inv.responseNote && (
