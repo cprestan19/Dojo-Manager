@@ -58,12 +58,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (body.response === "REJECTED" && !body.responseNote?.trim()) {
       return NextResponse.json({ error: "El motivo es requerido al rechazar" }, { status: 400 });
     }
+    const responseNote = body.responseNote?.trim().slice(0, 1000) ?? null;
 
     const updated = await prisma.examApplicationInvitee.update({
       where: { id: invitee.id },
       data: {
         response:     body.response,
-        responseNote: body.responseNote?.trim() ?? null,
+        responseNote,
         respondedAt:  new Date(),
       },
     });

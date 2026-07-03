@@ -106,12 +106,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
 
   try {
-    const { eventId, status: rsvpStatus, studentId: targetId, note } = await req.json() as {
+    const { eventId, status: rsvpStatus, studentId: targetId, note: rawNote } = await req.json() as {
       eventId:    string;
       status:     "attending" | "not_attending";
       studentId?: string;
       note?:      string;
     };
+    const note = typeof rawNote === "string" ? rawNote.trim().slice(0, 500) : null;
 
     if (!eventId) return NextResponse.json({ error: "eventId requerido" }, { status: 400 });
     if (!["attending", "not_attending"].includes(rsvpStatus))

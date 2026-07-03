@@ -170,6 +170,11 @@ export async function middleware(req: NextRequest) {
     if (!rateLimit(`system-news:${ip}`, 30, 60_000)) return tooManyRequests("60");
   }
 
+  // Activity ping: authenticated, fires on every page change — limit to prevent spam
+  if (pathname === "/api/user/ping" && req.method === "PATCH") {
+    if (!rateLimit(`ping:${ip}`, 60, 60_000)) return tooManyRequests("60");
+  }
+
   // ── Public page visitor tracking — fire-and-forget, never blocks response ───
   const PUBLIC_TRACKED = ["/", "/login", "/forgot-password", "/reset-password"];
   if (req.method === "GET" && PUBLIC_TRACKED.includes(pathname)) {
@@ -284,5 +289,6 @@ export const config = {
     "/api/internal/log-visit",
     "/api/system/news",
     "/api/system/news/:path*",
+    "/api/user/ping",
   ],
 };
