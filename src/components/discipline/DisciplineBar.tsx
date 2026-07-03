@@ -327,8 +327,21 @@ export function DisciplineStarHero() {
 
   if (!items.length || !items[0]) return null;
 
-  // Para familia: mostrar solo el primer alumno en el hero
-  return <DisciplineHeroInner data={items[0]} />;
+  // Mostrar todos los miembros de la familia
+  return (
+    <>
+      {items.map((item, i) => (
+        <div key={item.studentId} className={i > 0 ? "border-t border-dojo-border/40" : ""}>
+          {items.length > 1 && (
+            <p className="text-[10px] text-dojo-muted uppercase tracking-wide font-semibold px-4 pt-2">
+              {item.fullName}
+            </p>
+          )}
+          <DisciplineHeroInner data={item} />
+        </div>
+      ))}
+    </>
+  );
 }
 
 // ── Scanner discipline loader (fetches by studentId, compact mode) ─────────────
