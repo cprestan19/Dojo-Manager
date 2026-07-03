@@ -100,7 +100,9 @@ export async function POST(req: NextRequest) {
         return;
       }
 
-      const email = student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
+      // Siempre en minúsculas para coincidir con el lookup de auth.ts (credentials.email.toLowerCase())
+      const rawEmail = student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
+      const email = rawEmail ? rawEmail.toLowerCase() : null;
 
       // Sin email → skip (no se puede crear acceso)
       if (!email) {

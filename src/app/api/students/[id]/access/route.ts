@@ -53,12 +53,14 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
 
     // Usar el email del acudiente principal si está definido; si no, fallback materno → paterno
+    // Siempre en minúsculas para coincidir con el lookup de auth.ts (credentials.email.toLowerCase())
     const primaryEmail = student.primaryGuardian === "mother"
       ? student.motherEmail?.trim()
       : student.primaryGuardian === "father"
       ? student.fatherEmail?.trim()
       : null;
-    const email = primaryEmail || student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
+    const rawEmail = primaryEmail || student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
+    const email = rawEmail ? rawEmail.toLowerCase() : null;
     if (!email)
       return NextResponse.json({ error: "El alumno no tiene correo registrado" }, { status: 400 });
 
