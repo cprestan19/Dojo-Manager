@@ -28,10 +28,14 @@ interface ExamItem {
 export default function PortalPostulacionesPage() {
   const [items,   setItems]   = useState<ExamItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [noAccess, setNoAccess] = useState(false);
 
   useEffect(() => {
     fetch("/api/portal/exam-applications")
-      .then(r => r.ok ? r.json() as Promise<ExamItem[]> : [])
+      .then(async r => {
+        if (r.status === 403) { setNoAccess(true); return []; }
+        return r.ok ? r.json() as Promise<ExamItem[]> : [];
+      })
       .then(setItems)
       .finally(() => setLoading(false));
   }, []);
@@ -55,6 +59,16 @@ export default function PortalPostulacionesPage() {
     return (
       <div className="flex justify-center items-center py-16">
         <Loader2 size={24} className="animate-spin text-dojo-gold" />
+      </div>
+    );
+  }
+
+  if (noAccess) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center space-y-4 px-4">
+        <FileText size={48} className="text-dojo-border" />
+        <p className="text-dojo-white font-semibold text-lg">Perfil no vinculado</p>
+        <p className="text-dojo-muted text-sm">Tu cuenta no está vinculada a un perfil de alumno. Contacta al administrador del dojo.</p>
       </div>
     );
   }
