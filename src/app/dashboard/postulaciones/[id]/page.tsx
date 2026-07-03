@@ -84,6 +84,13 @@ export default function PostulacionDetallePage() {
   const [addSaving,    setAddSaving]    = useState(false);
   const [addError,     setAddError]     = useState("");
 
+  // Editar invitado
+  const [editInvitee,   setEditInvitee]   = useState<Invitee | null>(null);
+  const [editBelt,      setEditBelt]      = useState("");
+  const [editPayStatus, setEditPayStatus] = useState("");
+  const [editSaving,    setEditSaving]    = useState(false);
+  const [editError,     setEditError]     = useState("");
+
   // Certificados
   const [templates,    setTemplates]    = useState<CertTemplate[]>([]);
   const [selTemplate,  setSelTemplate]  = useState("");
@@ -192,6 +199,21 @@ export default function PostulacionDetallePage() {
       setSelInvitees(new Set());
       await load();
     } finally { setGenLoading(false); }
+  }
+
+  async function handleEditInviteeSave() {
+    if (!editInvitee) return;
+    setEditSaving(true);
+    setEditError("");
+    try {
+      const res = await fetch(`/api/exam-applications/${id}/invitees`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ inviteeId: editInvitee.id, beltToPresent: editBelt, paymentStatus: editPayStatus }),
+      });
+      if (res.ok) { setEditInvitee(null); await load(); }
+      else { const d = await res.json() as { error?: string }; setEditError(d.error ?? "Error al guardar"); }
+    } finally { setEditSaving(false); }
   }
 
   async function handleRemoveInvitee(invitee: Invitee) {
@@ -464,16 +486,26 @@ export default function PostulacionDetallePage() {
                         {inv.responseNote}
                       </td>
                       <td className="py-2.5 px-3 text-right">
-                        {canAddStudents && (
+                        <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => setConfirmRemoveInvitee(inv)}
+                            onClick={() => { setEditInvitee(inv); setEditBelt(inv.beltToPresent); setEditPayStatus(inv.paymentStatus); }}
                             disabled={!!actioning}
-                            className="p-1.5 rounded-lg text-dojo-muted hover:text-red-400 hover:bg-red-900/20 transition-colors"
-                            title="Quitar alumno"
+                            className="p-1.5 rounded-lg text-dojo-muted hover:text-dojo-gold hover:bg-dojo-gold/10 transition-colors"
+                            title="Editar cinta o pago"
                           >
-                            <UserMinus size={14} />
+                            <Pencil size={14} />
                           </button>
-                        )}
+                          {canAddStudents && (
+                            <button
+                              onClick={() => setConfirmRemoveInvitee(inv)}
+                              disabled={!!actioning}
+                              className="p-1.5 rounded-lg text-dojo-muted hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                              title="Quitar alumno"
+                            >
+                              <UserMinus size={14} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -494,6 +526,14 @@ export default function PostulacionDetallePage() {
                           style={{ backgroundColor: beltInfo.hex + "30", color: beltInfo.hex === "#FFFFFF" ? "#aaa" : beltInfo.hex }}>
                           {beltInfo.label}
                         </span>
+                        <button
+                          onClick={() => { setEditInvitee(inv); setEditBelt(inv.beltToPresent); setEditPayStatus(inv.paymentStatus); }}
+                          disabled={!!actioning}
+                          className="p-1 rounded-lg text-dojo-muted hover:text-dojo-gold hover:bg-dojo-gold/10 transition-colors"
+                          title="Editar cinta o pago"
+                        >
+                          <Pencil size={14} />
+                        </button>
                         {canAddStudents && (
                           <button
                             onClick={() => setConfirmRemoveInvitee(inv)}
@@ -784,6 +824,73 @@ export default function PostulacionDetallePage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal editar invitado */}
+      {editInvitee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dojo-dark border border-dojo-border rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-dojo-gold/10 flex items-center justify-center">
+                <Pencil size={18} className="text-dojo-gold" />
+              </div>
+              <div>
+                <p className="font-semibold text-dojo-white">Editar inscripción</p>
+                <p className="text-xs text-dojo-muted truncate max-w-[200px]">{editInvitee.student.fullName}</p>
+              </div>
+            </div>
+
+            {editError && (
+              <div className="text-red-400 text-sm bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{editError}</div>
+            )}
+
+            <div>
+              <label className="form-label">Cinta a presentar</label>
+              <select className="form-input" value={editBelt} onChange={e => setEditBelt(e.target.value)}>
+                {BELT_COLORS.map(bc => (
+                  <option key={bc.value} value={bc.value}>{bc.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {app.amount > 0 && editInvitee.response !== "REJECTED" && (
+              <div>
+                <label className="form-label">Estado de pago</label>
+                <div className="flex gap-3">
+                  {(["PENDING", "PAID"] as const).map(s => (
+                    <label key={s} className={`flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border flex-1 justify-center transition-colors ${
+                      editPayStatus === s
+                        ? s === "PAID" ? "border-green-500/50 bg-green-900/20 text-green-400" : "border-dojo-border bg-dojo-border/30 text-dojo-white"
+                        : "border-dojo-border text-dojo-muted hover:border-dojo-muted"
+                    }`}>
+                      <input type="radio" name="editPay" value={s} checked={editPayStatus === s}
+                        onChange={() => setEditPayStatus(s)} className="hidden" />
+                      <span className="text-sm">{s === "PAID" ? "✓ Pagado" : "Pendiente"}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => { setEditInvitee(null); setEditError(""); }}
+                className="btn-secondary flex-1 text-sm"
+                disabled={editSaving}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleEditInviteeSave}
+                disabled={editSaving}
+                className="btn-primary flex-1 text-sm flex items-center justify-center gap-2"
+              >
+                {editSaving ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} />}
+                Guardar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

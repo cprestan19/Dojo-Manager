@@ -74,6 +74,59 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 }
 
+// PATCH /api/exam-applications/[id]/invitees — editar cinta o pago de un invitado
+export async function PATCH(req: NextRequest, { params }: Params) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const user = session.user as { role?: string; dojoId?: string | null };
+    if (user.role !== "admin" && user.role !== "sysadmin") {
+      return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+    }
+
+    const dojoId = getEffectiveDojoId(user.role, user.dojoId, req);
+    if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
+
+    const { id: applicationId } = await params;
+
+    const application = await prisma.examApplication.findFirst({ where: { id: applicationId, dojoId } });
+    if (!application) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+
+    const body = await req.json() as { inviteeId: string; beltToPresent?: string; paymentStatus?: string };
+    if (!body.inviteeId) return NextResponse.json({ error: "inviteeId requerido" }, { status: 400 });
+
+    const invitee = await prisma.examApplicationInvitee.findFirst({
+      where: { id: body.inviteeId, applicationId },
+    });
+    if (!invitee) return NextResponse.json({ error: "Invitado no encontrado" }, { status: 404 });
+
+    const updated = await prisma.examApplicationInvitee.update({
+      where: { id: body.inviteeId },
+      data: {
+        ...(body.beltToPresent  ? { beltToPresent:  body.beltToPresent }  : {}),
+        ...(body.paymentStatus  ? { paymentStatus:  body.paymentStatus }  : {}),
+      },
+    });
+
+    const ctx = buildAuditCtx(session, req, { dojoId });
+    await logAudit({
+      ...ctx,
+      action:       "EXAM_INVITEE_UPDATED",
+      module:       AUDIT_MODULE.SETTINGS,
+      resourceType: "ExamApplicationInvitee",
+      resourceId:   body.inviteeId,
+      statusCode:   200,
+      details:      JSON.stringify({ applicationId }),
+    });
+
+    return NextResponse.json(updated);
+  } catch (err) {
+    console.error("PATCH /api/exam-applications/[id]/invitees", err);
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+  }
+}
+
 // DELETE /api/exam-applications/[id]/invitees — quitar invitado (body: {inviteeId})
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {
