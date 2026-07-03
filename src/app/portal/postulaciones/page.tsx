@@ -214,6 +214,10 @@ function ExamCard({
             </button>
           </div>
         </div>
+      ) : (app.status === "CLOSED" || app.status === "FINALIZED") ? (
+        <p className="text-xs text-dojo-muted bg-dojo-border/30 rounded-lg px-3 py-2">
+          {app.status === "FINALIZED" ? "Examen finalizado" : "Inscripciones cerradas"}
+        </p>
       ) : expired ? (
         <p className="text-xs text-dojo-muted bg-dojo-border/30 rounded-lg px-3 py-2">
           Período de respuesta cerrado

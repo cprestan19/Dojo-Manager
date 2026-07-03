@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest) {
     const invitees = await prisma.examApplicationInvitee.findMany({
       where: {
         studentId:   user.studentId,
-        application: { status: "PUBLISHED" },
+        application: { status: { in: ["PUBLISHED", "CLOSED", "FINALIZED"] } },
       },
       include: {
         application: {
