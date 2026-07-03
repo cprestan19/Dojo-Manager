@@ -586,7 +586,13 @@ export default function PostulacionDetallePage() {
                             return (
                               <button
                                 key={s.id}
-                                onClick={() => { setAddSel(s); setAddBelt(s.beltHistory[0]?.beltColor ?? "blanca"); }}
+                                onClick={() => {
+                                const cur = s.beltHistory[0]?.beltColor ?? "blanca";
+                                const idx = BELT_COLORS.findIndex(b => b.value === cur);
+                                const next = idx >= 0 && idx < BELT_COLORS.length - 1 ? BELT_COLORS[idx + 1].value : cur;
+                                setAddSel(s);
+                                setAddBelt(next);
+                              }}
                                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors text-sm ${
                                   isSel
                                     ? "bg-dojo-gold/10 border border-dojo-gold/40"

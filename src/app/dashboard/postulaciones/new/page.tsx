@@ -77,13 +77,18 @@ export default function NewPostulacionPage() {
     }
   }
 
+  function getNextBelt(current: string): string {
+    const idx = BELT_COLORS.findIndex(b => b.value === current);
+    return idx >= 0 && idx < BELT_COLORS.length - 1 ? BELT_COLORS[idx + 1].value : current;
+  }
+
   function toggleStudent(student: StudentOption) {
     const next = new Map(selected);
     if (next.has(student.id)) {
       next.delete(student.id);
     } else {
       const currentBelt = student.beltHistory[0]?.beltColor ?? "blanca";
-      next.set(student.id, { studentId: student.id, beltToPresent: currentBelt });
+      next.set(student.id, { studentId: student.id, beltToPresent: getNextBelt(currentBelt) });
     }
     setSelected(next);
   }
