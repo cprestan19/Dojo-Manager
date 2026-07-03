@@ -102,7 +102,7 @@ export default function SystemNewsModal() {
         {/* Línea dorada superior */}
         <div className="h-1 rounded-t-2xl bg-gradient-to-r from-dojo-gold/60 via-dojo-gold to-dojo-gold/60 shrink-0" />
 
-        <div className="bg-dojo-dark border-x border-b border-dojo-border/80 rounded-b-2xl shadow-2xl shadow-black/60 flex flex-col min-h-0 overflow-hidden">
+        <div className="bg-dojo-dark border-x border-b border-dojo-border/80 rounded-b-2xl shadow-2xl shadow-black/60 flex flex-col min-h-0 overflow-hidden flex-1">
 
           {/* Header — fijo */}
           <div className="px-5 pt-5 pb-4 flex items-start justify-between gap-3 shrink-0">
