@@ -39,19 +39,39 @@ export async function POST(req: NextRequest, { params }: Params) {
       }
     }
 
-    // Verificar que el alumno sea invitado
+    const body = await req.json() as { response: "ACCEPTED" | "REJECTED"; responseNote?: string; studentId?: string };
+
+    // Si se pasa studentId (invitación de un hermano), verificar que sea hermano del alumno principal
+    const targetStudentId = body.studentId && body.studentId !== user.studentId
+      ? body.studentId
+      : user.studentId!;
+
+    if (targetStudentId !== user.studentId) {
+      // Verificar que targetStudentId sea hermano (mismo correo de padre/madre)
+      const [principal, target] = await Promise.all([
+        prisma.student.findUnique({ where: { id: user.studentId! }, select: { dojoId: true, motherEmail: true, fatherEmail: true } }),
+        prisma.student.findUnique({ where: { id: targetStudentId },  select: { dojoId: true, motherEmail: true, fatherEmail: true } }),
+      ]);
+      const isSameDojo = principal?.dojoId === target?.dojoId;
+      const principalEmails = [principal?.motherEmail?.trim(), principal?.fatherEmail?.trim()].filter(Boolean);
+      const targetEmails    = [target?.motherEmail?.trim(),    target?.fatherEmail?.trim()   ].filter(Boolean);
+      const shareEmail      = principalEmails.some(e => targetEmails.includes(e));
+      if (!isSameDojo || !shareEmail) {
+        return NextResponse.json({ error: "Sin permiso para responder por este alumno" }, { status: 403 });
+      }
+    }
+
+    // Verificar que el alumno (o el hermano) sea invitado
     const invitee = await prisma.examApplicationInvitee.findUnique({
       where: {
         applicationId_studentId: {
           applicationId,
-          studentId: user.studentId!,
+          studentId: targetStudentId,
         },
       },
       include: { student: { select: { fullName: true } } },
     });
     if (!invitee) return NextResponse.json({ error: "No estás invitado a esta postulación" }, { status: 403 });
-
-    const body = await req.json() as { response: "ACCEPTED" | "REJECTED"; responseNote?: string };
     if (!body.response || !["ACCEPTED", "REJECTED"].includes(body.response)) {
       return NextResponse.json({ error: "Respuesta inválida. Use ACCEPTED o REJECTED" }, { status: 400 });
     }

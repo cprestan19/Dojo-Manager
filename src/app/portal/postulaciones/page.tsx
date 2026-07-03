@@ -19,6 +19,8 @@ interface ApplicationInfo {
 interface ExamItem {
   application:   ApplicationInfo;
   inviteeId:     string;
+  studentId:     string;
+  studentName:   string;
   beltToPresent: string;
   response:      string;
   responseNote:  string | null;
@@ -40,11 +42,11 @@ export default function PortalPostulacionesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function respond(inviteeId: string, applicationId: string, response: "ACCEPTED" | "REJECTED", responseNote?: string) {
+  async function respond(inviteeId: string, applicationId: string, response: "ACCEPTED" | "REJECTED", responseNote?: string, studentId?: string) {
     const res = await fetch(`/api/exam-applications/${applicationId}/respond`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ response, responseNote }),
+      body:    JSON.stringify({ response, responseNote, studentId }),
     });
     if (res.ok) {
       setItems(prev => prev.map(item =>
@@ -86,8 +88,9 @@ export default function PortalPostulacionesPage() {
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
       <h1 className="font-display font-bold text-dojo-white text-xl">Exámenes</h1>
+      {/* Si hay más de un alumno en la familia mostrar etiqueta por card */}
       {items.map(item => (
-        <ExamCard key={item.inviteeId} item={item} onRespond={respond} />
+        <ExamCard key={item.inviteeId} item={item} onRespond={respond} showStudentName={items.some(i => i.studentId !== item.studentId)} />
       ))}
     </div>
   );
@@ -96,9 +99,11 @@ export default function PortalPostulacionesPage() {
 function ExamCard({
   item,
   onRespond,
+  showStudentName,
 }: {
   item: ExamItem;
-  onRespond: (inviteeId: string, applicationId: string, response: "ACCEPTED" | "REJECTED", note?: string) => Promise<void>;
+  onRespond: (inviteeId: string, applicationId: string, response: "ACCEPTED" | "REJECTED", note?: string, studentId?: string) => Promise<void>;
+  showStudentName: boolean;
 }) {
   const [localResponse, setLocalResponse] = useState<"ACCEPTED" | "REJECTED" | "">(
     item.response === "PENDING" ? "" : item.response as "ACCEPTED" | "REJECTED"
@@ -125,7 +130,7 @@ function ExamCard({
     setSaving(true);
     setError("");
     try {
-      await onRespond(item.inviteeId, app.id, localResponse, note.trim() || undefined);
+      await onRespond(item.inviteeId, app.id, localResponse, note.trim() || undefined, item.studentId);
       setEditing(false);
     } catch {
       setError("Error al guardar la respuesta");
@@ -137,6 +142,9 @@ function ExamCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
+          {showStudentName && (
+            <p className="text-xs text-dojo-gold font-semibold mb-1">👤 {item.studentName}</p>
+          )}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-lg">🥋</span>
             <h2 className="font-semibold text-dojo-white text-sm">{app.title}</h2>
