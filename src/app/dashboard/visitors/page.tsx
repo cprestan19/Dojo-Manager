@@ -16,7 +16,15 @@ function flag(code: string | null): string {
 }
 
 function fmtDate(d: Date): string {
-  return d.toLocaleString("es-PA", { timeZone: "America/Panama", dateStyle: "short", timeStyle: "short" });
+  const pan = new Date(d.getTime() - 5 * 60 * 60 * 1000); // UTC-5 Panamá (sin DST)
+  const dd  = String(pan.getUTCDate()).padStart(2, "0");
+  const mm  = String(pan.getUTCMonth() + 1).padStart(2, "0");
+  const yy  = pan.getUTCFullYear();
+  const h24 = pan.getUTCHours();
+  const min = String(pan.getUTCMinutes()).padStart(2, "0");
+  const h12 = h24 % 12 || 12;
+  const sfx = h24 >= 12 ? "PM" : "AM";
+  return `${dd}/${mm}/${yy} ${h12}:${min} ${sfx}`;
 }
 
 function browserName(ua: string | null): string {
