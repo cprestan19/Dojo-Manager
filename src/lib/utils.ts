@@ -11,14 +11,13 @@ export function calculateAge(birthDate: Date | string): number {
 }
 
 // Fechas puras (birthDate, dueDate, etc.) se guardan como medianoche UTC.
-// Se muestran en UTC para que nunca haya desfase de día por timezone.
+// Se construye manualmente para garantizar DD/MM/YYYY sin depender del locale del entorno.
 export function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat("es-PA", {
-    timeZone: "UTC",
-    day:   "2-digit",
-    month: "2-digit",
-    year:  "numeric",
-  }).format(new Date(date));
+  const d     = new Date(date);
+  const day   = String(d.getUTCDate()).padStart(2, "0");
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const year  = d.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 // Timestamps (createdAt, submittedAt, markedAt…) se muestran en hora panameña.
