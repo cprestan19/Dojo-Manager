@@ -65,6 +65,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
       kataResult?:       string | null;
       kumiteResult?:     string | null;
       competitionNotes?: string | null;
+      confirmed?:        boolean;
+      optedOut?:         boolean;
+      optedOutReason?:   string | null;
       updatedAt?:        string;   // ISO string — locking optimista opcional
     };
 
@@ -160,11 +163,19 @@ export async function PUT(req: NextRequest, { params }: Params) {
       },
     });
 
-    // category: la columna existe en BD (db:push OK), pero el cliente Prisma cacheado
-    // puede no conocerla aún. Usamos SQL directo para no depender del servidor reiniciado.
+    // Campos vía SQL directo — garantiza compatibilidad aunque el cliente Prisma esté cacheado
     if (body.category !== undefined) {
-      const categoryVal = body.category?.trim() || null;
-      await prisma.$executeRaw`UPDATE tournament_event_participants SET category = ${categoryVal} WHERE id = ${participantId}`;
+      const v = body.category?.trim() || null;
+      await prisma.$executeRaw`UPDATE tournament_event_participants SET category = ${v} WHERE id = ${participantId}`;
+    }
+    if (body.confirmed !== undefined) {
+      const conf = body.confirmed === true;
+      await prisma.$executeRaw`UPDATE tournament_event_participants SET confirmed = ${conf} WHERE id = ${participantId}`;
+    }
+    if (body.optedOut !== undefined) {
+      const opted   = body.optedOut === true;
+      const reason  = body.optedOutReason?.trim() || null;
+      await prisma.$executeRaw`UPDATE tournament_event_participants SET opted_out = ${opted}, opted_out_reason = ${reason} WHERE id = ${participantId}`;
     }
 
     // ── Auditoría ────────────────────────────────────────────────────────────

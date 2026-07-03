@@ -62,14 +62,6 @@ function createPrismaClient(): PrismaClient {
     console.error("[db] Unexpected pool error:", err.message);
   });
 
-  // Neon's pgBouncer pooler does not accept search_path as a startup parameter.
-  // Setting it per-connection works in both pooled and direct connections.
-  pool.on("connect", (client) => {
-    client.query("SET search_path TO public").catch((err: Error) => {
-      console.warn("[db] Could not set search_path:", err.message);
-    });
-  });
-
   const adapter = new PrismaPg(pool);
 
   return new PrismaClient({

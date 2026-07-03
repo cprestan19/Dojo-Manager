@@ -118,6 +118,7 @@ export default function CertificadosSettingsPage() {
   const [templates,   setTemplates]   = useState<Template[]>([]);
   const [selected,    setSelected]    = useState<Template | null>(null);
   const [saving,      setSaving]      = useState(false);
+  const [saved,       setSaved]       = useState(false);
   const [uploading,   setUploading]   = useState(false);
   const [error,       setError]       = useState("");
   const [activeEl,    setActiveEl]    = useState<string | null>(null);
@@ -246,6 +247,8 @@ export default function CertificadosSettingsPage() {
       if (!res.ok) { setError(d.error ?? "Error al guardar"); return; }
       setSelected({ ...d, elements: (d.elements ?? []).map(normalizeElement) });
       await loadTemplates();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
     } finally { setSaving(false); }
   }
 
@@ -425,11 +428,11 @@ export default function CertificadosSettingsPage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || saved}
                 className="btn-primary flex items-center gap-2 text-sm shrink-0"
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                Guardar
+                {saved ? "¡Guardado!" : "Guardar"}
               </button>
               <button
                 onClick={addElement}

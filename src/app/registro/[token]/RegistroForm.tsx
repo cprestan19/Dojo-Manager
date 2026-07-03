@@ -2,21 +2,11 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Camera, ShieldCheck, Clock, Users } from "lucide-react";
 import PhotoCropper from "@/components/ui/PhotoCropper";
+import { NATIONALITIES } from "@/lib/utils";
 
-const BLOOD_TYPES       = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
+const BLOOD_TYPES         = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
 const INSURANCE_COMPANIES = ["MAPFRE","PALIG","SURA","FEDPA","ANCON","ACERTA","IS","ASSA SEGUROS","ALIADO SEGUROS","BLUE CROSS"] as const;
-const MAX_PHOTO_BYTES   = 5 * 1024 * 1024;
-
-const NATIONALITIES = [
-  "Panamá", "Colombia", "Venezuela", "Costa Rica", "Nicaragua",
-  "Cuba", "República Dominicana", "Ecuador", "Perú", "México",
-  "Honduras", "El Salvador", "Guatemala", "Bolivia", "Chile",
-  "Argentina", "Brasil", "Uruguay", "Paraguay",
-  "España", "Italia", "Francia", "Alemania", "Portugal",
-  "Estados Unidos", "Canadá",
-  "China", "Japón", "Corea del Sur", "India",
-  "Otra",
-] as const;
+const MAX_PHOTO_BYTES     = 5 * 1024 * 1024;
 
 const LOWER_PARTICLES = new Set(["de", "del", "la", "las", "los", "y", "e", "van", "von", "o"]);
 function toTitleCase(str: string): string {
@@ -35,7 +25,8 @@ interface Props {
   dojoLogo:          string | null;
   expiresAt:         string | null;
   reset?:            boolean;
-  contractPolicy:    string | null;
+  termsContent:      string | null;
+  termsVersion:      number | null; // null = sistema legado, no registra versión
   alreadySubmitted?: boolean;
 }
 
@@ -114,7 +105,7 @@ function formatExpiry(iso: string): string {
   });
 }
 
-export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, reset, contractPolicy, alreadySubmitted }: Props) {
+export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, reset, termsContent, termsVersion, alreadySubmitted }: Props) {
   const [step,     setStep]     = useState<Step>(alreadySubmitted ? "already-submitted" : "splash");
   const [form,     setForm]     = useState<FormData>(INIT);
   const [errors,   setErrors]   = useState<FieldErrors>({});
@@ -217,26 +208,28 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
 
       const payload = {
         ...form,
-        fullName:        cleanFullName,
+        fullName:             cleanFullName,
         firstName,
         lastName,
-        nationality:     nationalityValue,
-        primaryGuardian: form.primaryGuardian || null,
-        fepakaId:        form.fepakaId.toUpperCase()   || null,
-        ryoBukaiId:      form.ryoBukaiId.toUpperCase() || null,
-        bloodType:       form.bloodType       || null,
-        cedula:          form.cedula          || null,
-        condition:       form.condition       || null,
-        insuranceName:   form.insuranceName   || null,
-        insuranceNumber: form.insuranceNumber || null,
-        motherName:      form.motherName ? toTitleCase(form.motherName) : null,
-        motherPhone:     form.motherPhone     || null,
-        motherEmail:     form.motherEmail     || null,
-        fatherName:      form.fatherName ? toTitleCase(form.fatherName) : null,
-        fatherPhone:     form.fatherPhone     || null,
-        fatherEmail:     form.fatherEmail     || null,
-        address:         form.address         || null,
-        photo:           form.photo           || null,
+        nationality:          nationalityValue,
+        primaryGuardian:      form.primaryGuardian || null,
+        fepakaId:             form.fepakaId.toUpperCase()   || null,
+        ryoBukaiId:           form.ryoBukaiId.toUpperCase() || null,
+        bloodType:            form.bloodType       || null,
+        cedula:               form.cedula          || null,
+        condition:            form.condition       || null,
+        insuranceName:        form.insuranceName   || null,
+        insuranceNumber:      form.insuranceNumber || null,
+        motherName:           form.motherName ? toTitleCase(form.motherName) : null,
+        motherPhone:          form.motherPhone     || null,
+        motherEmail:          form.motherEmail     || null,
+        fatherName:           form.fatherName ? toTitleCase(form.fatherName) : null,
+        fatherPhone:          form.fatherPhone     || null,
+        fatherEmail:          form.fatherEmail     || null,
+        address:              form.address         || null,
+        photo:                form.photo           || null,
+        // Si el usuario aceptó términos con versión rastreable, registrar la versión
+        acceptedTermsVersion: policyAccepted && termsVersion !== null ? termsVersion : null,
       };
 
       const res = await fetch(`/api/public/register/${token}`, {
@@ -315,8 +308,8 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
           </div>
         )}
 
-        <button onClick={() => setStep(contractPolicy ? "contract" : "form")} className="btn-primary w-full py-3 text-base">
-          {contractPolicy ? "Ver términos y condiciones" : "Acepto · Completar el formulario"}
+        <button onClick={() => setStep(termsContent ? "contract" : "form")} className="btn-primary w-full py-3 text-base">
+          {termsContent ? "Ver términos y condiciones" : "Acepto · Completar el formulario"}
         </button>
 
         <p className="text-xs text-dojo-muted leading-relaxed">
@@ -389,7 +382,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
   }
 
   // ── Términos y condiciones ────────────────────────────────────────────────
-  if (step === "contract" && contractPolicy) {
+  if (step === "contract" && termsContent) {
     return (
       <div className="flex flex-col gap-5">
         {dojoLogo ? (
@@ -402,13 +395,15 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
         )}
 
         <div className="text-center space-y-0.5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-dojo-gold">Términos y Condiciones</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-dojo-gold">
+            Términos y Condiciones{termsVersion !== null && ` · v${termsVersion}`}
+          </p>
           <h2 className="text-lg font-bold text-dojo-white font-display">{dojoName}</h2>
         </div>
 
         {/* Texto del contrato */}
         <div className="bg-dojo-darker border border-dojo-border rounded-lg p-4 max-h-72 overflow-y-auto text-sm text-dojo-muted leading-relaxed whitespace-pre-wrap">
-          {contractPolicy}
+          {termsContent}
         </div>
 
         {/* Checkbox de aceptación */}

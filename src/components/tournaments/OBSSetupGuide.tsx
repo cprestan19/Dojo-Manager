@@ -15,7 +15,7 @@ export function OBSSetupGuide({ selectorUrl }: Props) {
   const [selectedPreset, setPreset]    = useState<OverlayPreset>(OVERLAY_PRESETS[0]);
 
   function copy() {
-    navigator.clipboard.writeText(selectorUrl);
+    navigator.clipboard?.writeText(selectorUrl).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }

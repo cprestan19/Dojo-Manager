@@ -35,11 +35,21 @@ export async function GET(req: NextRequest) {
   const page     = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
   const pageSize = 50;
   const search   = searchParams.get("search")?.trim() ?? "";
-  const dojoId   = searchParams.get("dojoId") ?? "";
+  const dojoId   = searchParams.get("dojoId")   ?? "";
+  const country  = searchParams.get("country")  ?? "";
+  const dateFrom = searchParams.get("dateFrom") ?? "";
+  const dateTo   = searchParams.get("dateTo")   ?? "";
 
   const where: Record<string, unknown> = {};
 
-  if (dojoId) where.dojoId = dojoId;
+  if (dojoId)  where.dojoId  = dojoId;
+  if (country) where.country = { equals: country.toUpperCase() };
+  if (dateFrom || dateTo) {
+    where.createdAt = {
+      ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+      ...(dateTo   ? { lte: new Date(dateTo)   } : {}),
+    };
+  }
 
   if (filter === "users") {
     where.action = { in: USER_ACTIONS };

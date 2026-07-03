@@ -62,6 +62,7 @@ export default function UsersPage() {
   const [deleting,   setDel]       = useState<string | null>(null);
   const [uploading,  setUploading] = useState(false);
   const [photoErr,   setPhotoErr]  = useState("");
+  const [success,    setSuccess]   = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Usuarios filtrados por rol seleccionado (client-side, no toca la API ni permisos)
@@ -103,19 +104,19 @@ export default function UsersPage() {
 
   function openCreate() {
     setForm(emptyForm()); setEditId(null); setMode("create");
-    setError(""); setPhotoErr(""); setModal(true);
+    setError(""); setPhotoErr(""); setSuccess(""); setModal(true);
   }
 
   function openEdit(u: User) {
     setForm({ name: u.name, email: u.email, password: "", role: u.role, active: u.active, photo: u.photo, dojoId: u.dojoId ?? "" });
     setEditId(u.id); setMode("edit");
-    setError(""); setPhotoErr(""); setModal(true);
+    setError(""); setPhotoErr(""); setSuccess(""); setModal(true);
   }
 
   function openPassword(u: User) {
     setForm(f => ({ ...f, password: "" }));
     setEditId(u.id); setMode("password");
-    setError(""); setModal(true);
+    setError(""); setSuccess(""); setModal(true);
   }
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -141,8 +142,16 @@ export default function UsersPage() {
 
   async function save() {
     setError("");
-    if (mode === "create" && (!form.name || !form.email || !form.password)) {
-      setError("Nombre, email y contraseña son requeridos."); return;
+    const trimmedName  = form.name.trim();
+    const trimmedEmail = form.email.trim();
+
+    if (mode === "create") {
+      if (!trimmedName)   { setError("El nombre es requerido.");               return; }
+      if (!trimmedEmail)  { setError("El correo electrónico es requerido.");   return; }
+      if (!form.password) { setError("La contraseña es requerida.");           return; }
+    }
+    if (mode === "edit" && !trimmedName) {
+      setError("El nombre es requerido."); return;
     }
     if (mode === "password" && !form.password) {
       setError("Ingresa la nueva contraseña."); return;
@@ -152,7 +161,7 @@ export default function UsersPage() {
     let res: Response;
 
     if (mode === "create") {
-      const body: Record<string, unknown> = { name: form.name, email: form.email, password: form.password, role: form.role, photo: form.photo };
+      const body: Record<string, unknown> = { name: trimmedName, email: trimmedEmail, password: form.password, role: form.role, photo: form.photo };
       if (isSysadmin && form.dojoId) body.dojoId = form.dojoId;
       res = await fetch("/api/users", {
         method: "POST",
@@ -160,7 +169,7 @@ export default function UsersPage() {
         body: JSON.stringify(body),
       });
     } else if (mode === "edit") {
-      const body: Record<string, unknown> = { name: form.name, email: form.email, role: form.role, photo: form.photo };
+      const body: Record<string, unknown> = { name: trimmedName, email: trimmedEmail, role: form.role, photo: form.photo };
       res = await fetch(`/api/users/${editId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -178,8 +187,9 @@ export default function UsersPage() {
       const d = await safeJson(res);
       setError((d.error as string) ?? "Error al guardar");
     } else {
-      setModal(false);
       fetch_();
+      setModal(false);
+      if (mode === "create") setSuccess("Usuario creado exitosamente.");
     }
     setSaving(false);
   }
@@ -228,6 +238,14 @@ export default function UsersPage() {
         </div>
         <button onClick={openCreate} className="btn-primary"><Plus size={18} /> Nuevo Usuario</button>
       </div>
+
+      {/* Banner de éxito */}
+      {success && (
+        <div className="bg-green-900/30 border border-green-700 rounded-lg p-3 text-green-300 text-sm font-medium flex items-center justify-between">
+          <span>✓ {success}</span>
+          <button onClick={() => setSuccess("")} className="text-green-400 hover:text-green-200 ml-4"><X size={14} /></button>
+        </div>
+      )}
 
       {/* Filtro por rol */}
       <div className="flex flex-wrap gap-2">

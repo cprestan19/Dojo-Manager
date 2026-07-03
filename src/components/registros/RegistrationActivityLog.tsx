@@ -119,8 +119,14 @@ export default function RegistrationActivityLog({ linkId }: { linkId?: string })
                         )}
                         {ev.action === "REGISTRATION_DUPLICATE_BLOCKED" && d.field && (
                           <p className="text-xs text-red-300">
-                            Campo: {d.field === "cedula" ? `Cédula${d.cedula ? ` (${d.cedula})` : ""}` : "Correo"}
+                            {d.field === "cedula" ? `Cédula duplicada${d.cedula ? `: ${d.cedula}` : ""}` : "Correo duplicado"}
                           </p>
+                        )}
+                        {ev.action === "PENDING_STUDENT_REJECTED" && (
+                          <>
+                            {d.cedula && <p className="text-xs text-red-300">Cédula: {d.cedula}</p>}
+                            {d.note   && <p className="text-xs text-dojo-muted italic truncate max-w-[180px]" title={d.note}>"{d.note}"</p>}
+                          </>
                         )}
                         {ev.action === "REGISTRATION_FORM_VIEWED" && d.reset === "true" && (
                           <p className="text-xs text-blue-300">Reapertura ?reset=1</p>

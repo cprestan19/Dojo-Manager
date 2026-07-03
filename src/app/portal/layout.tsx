@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import PortalNav from "./PortalNav";
 import TermsGate from "./TermsGate";
+import SystemNewsModal from "@/components/SystemNewsModal";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -49,10 +50,12 @@ export default async function PortalLayout({ children }: { children: React.React
   }
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col bg-dojo-darker overflow-x-hidden">
+    <div className="min-h-[100dvh] w-full flex flex-col bg-dojo-darker">
       <PortalNav student={student} />
+      <SystemNewsModal />
       <main className="flex-1 overflow-x-hidden overflow-y-auto min-w-0">
-        <div className="max-w-2xl mx-auto px-4 py-6">
+        {/* pb-24 = espacio para la barra de navegación inferior fija (64px) + margen */}
+        <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
           {children}
         </div>
       </main>

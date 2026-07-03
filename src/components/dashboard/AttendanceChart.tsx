@@ -83,9 +83,11 @@ export function AttendanceChart() {
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
-    const r = await fetch(`/api/attendance/weekly?weekOffset=${weekOffset}`);
-    if (r.ok) setData(await r.json());
-    if (!silent) setLoading(false);
+    try {
+      const r = await fetch(`/api/attendance/weekly?weekOffset=${weekOffset}`);
+      if (r.ok) setData(await r.json());
+    } catch { /* sin conexión — mantener datos previos */ }
+    finally { if (!silent) setLoading(false); }
   }, [weekOffset]);
 
   useEffect(() => { load(); }, [load]);

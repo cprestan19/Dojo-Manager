@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/layout/Providers";
+import ServiceWorkerRegistrar from "@/components/push/ServiceWorkerRegistrar";
 import Script from "next/script";
 
 const GA_ID = "G-KTK190P7T3";
@@ -29,6 +30,7 @@ export const metadata: Metadata = {
     shortcut:"/logo.png",
     apple:   "/logo.png",
   },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -43,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="font-body bg-dojo-darker text-dojo-white antialiased">
+        <ServiceWorkerRegistrar />
         <Providers>{children}</Providers>
 
         {/* Google Analytics 4 — carga después de que la página es interactiva */}

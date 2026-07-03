@@ -100,9 +100,14 @@ export const GENDERS = [
 ];
 
 export const NATIONALITIES = [
-  "Panameña", "Colombiana", "Venezolana", "Costarricense", "Guatemalteca",
-  "Hondureña", "Salvadoreña", "Nicaragüense", "Mexicana", "Cubana",
-  "Dominicana", "Estadounidense", "Española", "Italiana", "Otra",
+  "Panamá", "Colombia", "Venezuela", "Costa Rica", "Nicaragua",
+  "Cuba", "República Dominicana", "Ecuador", "Perú", "México",
+  "Honduras", "El Salvador", "Guatemala", "Bolivia", "Chile",
+  "Argentina", "Brasil", "Uruguay", "Paraguay",
+  "España", "Italia", "Francia", "Alemania", "Portugal",
+  "Estados Unidos", "Canadá",
+  "China", "Japón", "Corea del Sur", "India",
+  "Otra",
 ];
 
 // Cintas que permiten registrar hasta 5 katas por cambio de cinta

@@ -4,7 +4,7 @@
  */
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2, FileText } from "lucide-react";
+import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2, ScrollText, ExternalLink } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -47,7 +47,6 @@ export default function SettingsPage() {
   const [bgError,         setBgError]         = useState("");
   const [savingBg,        setSavingBg]        = useState(false);
   const [bgSaved,         setBgSaved]         = useState(false);
-  const [contractPolicy,  setContractPolicy]  = useState<string>("");
   const fileRef    = useRef<HTMLInputElement>(null);
   const bgFileRef  = useRef<HTMLInputElement>(null);
 
@@ -91,7 +90,6 @@ export default function SettingsPage() {
           setAutoRemindersEnabled(data.autoRemindersEnabled ?? false);
           setLoginBgImage(data.loginBgImage ?? null);
           setLocale(data.locale ?? "es");
-          setContractPolicy(data.contractPolicy ?? "");
         }
         setLoading(false);
       });
@@ -131,7 +129,6 @@ export default function SettingsPage() {
         lateInterestPct:       interestPct,
         autoRemindersEnabled,
         locale,
-        contractPolicy: contractPolicy.trim() || null,
       }),
     });
     if (res.ok) {
@@ -525,10 +522,10 @@ export default function SettingsPage() {
                   <p className="text-xs text-dojo-muted">Recomendado: 800×1400 px · Máximo 5 MB</p>
                   <button
                     onClick={handleSaveBg}
-                    disabled={savingBg}
+                    disabled={savingBg || bgSaved}
                     className="btn-primary flex items-center gap-2 w-full justify-center mt-2"
                   >
-                    <Save size={15} /> {savingBg ? "Guardando..." : "Guardar imagen"}
+                    <Save size={15} /> {savingBg ? "Guardando..." : bgSaved ? "¡Guardado!" : "Guardar imagen"}
                   </button>
                   {bgSaved && <p className="text-green-400 text-xs text-center">¡Imagen guardada!</p>}
                 </div>
@@ -555,31 +552,30 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Políticas / Contrato de inscripción */}
-          <div className="card space-y-4">
-            <h2 className="text-dojo-white font-semibold text-lg border-b border-dojo-border pb-3 flex items-center gap-2">
-              <FileText size={18} className="text-dojo-red" /> Términos y Condiciones del Registro
-            </h2>
-            <p className="text-dojo-muted text-xs leading-relaxed">
-              Texto que los padres o tutores deberán <strong className="text-dojo-white">leer y aceptar</strong> antes de completar
-              el formulario de auto-registro. Si se deja en blanco, el paso de aceptación no aparecerá.
-              Cada dojo tiene sus propias políticas — este texto es exclusivo para este dojo.
-            </p>
-            <textarea
-              className="form-input resize-y min-h-[180px] text-sm font-mono leading-relaxed"
-              placeholder={"Escribe aquí los términos y condiciones de inscripción...\n\nEjemplo:\n• El alumno se compromete a asistir puntualmente a las clases.\n• Los pagos deben realizarse los primeros 5 días del mes.\n• ..."}
-              value={contractPolicy}
-              onChange={e => setContractPolicy(e.target.value)}
-              maxLength={10000}
-            />
-            <p className="text-xs text-dojo-muted text-right">{contractPolicy.length} / 10 000 caracteres</p>
-          </div>
+          {/* Políticas y Términos — redirige al nuevo menú dedicado */}
+          <a
+            href="/dashboard/settings/terms"
+            className="card flex items-center justify-between gap-4 hover:border-dojo-gold/60 hover:bg-dojo-gold/5 transition-colors group cursor-pointer"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-dojo-gold/10 flex items-center justify-center shrink-0">
+                <ScrollText size={18} className="text-dojo-gold" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-dojo-white">Políticas y Términos</p>
+                <p className="text-xs text-dojo-muted mt-0.5">
+                  Gestiona los términos que los alumnos deben aceptar en el auto-registro. Incluye versiones, cumplimiento y activación por dojo.
+                </p>
+              </div>
+            </div>
+            <ExternalLink size={16} className="text-dojo-muted group-hover:text-dojo-gold shrink-0 transition-colors" />
+          </a>
 
           {/* Guardar */}
           <div className="flex items-center gap-4">
-            <button onClick={handleSave} disabled={saving || !name.trim()} className="btn-primary flex items-center gap-2">
+            <button onClick={handleSave} disabled={saving || saved || !name.trim()} className="btn-primary flex items-center gap-2">
               <Save size={16} />
-              {saving ? "Guardando..." : "Guardar cambios"}
+              {saving ? "Guardando..." : saved ? "¡Guardado!" : "Guardar cambios"}
             </button>
             {saved && <span className="text-green-400 text-sm">¡Cambios guardados correctamente!</span>}
           </div>

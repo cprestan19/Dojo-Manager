@@ -470,7 +470,9 @@ export async function sendPasswordReset({
       ${emailFooter(dojo)}
     </div>`;
 
-  const subject = "🔐 Restablecer contraseña — Dojo Master";
+  const subject = dojo
+    ? `🔐 Restablecer contraseña — ${dojo.name}`
+    : "🔐 Restablecer contraseña — Dojo Master";
   const { transporter: t, smtpUser, fromName } = await createTransporter();
   await t.sendMail({ from: fromAddress(smtpUser, fromName, dojo), to, subject, html });
 }

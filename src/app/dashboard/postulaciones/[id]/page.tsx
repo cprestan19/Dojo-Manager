@@ -327,6 +327,39 @@ export default function PostulacionDetallePage() {
       {/* Tab Respuestas */}
       {tab === "respuestas" && (
         <div className="space-y-3">
+          {/* Bloque de rechazo — siempre visible cuando hay rechazos */}
+          {app.invitees.filter(i => i.response === "REJECTED").length > 0 && (
+            <div className="border border-red-800/50 bg-red-900/10 rounded-xl overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-red-900/20 border-b border-red-800/40">
+                <XCircle size={15} className="text-red-400 shrink-0" />
+                <span className="text-sm font-semibold text-red-400">
+                  No participarán ({app.invitees.filter(i => i.response === "REJECTED").length})
+                </span>
+              </div>
+              <div className="divide-y divide-red-900/30">
+                {app.invitees.filter(i => i.response === "REJECTED").map(inv => {
+                  const beltInfo = getBeltInfo(inv.beltToPresent);
+                  return (
+                    <div key={inv.id} className="px-4 py-3 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-dojo-white">{inv.student.fullName}</p>
+                        {inv.responseNote && (
+                          <p className="text-xs text-red-300/80 mt-0.5 leading-relaxed">
+                            Motivo: {inv.responseNote}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs px-2 py-0.5 rounded-full shrink-0"
+                        style={{ backgroundColor: beltInfo.hex + "25", color: beltInfo.hex === "#FFFFFF" ? "#aaa" : beltInfo.hex }}>
+                        {beltInfo.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Filtros */}
           <div className="flex items-center gap-2 flex-wrap">
             {(["all","PENDING","ACCEPTED","REJECTED"] as ResponseFilter[]).map(f => (
@@ -362,7 +395,9 @@ export default function PostulacionDetallePage() {
                 {filteredInvitees.map(inv => {
                   const beltInfo = getBeltInfo(inv.beltToPresent);
                   return (
-                    <tr key={inv.id} className="border-b border-dojo-border/50 hover:bg-dojo-border/20">
+                    <tr key={inv.id} className={`border-b border-dojo-border/50 hover:bg-dojo-border/20 ${
+                      inv.response === "REJECTED" ? "bg-red-900/10" : ""
+                    }`}>
                       <td className="py-2.5 px-3 font-medium text-dojo-white">{inv.student.fullName}</td>
                       <td className="py-2.5 px-3">
                         <span className="text-xs px-2 py-0.5 rounded-full"
@@ -380,7 +415,7 @@ export default function PostulacionDetallePage() {
                         )}
                       </td>
                       <td className="py-2.5 px-3">
-                        {app.amount > 0 && (
+                        {app.amount > 0 && inv.response !== "REJECTED" && (
                           <button
                             onClick={() => togglePayment(inv)}
                             disabled={actioning === inv.id + "_pay"}
@@ -394,7 +429,7 @@ export default function PostulacionDetallePage() {
                           </button>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-xs text-dojo-muted max-w-32 truncate">
+                      <td className="py-2.5 px-3 text-xs text-dojo-muted">
                         {inv.responseNote}
                       </td>
                       <td className="py-2.5 px-3" />
@@ -409,7 +444,7 @@ export default function PostulacionDetallePage() {
               {filteredInvitees.map(inv => {
                 const beltInfo = getBeltInfo(inv.beltToPresent);
                 return (
-                  <div key={inv.id} className="card space-y-2">
+                  <div key={inv.id} className={`card space-y-2 ${inv.response === "REJECTED" ? "border-red-800/40 bg-red-900/10" : ""}`}>
                     <div className="flex items-center justify-between">
                       <p className="font-medium text-dojo-white text-sm">{inv.student.fullName}</p>
                       <span className="text-xs px-2 py-0.5 rounded-full"
@@ -425,7 +460,7 @@ export default function PostulacionDetallePage() {
                       ) : (
                         <span className="flex items-center gap-1 text-dojo-muted"><Clock size={12} /> Pendiente</span>
                       )}
-                      {app.amount > 0 && (
+                      {app.amount > 0 && inv.response !== "REJECTED" && (
                         <button onClick={() => togglePayment(inv)} className={`px-2 py-0.5 rounded font-medium transition-colors ${
                           inv.paymentStatus === "PAID" ? "bg-green-900/40 text-green-400" : "bg-dojo-border text-dojo-muted"
                         }`}>
@@ -433,7 +468,11 @@ export default function PostulacionDetallePage() {
                         </button>
                       )}
                     </div>
-                    {inv.responseNote && <p className="text-xs text-dojo-muted italic">{inv.responseNote}</p>}
+                    {inv.responseNote && (
+                      <p className={`text-xs italic ${inv.response === "REJECTED" ? "text-red-300/80" : "text-dojo-muted"}`}>
+                        {inv.response === "REJECTED" ? `Motivo: ${inv.responseNote}` : inv.responseNote}
+                      </p>
+                    )}
                   </div>
                 );
               })}

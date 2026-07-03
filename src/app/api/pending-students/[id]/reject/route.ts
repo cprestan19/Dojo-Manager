@@ -30,6 +30,7 @@ export async function POST(
       select: {
         dojoId: true, status: true, fullName: true,
         motherEmail: true, fatherEmail: true, primaryGuardian: true,
+        cedula: true,
         registrationLinkId: true,
         registrationLink: {
           select: { token: true, dojo: { select: { name: true, email: true, phone: true, slogan: true, logo: true, ownerName: true } } },
@@ -75,7 +76,13 @@ export async function POST(
       resourceType: "PendingStudent",
       resourceId:   id,
       statusCode:   200,
-      details:      JSON.stringify({ note: note ?? null, notify }),
+      details: JSON.stringify({
+        fullName: pending.fullName,
+        email:    pending.motherEmail || pending.fatherEmail || null,
+        cedula:   pending.cedula || null,
+        note:     note ?? null,
+        notify,
+      }),
     });
 
     // Enviar link de reenvío con ?reset=1 si el admin lo solicitó

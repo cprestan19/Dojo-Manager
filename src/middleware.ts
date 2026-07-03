@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+// NOTA: este Map es por-instancia. En Vercel serverless cada instancia tiene su propia memoria,
+// por lo que el conteo no se comparte entre instancias bajo alta carga.
+// Mitigación: el login brute-force está cubierto por account lockout en src/lib/auth.ts
+// (consulta la BD compartida). Para rate limiting distribuido en escala, usar Upstash Redis.
 interface RateBucket { count: number; resetAt: number }
 const rateLimitStore = new Map<string, RateBucket>();
 
@@ -151,6 +155,55 @@ export async function middleware(req: NextRequest) {
     if (!rateLimit(`tournament-reg:${ip}`, 10, 60_000)) return tooManyRequests("60");
   }
 
+  // Portal API endpoints: student-only, require valid session; moderate limit
+  if (pathname.startsWith("/api/portal/")) {
+    if (!rateLimit(`portal:${ip}`, 60, 60_000)) return tooManyRequests("60");
+  }
+
+  // Visitor tracking log endpoint — public, strict limit to prevent abuse
+  if (pathname === "/api/internal/log-visit" && req.method === "POST") {
+    if (!rateLimit(`log-visit:${ip}`, 30, 60_000)) return tooManyRequests("60");
+  }
+
+  // System news: unread check and seen PATCH (authenticated users)
+  if (pathname.startsWith("/api/system/news")) {
+    if (!rateLimit(`system-news:${ip}`, 30, 60_000)) return tooManyRequests("60");
+  }
+
+  // ── Public page visitor tracking — fire-and-forget, never blocks response ───
+  const PUBLIC_TRACKED = ["/", "/login", "/forgot-password", "/reset-password"];
+  if (req.method === "GET" && PUBLIC_TRACKED.includes(pathname)) {
+    const country     = req.headers.get("x-vercel-ip-country")         ?? null;
+    const city        = req.headers.get("x-vercel-ip-city")            ?? null;
+    const region      = req.headers.get("x-vercel-ip-country-region")  ?? null;
+    const lat         = req.headers.get("x-vercel-ip-latitude")        ?? null;
+    const lng         = req.headers.get("x-vercel-ip-longitude")       ?? null;
+    // Derive readable country name from code using Intl (works in Edge runtime)
+    let countryName: string | null = null;
+    try {
+      if (country) {
+        countryName = new Intl.DisplayNames(["es"], { type: "region" }).of(country) ?? null;
+      }
+    } catch { /* Intl not available in all Edge environments */ }
+
+    fetch(new URL("/api/internal/log-visit", req.nextUrl.origin).toString(), {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ip,
+        path:        pathname,
+        country:     countryName,
+        countryCode: country,
+        city,
+        region,
+        lat,
+        lng,
+        referer:   req.headers.get("referer")    ?? null,
+        userAgent: req.headers.get("user-agent") ?? null,
+      }),
+    }).catch(() => {});
+  }
+
   // ── Protect /portal ──────────────────────────────────────────
   if (pathname.startsWith("/portal")) {
     const token       = await readToken(req);
@@ -194,7 +247,10 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/login",
+    "/forgot-password",
+    "/reset-password",
     "/dashboard/:path*",
     "/portal/:path*",
     // Public API endpoints with rate limits
@@ -224,5 +280,9 @@ export const config = {
     "/api/schedules/:path*",
     "/api/katas",
     "/api/katas/:path*",
+    "/api/portal/:path*",
+    "/api/internal/log-visit",
+    "/api/system/news",
+    "/api/system/news/:path*",
   ],
 };

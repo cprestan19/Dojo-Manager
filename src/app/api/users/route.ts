@@ -105,12 +105,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Fetch dojo branding for welcome email (exclude large base64 logo)
-    const dojo = targetDojoId
+    const dojoRaw = targetDojoId
       ? await prisma.dojo.findUnique({
           where:  { id: targetDojoId },
-          select: { name: true, email: true, phone: true, slogan: true, ownerName: true },
+          select: { name: true, email: true, phone: true, logo: true, slogan: true, ownerName: true },
         })
+      : null;
+    const dojo = dojoRaw
+      ? { ...dojoRaw, logo: dojoRaw.logo?.startsWith("http") ? dojoRaw.logo : null }
       : null;
 
     await logAudit({

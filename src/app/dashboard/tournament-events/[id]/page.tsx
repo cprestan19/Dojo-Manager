@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, QrCode, Search, Check, X, ChevronRight, Pencil, Printer, UserPlus } from "lucide-react";
+import { ArrowLeft, QrCode, Search, Check, X, ChevronRight, Pencil, Printer, UserPlus, ChevronDown } from "lucide-react";
 import { KATA_OPTIONS, RESULT_OPTIONS, type TEventDetail, type TEventParticipant } from "@/lib/tournament-events";
 import { getBeltInfo } from "@/lib/utils";
 
@@ -12,8 +12,12 @@ function printParticipantList(data: TEventDetail) {
   const today = new Date().toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "long", year: "numeric" });
 
   const rows = data.participants.map((p, i) => {
-    const arrived  = p.arrived
+    const status = p.optedOut
+      ? `<span style="color:#dc2626;font-weight:700">🚫 No participa</span>`
+      : p.arrived
       ? `<span style="color:#16a34a;font-weight:700">✓ Presente</span>`
+      : p.confirmed
+      ? `<span style="color:#2563eb;font-weight:700">✅ Confirmado</span>`
       : `<span style="color:#9ca3af">Pendiente</span>`;
     const result = (p.kataResult || p.kumiteResult)
       ? `<span style="color:#b45309">🏅 ${[p.kataResult, p.kumiteResult].filter(Boolean).join(" · ")}</span>`
@@ -25,7 +29,7 @@ function printParticipantList(data: TEventDetail) {
         <td style="padding:6px 8px;font-weight:600">${p.fullName}</td>
         <td style="padding:6px 8px;color:#555;font-size:12px">${p.belt || "—"}</td>
         <td style="padding:6px 8px;text-align:center;color:#555;font-size:12px">${p.age > 0 ? `${p.age} a.` : "—"}</td>
-        <td style="padding:6px 8px;font-size:12px">${arrived}</td>
+        <td style="padding:6px 8px;font-size:12px">${status}</td>
         <td style="padding:6px 8px;font-size:11px;color:#6b7280">${p.category || "—"}</td>
         <td style="padding:6px 8px;font-size:11px">${result}</td>
       </tr>`;
@@ -59,15 +63,15 @@ function printParticipantList(data: TEventDetail) {
   <p class="meta">Generado el ${today}</p>
   <div class="stats">
     <div class="stat"><div class="n">${data.totalStudents}</div><div class="l">Inscritos</div></div>
+    <div class="stat" style="color:#2563eb"><div class="n" style="color:#2563eb">${data.confirmedCount ?? 0}</div><div class="l" style="color:#555">Confirmados</div></div>
     <div class="stat" style="color:#16a34a"><div class="n" style="color:#16a34a">${data.arrivedCount}</div><div class="l" style="color:#555">Llegaron</div></div>
-    <div class="stat"><div class="n" style="color:#9ca3af">${data.totalStudents - data.arrivedCount}</div><div class="l">Pendientes</div></div>
     <div class="stat"><div class="n" style="color:#b45309">${data.resultsCount}</div><div class="l">Con resultado</div></div>
   </div>
   <table>
     <thead>
       <tr>
         <th>#</th><th>ID</th><th>Alumno</th><th>Cinta</th>
-        <th>Edad</th><th>Asistencia</th><th>Categoría</th><th>Resultado</th>
+        <th>Edad</th><th>Estado</th><th>Categoría</th><th>Resultado</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
@@ -225,11 +229,96 @@ function printEventStats(data: TEventDetail) {
 
 type KataGroup = { group: string; items: string[] };
 
+function ParticipantCard({ p, onOpen }: { p: TEventParticipant; onOpen: (p: TEventParticipant) => void }) {
+  const bInfo = p.belt ? getBeltInfo(p.belt) : null;
+  const hasResult = p.kataResult || p.kumiteResult;
+  return (
+    <div
+      onClick={() => onOpen(p)}
+      className={`card flex items-center gap-3 cursor-pointer hover:border-dojo-red/50 transition-all py-3 ${
+        p.optedOut   ? "border-red-700/40 opacity-70"
+        : p.arrived  ? "border-green-600/50"
+        : p.confirmed ? "border-blue-600/40"
+        :               "border-dojo-border"
+      }`}
+    >
+      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+        p.optedOut   ? "bg-red-500"
+        : p.arrived  ? "bg-green-500"
+        : p.confirmed ? "bg-blue-500"
+        :               "bg-dojo-border"
+      }`} />
+
+      <div className="w-9 h-9 rounded-xl overflow-hidden bg-dojo-darker flex items-center justify-center shrink-0">
+        {p.photo
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={p.photo} alt={p.fullName} className="w-full h-full object-cover" />
+          : <span className="text-dojo-gold font-bold text-xs">
+              {p.fullName.split(" ").slice(0,2).map(w=>w[0]).join("")}
+            </span>
+        }
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-semibold text-sm text-dojo-white">{p.fullName}</span>
+          {p.arrived && <span className="text-xs text-green-400 font-medium">✓ Presente</span>}
+          {hasResult && <span className="text-xs bg-dojo-gold/20 text-dojo-gold px-1.5 py-0.5 rounded-full">Resultado</span>}
+        </div>
+        {p.optedOutReason && (
+          <p className="text-xs text-red-400/70 mt-0.5">↳ {p.optedOutReason}</p>
+        )}
+        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+          {p.studentCode && (
+            <span className="text-xs font-mono font-bold text-dojo-gold bg-dojo-gold/10 px-1.5 py-0.5 rounded leading-none">
+              #{p.studentCode}
+            </span>
+          )}
+          {bInfo && (
+            <span className="flex items-center gap-1 text-xs text-dojo-muted">
+              <span className="w-2 h-2 rounded-full border border-white/20" style={{ backgroundColor: bInfo.hex }} />
+              {bInfo.label}
+            </span>
+          )}
+          <span className="text-xs text-dojo-muted">{p.age} años</span>
+          {p.arrivedAt && (
+            <span className="text-xs text-dojo-muted">
+              Llegó: {new Date(p.arrivedAt).toLocaleTimeString("es-PA", { hour:"2-digit", minute:"2-digit", hour12: true })}
+            </span>
+          )}
+        </div>
+        {p.category && <p className="text-xs text-dojo-muted mt-0.5">🏷️ {p.category}</p>}
+        {p.kataName && <p className="text-xs text-dojo-muted mt-0.5">🥋 {p.kataName}{p.kataResult ? ` · ${p.kataResult}` : ""}</p>}
+        {p.kumiteResult && <p className="text-xs text-dojo-muted">🥊 Kumite: {p.kumiteResult}</p>}
+      </div>
+      <ChevronRight size={16} className="text-dojo-muted shrink-0" />
+    </div>
+  );
+}
+
+function SectionHeader({
+  emoji, label, count, color, open, onToggle,
+}: { emoji: string; label: string; count: number; color: string; open: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center gap-2 py-2 px-1 text-left group"
+    >
+      <span className="text-base leading-none">{emoji}</span>
+      <span className={`text-xs font-bold uppercase tracking-wider ${color}`}>{label}</span>
+      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${color} bg-white/5`}>{count}</span>
+      <ChevronDown
+        size={14}
+        className={`ml-auto text-dojo-muted group-hover:text-dojo-white transition-all ${open ? "rotate-180" : ""}`}
+      />
+    </button>
+  );
+}
+
 export default function TournamentEventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
   const [data,    setData]    = useState<TEventDetail | null>(null);
-  const [filter,  setFilter]  = useState<"all" | "arrived" | "pending" | "withResults">("all");
   const [search,  setSearch]  = useState("");
   const [modal,   setModal]   = useState<TEventParticipant | null>(null);
   const [saving,  setSaving]  = useState(false);
@@ -237,16 +326,22 @@ export default function TournamentEventDetailPage() {
   const [saveOk,  setSaveOk]  = useState(false);
   const [editForm, setEditForm] = useState<Partial<TEventParticipant>>({});
   const [kataGroups, setKataGroups] = useState<KataGroup[]>(KATA_OPTIONS);
-  const pollingRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Secciones colapsables
+  const [openConfirmed, setOpenConfirmed] = useState(true);
+  const [openPending,   setOpenPending]   = useState(true);
+  const [openOptedOut,  setOpenOptedOut]  = useState(false);
+
+  const pollingRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Agregar alumno a último momento ────────────────────────────
+  // ── Agregar alumno ──────────────────────────────────────────────
   type StudentResult = { id: string; fullName: string; studentCode: number | null; belt: string | null };
   const [showAddModal,  setShowAddModal]  = useState(false);
   const [addSearch,     setAddSearch]     = useState("");
   const [addResults,    setAddResults]    = useState<StudentResult[]>([]);
   const [addSearching,  setAddSearching]  = useState(false);
-  const [adding,        setAdding]        = useState<string | null>(null); // studentId en proceso
+  const [adding,        setAdding]        = useState<string | null>(null);
   const [addErr,        setAddErr]        = useState("");
   const [addOkName,     setAddOkName]     = useState("");
 
@@ -284,15 +379,12 @@ export default function TournamentEventDetailPage() {
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ studentId: student.id }),
       });
-      const json = await r.json().catch(() => ({})) as { error?: string; alreadyEnrolled?: boolean };
-      if (!r.ok) {
-        setAddErr(json.error ?? `Error al agregar (${r.status})`);
-        return;
-      }
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      if (!r.ok) { setAddErr(json.error ?? `Error al agregar (${r.status})`); return; }
       setAddOkName(student.fullName);
       setAddSearch("");
       setAddResults([]);
-      await load(); // refresca la lista principal
+      await load();
     } catch {
       setAddErr("Error de conexión");
     } finally {
@@ -301,10 +393,10 @@ export default function TournamentEventDetailPage() {
   }
 
   // ── Edición del evento ──────────────────────────────────────────
-  const [editEvent,     setEditEvent]     = useState(false);
-  const [eventForm,     setEventForm]     = useState({ name: "", date: "", location: "", notes: "" });
-  const [savingEvent,   setSavingEvent]   = useState(false);
-  const [eventFormErr,  setEventFormErr]  = useState("");
+  const [editEvent,    setEditEvent]    = useState(false);
+  const [eventForm,    setEventForm]    = useState({ name: "", date: "", location: "", notes: "" });
+  const [savingEvent,  setSavingEvent]  = useState(false);
+  const [eventFormErr, setEventFormErr] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -315,7 +407,7 @@ export default function TournamentEventDetailPage() {
 
   useEffect(() => {
     load();
-    pollingRef.current = setInterval(load, 6000); // polling cada 6s para múltiples escáneres
+    pollingRef.current = setInterval(load, 6000);
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [load]);
 
@@ -326,16 +418,13 @@ export default function TournamentEventDetailPage() {
         const cinta       = katas.filter(k => k.description === "Kata de Cinta").map(k => k.name);
         const competencia = katas.filter(k => k.description === "Kata de Competencias").map(k => k.name);
         const sinTipo     = katas.filter(k => !k.description).map(k => k.name);
-
         const groups: KataGroup[] = [];
-        if (cinta.length       > 0) groups.push({ group: "Katas de Cinta",        items: cinta });
-        if (competencia.length > 0) groups.push({ group: "Katas de Competencia",   items: competencia });
-        if (sinTipo.length     > 0) groups.push({ group: "Otros",                  items: sinTipo });
-
-        // Fallback: si el dojo no tiene katas configuradas usa la lista estándar
+        if (cinta.length       > 0) groups.push({ group: "Katas de Cinta",       items: cinta });
+        if (competencia.length > 0) groups.push({ group: "Katas de Competencia", items: competencia });
+        if (sinTipo.length     > 0) groups.push({ group: "Otros",                items: sinTipo });
         if (groups.length > 0) setKataGroups(groups);
       })
-      .catch(() => { /* mantiene el fallback hardcodeado */ });
+      .catch(() => { /* mantiene el fallback */ });
   }, []);
 
   function openModal(p: TEventParticipant) {
@@ -344,11 +433,14 @@ export default function TournamentEventDetailPage() {
     setModal(p);
     setEditForm({
       arrived:          p.arrived,
+      confirmed:        p.confirmed,
       category:         p.category ?? "",
       kataName:         p.kataName   ?? "",
       kataResult:       p.kataResult ?? "",
       kumiteResult:     p.kumiteResult ?? "",
       competitionNotes: p.competitionNotes ?? "",
+      optedOut:         p.optedOut,
+      optedOutReason:   p.optedOutReason ?? "",
     });
   }
   function closeModal() { setModal(null); setEditForm({}); setSaveErr(""); setSaveOk(false); }
@@ -359,16 +451,13 @@ export default function TournamentEventDetailPage() {
     setSaveErr("");
     setSaveOk(false);
     try {
-      const res  = await fetch(`/api/tournament-events/${id}/participants/${modal.participantId}`, {
+      const res = await fetch(`/api/tournament-events/${id}/participants/${modal.participantId}`, {
         method:  "PUT",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify(editForm),
       });
       const json = await res.json().catch(() => ({})) as { error?: string };
-      if (!res.ok) {
-        setSaveErr(json.error ?? `Error al guardar (${res.status})`);
-        return;
-      }
+      if (!res.ok) { setSaveErr(json.error ?? `Error al guardar (${res.status})`); return; }
       await load();
       setSaveOk(true);
       setTimeout(closeModal, 1500);
@@ -381,7 +470,6 @@ export default function TournamentEventDetailPage() {
 
   function openEditEvent() {
     if (!data) return;
-    // datetime-local necesita "YYYY-MM-DDThh:mm"
     const localDate = new Date(data.date);
     const pad = (n: number) => String(n).padStart(2, "0");
     const dateStr = `${localDate.getFullYear()}-${pad(localDate.getMonth()+1)}-${pad(localDate.getDate())}T${pad(localDate.getHours())}:${pad(localDate.getMinutes())}`;
@@ -414,14 +502,6 @@ export default function TournamentEventDetailPage() {
     }
   }
 
-  const participants = (data?.participants ?? []).filter(p => {
-    if (filter === "arrived"     && !p.arrived) return false;
-    if (filter === "pending"     && p.arrived)  return false;
-    if (filter === "withResults" && !(p.arrived && (p.kataResult || p.kumiteResult))) return false;
-    if (search && !p.fullName.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
-
   if (!data) return (
     <div className="flex items-center justify-center py-20">
       <div className="w-8 h-8 rounded-full border-4 border-dojo-red border-t-transparent animate-spin" />
@@ -431,6 +511,17 @@ export default function TournamentEventDetailPage() {
   const dateStr = new Date(data.date).toLocaleDateString("es-PA", {
     timeZone: "America/Panama", weekday:"long", day:"numeric", month:"long", year:"numeric",
   });
+
+  // Filtrar por búsqueda
+  const q = search.toLowerCase();
+  const all = data.participants.filter(p =>
+    !q || p.fullName.toLowerCase().includes(q)
+  );
+
+  // Tres grupos
+  const confirmed = all.filter(p => p.confirmed && !p.optedOut);
+  const pending   = all.filter(p => !p.confirmed && !p.optedOut);
+  const optedOut  = all.filter(p => p.optedOut);
 
   return (
     <div className="space-y-5 max-w-3xl">
@@ -456,7 +547,7 @@ export default function TournamentEventDetailPage() {
           <button
             onClick={() => data && printParticipantList(data)}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-dojo-card border border-dojo-border text-dojo-muted hover:text-dojo-white transition-colors"
-            title="Imprimir lista de participantes"
+            title="Imprimir lista"
           >
             <Printer size={14} />
             <span className="hidden sm:inline">Lista</span>
@@ -464,7 +555,7 @@ export default function TournamentEventDetailPage() {
           <button
             onClick={() => data && printEventStats(data)}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-dojo-gold/10 border border-dojo-gold/30 text-dojo-gold hover:bg-dojo-gold/20 transition-colors"
-            title="Imprimir estadísticas de medallas"
+            title="Estadísticas de medallas"
           >
             <Printer size={14} />
             <span className="hidden sm:inline">Estadísticas</span>
@@ -472,7 +563,7 @@ export default function TournamentEventDetailPage() {
           <button
             onClick={openAddModal}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-dojo-card border border-dojo-border text-dojo-muted hover:text-dojo-white hover:border-dojo-white/30 transition-colors"
-            title="Agregar alumno al torneo"
+            title="Agregar alumno"
           >
             <UserPlus size={14} />
             <span className="hidden sm:inline">Agregar</span>
@@ -485,162 +576,99 @@ export default function TournamentEventDetailPage() {
         </div>
       </div>
 
-      {/* Stats — clicables */}
-      <div className="grid grid-cols-3 gap-3">
-        {/* Inscritos → todos */}
-        <button
-          onClick={() => setFilter("all")}
-          className={`card text-center py-3 transition-all border ${
-            filter === "all"
-              ? "border-dojo-white/40 bg-dojo-white/5"
-              : "border-dojo-border hover:border-dojo-white/30"
-          }`}
-        >
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-2">
+        <div className="card text-center py-3 border border-dojo-border">
           <p className="text-2xl font-bold text-dojo-white">{data.totalStudents}</p>
           <p className="text-dojo-muted text-xs mt-0.5">Inscritos</p>
-        </button>
-
-        {/* Llegaron → filtra llegados */}
-        <button
-          onClick={() => setFilter(filter === "arrived" ? "all" : "arrived")}
-          className={`card text-center py-3 transition-all border ${
-            filter === "arrived"
-              ? "border-green-500/50 bg-green-500/10"
-              : "border-dojo-border hover:border-green-500/30"
-          }`}
-        >
+        </div>
+        <div className="card text-center py-3 border border-blue-600/30 bg-blue-600/5">
+          <p className="text-2xl font-bold text-blue-400">{data.confirmedCount ?? 0}</p>
+          <p className="text-dojo-muted text-xs mt-0.5">Confirmados</p>
+        </div>
+        <div className="card text-center py-3 border border-green-600/30 bg-green-600/5">
           <p className="text-2xl font-bold text-green-400">{data.arrivedCount}</p>
           <p className="text-dojo-muted text-xs mt-0.5">Llegaron</p>
-        </button>
-
-        {/* Resultados → filtra llegados con resultados */}
-        <button
-          onClick={() => setFilter(filter === "withResults" ? "all" : "withResults")}
-          className={`card text-center py-3 transition-all border ${
-            filter === "withResults"
-              ? "border-dojo-gold/50 bg-dojo-gold/10"
-              : "border-dojo-border hover:border-dojo-gold/30"
-          }`}
-        >
-          <p className="text-2xl font-bold text-dojo-gold">{data.resultsCount}</p>
-          <p className="text-dojo-muted text-xs mt-0.5">Resultados</p>
-        </button>
+        </div>
+        <div className="card text-center py-3 border border-red-600/30 bg-red-600/5">
+          <p className="text-2xl font-bold text-red-400">{data.optedOutCount ?? 0}</p>
+          <p className="text-dojo-muted text-xs mt-0.5">No participa</p>
+        </div>
       </div>
 
-      {/* Filtros */}
-      <div className="space-y-2">
+      {/* Búsqueda */}
+      <div className="space-y-1">
         <div className="relative">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
           <input className="form-input pl-8 text-sm w-full" placeholder="Buscar alumno..."
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {(["all","arrived","withResults","pending"] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-                filter === f
-                  ? "bg-dojo-white text-dojo-darker border-transparent"
-                  : "bg-dojo-card text-dojo-muted border-dojo-border hover:border-dojo-border/60"
-              }`}>
-              {f === "all"         ? "Todos"
-               : f === "arrived"     ? "✅ Llegaron"
-               : f === "withResults" ? "🏅 Con resultado"
-               :                      "⏳ Pendiente"}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-dojo-muted">🔄 Actualización automática cada 6 seg.</p>
+        <p className="text-xs text-dojo-muted px-1">🔄 Actualización automática cada 6 seg.</p>
       </div>
 
-      {/* Lista de participantes */}
-      <div className="space-y-2">
-        {participants.map(p => {
-          const bInfo = p.belt ? getBeltInfo(p.belt) : null;
-          const hasResult = p.kataResult || p.kumiteResult;
-          return (
-            <div
-              key={p.participantId}
-              onClick={() => openModal(p)}
-              className={`card flex items-center gap-3 cursor-pointer hover:border-dojo-red/50 transition-all py-3 ${
-                p.arrived ? "border-green-700/40" : "border-dojo-border"
-              }`}
-            >
-              {/* Indicador llegada */}
-              <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                p.arrived ? "bg-green-500" : "bg-dojo-border"
-              }`} />
+      {/* ── Sección: ASISTENCIAS ── */}
+      <div className="space-y-4">
+        <p className="text-xs font-bold text-dojo-muted uppercase tracking-widest px-1">Asistencias</p>
 
-              {/* Foto/iniciales */}
-              <div className="w-9 h-9 rounded-xl overflow-hidden bg-dojo-darker flex items-center justify-center shrink-0">
-                {p.photo
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={p.photo} alt={p.fullName} className="w-full h-full object-cover" />
-                  : <span className="text-dojo-gold font-bold text-xs">
-                      {p.fullName.split(" ").slice(0,2).map(w=>w[0]).join("")}
-                    </span>
-                }
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-sm text-dojo-white">{p.fullName}</span>
-                  {p.arrived
-                    ? <span className="text-xs text-green-400 font-medium">✓ Presente</span>
-                    : <span className="text-xs text-dojo-muted">Pendiente</span>
-                  }
-                  {hasResult && <span className="text-xs bg-dojo-gold/20 text-dojo-gold px-1.5 py-0.5 rounded-full">Resultado</span>}
-                </div>
-                <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                  {p.studentCode && (
-                    <span className="text-xs font-mono font-bold text-dojo-gold bg-dojo-gold/10 px-1.5 py-0.5 rounded leading-none">
-                      #{p.studentCode}
-                    </span>
-                  )}
-                  {bInfo && (
-                    <span className="flex items-center gap-1 text-xs text-dojo-muted">
-                      <span className="w-2 h-2 rounded-full border border-white/20" style={{ backgroundColor: bInfo.hex }} />
-                      {bInfo.label}
-                    </span>
-                  )}
-                  <span className="text-xs text-dojo-muted">{p.age} años</span>
-                  {p.arrivedAt && (
-                    <span className="text-xs text-dojo-muted">
-                      Llegó: {new Date(p.arrivedAt).toLocaleTimeString("es-PA", { hour:"2-digit", minute:"2-digit", hour12: true })}
-                    </span>
-                  )}
-                </div>
-                {p.category && (
-                  <p className="text-xs text-dojo-muted mt-0.5">
-                    🏷️ {p.category}
-                  </p>
-                )}
-                {p.kataName && (
-                  <p className="text-xs text-dojo-muted mt-0.5">
-                    🥋 {p.kataName}{p.kataResult ? ` · ${p.kataResult}` : ""}
-                  </p>
-                )}
-                {p.kumiteResult && <p className="text-xs text-dojo-muted">🥊 Kumite: {p.kumiteResult}</p>}
-              </div>
-              <ChevronRight size={16} className="text-dojo-muted shrink-0" />
-            </div>
-          );
-        })}
-
-        {participants.length === 0 && (
-          <div className="text-center py-10 text-dojo-muted space-y-1">
-            <p className="text-2xl">{filter === "withResults" ? "🏅" : filter === "arrived" ? "✅" : "🔍"}</p>
-            <p className="text-sm">
-              {filter === "withResults"
-                ? "Ningún alumno llegado tiene resultados aún"
-                : filter === "arrived"
-                ? "Ningún alumno ha llegado todavía"
-                : filter === "pending"
-                ? "Todos los alumnos ya llegaron"
-                : "Sin resultados para este filtro"}
-            </p>
+        {/* ── CONFIRMADOS ── */}
+        <div className="space-y-2">
+          <div className="border-b border-dojo-border/50 pb-1">
+            <SectionHeader
+              emoji="✅" label="Confirmados" count={confirmed.length}
+              color="text-blue-400" open={openConfirmed}
+              onToggle={() => setOpenConfirmed(v => !v)}
+            />
           </div>
-        )}
+          {openConfirmed && (
+            confirmed.length === 0
+              ? <p className="text-xs text-dojo-muted text-center py-4">
+                  {search ? "Sin coincidencias" : "Ningún alumno ha confirmado aún"}
+                </p>
+              : <div className="space-y-2">
+                  {confirmed.map(p => <ParticipantCard key={p.participantId} p={p} onOpen={openModal} />)}
+                </div>
+          )}
+        </div>
+
+        {/* ── PENDIENTES ── */}
+        <div className="space-y-2">
+          <div className="border-b border-dojo-border/50 pb-1">
+            <SectionHeader
+              emoji="⏳" label="Pendiente" count={pending.length}
+              color="text-dojo-muted" open={openPending}
+              onToggle={() => setOpenPending(v => !v)}
+            />
+          </div>
+          {openPending && (
+            pending.length === 0
+              ? <p className="text-xs text-dojo-muted text-center py-4">
+                  {search ? "Sin coincidencias" : "No hay alumnos pendientes de respuesta"}
+                </p>
+              : <div className="space-y-2">
+                  {pending.map(p => <ParticipantCard key={p.participantId} p={p} onOpen={openModal} />)}
+                </div>
+          )}
+        </div>
+
+        {/* ── NO PARTICIPARÁ ── */}
+        <div className="space-y-2">
+          <div className="border-b border-dojo-border/50 pb-1">
+            <SectionHeader
+              emoji="🚫" label="No participará" count={optedOut.length}
+              color="text-red-400" open={openOptedOut}
+              onToggle={() => setOpenOptedOut(v => !v)}
+            />
+          </div>
+          {openOptedOut && (
+            optedOut.length === 0
+              ? <p className="text-xs text-dojo-muted text-center py-4">
+                  {search ? "Sin coincidencias" : "Ningún alumno ha declinado participar"}
+                </p>
+              : <div className="space-y-2">
+                  {optedOut.map(p => <ParticipantCard key={p.participantId} p={p} onOpen={openModal} />)}
+                </div>
+          )}
+        </div>
       </div>
 
       {/* ══ MODAL AGREGAR ALUMNO ══ */}
@@ -652,7 +680,6 @@ export default function TournamentEventDetailPage() {
           <div className="bg-dojo-card border border-dojo-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-5 space-y-4">
               <div className="w-10 h-1 bg-dojo-border rounded mx-auto sm:hidden" />
-
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold text-dojo-white">➕ Agregar Alumno</p>
@@ -662,8 +689,6 @@ export default function TournamentEventDetailPage() {
                   <X size={18} />
                 </button>
               </div>
-
-              {/* Búsqueda */}
               <div className="relative">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
                 <input
@@ -679,23 +704,15 @@ export default function TournamentEventDetailPage() {
                   </div>
                 )}
               </div>
-
-              {/* Resultado de éxito */}
               {addOkName && (
                 <div className="flex items-center gap-2 bg-green-500/15 border border-green-500/40 rounded-xl px-4 py-3">
                   <Check size={15} className="text-green-400 shrink-0" />
                   <p className="text-green-400 text-sm font-semibold">{addOkName} agregado exitosamente</p>
                 </div>
               )}
-
-              {/* Error */}
               {addErr && (
-                <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
-                  {addErr}
-                </p>
+                <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">{addErr}</p>
               )}
-
-              {/* Resultados de búsqueda */}
               {addResults.length > 0 && (
                 <div className="space-y-1.5">
                   {addResults.map(s => (
@@ -713,12 +730,8 @@ export default function TournamentEventDetailPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-dojo-white truncate">{s.fullName}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          {s.studentCode && (
-                            <span className="text-xs font-mono text-dojo-gold">#{s.studentCode}</span>
-                          )}
-                          {s.belt && (
-                            <span className="text-xs text-dojo-muted">{s.belt}</span>
-                          )}
+                          {s.studentCode && <span className="text-xs font-mono text-dojo-gold">#{s.studentCode}</span>}
+                          {s.belt && <span className="text-xs text-dojo-muted">{s.belt}</span>}
                         </div>
                       </div>
                       {adding === s.id
@@ -729,23 +742,13 @@ export default function TournamentEventDetailPage() {
                   ))}
                 </div>
               )}
-
-              {/* Estado vacío */}
               {addSearch.trim().length >= 2 && !addSearching && addResults.length === 0 && !addErr && !addOkName && (
-                <p className="text-center text-dojo-muted text-sm py-4">
-                  No se encontraron alumnos disponibles para inscribir
-                </p>
+                <p className="text-center text-dojo-muted text-sm py-4">No se encontraron alumnos disponibles para inscribir</p>
               )}
-
               {addSearch.trim().length < 2 && !addOkName && (
-                <p className="text-xs text-dojo-muted text-center py-2">
-                  Escribe al menos 2 caracteres para buscar
-                </p>
+                <p className="text-xs text-dojo-muted text-center py-2">Escribe al menos 2 caracteres para buscar</p>
               )}
-
-              <button onClick={closeAddModal} className="btn-secondary w-full justify-center">
-                Cerrar
-              </button>
+              <button onClick={closeAddModal} className="btn-secondary w-full justify-center">Cerrar</button>
             </div>
           </div>
         </div>
@@ -760,21 +763,18 @@ export default function TournamentEventDetailPage() {
           <div className="bg-dojo-card border border-dojo-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[92vh] overflow-y-auto">
             <div className="p-5 space-y-4">
               <div className="w-10 h-1 bg-dojo-border rounded mx-auto sm:hidden" />
-
               <div className="flex items-center justify-between">
                 <p className="font-bold text-dojo-white">✏️ Editar Torneo</p>
                 <button onClick={() => setEditEvent(false)} className="text-dojo-muted hover:text-dojo-white transition-colors">
                   <X size={18} />
                 </button>
               </div>
-
               <div>
                 <label className="form-label">Nombre del Torneo *</label>
                 <input className="form-input" placeholder="Nombre del torneo"
                   value={eventForm.name}
                   onChange={e => setEventForm(f => ({ ...f, name: e.target.value }))} />
               </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="form-label">Fecha *</label>
@@ -789,7 +789,6 @@ export default function TournamentEventDetailPage() {
                     onChange={e => setEventForm(f => ({ ...f, location: e.target.value }))} />
                 </div>
               </div>
-
               <div>
                 <label className="form-label">Notas (opcional)</label>
                 <textarea className="form-input resize-none min-h-[60px]"
@@ -797,13 +796,9 @@ export default function TournamentEventDetailPage() {
                   value={eventForm.notes}
                   onChange={e => setEventForm(f => ({ ...f, notes: e.target.value }))} />
               </div>
-
               {eventFormErr && <p className="text-red-400 text-sm">{eventFormErr}</p>}
-
               <div className="flex gap-3 pt-1">
-                <button onClick={() => setEditEvent(false)} className="btn-secondary flex-1 justify-center">
-                  Cancelar
-                </button>
+                <button onClick={() => setEditEvent(false)} className="btn-secondary flex-1 justify-center">Cancelar</button>
                 <button onClick={saveEvent} disabled={savingEvent} className="btn-primary flex-1 justify-center">
                   {savingEvent ? "Guardando..." : "💾 Guardar"}
                 </button>
@@ -813,7 +808,7 @@ export default function TournamentEventDetailPage() {
         </div>
       )}
 
-      {/* ══ MODAL DE RESULTADOS ══ */}
+      {/* ══ MODAL DE PARTICIPANTE ══ */}
       {modal && (
         <div
           className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -823,7 +818,6 @@ export default function TournamentEventDetailPage() {
             <div className="p-5 space-y-4">
               <div className="w-10 h-1 bg-dojo-border rounded mx-auto sm:hidden" />
 
-              {/* Título del panel */}
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold text-dojo-muted uppercase tracking-wider">🏆 Registro de Competencia</p>
                 <button onClick={closeModal} className="text-dojo-muted hover:text-dojo-white transition-colors">
@@ -848,18 +842,70 @@ export default function TournamentEventDetailPage() {
                 </div>
               </div>
 
-              {/* Toggle llegada */}
+              {/* Toggle — No quiere participar */}
               <div
-                className="flex items-center justify-between bg-dojo-darker rounded-xl p-3 cursor-pointer"
-                onClick={() => setEditForm(f => ({ ...f, arrived: !f.arrived }))}
+                className={`flex items-center justify-between rounded-xl p-3 cursor-pointer transition-colors ${
+                  editForm.optedOut ? "bg-red-500/10 border border-red-500/30" : "bg-dojo-darker"
+                }`}
+                onClick={() => setEditForm(f => ({
+                  ...f,
+                  optedOut:  !f.optedOut,
+                  confirmed: f.optedOut ? f.confirmed : false,
+                  arrived:   f.optedOut ? f.arrived   : false,
+                }))}
               >
                 <span className="text-sm text-dojo-white font-medium">
-                  {editForm.arrived ? "✅ Llegó al torneo" : "⏳ Pendiente de llegada"}
+                  {editForm.optedOut ? "🚫 No quiere participar" : "✅ Sí participa"}
                 </span>
-                <div className={`w-12 h-6 rounded-full relative transition-colors ${editForm.arrived ? "bg-green-500" : "bg-dojo-border"}`}>
-                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${editForm.arrived ? "left-6" : "left-0.5"}`} />
+                <div className={`w-12 h-6 rounded-full relative transition-colors ${editForm.optedOut ? "bg-red-500" : "bg-dojo-border"}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${editForm.optedOut ? "left-6" : "left-0.5"}`} />
                 </div>
               </div>
+
+              {/* Razón (opcional) */}
+              {editForm.optedOut && (
+                <div>
+                  <label className="form-label">Motivo (opcional)</label>
+                  <input
+                    className="form-input"
+                    placeholder="Ej: lesión, viaje, enfermedad..."
+                    value={editForm.optedOutReason ?? ""}
+                    onChange={e => setEditForm(f => ({ ...f, optedOutReason: e.target.value }))}
+                  />
+                </div>
+              )}
+
+              {/* Toggle — Confirmado (solo si participa) */}
+              {!editForm.optedOut && (
+                <div
+                  className={`flex items-center justify-between rounded-xl p-3 cursor-pointer transition-colors ${
+                    editForm.confirmed ? "bg-blue-500/10 border border-blue-500/30" : "bg-dojo-darker"
+                  }`}
+                  onClick={() => setEditForm(f => ({ ...f, confirmed: !f.confirmed }))}
+                >
+                  <span className="text-sm text-dojo-white font-medium">
+                    {editForm.confirmed ? "✅ Asistencia confirmada" : "⏳ Sin confirmar asistencia"}
+                  </span>
+                  <div className={`w-12 h-6 rounded-full relative transition-colors ${editForm.confirmed ? "bg-blue-500" : "bg-dojo-border"}`}>
+                    <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${editForm.confirmed ? "left-6" : "left-0.5"}`} />
+                  </div>
+                </div>
+              )}
+
+              {/* Toggle — Llegó al torneo (solo si confirmado) */}
+              {!editForm.optedOut && editForm.confirmed && (
+                <div
+                  className="flex items-center justify-between bg-dojo-darker rounded-xl p-3 cursor-pointer"
+                  onClick={() => setEditForm(f => ({ ...f, arrived: !f.arrived }))}
+                >
+                  <span className="text-sm text-dojo-white font-medium">
+                    {editForm.arrived ? "✅ Llegó al torneo" : "⏳ Pendiente de llegada"}
+                  </span>
+                  <div className={`w-12 h-6 rounded-full relative transition-colors ${editForm.arrived ? "bg-green-500" : "bg-dojo-border"}`}>
+                    <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${editForm.arrived ? "left-6" : "left-0.5"}`} />
+                  </div>
+                </div>
+              )}
 
               {/* ── CATEGORÍA ── */}
               <div>
@@ -872,7 +918,7 @@ export default function TournamentEventDetailPage() {
                 />
               </div>
 
-              {/* ── SECCIÓN KATA ── */}
+              {/* ── KATA ── */}
               <div className="space-y-3">
                 <p className="text-xs font-bold text-dojo-muted uppercase tracking-wider">🥋 Kata</p>
                 <div>
@@ -899,7 +945,7 @@ export default function TournamentEventDetailPage() {
                 </div>
               </div>
 
-              {/* ── SECCIÓN KUMITE ── */}
+              {/* ── KUMITE ── */}
               <div className="space-y-3">
                 <p className="text-xs font-bold text-dojo-muted uppercase tracking-wider">🥊 Kumite</p>
                 <div>
@@ -926,15 +972,12 @@ export default function TournamentEventDetailPage() {
                 💡 Los resultados se guardarán automáticamente en el historial de competencias del alumno.
               </p>
 
-              {/* Mensaje de éxito */}
               {saveOk && (
                 <div className="flex items-center gap-2 bg-green-500/15 border border-green-500/40 rounded-xl px-4 py-3">
                   <Check size={16} className="text-green-400 shrink-0" />
                   <p className="text-green-400 text-sm font-semibold">¡Guardado exitosamente!</p>
                 </div>
               )}
-
-              {/* Mensaje de error */}
               {saveErr && (
                 <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/40 rounded-xl px-4 py-3">
                   <X size={16} className="text-red-400 shrink-0" />
@@ -942,11 +985,8 @@ export default function TournamentEventDetailPage() {
                 </div>
               )}
 
-              {/* Botones */}
               <div className="flex gap-3 pt-1">
-                <button onClick={closeModal} disabled={saving} className="btn-secondary flex-1 justify-center">
-                  Cancelar
-                </button>
+                <button onClick={closeModal} disabled={saving} className="btn-secondary flex-1 justify-center">Cancelar</button>
                 <button onClick={saveResult} disabled={saving || saveOk} className="btn-primary flex-1 justify-center">
                   {saving ? "Guardando..." : saveOk ? "✓ Guardado" : "💾 Guardar"}
                 </button>

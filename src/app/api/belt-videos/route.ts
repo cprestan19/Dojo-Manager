@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { sendPushToDojoStudentsAsync } from "@/lib/push";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -56,6 +57,21 @@ export async function POST(req: NextRequest) {
       order:             Number(body.order) || 0,
     },
   });
+
+  // Notificar a los alumnos que hay un nuevo video disponible — fire-and-forget
+  const pushSettings = await prisma.pushSettings.findUnique({ where: { dojoId }, select: { enabled: true, notifyNewVideo: true } }).catch(() => null);
+  if (pushSettings?.enabled && pushSettings.notifyNewVideo) {
+    sendPushToDojoStudentsAsync(
+      dojoId,
+      {
+        title: "🎥 Nuevo video disponible",
+        body:  `"${video.title}" ya está en tu portal de videos.`,
+        url:   "/portal/videos",
+        tag:   "new-video",
+      },
+      { type: "video" },
+    );
+  }
 
   return NextResponse.json(video, { status: 201 });
 }

@@ -1202,7 +1202,7 @@ export default function CardTemplatePage() {
           {saved && <span className="text-green-400 text-sm">¡Guardado!</span>}
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || saved}
             className="btn-primary flex items-center gap-2 text-sm"
           >
             <Save size={14} /> {saving ? "Guardando..." : "Guardar"}
@@ -1701,7 +1701,7 @@ export default function CardTemplatePage() {
           <div className="flex items-center gap-4 pt-2">
             <button
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || saved}
               className="btn-primary flex items-center gap-2"
             >
               <Save size={16} /> {saving ? "Guardando..." : "Guardar diseño"}

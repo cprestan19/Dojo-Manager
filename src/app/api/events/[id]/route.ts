@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -71,6 +72,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (!existing) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
 
     await prisma.event.delete({ where: { id } });
+
+    // Eliminar imagen de Cloudinary si existe (no bloquea la respuesta si falla)
+    const publicId = extractCloudinaryPublicId(existing.imageUrl);
+    if (publicId) {
+      deleteResource(publicId).catch(err =>
+        console.error("[events DELETE] Cloudinary cleanup failed:", err)
+      );
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[events DELETE]", err);

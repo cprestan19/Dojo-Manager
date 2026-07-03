@@ -28,7 +28,7 @@ interface Props {
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   async function handleCopy() {
-    await navigator.clipboard.writeText(text);
+    try { await navigator.clipboard?.writeText(text); } catch { /* ignore */ }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }

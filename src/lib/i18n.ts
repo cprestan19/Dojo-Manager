@@ -30,6 +30,7 @@ const translations = {
       certificados:           "Diplomas/Certificados",
       "tournament-events":    "Asistencia de Eventos",
       settingsTerms:          "Políticas y Términos",
+      settingsPush:           "Notificaciones Push",
     },
     topbar: {
       dashboard:          "Dashboard",
@@ -121,6 +122,7 @@ const translations = {
       certificados:           "Certificates",
       "tournament-events":    "Event Attendance",
       settingsTerms:          "Policies & Terms",
+      settingsPush:           "Push Notifications",
     },
     topbar: {
       dashboard:          "Dashboard",

@@ -166,6 +166,25 @@ export async function POST(
         },
       });
 
+      // Si el alumno aceptó los términos versionados durante el autoregistro, registrar la aceptación
+      if (pending.acceptedTermsVersion !== null && pending.acceptedTermsVersion !== undefined) {
+        await tx.termsAcceptance.upsert({
+          where:  { studentId_dojoId: { studentId: newStudent.id, dojoId } },
+          create: {
+            studentId: newStudent.id,
+            dojoId,
+            version:   pending.acceptedTermsVersion,
+            acceptedAt: pending.submittedAt,
+            ipAddress:  pending.submitterIp,
+          },
+          update: {
+            version:   pending.acceptedTermsVersion,
+            acceptedAt: pending.submittedAt,
+            ipAddress:  pending.submitterIp,
+          },
+        });
+      }
+
       return newStudent;
     }, { isolationLevel: "Serializable" });
 

@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
 import { getOrCreateDefaultPlan, createTrialSubscription } from "@/lib/billing/subscription";
+import { notifyAdmin, buildDojoCreatedEmail } from "@/lib/admin-notifications";
 
 type SessionUser = { role?: string; id?: string; email?: string };
 
@@ -99,19 +100,36 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
-          ?? req.headers.get("x-real-ip")
-          ?? "unknown";
+  const ip      = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
+               ?? req.headers.get("x-real-ip")
+               ?? "unknown";
+  const country = req.headers.get("x-vercel-ip-country") ?? req.headers.get("cf-ipcountry") ?? null;
+  const city    = req.headers.get("x-vercel-ip-city")    ?? null;
+  const region  = req.headers.get("x-vercel-ip-region")  ?? null;
 
   await logAudit({
-    action:    "DOJO_CREATED",
-    userId:    creatorId,
-    userEmail: creatorEmail,
-    dojoId:    dojo.id,
-    dojoSlug:  dojo.slug,
+    action:       "DOJO_CREATED",
+    module:       "SYSADMIN",
+    resourceType: "Dojo",
+    resourceId:   dojo.id,
+    userId:       creatorId,
+    userEmail:    creatorEmail,
+    dojoId:       dojo.id,
+    dojoSlug:     dojo.slug,
     ip,
-    details:   `Dojo "${dojo.name}" creado. Admin: ${adminEmail}`,
+    country,
+    city,
+    region,
+    userAgent:    req.headers.get("user-agent"),
+    statusCode:   201,
+    details:      JSON.stringify({ dojoName: dojo.name, adminEmail }),
   });
+
+  // Notificación al propietario de la plataforma (fire-and-forget)
+  notifyAdmin(
+    `🏯 Nuevo dojo creado — ${dojo.name}`,
+    buildDojoCreatedEmail(dojo.name, adminEmail, creatorEmail ?? "sysadmin"),
+  ).catch(() => {});
 
   return NextResponse.json({
     ...dojo,

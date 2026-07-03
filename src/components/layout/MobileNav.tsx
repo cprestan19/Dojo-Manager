@@ -15,92 +15,153 @@ import {
   BarChart2, Settings, LogOut, Shield, Building2,
   ClipboardList, QrCode, ChevronDown, Video, ShieldCheck,
   ChevronLeft, Home, Mail, LayoutDashboard, Trophy, ScrollText,
-  Crown, Lock, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Receipt,
+  Crown, Lock, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag,
+  Receipt, LayoutList, FileText, Bell, Upload, Sparkles,
 } from "lucide-react";
 
 const PAGE_TITLES: Record<string, string> = {
-  "/dashboard":                    "Dashboard",
-  "/dashboard/students":           "Alumnos",
-  "/dashboard/students/new":       "Nuevo Alumno",
-  "/dashboard/payments":           "Pagos",
-  "/dashboard/belts":              "Cintas o Grados",
-  "/dashboard/schedules":          "Horarios",
-  "/dashboard/attendance":               "Asistencia",
-  "/dashboard/settings/terms":           "Políticas y Términos",
-  "/dashboard/tournament-events":        "Asistencia de Eventos",
-  "/dashboard/tournament-events/new":    "Nuevo Torneo",
-  "/dashboard/registros":               "Auto-registro",
-  "/dashboard/settings/katas":     "Katas",
-  "/dashboard/reports":            "Reportes",
-  "/dashboard/users":              "Usuarios",
-  "/dashboard/dojos":              "Dojos",
-  "/dashboard/settings":           "Ajustes Generales",
-  "/dashboard/settings/videos":    "Videos por Cinta",
-  "/dashboard/settings/email":     "Correo / Notificaciones",
-  "/dashboard/settings/roles":          "Roles y Accesos",
-  "/dashboard/settings/card-template": "Diseño de Carnet",
-  "/dashboard/tournaments-pro":     "Torneo Pro",
-  "/dashboard/tournaments-pro/new": "Nuevo Torneo",
+  "/dashboard":                           "Dashboard",
+  "/dashboard/students":                  "Alumnos",
+  "/dashboard/students/new":              "Nuevo Alumno",
+  "/dashboard/payments":                  "Pagos",
+  "/dashboard/belts":                     "Cintas o Grados",
+  "/dashboard/schedules":                 "Horarios",
+  "/dashboard/attendance":                "Asistencia",
+  "/dashboard/registros":                 "Auto-registro",
+  "/dashboard/postulaciones":             "Postulaciones",
+  "/dashboard/leads":                     "Prospectos",
+  "/dashboard/reports":                   "Reportes",
+  "/dashboard/users":                     "Usuarios",
+  "/dashboard/dojos":                     "Dojos",
+  "/dashboard/audit-log":                 "Registro de Actividad",
+  "/dashboard/events":                    "Eventos",
+  "/dashboard/store":                     "Tienda",
+  "/dashboard/tournament-events":         "Asistencia de Eventos",
+  "/dashboard/tournament-events/new":     "Nuevo Torneo",
+  "/dashboard/tournaments-pro":           "Torneo Pro",
+  "/dashboard/tournaments-pro/new":       "Nuevo Torneo",
+  "/dashboard/settings":                  "Ajustes Generales",
+  "/dashboard/settings/katas":            "Katas",
+  "/dashboard/settings/videos":           "Videos por Cinta",
+  "/dashboard/settings/email":            "Correo / Notificaciones",
+  "/dashboard/settings/roles":            "Roles y Accesos",
+  "/dashboard/settings/import":           "Importar Alumnos",
+  "/dashboard/settings/push":             "Notificaciones Push",
+  "/dashboard/settings/public-page":      "Página Pública",
+  "/dashboard/settings/card-template":    "Diseño de Carnet",
+  "/dashboard/settings/certificados":     "Diplomas / Certificados",
+  "/dashboard/settings/terms":            "Políticas y Términos",
+  "/dashboard/novedades-sistema":         "Novedades del Sistema",
+  "/dashboard/visitors":                  "Visitantes",
+  "/dashboard/superadmin/audit-logs":     "Log de Auditoría",
+  "/dashboard/superadmin/billing":        "Pagos SaaS",
+  "/dashboard/superadmin/plans":          "Planes",
+  "/dashboard/billing":                   "Facturación",
 };
 
 interface NavItem { href: string; label: string; icon: React.ElementType; permKey: NavKey }
 
-const drawerItems: NavItem[] = [
-  { href: "/dashboard",                label: "Dashboard",       icon: LayoutDashboard, permKey: NAV_KEYS.DASHBOARD      },
-  { href: "/dashboard/students",       label: "Alumnos",         icon: Users,           permKey: NAV_KEYS.STUDENTS       },
-  { href: "/dashboard/registros",      label: "Auto-registro",   icon: Receipt,         permKey: NAV_KEYS.REGISTROS      },
-  { href: "/dashboard/leads",          label: "Prospectos",      icon: UserPlus,        permKey: NAV_KEYS.LEADS          },
-  { href: "/dashboard/attendance",          label: "Asistencia",  icon: ClipboardList, permKey: NAV_KEYS.ATTENDANCE        },
-  { href: "/dashboard/tournament-events",  label: "Asistencia de Eventos", icon: Trophy, permKey: NAV_KEYS.TOURNAMENT_EVENTS },
-  { href: "/dashboard/payments",       label: "Pagos",           icon: CreditCard,      permKey: NAV_KEYS.PAYMENTS       },
-  { href: "/dashboard/belts",          label: "Cintas o Grados", icon: Award,           permKey: NAV_KEYS.BELTS          },
-  { href: "/dashboard/settings/katas", label: "Katas",           icon: BookOpen,        permKey: NAV_KEYS.SETTINGS_KATAS },
-  { href: "/dashboard/events",         label: "Eventos",         icon: Calendar,        permKey: NAV_KEYS.EVENTS         },
-  { href: "/dashboard/store",          label: "Tienda",          icon: ShoppingBag,     permKey: NAV_KEYS.STORE          },
-  { href: "/dashboard/reports",        label: "Reportes",        icon: BarChart2,       permKey: NAV_KEYS.REPORTS        },
-  { href: "/dashboard/users",          label: "Usuarios",        icon: Shield,          permKey: NAV_KEYS.USERS          },
-  { href: "/dashboard/dojos",          label: "Dojos",           icon: Building2,       permKey: NAV_KEYS.DOJOS          },
-  { href: "/dashboard/audit-log",     label: "Audit Log",       icon: ScrollText,      permKey: NAV_KEYS.AUDIT_LOG      },
+const academiaItems: NavItem[] = [
+  { href: "/dashboard/students",           label: "Alumnos",           icon: Users,        permKey: NAV_KEYS.STUDENTS          },
+  { href: "/dashboard/attendance",         label: "Asistencia",        icon: ClipboardList,permKey: NAV_KEYS.ATTENDANCE         },
+  { href: "/dashboard/payments",           label: "Pagos",             icon: CreditCard,   permKey: NAV_KEYS.PAYMENTS           },
+  { href: "/dashboard/belts",              label: "Cintas o Grados",   icon: Award,        permKey: NAV_KEYS.BELTS              },
+  { href: "/dashboard/settings/katas",     label: "Katas",             icon: BookOpen,     permKey: NAV_KEYS.SETTINGS_KATAS     },
 ];
 
-const settingsItems: NavItem[] = [
+const captacionItems: NavItem[] = [
+  { href: "/dashboard/registros",          label: "Auto-registro",     icon: Receipt,      permKey: NAV_KEYS.REGISTROS          },
+  { href: "/dashboard/postulaciones",      label: "Postulaciones",     icon: FileText,     permKey: NAV_KEYS.POSTULACIONES      },
+  { href: "/dashboard/leads",              label: "Prospectos",        icon: UserPlus,     permKey: NAV_KEYS.LEADS              },
+];
+
+const competenciasItems: NavItem[] = [
+  { href: "/dashboard/tournament-events",  label: "Asist. de Eventos", icon: Trophy,       permKey: NAV_KEYS.TOURNAMENT_EVENTS  },
+  { href: "/dashboard/events",             label: "Eventos",           icon: Calendar,     permKey: NAV_KEYS.EVENTS             },
+  { href: "/dashboard/store",              label: "Tienda",            icon: ShoppingBag,  permKey: NAV_KEYS.STORE              },
+];
+
+const identityItems: NavItem[] = [
+  { href: "/dashboard/settings/card-template", label: "Diseño de Carnet",      icon: CreditCard, permKey: NAV_KEYS.SETTINGS_CARD  },
+  { href: "/dashboard/settings/certificados",  label: "Diplomas / Certificados",icon: Award,      permKey: NAV_KEYS.CERTIFICADOS   },
+  { href: "/dashboard/settings/terms",         label: "Políticas y Términos",   icon: ScrollText, permKey: NAV_KEYS.SETTINGS_TERMS },
+];
+
+const adminDrawerItems: NavItem[] = [
+  { href: "/dashboard/reports",            label: "Reportes",          icon: BarChart2,    permKey: NAV_KEYS.REPORTS            },
+  { href: "/dashboard/audit-log",          label: "Audit Log",         icon: ScrollText,   permKey: NAV_KEYS.AUDIT_LOG          },
+  { href: "/dashboard/users",              label: "Usuarios",          icon: Shield,       permKey: NAV_KEYS.USERS              },
+];
+
+const settingsDrawerItems: NavItem[] = [
   { href: "/dashboard/settings",             label: "General",           icon: Settings,    permKey: NAV_KEYS.SETTINGS_GENERAL },
   { href: "/dashboard/settings/public-page", label: "Página Pública",    icon: Globe,       permKey: NAV_KEYS.PUBLIC_PAGE      },
   { href: "/dashboard/settings/videos",      label: "Videos por Cinta",  icon: Video,       permKey: NAV_KEYS.SETTINGS_VIDEOS  },
-  { href: "/dashboard/settings/email",  label: "Parámetros Correo",    icon: Mail,        permKey: NAV_KEYS.SETTINGS_EMAIL   },
-  { href: "/dashboard/settings/roles",          label: "Roles y Accesos",  icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES },
-  { href: "/dashboard/settings/card-template",  label: "Diseño de Carnet", icon: CreditCard,  permKey: NAV_KEYS.SETTINGS_CARD  },
+  { href: "/dashboard/settings/email",       label: "Parámetros Correo", icon: Mail,        permKey: NAV_KEYS.SETTINGS_EMAIL   },
+  { href: "/dashboard/settings/roles",       label: "Roles y Accesos",   icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES   },
+  { href: "/dashboard/settings/import",      label: "Importar Alumnos",  icon: Upload,      permKey: NAV_KEYS.SETTINGS_IMPORT  },
+  { href: "/dashboard/settings/push",        label: "Notificaciones Push",icon: Bell,       permKey: NAV_KEYS.SETTINGS_PUSH    },
 ];
 
-// Quick-access items shown at the bottom bar (max 5, most used)
 const quickItems: NavItem[] = [
-  { href: "/dashboard",                   label: "Inicio",     icon: Home,         permKey: NAV_KEYS.DASHBOARD          },
-  { href: "/dashboard/students",          label: "Alumnos",    icon: Users,        permKey: NAV_KEYS.STUDENTS           },
-  { href: "/dashboard/attendance",        label: "Asistencia", icon: ClipboardList,permKey: NAV_KEYS.ATTENDANCE          },
-  { href: "/dashboard/tournament-events", label: "Torneos",    icon: Trophy,       permKey: NAV_KEYS.TOURNAMENT_EVENTS },
-  { href: "/dashboard/payments",          label: "Pagos",      icon: CreditCard,   permKey: NAV_KEYS.PAYMENTS           },
+  { href: "/dashboard",                    label: "Inicio",     icon: Home,          permKey: NAV_KEYS.DASHBOARD          },
+  { href: "/dashboard/students",           label: "Alumnos",    icon: Users,         permKey: NAV_KEYS.STUDENTS           },
+  { href: "/dashboard/attendance",         label: "Asistencia", icon: ClipboardList, permKey: NAV_KEYS.ATTENDANCE          },
+  { href: "/dashboard/tournament-events",  label: "Torneos",    icon: Trophy,        permKey: NAV_KEYS.TOURNAMENT_EVENTS },
+  { href: "/dashboard/payments",           label: "Pagos",      icon: CreditCard,    permKey: NAV_KEYS.PAYMENTS           },
+];
+
+const IDENTITY_PATHS = [
+  "/dashboard/settings/card-template",
+  "/dashboard/settings/certificados",
+  "/dashboard/settings/terms",
 ];
 
 const backRoutes: Record<string, string> = {
-  "/dashboard/students":        "/dashboard",
-  "/dashboard/payments":        "/dashboard",
-  "/dashboard/schedules":       "/dashboard",
-  "/dashboard/attendance":               "/dashboard",
-  "/dashboard/tournament-events":        "/dashboard",
-  "/dashboard/tournament-events/new":    "/dashboard/tournament-events",
-  "/dashboard/belts":           "/dashboard",
-  "/dashboard/settings/katas":  "/dashboard",
-  "/dashboard/reports":         "/dashboard",
-  "/dashboard/users":           "/dashboard",
-  "/dashboard/settings":        "/dashboard",
-  "/dashboard/settings/videos": "/dashboard/settings",
-  "/dashboard/settings/email":  "/dashboard/settings",
-  "/dashboard/settings/roles":          "/dashboard/settings",
-  "/dashboard/settings/card-template": "/dashboard/settings",
-  "/scanner":                   "/dashboard",
-  "/dashboard/tournaments-pro":     "/dashboard",
-  "/dashboard/tournaments-pro/new": "/dashboard/tournaments-pro",
+  "/dashboard/students":                    "/dashboard",
+  "/dashboard/payments":                    "/dashboard",
+  "/dashboard/schedules":                   "/dashboard",
+  "/dashboard/attendance":                  "/dashboard",
+  "/dashboard/registros":                   "/dashboard",
+  "/dashboard/postulaciones":               "/dashboard",
+  "/dashboard/leads":                       "/dashboard",
+  "/dashboard/belts":                       "/dashboard",
+  "/dashboard/reports":                     "/dashboard",
+  "/dashboard/users":                       "/dashboard",
+  "/dashboard/events":                      "/dashboard",
+  "/dashboard/store":                       "/dashboard",
+  "/dashboard/audit-log":                   "/dashboard",
+  "/dashboard/tournament-events":           "/dashboard",
+  "/dashboard/tournament-events/new":       "/dashboard/tournament-events",
+  "/dashboard/settings":                    "/dashboard",
+  "/dashboard/settings/katas":              "/dashboard",
+  "/dashboard/settings/videos":             "/dashboard/settings",
+  "/dashboard/settings/email":              "/dashboard/settings",
+  "/dashboard/settings/roles":              "/dashboard/settings",
+  "/dashboard/settings/import":             "/dashboard/settings",
+  "/dashboard/settings/push":              "/dashboard/settings",
+  "/dashboard/settings/public-page":        "/dashboard/settings",
+  "/dashboard/settings/card-template":      "/dashboard",
+  "/dashboard/settings/certificados":       "/dashboard",
+  "/dashboard/settings/terms":              "/dashboard",
+  "/dashboard/novedades-sistema":            "/dashboard",
+  "/dashboard/visitors":                    "/dashboard",
+  "/dashboard/superadmin/audit-logs":       "/dashboard",
+  "/dashboard/superadmin/billing":          "/dashboard",
+  "/dashboard/superadmin/plans":            "/dashboard",
+  "/dashboard/billing":                     "/dashboard",
+  "/scanner":                               "/dashboard",
+  "/dashboard/tournaments-pro":             "/dashboard",
+  "/dashboard/tournaments-pro/new":         "/dashboard/tournaments-pro",
 };
+
+function NavSection({ label }: { label: string }) {
+  return (
+    <div className="pt-3 pb-1 px-3">
+      <p className="text-[9px] font-bold text-dojo-muted/50 uppercase tracking-widest">{label}</p>
+    </div>
+  );
+}
 
 export function MobileNav() {
   const pathname          = usePathname();
@@ -113,28 +174,40 @@ export function MobileNav() {
   const [open,         setOpen]         = useState(false);
   const [showProPopup, setShowProPopup] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(() =>
-    pathname.startsWith("/dashboard/settings") && !pathname.startsWith("/dashboard/settings/katas"),
+    pathname.startsWith("/dashboard/settings") &&
+    !pathname.startsWith("/dashboard/settings/katas") &&
+    !IDENTITY_PATHS.some(p => pathname.startsWith(p)),
   );
 
-  const role       = (session?.user as { role?: string })?.role ?? "user";
-  const isSysadmin = role === "sysadmin";
+  const role        = (session?.user as { role?: string })?.role ?? "user";
+  const isSysadmin  = role === "sysadmin";
   const hasProAccess = isSysadmin || !!dojo?.tournamentPro;
-  const name    = session?.user?.name ?? "";
-  const photo   = session?.user?.image ?? null;
-  const initials = name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  const name        = session?.user?.name ?? "";
+  const photo       = session?.user?.image ?? null;
+  const initials    = name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
 
   const roleLabel =
     role === "sysadmin" ? "Super Admin" :
     role === "admin"    ? "Administrador" :
     role === "user"     ? "Usuario" : role;
 
-  // Torneos, Tienda, Página pública y Prospectos — solo planes pagos (Silver/Gold)
   const PAID_PLAN_KEYS = new Set<NavKey>([NAV_KEYS.TOURNAMENT_EVENTS, NAV_KEYS.STORE, NAV_KEYS.PUBLIC_PAGE, NAV_KEYS.LEADS]);
   const planAllowed = (key: NavKey) => hasPaidFeatures || !PAID_PLAN_KEYS.has(key);
+  const filter = (items: NavItem[]) => items.filter(i => perms.has(i.permKey) && planAllowed(i.permKey));
 
-  const visibleDrawer = drawerItems.filter(i => perms.has(i.permKey) && planAllowed(i.permKey));
-  const visibleSettings = settingsItems.filter(i => perms.has(i.permKey) && planAllowed(i.permKey));
-  const visibleQuick    = quickItems.filter(i => perms.has(i.permKey) && planAllowed(i.permKey)).slice(0, 5);
+  const visAcademia     = filter(academiaItems);
+  const visCaptacion    = filter(captacionItems);
+  const visCompetencias = filter(competenciasItems);
+  const visIdentity     = filter(identityItems);
+  const visAdmin        = filter(adminDrawerItems);
+  const visSettings     = filter(settingsDrawerItems);
+
+  const showCompetencias = visCompetencias.length > 0 || (isSysadmin || role === "admin");
+
+  const inSettings =
+    pathname.startsWith("/dashboard/settings") &&
+    !pathname.startsWith("/dashboard/settings/katas") &&
+    !IDENTITY_PATHS.some(p => pathname.startsWith(p));
 
   function getBackTo(): string | null {
     if (pathname === "/dashboard") return null;
@@ -153,6 +226,22 @@ export function MobileNav() {
     .find(([p]) => pathname === p || pathname.startsWith(p + "/"))?.[1] ?? "Dashboard";
 
   function close() { setOpen(false); }
+
+  const renderDrawerItem = (item: NavItem) => {
+    const Icon   = item.icon;
+    const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+    return (
+      <Link key={item.href} href={item.href} onClick={close}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
+          active ? "bg-dojo-nav-active text-white" : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+        )}
+      >
+        <Icon size={18} />
+        {item.label}
+      </Link>
+    );
+  };
 
   return (
     <>
@@ -220,66 +309,103 @@ export function MobileNav() {
         </div>
 
         {/* Nav links */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-          {visibleDrawer.map(item => {
-            const Icon   = item.icon;
-            const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
-            return (
-              <Link key={item.href} href={item.href} onClick={close}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
-                  active ? "bg-dojo-nav-active text-white" : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
-                )}
-              >
-                <Icon size={18} />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto p-3">
 
-          {/* Torneo Pro */}
-          {(isSysadmin || role === "admin") && (
-            hasProAccess ? (
-              <Link href="/dashboard/tournaments-pro" onClick={close}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-dojo-gold hover:bg-dojo-gold/10 transition-colors">
-                <Crown size={18} />
-                <span className="flex-1">Torneo Pro</span>
-                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-dojo-gold text-black">PRO</span>
-              </Link>
-            ) : (
-              <button onClick={() => setShowProPopup(true)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-dojo-muted/60 hover:bg-dojo-border/40 transition-colors">
-                <div className="relative">
-                  <Crown size={18} />
-                  <Lock size={9} className="absolute -bottom-0.5 -right-1 text-dojo-muted/50" />
-                </div>
-                <span className="flex-1 text-left">Torneo Pro</span>
-                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-dojo-border text-dojo-muted/60">PRO</span>
-              </button>
-            )
+          {/* Dashboard */}
+          <Link href="/dashboard" onClick={close}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium mb-1",
+              pathname === "/dashboard" ? "bg-dojo-nav-active text-white" : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+            )}
+          >
+            <LayoutDashboard size={18} />
+            Dashboard
+          </Link>
+
+          {/* ACADEMIA */}
+          {visAcademia.length > 0 && (
+            <>
+              <NavSection label="Academia" />
+              <div className="space-y-1">{visAcademia.map(renderDrawerItem)}</div>
+            </>
           )}
 
-          {/* Configuración sub-grupo */}
-          {visibleSettings.length > 0 && (
-            <div>
+          {/* CAPTACIÓN */}
+          {visCaptacion.length > 0 && (
+            <>
+              <NavSection label="Captación" />
+              <div className="space-y-1">{visCaptacion.map(renderDrawerItem)}</div>
+            </>
+          )}
+
+          {/* COMPETENCIAS */}
+          {showCompetencias && (
+            <>
+              <NavSection label="Competencias" />
+              <div className="space-y-1">
+                {visCompetencias.map(renderDrawerItem)}
+                {(isSysadmin || role === "admin") && (
+                  hasProAccess ? (
+                    <Link href="/dashboard/tournaments-pro" onClick={close}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-dojo-gold hover:bg-dojo-gold/10 transition-colors">
+                      <Crown size={18} />
+                      <span className="flex-1">Torneo Pro</span>
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-dojo-gold text-black">PRO</span>
+                    </Link>
+                  ) : (
+                    <button onClick={() => setShowProPopup(true)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-dojo-muted/60 hover:bg-dojo-border/40 transition-colors">
+                      <div className="relative">
+                        <Crown size={18} />
+                        <Lock size={9} className="absolute -bottom-0.5 -right-1 text-dojo-muted/50" />
+                      </div>
+                      <span className="flex-1 text-left">Torneo Pro</span>
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-dojo-border text-dojo-muted/60">PRO</span>
+                    </button>
+                  )
+                )}
+              </div>
+            </>
+          )}
+
+          {/* IDENTIDAD DEL DOJO */}
+          {visIdentity.length > 0 && (
+            <>
+              <NavSection label="Identidad del Dojo" />
+              <div className="space-y-1">{visIdentity.map(renderDrawerItem)}</div>
+            </>
+          )}
+
+          {/* ADMINISTRACIÓN */}
+          {visAdmin.length > 0 && (
+            <>
+              <NavSection label="Administración" />
+              <div className="space-y-1">{visAdmin.map(renderDrawerItem)}</div>
+            </>
+          )}
+
+          {/* CONFIGURACIÓN — expandible */}
+          {visSettings.length > 0 && (
+            <div className="mt-1">
+              <NavSection label="Configuración" />
               <button
                 onClick={() => setSettingsOpen(o => !o)}
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
-                  pathname.startsWith("/dashboard/settings") && !pathname.startsWith("/dashboard/settings/katas")
+                  inSettings
                     ? "bg-dojo-nav-active text-white"
                     : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
                 )}
               >
                 <Settings size={18} />
-                <span className="flex-1 text-left">Configuración</span>
+                <span className="flex-1 text-left">General y Sistema</span>
                 <ChevronDown size={14} className={cn("transition-transform duration-200", settingsOpen && "rotate-180")} />
               </button>
               {settingsOpen && (
                 <div className="mt-1 ml-4 pl-3 border-l border-dojo-border space-y-1">
-                  {visibleSettings.map(sub => {
+                  {visSettings.map(sub => {
                     const Icon   = sub.icon;
-                    const active = pathname === sub.href || pathname.startsWith(sub.href + "/");
+                    const active = pathname === sub.href || (sub.href !== "/dashboard/settings" && pathname.startsWith(sub.href + "/"));
                     return (
                       <Link key={sub.href} href={sub.href} onClick={close}
                         className={cn(
@@ -296,9 +422,39 @@ export function MobileNav() {
               )}
             </div>
           )}
+
+          {/* SISTEMA — solo sysadmin */}
+          {isSysadmin && (
+            <>
+              <NavSection label="Sistema" />
+              <div className="space-y-1">
+                {([
+                  { href: "/dashboard/dojos",                   icon: Building2,  label: "Dojos"            },
+                  { href: "/dashboard/novedades-sistema",       icon: Sparkles,   label: "Novedades"        },
+                  { href: "/dashboard/visitors",                icon: Globe,      label: "Visitantes"       },
+                  { href: "/dashboard/superadmin/audit-logs",   icon: Shield,     label: "Auditoría"        },
+                  { href: "/dashboard/superadmin/billing",      icon: Receipt,    label: "Pagos SaaS"       },
+                  { href: "/dashboard/superadmin/plans",        icon: LayoutList, label: "Planes"           },
+                  { href: "/dashboard/billing",                 icon: Receipt,    label: "Facturación"      },
+                ] as { href: string; icon: React.ElementType; label: string }[]).map(({ href, icon: Icon, label }) => (
+                  <Link key={href} href={href} onClick={close}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
+                      (pathname === href || pathname.startsWith(href + "/"))
+                        ? "bg-dojo-nav-active text-white"
+                        : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+                    )}
+                  >
+                    <Icon size={18} />
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
         </nav>
 
-        {/* Scanner QR — solo admin / sysadmin */}
+        {/* Scanner QR */}
         {(role === "sysadmin" || role === "admin") && (
           <div className="px-4 pb-2">
             <a
@@ -321,6 +477,7 @@ export function MobileNav() {
           </button>
         </div>
       </div>
+
     </div>
 
     {/* Popup Torneo Pro */}

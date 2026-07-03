@@ -31,10 +31,10 @@ const STATUS_LABELS: Record<LinkStatus, { label: string; className: string }> = 
 function CopyButton({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
   function copy() {
-    navigator.clipboard.writeText(url).then(() => {
+    navigator.clipboard?.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    }).catch(() => {});
   }
   return (
     <button type="button" onClick={copy} title="Copiar enlace"

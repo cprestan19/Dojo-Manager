@@ -122,8 +122,9 @@ async function sendWelcomeEmail(to: string, senseiName: string, dojoName: string
 
 async function notifyFounder(senseiName: string, dojoName: string, email: string, phone: string, country: string, studentCount: string, yearsTeaching: string) {
   try {
+    const adminTo = process.env.PLATFORM_OWNER_EMAIL ?? "soporte@dojomasteronline.com";
     await sendEmail({
-      to:      "admin@dojomasteronline.com",
+      to:      adminTo,
       subject: `🥋 Nuevo registro — ${dojoName} (${country})`,
       html: `
         <div style="font-family:Arial,sans-serif;padding:24px;max-width:500px;background:#fff;border-radius:12px;">

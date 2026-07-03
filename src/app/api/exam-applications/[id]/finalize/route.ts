@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { sendPushToSubscriptions, logPushSent } from "@/lib/push";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -43,6 +44,33 @@ export async function POST(req: NextRequest, { params }: Params) {
       resourceId:   id,
       statusCode:   200,
     });
+
+    // Push personalizado a cada alumno con su resultado — fire-and-forget
+    const pushSettings = await prisma.pushSettings.findUnique({ where: { dojoId }, select: { enabled: true, notifyExamResult: true } }).catch(() => null);
+    if (pushSettings?.enabled && pushSettings.notifyExamResult) {
+      const invitees = await prisma.examApplicationInvitee.findMany({
+        where:  { applicationId: id, attended: true },
+        select: { studentId: true, passed: true },
+      });
+      for (const inv of invitees) {
+        const subs = await prisma.pushSubscription.findMany({
+          where:  { studentId: inv.studentId, active: true },
+          select: { endpoint: true, p256dh: true, auth: true },
+        });
+        if (subs.length === 0) continue;
+        const approved = inv.passed === true;
+        sendPushToSubscriptions(subs, {
+          title: approved ? "🏆 ¡Felicidades! Aprobaste el examen" : "📋 Resultado del examen disponible",
+          body:  approved
+            ? `Pasaste el examen de "${existing.title}". ¡Sigue adelante!`
+            : `Tu resultado del examen "${existing.title}" está disponible.`,
+          url:   "/portal/postulaciones",
+          tag:   "exam-result",
+        })
+          .then(result => logPushSent({ dojoId, type: "exam_result", title: "Resultado de examen", body: existing.title, url: "/portal/postulaciones", result }))
+          .catch(() => {});
+      }
+    }
 
     return NextResponse.json(updated);
   } catch (err) {

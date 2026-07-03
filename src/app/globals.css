@@ -17,6 +17,32 @@
   ::-webkit-scrollbar-track { background: #1A1A2E; }
   ::-webkit-scrollbar-thumb { background: #2A3550; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: #C0392B; }
+
+  /* Inputs de fecha/hora: fuerza controles nativos en modo oscuro */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="week"] {
+    color-scheme: dark;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  input[type="month"]::-webkit-calendar-picker-indicator,
+  input[type="week"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.6);
+    cursor: pointer;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  input[type="time"]::-webkit-calendar-picker-indicator:hover,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+  input[type="month"]::-webkit-calendar-picker-indicator:hover,
+  input[type="week"]::-webkit-calendar-picker-indicator:hover {
+    filter: invert(1) opacity(1);
+  }
 }
 
 @layer components {

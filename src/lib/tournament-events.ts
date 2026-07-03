@@ -22,14 +22,16 @@ export const RESULT_OPTIONS = [
 ];
 
 export interface TEventSummary {
-  id:           string;
-  name:         string;
-  date:         string;
-  location:     string;
-  notes:        string | null;
-  totalStudents: number;
-  arrivedCount:  number;
-  resultsCount:  number;
+  id:             string;
+  name:           string;
+  date:           string;
+  location:       string;
+  notes:          string | null;
+  totalStudents:  number;
+  arrivedCount:   number;
+  confirmedCount: number;
+  optedOutCount:  number;
+  resultsCount:   number;
 }
 
 export interface TEventParticipant {
@@ -49,10 +51,15 @@ export interface TEventParticipant {
   kataResult:      string | null;
   kumiteResult:    string | null;
   competitionNotes: string | null;
+  confirmed:        boolean;
+  optedOut:         boolean;
+  optedOutReason:   string | null;
 }
 
 export interface TEventDetail extends TEventSummary {
-  participants: TEventParticipant[];
+  participants:   TEventParticipant[];
+  confirmedCount: number;
+  optedOutCount:  number;
 }
 
 export interface TEventMedalStudent {

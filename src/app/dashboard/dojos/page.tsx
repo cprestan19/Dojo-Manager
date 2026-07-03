@@ -364,7 +364,7 @@ export default function DojosPage() {
                   <p className="text-dojo-muted text-xs">{label}</p>
                   <p className="text-dojo-white text-sm font-mono">{value}</p>
                 </div>
-                <button onClick={() => navigator.clipboard.writeText(value)}
+                <button onClick={() => navigator.clipboard?.writeText(value).catch(() => {})}
                   className="text-dojo-muted hover:text-dojo-gold transition-colors" title="Copiar">
                   <Copy size={14} />
                 </button>

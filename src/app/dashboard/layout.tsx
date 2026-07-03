@@ -9,6 +9,8 @@ import { DojoBanner } from "@/components/dashboard/DojoBanner";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { HelpButton } from "@/components/ui/HelpButton";
 import { BillingBanner } from "@/components/billing/BillingBanner";
+import PageRefreshHandler from "@/components/ui/PageRefreshHandler";
+import SystemNewsModal from "@/components/SystemNewsModal";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId } from "@/lib/sysadmin-context";
 
@@ -48,6 +50,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // data-theme aplicado en el wrapper del dashboard — aísla el theme por dojo
     // sin afectar el resto de la app (login, portal, páginas públicas)
     <DashboardShell theme={theme}>
+      <PageRefreshHandler />
       <BillingBanner />
       <div id="dojo-shell" className="flex min-h-screen" data-theme={theme}>
         <div className="hidden lg:block">
@@ -63,6 +66,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <HelpButton />
         </div>
       </div>
+      <SystemNewsModal />
     </DashboardShell>
   );
 }

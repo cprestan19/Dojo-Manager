@@ -12,16 +12,6 @@ const VARS = [
 ];
 
 export async function GET() {
-  if (process.env.NODE_ENV === "production") {
-    const allSet = VARS.every((k) => !!(process.env[k]?.trim()));
-    return NextResponse.json({ ok: allSet }, { status: allSet ? 200 : 500 });
-  }
-
-  const status: Record<string, boolean> = {};
-  for (const key of VARS) {
-    status[key] = !!(process.env[key]?.trim());
-  }
-  const missing = Object.entries(status).filter(([, ok]) => !ok).map(([k]) => k);
-  return NextResponse.json({ ok: missing.length === 0, missing, set: Object.keys(status).filter(k => status[k]) },
-    { status: missing.length === 0 ? 200 : 500 });
+  const allSet = VARS.every((k) => !!(process.env[k]?.trim()));
+  return NextResponse.json({ ok: allSet }, { status: allSet ? 200 : 500 });
 }

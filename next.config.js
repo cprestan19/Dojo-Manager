@@ -3,7 +3,7 @@
 // CSP: tightened for DojoManager's actual asset sources
 const ContentSecurityPolicy = [
   "default-src 'self'",
-  // Scripts: self + inline (Next.js hydration requires unsafe-inline)
+  // Scripts: self + inline (Next.js hydration requires unsafe-inline) + eval (webpack dev source maps)
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com",
   // Styles: self + inline (Tailwind inline styles) + Google Fonts
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
@@ -13,8 +13,8 @@ const ContentSecurityPolicy = [
   "img-src 'self' https://res.cloudinary.com https://api.dicebear.com data: blob:",
   // Media: Cloudinary videos
   "media-src 'self' https://res.cloudinary.com blob:",
-  // API/fetch connections: self + Google Analytics + Cloudinary (direct video upload from browser)
-  "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://api.cloudinary.com",
+  // API/fetch connections: self + Google Analytics + Cloudinary + Sentry error reporting
+  "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://api.cloudinary.com https://*.ingest.us.sentry.io https://*.ingest.sentry.io",
   // Frames: YouTube embeds permitidos (portal/live, overlay, página pública torneo)
   "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
   "frame-ancestors 'none'",
@@ -55,11 +55,21 @@ const nextConfig = {
     "html5-qrcode",
     "cloudinary",
     "exceljs",
+    "web-push",
   ],
 
   // Security headers applied to all routes
   async headers() {
     return [
+      // ── Service Worker — sin cache + permitir scope raíz ─────────────────
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Service-Worker-Allowed", value: "/" },
+          { key: "Cache-Control",          value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Type",           value: "application/javascript" },
+        ],
+      },
       // ── Portal privado del coach — no indexar, no cachear ────────────────
       {
         source: "/coach/:path*",

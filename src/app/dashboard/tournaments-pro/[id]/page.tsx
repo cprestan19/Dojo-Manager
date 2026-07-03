@@ -89,7 +89,7 @@ const STATUS_CFG: Record<string, { label: string; cls: string }> = {
 function CopyBtn({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+    <button onClick={() => { navigator.clipboard?.writeText(value).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
       className="text-dojo-muted hover:text-dojo-white transition-colors shrink-0">
       {copied ? <Check size={12} className="text-green-400"/> : <Copy size={12}/>}
     </button>
@@ -1215,7 +1215,7 @@ function InfoTab({ tournament, onSaved, toast }: {
                 <p className="text-xs text-dojo-muted">Comparte este link por WhatsApp o email a los coaches de otros dojos:</p>
                 <div className="flex items-center gap-2">
                   <code className="text-xs text-dojo-white font-mono flex-1 truncate bg-dojo-darker rounded px-2 py-1.5">{regUrl}</code>
-                  <button onClick={() => navigator.clipboard.writeText(regUrl)} className="btn-ghost text-xs px-3 py-1.5 shrink-0">Copiar</button>
+                  <button onClick={() => navigator.clipboard?.writeText(regUrl).catch(() => {})} className="btn-ghost text-xs px-3 py-1.5 shrink-0">Copiar</button>
                 </div>
               </div>
             )}

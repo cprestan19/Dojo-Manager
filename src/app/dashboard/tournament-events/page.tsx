@@ -415,7 +415,11 @@ export default function TournamentEventsPage() {
         {events.map(ev => {
           const date    = new Date(ev.date);
           const dateStr = date.toLocaleDateString("es-PA", { timeZone: "America/Panama", weekday:"short", day:"numeric", month:"long", year:"numeric" });
-          const pct     = ev.totalStudents > 0 ? Math.round((ev.arrivedCount / ev.totalStudents) * 100) : 0;
+          const confirmed  = ev.confirmedCount ?? 0;
+          const optedOut   = ev.optedOutCount  ?? 0;
+          const pending    = ev.totalStudents - confirmed - optedOut;
+          const base       = confirmed > 0 ? confirmed : ev.totalStudents;
+          const pct        = base > 0 ? Math.round((ev.arrivedCount / base) * 100) : 0;
 
           return (
             <div key={ev.id} className="card space-y-4">
@@ -443,7 +447,7 @@ export default function TournamentEventsPage() {
                 </button>
               </div>
 
-              {/* Stats */}
+              {/* Stats inscripción */}
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="bg-dojo-darker rounded-lg p-2">
                   <Users size={14} className="text-dojo-muted mx-auto mb-1" />
@@ -462,11 +466,32 @@ export default function TournamentEventsPage() {
                 </div>
               </div>
 
-              {/* Barra de progreso */}
+              {/* Asistencias — confirmados / pendientes / no participan */}
+              <div className="rounded-xl border border-dojo-border/50 overflow-hidden">
+                <div className="flex items-center gap-1 px-3 py-1.5 bg-dojo-darker/60">
+                  <span className="text-xs font-bold text-dojo-muted uppercase tracking-wider">Asistencias</span>
+                </div>
+                <div className="grid grid-cols-3 divide-x divide-dojo-border/40">
+                  <div className="text-center py-2 px-1">
+                    <p className="text-base font-bold text-blue-400">{confirmed}</p>
+                    <p className="text-xs text-dojo-muted leading-tight">✅ Confirm.</p>
+                  </div>
+                  <div className="text-center py-2 px-1">
+                    <p className="text-base font-bold text-dojo-muted">{pending > 0 ? pending : 0}</p>
+                    <p className="text-xs text-dojo-muted leading-tight">⏳ Pendiente</p>
+                  </div>
+                  <div className="text-center py-2 px-1">
+                    <p className={`text-base font-bold ${optedOut > 0 ? "text-red-400" : "text-dojo-muted"}`}>{optedOut}</p>
+                    <p className="text-xs text-dojo-muted leading-tight">🚫 No part.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Barra de progreso (llegados / confirmados) */}
               <div>
                 <div className="flex justify-between text-xs text-dojo-muted mb-1">
-                  <span>Asistencia</span>
-                  <span>{pct}%</span>
+                  <span>Llegada{confirmed > 0 ? " de confirmados" : ""}</span>
+                  <span>{ev.arrivedCount}/{base} · {pct}%</span>
                 </div>
                 <div className="h-1.5 bg-dojo-border rounded-full overflow-hidden">
                   <div

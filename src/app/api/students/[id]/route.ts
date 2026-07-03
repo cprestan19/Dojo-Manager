@@ -7,6 +7,7 @@ import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-contex
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
 import { formatStudentName } from "@/lib/utils";
+import { notifyAdmin, buildStudentDeletedEmail } from "@/lib/admin-notifications";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -260,16 +261,22 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   const t0 = Date.now();
 
-  // Solo permitir eliminar alumnos inactivos
+  // Leer metadata antes de la transacción (para Cloudinary y auditoría)
   const student = await prisma.student.findUnique({
     where:  { id, dojoId },
     select: { fullName: true, studentCode: true, active: true, photo: true },
   });
   if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
-  if (student.active) return NextResponse.json({ error: "Solo se pueden eliminar alumnos inactivos" }, { status: 409 });
 
-  // Limpiar datos huérfanos antes del DELETE principal
+  // Limpiar datos huérfanos y eliminar dentro de la misma transacción.
+  // La guarda de active se re-verifica dentro para evitar TOCTOU race condition.
+  try {
   await prisma.$transaction(async (tx) => {
+    // Re-check active dentro de la transacción para evitar race condition
+    const current = await tx.student.findUnique({ where: { id, dojoId }, select: { active: true } });
+    if (!current) throw Object.assign(new Error("NOT_FOUND"), { code: "NOT_FOUND" });
+    if (current.active) throw Object.assign(new Error("STILL_ACTIVE"), { code: "STILL_ACTIVE" });
+
     // 1. TournamentEventParticipant — sin FK formal, quedarían huérfanos
     await tx.$executeRaw`DELETE FROM tournament_event_participants WHERE student_id = ${id}`;
 
@@ -279,22 +286,34 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     // 3. TournamentParticipant — onDelete: Restrict bloquearía el DELETE del alumno
     await tx.tournamentParticipant.deleteMany({ where: { studentId: id } });
 
-    // 3. TournamentRegistration — opcional (SetNull no aplica aquí en algunas versiones)
+    // 4. TournamentRegistration
     await tx.tournamentRegistration.updateMany({
       where: { studentId: id },
       data:  { studentId: null },
     });
 
-    // 4. User.studentId — desvincula el usuario del portal sin eliminarlo
+    // 5. GeneratedCertificate — onDelete: Restrict; eliminar antes que el invitee
+    await tx.generatedCertificate.deleteMany({ where: { studentId: id } });
+
+    // 6. ExamApplicationInvitee — onDelete: Restrict bloquearía el DELETE del alumno
+    await tx.examApplicationInvitee.deleteMany({ where: { studentId: id } });
+
+    // 7. User.studentId — desvincula el usuario del portal sin eliminarlo
     await tx.user.updateMany({
       where: { studentId: id },
       data:  { studentId: null },
     });
 
-    // 5. DELETE del alumno — cascadea: Inscription, Payment, BeltHistory,
-    //    Attendance, StudentSchedule, KataCompetition
+    // 8. DELETE del alumno — cascadea: Inscription, Payment, BeltHistory,
+    //    Attendance, StudentSchedule, KataCompetition, PushSubscription, TermsAcceptance
     await tx.student.delete({ where: { id, dojoId } });
   }, { timeout: 15000 });
+  } catch (txErr) {
+    const code = (txErr as { code?: string }).code;
+    if (code === "NOT_FOUND")    return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+    if (code === "STILL_ACTIVE") return NextResponse.json({ error: "Solo se pueden eliminar alumnos inactivos" }, { status: 409 });
+    throw txErr;
+  }
 
   // Borrar foto de Cloudinary fuera de la transacción (no bloquea si falla)
   if (student.photo) {
@@ -314,6 +333,14 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     statusCode:   200,
     details:      JSON.stringify({ fullName: student.fullName, studentCode: student.studentCode }),
   });
+
+  // Notificación al propietario de la plataforma (fire-and-forget)
+  prisma.dojo.findUnique({ where: { id: dojoId }, select: { name: true } }).then(dojo => {
+    notifyAdmin(
+      `🗑️ Alumno eliminado — ${student.fullName}`,
+      buildStudentDeletedEmail(student.fullName, dojo?.name ?? dojoId, (session.user as { email?: string }).email ?? "admin"),
+    );
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

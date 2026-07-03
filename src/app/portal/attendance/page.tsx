@@ -1,6 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { ClipboardList, LogIn, LogOut, Search, Users } from "lucide-react";
+import { DisciplineBarPortal } from "@/components/discipline/DisciplineBar";
 
 interface FamilyMember { id: string; fullName: string; isMe: boolean; }
 
@@ -20,12 +21,15 @@ function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: TZ });
 }
 
+// Returns YYYY-MM-DD in Panama timezone
+function toPanamaYMD(d: Date): string {
+  return d.toLocaleDateString("sv-SE", { timeZone: "America/Panama" });
+}
+
 export default function PortalAttendancePage() {
-  const now       = new Date();
-  const pad       = (n: number) => String(n).padStart(2, "0");
-  const localDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const defFrom   = localDate(new Date(now.getFullYear(), now.getMonth(), 1));
-  const defTo     = localDate(now);
+  const panamaToday = toPanamaYMD(new Date());
+  const defFrom     = panamaToday.slice(0, 7) + "-01"; // YYYY-MM-01
+  const defTo       = panamaToday;
 
   const [from,             setFrom]            = useState(defFrom);
   const [to,               setTo]              = useState(defTo);
@@ -70,6 +74,9 @@ export default function PortalAttendancePage() {
 
   return (
     <div className="space-y-5">
+      {/* Disciplina del mes — siempre muestra el mes en curso */}
+      <DisciplineBarPortal />
+
       <h1 className="font-display text-xl font-bold text-dojo-white">Mi Asistencia</h1>
 
       {/* Filtros */}

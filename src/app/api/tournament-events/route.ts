@@ -48,19 +48,43 @@ export async function GET(req: NextRequest) {
         GROUP BY p.event_id
       `
     : [];
+  const rawConfirmed: { event_id: string; cnt: bigint }[] = ids.length > 0
+    ? await prisma.$queryRaw`
+        SELECT p.event_id, COUNT(*) AS cnt
+        FROM tournament_event_participants p
+        INNER JOIN students s ON s.id = p.student_id AND s.active = true AND s.dojo_id = ${dojoId}
+        WHERE p.event_id = ANY(${ids}::text[])
+          AND p.confirmed = true AND p.opted_out = false
+        GROUP BY p.event_id
+      `
+    : [];
+  const rawOptedOut: { event_id: string; cnt: bigint }[] = ids.length > 0
+    ? await prisma.$queryRaw`
+        SELECT p.event_id, COUNT(*) AS cnt
+        FROM tournament_event_participants p
+        INNER JOIN students s ON s.id = p.student_id AND s.active = true AND s.dojo_id = ${dojoId}
+        WHERE p.event_id = ANY(${ids}::text[])
+          AND p.opted_out = true
+        GROUP BY p.event_id
+      `
+    : [];
 
-  const arrivedMap  = Object.fromEntries(rawArrived.map(r => [r.event_id, Number(r.cnt)]));
-  const resultsMap  = Object.fromEntries(rawResults.map(r => [r.event_id, Number(r.cnt)]));
+  const arrivedMap   = Object.fromEntries(rawArrived.map(r => [r.event_id, Number(r.cnt)]));
+  const resultsMap   = Object.fromEntries(rawResults.map(r => [r.event_id, Number(r.cnt)]));
+  const confirmedMap = Object.fromEntries(rawConfirmed.map(r => [r.event_id, Number(r.cnt)]));
+  const optedOutMap  = Object.fromEntries(rawOptedOut.map(r => [r.event_id, Number(r.cnt)]));
 
   return NextResponse.json(events.map(e => ({
-    id:            e.id,
-    name:          e.name,
-    date:          e.date.toISOString(),
-    location:      e.location,
-    notes:         e.notes,
-    totalStudents: e._count.participants,
-    arrivedCount:  arrivedMap[e.id]  ?? 0,
-    resultsCount:  resultsMap[e.id] ?? 0,
+    id:             e.id,
+    name:           e.name,
+    date:           e.date.toISOString(),
+    location:       e.location,
+    notes:          e.notes,
+    totalStudents:  e._count.participants,
+    arrivedCount:   arrivedMap[e.id]   ?? 0,
+    resultsCount:   resultsMap[e.id]   ?? 0,
+    confirmedCount: confirmedMap[e.id] ?? 0,
+    optedOutCount:  optedOutMap[e.id]  ?? 0,
   })));
 }
 

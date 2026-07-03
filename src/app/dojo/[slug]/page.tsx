@@ -107,7 +107,7 @@ export default async function DojoPublicPageRoute({ params, searchParams }: Prop
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       {/* Banner de vista previa — visible para admin/sysadmin cuando la página no está publicada */}
       {canPreview && !page.published && (
         <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-4 px-4 py-2.5 text-sm font-semibold"

@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
 import { sendRegistrationConfirmation } from "@/lib/email";
 import { validateBase64Image } from "@/lib/file-validation";
+import { notifyAdmin, buildPendingStudentEmail } from "@/lib/admin-notifications";
 
 const ERR_LINK_UNAVAILABLE = "Este enlace de inscripción ya no está disponible. Contacta al dojo para obtener un nuevo enlace.";
 const ERR_INVALID_DATA     = "Los datos enviados son inválidos. Revisa el formulario e intenta de nuevo.";
@@ -49,6 +50,8 @@ const RegisterSchema = z.object({
   primaryGuardian:  z.enum(["mother", "father"]).optional().nullable(),
   // Campo trampa para detección de bots — debe llegar vacío. No exponer en errores.
   honeypot: z.string().optional().default(""),
+  // Versión de los términos que aceptó (null si no hay términos o es el sistema legado)
+  acceptedTermsVersion: z.number().int().positive().optional().nullable(),
 });
 
 function getIp(req: NextRequest): string {
@@ -253,9 +256,10 @@ export async function POST(
           fatherName:         body.fatherName  ? toTitleCase(body.fatherName)  : null,
           fatherPhone:        body.fatherPhone || null,
           fatherEmail:        body.fatherEmail || null,
-          address:            body.address         || null,
-          photo:              body.photo             || null,
-          hasSiblingInDojo:   body.hasSiblingInDojo ?? false,
+          address:             body.address         || null,
+          photo:               body.photo           || null,
+          hasSiblingInDojo:    body.hasSiblingInDojo ?? false,
+          acceptedTermsVersion: body.acceptedTermsVersion ?? null,
         },
       });
       await tx.registrationLink.update({
@@ -274,6 +278,11 @@ export async function POST(
       dojoId:       link.dojoId,
       resourceType: "PendingStudent",
       ip,
+      country:      req.headers.get("x-vercel-ip-country") ?? req.headers.get("cf-ipcountry") ?? null,
+      city:         req.headers.get("x-vercel-ip-city")    ?? null,
+      region:       req.headers.get("x-vercel-ip-region")  ?? null,
+      userAgent:    req.headers.get("user-agent"),
+      statusCode:   201,
       details:      JSON.stringify({
         fullName:  body.fullName,
         email:     confirmTo ?? null,
@@ -290,6 +299,12 @@ export async function POST(
         dojo:        link.dojo,
       }).catch(err => console.error("[registro] Confirmation email failed:", err));
     }
+
+    // Notificación al propietario de la plataforma (fire-and-forget)
+    notifyAdmin(
+      `📋 Auto-registro — ${body.fullName} (${link.dojo.name})`,
+      buildPendingStudentEmail(body.fullName, link.dojo.name, body.cedula ?? "No indicada", ip),
+    ).catch(() => {});
 
     // Cookie de bloqueo: evita reenvío desde el mismo navegador
     const res = NextResponse.json({ ok: true });

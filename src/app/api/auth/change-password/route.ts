@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
+import { notifyAdmin, buildPasswordChangedEmail } from "@/lib/admin-notifications";
 
 type SessionUser = { id?: string; email?: string; dojoId?: string | null };
 
@@ -34,18 +35,34 @@ export async function PUT(req: NextRequest) {
     data:  { password: hashed, mustChangePassword: false },
   });
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
-          ?? req.headers.get("x-real-ip")
-          ?? "unknown";
+  const ip      = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
+               ?? req.headers.get("x-real-ip")
+               ?? "unknown";
+  const country = req.headers.get("x-vercel-ip-country") ?? req.headers.get("cf-ipcountry") ?? null;
+  const city    = req.headers.get("x-vercel-ip-city")    ?? null;
+  const region  = req.headers.get("x-vercel-ip-region")  ?? null;
 
   await logAudit({
-    action:    "PASSWORD_CHANGED",
+    action:       "PASSWORD_CHANGED",
+    module:       "AUTH",
+    resourceType: "User",
+    resourceId:   userId,
     userId,
-    userEmail: email,
+    userEmail:    email,
     dojoId,
     ip,
-    userAgent: req.headers.get("user-agent"),
+    country,
+    city,
+    region,
+    userAgent:    req.headers.get("user-agent"),
+    statusCode:   200,
   });
+
+  // Notificación al propietario de la plataforma (fire-and-forget)
+  notifyAdmin(
+    `🔐 Cambio de contraseña — ${user.name ?? email}`,
+    buildPasswordChangedEmail(user.name ?? "Sin nombre", email ?? "", dojoId ?? null),
+  ).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

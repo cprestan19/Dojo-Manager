@@ -53,7 +53,7 @@ export default function NewTournamentPage() {
         return;
       }
 
-      router.push(`/dashboard/tournaments-pro/${data.id}`);
+      router.replace(`/dashboard/tournaments-pro/${data.id}`);
     } catch {
       setError("Error de conexión. Por favor intenta de nuevo.");
     } finally {

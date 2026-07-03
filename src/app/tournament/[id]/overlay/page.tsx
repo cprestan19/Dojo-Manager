@@ -81,7 +81,7 @@ export default function OverlaySelector() {
 
   function copy(tatamiId: string) {
     const url = `${origin}/tournament/${id}/overlay/${tatamiId}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard?.writeText(url).catch(() => {});
     setCopied(tatamiId);
     setTimeout(() => setCopied(null), 2000);
   }

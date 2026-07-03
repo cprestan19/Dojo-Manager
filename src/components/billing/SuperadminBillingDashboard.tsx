@@ -121,10 +121,10 @@ function fmtMoney(n: number, currency = "USD") {
 function CopyBtn({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   function copy() {
-    void navigator.clipboard.writeText(value).then(() => {
+    void navigator.clipboard?.writeText(value).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    });
+    }).catch(() => {});
   }
   return (
     <button onClick={copy} title="Copiar" className="text-dojo-muted hover:text-dojo-white transition-colors ml-1 shrink-0">

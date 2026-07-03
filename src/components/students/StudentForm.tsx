@@ -87,7 +87,7 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
         ? new Date(defaultValues.birthDate).toISOString().split("T")[0]
         : "",
       gender:      defaultValues?.gender      ?? "M",
-      nationality: defaultValues?.nationality ?? "Panameña",
+      nationality: defaultValues?.nationality ?? "Panamá",
       condition:   defaultValues?.condition   ?? "",
       bloodType:   defaultValues?.bloodType   ?? "",
       hasPrivateInsurance: defaultValues?.hasPrivateInsurance ?? false,
@@ -279,7 +279,7 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
       }).catch(() => { /* non-critical — FamilyManager can link later */ });
     }
 
-    router.push(`/dashboard/students/${newStudentId}`);
+    router.replace(`/dashboard/students/${newStudentId}`);
   }
 
   return (
@@ -849,8 +849,8 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
 
       {/* Bottom save */}
       <div className="flex justify-end pt-2">
-        <button type="submit" disabled={isSubmitting} className="btn-primary px-8">
-          <Save size={18} /> {isSubmitting ? "Guardando..." : "Guardar Alumno"}
+        <button type="submit" disabled={isSubmitting || photoUploading} className="btn-primary px-8">
+          <Save size={18} /> {isSubmitting ? "Guardando..." : photoUploading ? "Subiendo foto..." : "Guardar Alumno"}
         </button>
       </div>
     </form>

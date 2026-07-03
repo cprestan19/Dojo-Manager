@@ -49,6 +49,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const attending    = rsvps.filter(r => r.status === "attending");
   const notAttending = rsvps.filter(r => r.status === "not_attending");
 
+  const totalStudents = await prisma.student.count({ where: { dojoId, active: true } });
+  const pendingCount  = Math.max(0, totalStudents - attending.length - notAttending.length);
+
   return NextResponse.json({
     eventId:       event.id,
     eventTitle:    event.title,
@@ -69,5 +72,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     })),
     attendingCount:    attending.length,
     notAttendingCount: notAttending.length,
+    pendingCount,
   });
 }

@@ -14,9 +14,10 @@ interface ScanResult {
 
 export default function TournamentEventScanPage() {
   const { id } = useParams<{ id: string }>();
-  const [eventName,    setEventName]    = useState("");
-  const [arrivedCount, setArrivedCount] = useState(0);
-  const [totalCount,   setTotalCount]   = useState(0);
+  const [eventName,      setEventName]      = useState("");
+  const [arrivedCount,   setArrivedCount]   = useState(0);
+  const [confirmedCount, setConfirmedCount] = useState(0);
+  const [totalCount,     setTotalCount]     = useState(0);
   const [view,         setView]         = useState<"ready" | "scanning">("ready");
   const [cameraError,   setCameraError]   = useState("");
   const [lastResult,    setLastResult]    = useState<ScanResult | null>(null);
@@ -38,6 +39,7 @@ export default function TournamentEventScanPage() {
         if (!d) return;
         setEventName(d.name ?? "");
         setArrivedCount(d.arrivedCount ?? 0);
+        setConfirmedCount(d.confirmedCount ?? 0);
         setTotalCount(d.totalStudents ?? 0);
       });
   }, [id]);
@@ -175,7 +177,8 @@ export default function TournamentEventScanPage() {
     };
   }, [view, handleScan]);
 
-  const pct = totalCount > 0 ? Math.round((arrivedCount / totalCount) * 100) : 0;
+  const base = confirmedCount > 0 ? confirmedCount : totalCount;
+  const pct  = base > 0 ? Math.round((arrivedCount / base) * 100) : 0;
 
   const resultBg: Record<ScanResult["type"], string> = {
     success:        "#064e3b",
@@ -217,8 +220,8 @@ export default function TournamentEventScanPage() {
         </div>
         <div className="text-right">
           <span className="text-2xl font-bold" style={{ color: "#C0392B" }}>{arrivedCount}</span>
-          <span className="text-white/40 text-xs"> / {totalCount}</span>
-          <p className="text-white/40 text-xs">{pct}% presentes</p>
+          <span className="text-white/40 text-xs"> / {confirmedCount > 0 ? confirmedCount : totalCount}</span>
+          <p className="text-white/40 text-xs">{pct}% {confirmedCount > 0 ? "confirmados" : "presentes"}</p>
         </div>
       </header>
 

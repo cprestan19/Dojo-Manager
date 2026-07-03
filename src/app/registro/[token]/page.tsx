@@ -19,7 +19,12 @@ export default async function RegistroPage({ params, searchParams }: Props) {
     where:  { token },
     select: {
       id: true, dojoId: true, isActive: true, activatesAt: true, expiresAt: true, maxUses: true, useCount: true,
-      dojo: { select: { name: true, logo: true, contractPolicy: true } },
+      dojo: {
+        select: {
+          name: true, logo: true, contractPolicy: true,
+          termsPolicy: { select: { content: true, version: true, enabled: true } },
+        },
+      },
     },
   });
 
@@ -46,10 +51,14 @@ export default async function RegistroPage({ params, searchParams }: Props) {
     );
   }
 
-  const dojoName       = link.dojo.name;
-  const dojoLogo       = link.dojo.logo?.startsWith("http") ? link.dojo.logo : null;
-  const expiresAt      = link.expiresAt?.toISOString() ?? null;
-  const contractPolicy = link.dojo.contractPolicy ?? null;
+  const dojoName  = link.dojo.name;
+  const dojoLogo  = link.dojo.logo?.startsWith("http") ? link.dojo.logo : null;
+  const expiresAt = link.expiresAt?.toISOString() ?? null;
+
+  // Prioridad: DojoTermsPolicy (nuevo sistema, con versiones) → contractPolicy (legado)
+  const activeTerms  = link.dojo.termsPolicy?.enabled ? link.dojo.termsPolicy : null;
+  const termsContent = activeTerms?.content ?? link.dojo.contractPolicy ?? null;
+  const termsVersion = activeTerms?.version ?? null; // null = sistema legado sin versión
 
   // Cookie de bloqueo: si el usuario ya envió desde este navegador, mostrar pantalla de "ya enviaste"
   const c = await cookies();
@@ -80,7 +89,8 @@ export default async function RegistroPage({ params, searchParams }: Props) {
             dojoLogo={dojoLogo}
             expiresAt={expiresAt}
             reset={reset === "1"}
-            contractPolicy={contractPolicy}
+            termsContent={termsContent}
+            termsVersion={termsVersion}
             alreadySubmitted={alreadySubmitted}
           />
         </div>

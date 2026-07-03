@@ -9,6 +9,7 @@ import { CreateStudentSchema, validationError } from "@/lib/validation";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { withReadOnlyGuard } from "@/lib/billing/readOnlyGuard";
 import { formatStudentName } from "@/lib/utils";
+import { notifyAdmin, buildStudentCreatedEmail } from "@/lib/admin-notifications";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -74,6 +75,8 @@ async function _POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  if (role === "student") return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
@@ -167,6 +170,14 @@ async function _POST(req: NextRequest) {
     });
 
     revalidatePath("/dashboard/students");
+
+    // Notificación al propietario de la plataforma (fire-and-forget)
+    prisma.dojo.findUnique({ where: { id: dojoId }, select: { name: true } }).then(dojo => {
+      notifyAdmin(
+        `👤 Nuevo alumno — ${student.fullName}`,
+        buildStudentCreatedEmail(student.fullName, dojo?.name ?? dojoId, dojoId, (session.user as { email?: string }).email ?? "admin"),
+      );
+    }).catch(() => {});
 
     return NextResponse.json(student, { status: 201 });
   } catch (err) {

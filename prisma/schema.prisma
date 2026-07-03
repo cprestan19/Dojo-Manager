@@ -73,6 +73,9 @@ model Dojo {
   generatedCertificates GeneratedCertificate[]
   termsPolicy           DojoTermsPolicy?
   termsAcceptances      TermsAcceptance[]
+  pushSubscriptions     PushSubscription[]
+  pushLogs              PushNotificationLog[]
+  pushSettings          PushSettings?
 
   @@map("dojos")
 }
@@ -197,11 +200,14 @@ model User {
 
   resetToken       String?   @map("reset_token")
   resetTokenExpiry DateTime? @map("reset_token_expiry")
+  pushSubscriptions PushSubscription[]
+
+  lastSeenNewsAt DateTime? @map("last_seen_news_at")
 
   @@index([email])
   @@index([dojoId])
-  @@index([dojoId, active])      // filter active users within a dojo
-  @@index([dojoId, role])        // count/filter by role within a dojo (last-sysadmin checks)
+  @@index([dojoId, active])
+  @@index([dojoId, role])
   @@map("users")
 }
 
@@ -266,6 +272,7 @@ model Student {
   examInvitees          ExamApplicationInvitee[]
   certificates          GeneratedCertificate[]
   termsAcceptances      TermsAcceptance[]
+  pushSubscriptions     PushSubscription[]
 
   @@index([dojoId, active])
   @@index([dojoId, lastName, firstName])
@@ -1210,6 +1217,13 @@ model TournamentEventParticipant {
   kataCompetitionId    String? @map("kata_competition_id")
   kumiteCompetitionId  String? @map("kumite_competition_id")
 
+  // ── Confirmación previa al evento ──────────────────────────────
+  confirmed Boolean @default(false) @map("confirmed")
+
+  // ── Rechazo de participación ────────────────────────────────────
+  optedOut       Boolean @default(false) @map("opted_out")
+  optedOutReason String? @db.Text        @map("opted_out_reason")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
 
@@ -1294,6 +1308,9 @@ model PendingStudent {
   submittedAt   DateTime  @default(now()) @map("submitted_at")
   submitterIp   String?   @map("submitter_ip")
   resetToken    String?   @unique @map("reset_token") // token de un solo uso para re-envío autorizado por admin
+
+  // Versión de los términos que aceptó al registrarse (null = usó contractPolicy antiguo)
+  acceptedTermsVersion Int? @map("accepted_terms_version")
 
   @@index([dojoId, status])
   @@index([registrationLinkId])
@@ -1545,4 +1562,106 @@ model TermsAcceptance {
   @@unique([studentId, dojoId])
   @@index([dojoId])
   @@map("terms_acceptances")
+}
+
+// ── Notificaciones Push (Web Push / VAPID) ────────────────────────────────────
+
+model PushSubscription {
+  id          String    @id @default(cuid())
+  dojoId      String    @map("dojo_id")
+  studentId   String?   @map("student_id")  // null si es admin/user
+  userId      String?   @map("user_id")      // null si es student
+  endpoint    String    @unique @db.Text
+  p256dh      String    @db.Text
+  auth        String    @db.Text
+  deviceLabel String?   @map("device_label")
+  userAgent   String?   @map("user_agent") @db.Text
+  active      Boolean   @default(true)
+  failCount   Int       @default(0) @map("fail_count")
+  lastSentAt  DateTime? @map("last_sent_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  dojo    Dojo     @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([dojoId])
+  @@index([dojoId, active])
+  @@index([studentId])
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+model PushNotificationLog {
+  id           String   @id @default(cuid())
+  dojoId       String   @map("dojo_id")
+  type         String   // manual | attendance | payment | birthday | video | event | exam_published | exam_result | exam_deadline
+  title        String
+  body         String   @db.Text
+  url          String?
+  targetCount  Int      @default(0) @map("target_count")
+  successCount Int      @default(0) @map("success_count")
+  failCount    Int      @default(0) @map("fail_count")
+  sentBy       String?  @map("sent_by")  // userId de quien envió (null si fue automático)
+  sentAt       DateTime @default(now()) @map("sent_at")
+
+  dojo Dojo @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+
+  @@index([dojoId, sentAt])
+  @@map("push_notification_logs")
+}
+
+model VisitorLog {
+  id          String   @id @default(cuid())
+  ip          String
+  country     String?
+  countryCode String?  @map("country_code")
+  city        String?
+  region      String?
+  lat         String?
+  lng         String?
+  path        String
+  userAgent   String?  @db.Text @map("user_agent")
+  referer     String?
+  visitedAt   DateTime @default(now()) @map("visited_at")
+
+  @@index([visitedAt])
+  @@index([countryCode])
+  @@map("visitor_logs")
+}
+
+model PushSettings {
+  id                    String  @id @default(cuid())
+  dojoId                String  @unique @map("dojo_id")
+  enabled               Boolean @default(true)
+  notifyAttendance      Boolean @default(true)  @map("notify_attendance")
+  notifyPaymentReminder Boolean @default(true)  @map("notify_payment_reminder")
+  notifyNewVideo        Boolean @default(true)  @map("notify_new_video")
+  notifyNewEvent        Boolean @default(true)  @map("notify_new_event")
+  notifyBirthday        Boolean @default(true)  @map("notify_birthday")
+  notifyExamPublished   Boolean @default(true)  @map("notify_exam_published")
+  notifyExamResult      Boolean @default(true)  @map("notify_exam_result")
+  notifyExamDeadline    Boolean @default(true)  @map("notify_exam_deadline")
+
+  dojo Dojo @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+
+  @@map("push_settings")
+}
+
+// ── Novedades del sistema — publicadas por sysadmin para todos los dojos ────
+model SystemNews {
+  id            String   @id @default(cuid())
+  version       String                            // "v2.4" | "Julio 2026"
+  title         String                            // "Actualización de verano"
+  items         Json                              // [{text, category}]
+  audience      String   @default("all")          // "all" | "admins" | "students"
+  status        String   @default("published")    // "draft" | "published"
+  testUserEmail String?  @map("test_user_email")  // correo que ve el borrador
+  publishedAt   DateTime @default(now()) @map("published_at")
+  createdAt     DateTime @default(now())          @map("created_at")
+  updatedAt     DateTime @updatedAt               @map("updated_at")
+
+  @@index([publishedAt])
+  @@index([status, publishedAt])
+  @@map("system_news")
 }

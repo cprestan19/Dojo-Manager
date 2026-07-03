@@ -27,11 +27,18 @@ export async function GET(req: NextRequest, { params }: Params) {
   });
   if (!event) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
 
-  // Leer category via SQL directo — el cliente Prisma cacheado puede no conocer el campo
-  const rawCategories = await prisma.$queryRaw<{ id: string; category: string | null }[]>`
-    SELECT id, category FROM tournament_event_participants WHERE event_id = ${id}
+  // Leer campos via SQL directo — garantiza compatibilidad aunque el cliente Prisma esté cacheado
+  const rawExtra = await prisma.$queryRaw<{
+    id: string;
+    category: string | null;
+    confirmed: boolean;
+    opted_out: boolean;
+    opted_out_reason: string | null;
+  }[]>`
+    SELECT id, category, confirmed, opted_out, opted_out_reason
+    FROM tournament_event_participants WHERE event_id = ${id}
   `;
-  const catMap = Object.fromEntries(rawCategories.map(r => [r.id, r.category ?? null]));
+  const extraMap = Object.fromEntries(rawExtra.map(r => [r.id, r]));
 
   // Cargar solo alumnos ACTIVOS — los inactivos no aparecen en ningún módulo
   const studentIds = event.participants.map(p => p.studentId);
@@ -59,29 +66,36 @@ export async function GET(req: NextRequest, { params }: Params) {
       arrived:          p.arrived,
       arrivedAt:        p.arrivedAt?.toISOString() ?? null,
       scannedBy:        p.scannedBy,
-      category:         catMap[p.id] ?? null,
+      category:         extraMap[p.id]?.category        ?? null,
       kataName:         p.kataName,
       kataResult:       p.kataResult,
       kumiteResult:     p.kumiteResult,
       competitionNotes: p.competitionNotes,
+      confirmed:        extraMap[p.id]?.confirmed        ?? false,
+      optedOut:         extraMap[p.id]?.opted_out        ?? false,
+      optedOutReason:   extraMap[p.id]?.opted_out_reason ?? null,
     };
   });
 
-  // Ordenar: llegaron primero, luego alfabético
+  // Ordenar: llegaron → pendientes → no participan → alfabético
   participants.sort((a, b) => {
-    if (a.arrived !== b.arrived) return a.arrived ? -1 : 1;
+    const rankA = a.arrived ? 0 : a.optedOut ? 2 : 1;
+    const rankB = b.arrived ? 0 : b.optedOut ? 2 : 1;
+    if (rankA !== rankB) return rankA - rankB;
     return a.fullName.localeCompare(b.fullName);
   });
 
   return NextResponse.json({
-    id:            event.id,
-    name:          event.name,
-    date:          event.date.toISOString(),
-    location:      event.location,
-    notes:         event.notes,
-    totalStudents: participants.length,
-    arrivedCount:  participants.filter(p => p.arrived).length,
-    resultsCount:  participants.filter(p => p.kataResult || p.kumiteResult).length,
+    id:             event.id,
+    name:           event.name,
+    date:           event.date.toISOString(),
+    location:       event.location,
+    notes:          event.notes,
+    totalStudents:  participants.length,
+    arrivedCount:   participants.filter(p => p.arrived).length,
+    confirmedCount: participants.filter(p => p.confirmed && !p.optedOut).length,
+    resultsCount:   participants.filter(p => p.kataResult || p.kumiteResult).length,
+    optedOutCount:  participants.filter(p => p.optedOut).length,
     participants,
   });
 }

@@ -181,7 +181,7 @@ export default function PublicPageSettings() {
   }
 
   function copyUrl() {
-    navigator.clipboard.writeText(publicUrl);
+    navigator.clipboard?.writeText(publicUrl).catch(() => {});
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   }
 
@@ -668,7 +668,7 @@ export default function PublicPageSettings() {
           </div>
         )}
         <div className="flex items-center gap-3">
-          <button onClick={save} disabled={saving}
+          <button onClick={save} disabled={saving || saved}
             className={`btn-primary transition-all ${saved ? "opacity-90" : ""}`}
             style={saved ? { background: "#16A34A" } : undefined}>
             {saving ? "Guardando..." : saved ? <><Check size={16}/> ¡Guardado!</> : <><Save size={16}/> Guardar cambios</>}

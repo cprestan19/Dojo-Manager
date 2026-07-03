@@ -22,6 +22,7 @@ export default function TermsSettingsPage() {
   const [enabled,  setEnabled]  = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [bumping,  setBumping]  = useState(false);
+  const [saved,    setSaved]    = useState(false);
   const [success,  setSuccess]  = useState("");
   const [error,    setError]    = useState("");
 
@@ -50,11 +51,12 @@ export default function TermsSettingsPage() {
       });
       const d = await res.json() as Policy & { error?: string };
       if (!res.ok) { setError(d.error ?? "Error al guardar"); return; }
-      setSuccess(
-        bumpVersion
-          ? `Versión actualizada a v${d.version}. Todos los alumnos deberán aceptar nuevamente.`
-          : "Cambios guardados correctamente."
-      );
+      const msg = bumpVersion
+        ? `Versión actualizada a v${d.version}. Todos los alumnos deberán aceptar nuevamente.`
+        : "Cambios guardados correctamente.";
+      setSuccess(msg);
+      setSaved(true);
+      setTimeout(() => { setSuccess(""); setSaved(false); }, 4000);
       await load();
     } finally {
       setSaving(false);
@@ -152,7 +154,7 @@ export default function TermsSettingsPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <button
           onClick={() => save(false)}
-          disabled={saving || bumping}
+          disabled={saving || bumping || saved}
           className="btn-primary flex items-center justify-center gap-2 flex-1"
         >
           {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
@@ -165,7 +167,7 @@ export default function TermsSettingsPage() {
             )) return;
             save(true);
           }}
-          disabled={saving || bumping || !data?.policy}
+          disabled={saving || bumping || saved || !data?.policy}
           className="btn-secondary flex items-center justify-center gap-2 sm:w-auto"
           title="Incrementa la versión y obliga a todos los alumnos a re-aceptar"
         >

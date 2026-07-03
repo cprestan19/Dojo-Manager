@@ -25,6 +25,30 @@ export const authOptions: NextAuthOptions = {
 
         if (!credentials?.email || !credentials?.password) return null;
 
+        // ── Account lockout: bloquear tras 10 intentos fallidos en 15 min ──
+        const lockoutSince = new Date(Date.now() - 15 * 60 * 1000);
+        let recentFailures = 0;
+        try {
+          recentFailures = await prisma.auditLog.count({
+            where: {
+              action:    "LOGIN_FAILED",
+              userEmail: credentials.email.toLowerCase().trim(),
+              createdAt: { gte: lockoutSince },
+            },
+          });
+        } catch { /* si la BD no responde, no bloqueamos el login */ }
+        if (recentFailures >= 10) {
+          await logAudit({
+            action:    "LOGIN_BLOCKED_LOCKOUT",
+            userEmail: credentials.email,
+            ip,
+            userAgent,
+            details:   `Cuenta bloqueada: ${recentFailures} intentos fallidos en los últimos 15 min`,
+          });
+          return null;
+        }
+        // ────────────────────────────────────────────────────────────────────
+
         const user = await prisma.user.findUnique({
           where:   { email: credentials.email.toLowerCase().trim() },
           include: { student: { select: { photo: true } } },

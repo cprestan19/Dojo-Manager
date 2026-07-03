@@ -183,61 +183,76 @@ function RsvpBanner({ event, onUpdate }: {
 
   if (myStatus === "not_attending") {
     return (
-      <div className="bg-red-900/15 border-b border-red-900/25 px-4 py-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <X size={18} className="text-red-400 shrink-0" />
-          <p className="text-sm font-bold text-red-300">No participarás en este evento</p>
+      <div className="border-b border-red-500/40" style={{ background: "rgba(220,38,38,0.15)" }}>
+        <div className="px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(220,38,38,0.25)" }}>
+              <X size={16} className="text-red-400" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-red-300">No participarás en este evento</p>
+              <p className="text-[11px] text-red-400/60">Indicaste que no asistirás</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void rsvp(member.studentId, "attending")}
+            disabled={loading !== null}
+            className="text-[11px] font-semibold text-red-400/70 hover:text-green-400 transition-colors underline underline-offset-2 shrink-0 disabled:opacity-40"
+          >
+            {loading ? <Loader2 size={12} className="animate-spin inline" /> : "Cambiar"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => void rsvp(member.studentId, "attending")}
-          disabled={loading !== null}
-          className="text-[11px] text-red-400/60 hover:text-green-400 transition-colors underline underline-offset-2 shrink-0 disabled:opacity-40"
-        >
-          {loading ? <Loader2 size={12} className="animate-spin inline" /> : "Cambiar"}
-        </button>
       </div>
     );
   }
 
-  // Sin respuesta: dos botones
+  // Sin respuesta — Pendiente
   return (
-    <div className="flex border-b border-dojo-border">
-      <button
-        type="button"
-        onClick={() => void rsvp(member.studentId, "attending")}
-        disabled={loading !== null}
-        className="relative flex-1 flex items-center justify-center gap-2 px-3 py-4 bg-gradient-to-r from-red-600 via-dojo-red to-red-700 hover:from-red-500 hover:via-red-600 hover:to-red-700 active:scale-[0.99] transition-all disabled:opacity-60 group overflow-hidden"
-      >
-        <span className="pointer-events-none absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        {loading === `${member.studentId}:attending`
-          ? <Loader2 size={18} className="animate-spin text-white" />
-          : <CalendarCheck size={18} className="text-white group-hover:scale-110 transition-transform" />
-        }
-        <div className="text-left">
-          <p className="text-sm font-black text-white tracking-wider leading-tight drop-shadow">PARTICIPARÉ</p>
-          {event.attendingCount > 0 && (
-            <p className="text-[10px] text-red-200/70 flex items-center gap-0.5">
-              <Users size={9} className="inline" /> {event.attendingCount} confirmado{event.attendingCount !== 1 ? "s" : ""}
-            </p>
-          )}
-        </div>
-      </button>
+    <div className="border-b border-dojo-border">
+      {/* Label pendiente */}
+      <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-yellow-400/60 animate-pulse shrink-0" />
+        <span className="text-xs font-semibold text-yellow-400/80">⏳ Pendiente de respuesta</span>
+      </div>
+      {/* Botones de acción */}
+      <div className="flex">
+        <button
+          type="button"
+          onClick={() => void rsvp(member.studentId, "attending")}
+          disabled={loading !== null}
+          className="relative flex-1 flex items-center justify-center gap-2 px-3 py-3.5 bg-gradient-to-r from-red-600 via-dojo-red to-red-700 hover:from-red-500 hover:via-red-600 hover:to-red-700 active:scale-[0.99] transition-all disabled:opacity-60 group overflow-hidden"
+        >
+          <span className="pointer-events-none absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          {loading === `${member.studentId}:attending`
+            ? <Loader2 size={16} className="animate-spin text-white" />
+            : <CalendarCheck size={16} className="text-white group-hover:scale-110 transition-transform" />
+          }
+          <div className="text-left">
+            <p className="text-sm font-black text-white tracking-wider leading-tight drop-shadow">PARTICIPARÉ</p>
+            {event.attendingCount > 0 && (
+              <p className="text-[10px] text-red-200/70 flex items-center gap-0.5">
+                <Users size={9} className="inline" /> {event.attendingCount} confirmado{event.attendingCount !== 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
+        </button>
 
-      <div className="w-px bg-dojo-border shrink-0" />
+        <div className="w-px bg-dojo-border shrink-0" />
 
-      <button
-        type="button"
-        onClick={() => void rsvp(member.studentId, "not_attending")}
-        disabled={loading !== null}
-        className="flex-1 flex items-center justify-center gap-2 px-3 py-4 bg-dojo-dark hover:bg-dojo-border/40 active:scale-[0.99] transition-all disabled:opacity-60"
-      >
-        {loading === `${member.studentId}:not_attending`
-          ? <Loader2 size={16} className="animate-spin text-dojo-muted" />
-          : <X size={16} className="text-dojo-muted" />
-        }
-        <span className="text-sm font-semibold text-dojo-muted">No participaré</span>
-      </button>
+        <button
+          type="button"
+          onClick={() => void rsvp(member.studentId, "not_attending")}
+          disabled={loading !== null}
+          className="flex-1 flex items-center justify-center gap-2 px-3 py-3.5 bg-dojo-dark hover:bg-dojo-border/40 active:scale-[0.99] transition-all disabled:opacity-60"
+        >
+          {loading === `${member.studentId}:not_attending`
+            ? <Loader2 size={16} className="animate-spin text-dojo-muted" />
+            : <X size={16} className="text-dojo-muted" />
+          }
+          <span className="text-sm font-semibold text-dojo-muted">No participaré</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -251,9 +266,11 @@ export default function PortalEventsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const r = await fetch(`/api/portal/events?status=${tab}`);
-    if (r.ok) setEvents(await r.json());
-    setLoading(false);
+    try {
+      const r = await fetch(`/api/portal/events?status=${tab}`);
+      if (r.ok) setEvents(await r.json());
+    } catch { /* error de red — el spinner se detiene */ }
+    finally   { setLoading(false); }
   }, [tab]);
 
   useEffect(() => { void load(); }, [load]);
@@ -359,28 +376,37 @@ export default function PortalEventsPage() {
                 )}
 
                 {/* Historial: respuesta(s) del alumno / familia */}
-                {isPast && ev.memberRsvps.some(m => m.status !== null) && (
+                {isPast && (
                   <div className="pt-2 border-t border-dojo-border/40 space-y-1">
                     {ev.memberRsvps.length === 1 ? (
                       ev.memberRsvps[0].status === "attending" ? (
                         <div className="flex items-center gap-1.5 text-xs text-green-400/70">
                           <CheckCircle2 size={11} /> Confirmaste tu participación
                         </div>
-                      ) : (
+                      ) : ev.memberRsvps[0].status === "not_attending" ? (
                         <div className="flex items-center gap-1.5 text-xs text-red-400/70">
                           <X size={11} /> Indicaste que no participarías
                         </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-xs text-yellow-400/60">
+                          <div className="w-2.5 h-2.5 rounded-full border border-yellow-400/40 shrink-0" />
+                          Sin respuesta
+                        </div>
                       )
                     ) : (
-                      ev.memberRsvps.filter(m => m.status !== null).map(m => (
+                      ev.memberRsvps.map(m => (
                         <div key={m.studentId} className={`flex items-center gap-1.5 text-xs ${
-                          m.status === "attending" ? "text-green-400/70" : "text-red-400/70"
+                          m.status === "attending"     ? "text-green-400/70"
+                          : m.status === "not_attending" ? "text-red-400/70"
+                          :                               "text-yellow-400/50"
                         }`}>
                           {m.status === "attending"
                             ? <CheckCircle2 size={11} />
-                            : <X            size={11} />
+                            : m.status === "not_attending"
+                            ? <X size={11} />
+                            : <div className="w-2.5 h-2.5 rounded-full border border-yellow-400/40 shrink-0" />
                           }
-                          {m.fullName}{m.isMe ? " (yo)" : ""}
+                          {m.fullName}{m.isMe ? " (yo)" : ""}{m.status === null ? " — Sin respuesta" : ""}
                         </div>
                       ))
                     )}

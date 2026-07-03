@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { sendPushToStudentAsync } from "@/lib/push";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -174,6 +175,24 @@ export async function POST(req: NextRequest) {
       statusCode:   201,
       details:      JSON.stringify({ studentName: student.fullName, type, scheduleId: scheduleId || null, source: source || "unknown" }),
     });
+
+    // Notificación push al alumno (entrada confirmada) — fire-and-forget, no bloquea la respuesta
+    if (type === "entry") {
+      const pushSettings = await prisma.pushSettings.findUnique({ where: { dojoId }, select: { enabled: true, notifyAttendance: true } }).catch(() => null);
+      if (pushSettings?.enabled && pushSettings.notifyAttendance) {
+        sendPushToStudentAsync(
+          student.id,
+          dojoId,
+          {
+            title: "✅ Asistencia registrada",
+            body:  `¡Hola ${student.firstName ?? student.fullName.split(" ")[0]}! Tu entrada al dojo quedó registrada.`,
+            url:   "/portal/attendance",
+            tag:   "attendance-entry",
+          },
+          { type: "attendance" },
+        );
+      }
+    }
 
     return NextResponse.json({ ok: true, attendance, student: studentOut }, { status: 201 });
 

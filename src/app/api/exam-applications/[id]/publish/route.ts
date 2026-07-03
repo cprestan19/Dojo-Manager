@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { sendPushToSubscriptions, logPushSent } from "@/lib/push";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -49,6 +50,31 @@ export async function POST(req: NextRequest, { params }: Params) {
       resourceId:   id,
       statusCode:   200,
     });
+
+    // Push a los alumnos invitados — fire-and-forget
+    const pushSettings = await prisma.pushSettings.findUnique({ where: { dojoId }, select: { enabled: true, notifyExamPublished: true } }).catch(() => null);
+    if (pushSettings?.enabled && pushSettings.notifyExamPublished) {
+      const examDate = existing.examDate.toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "long" });
+      const inviteeStudentIds = await prisma.examApplicationInvitee.findMany({
+        where:  { applicationId: id },
+        select: { studentId: true },
+      });
+      const studentIds = inviteeStudentIds.map(i => i.studentId);
+      const subs = await prisma.pushSubscription.findMany({
+        where:  { studentId: { in: studentIds }, active: true },
+        select: { endpoint: true, p256dh: true, auth: true },
+      });
+      if (subs.length > 0) {
+        sendPushToSubscriptions(subs, {
+          title: "📋 Nueva convocatoria de examen",
+          body:  `"${existing.title}" — ${examDate}. Confirma tu participación.`,
+          url:   "/portal/postulaciones",
+          tag:   "exam-published",
+        }).then(result =>
+          logPushSent({ dojoId, type: "exam_published", title: "Nueva convocatoria de examen", body: existing.title, url: "/portal/postulaciones", result })
+        ).catch(() => {});
+      }
+    }
 
     return NextResponse.json(updated);
   } catch (err) {

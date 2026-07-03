@@ -34,7 +34,7 @@ interface RsvpData {
   eventId: string; eventTitle: string;
   attending: RsvpAttendee[];
   notAttending: { rsvpId: string; studentId: string; fullName: string; createdAt: string }[];
-  attendingCount: number; notAttendingCount: number;
+  attendingCount: number; notAttendingCount: number; pendingCount: number;
 }
 
 type Tab = "active" | "past";
@@ -248,14 +248,16 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting }: {
               }`}
             >
               <Users size={12} />
-              Confirmados
+              Asistencias
               {rsvpData && (
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                  rsvpData.attendingCount > 0
-                    ? "bg-green-500/20 text-green-400"
-                    : "bg-dojo-border/40 text-dojo-muted"
-                }`}>
-                  {rsvpData.attendingCount}
+                <span className="flex items-center gap-1 text-[10px] font-bold">
+                  <span className="px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400">{rsvpData.attendingCount}✅</span>
+                  {rsvpData.notAttendingCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400">{rsvpData.notAttendingCount}🚫</span>
+                  )}
+                  {rsvpData.pendingCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-dojo-border/40 text-dojo-muted">{rsvpData.pendingCount}⏳</span>
+                  )}
                 </span>
               )}
             </button>
@@ -305,40 +307,95 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting }: {
                 </div>
               </div>
             ) : (
-              <div className="p-4">
+              <div className="p-4 space-y-4 overflow-y-auto max-h-96">
                 {rsvpLoading ? (
                   <div className="flex justify-center py-8">
                     <div className="w-5 h-5 rounded-full border-2 border-dojo-red border-t-transparent animate-spin" />
                   </div>
-                ) : !rsvpData || rsvpData.attendingCount === 0 ? (
+                ) : !rsvpData ? (
                   <div className="text-center py-10 space-y-2">
                     <Users size={26} className="mx-auto text-dojo-muted opacity-40" />
-                    <p className="text-dojo-muted text-sm">Ningún alumno ha confirmado participación aún.</p>
+                    <p className="text-dojo-muted text-sm">Sin datos de respuestas.</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <p className="text-xs text-dojo-muted flex items-center gap-1 mb-3">
-                      <CheckCircle2 size={11} className="text-green-400" />
-                      {rsvpData.attendingCount} confirmado{rsvpData.attendingCount !== 1 ? "s" : ""}
-                    </p>
-                    {rsvpData.attending.map((a, i) => (
-                      <div key={a.rsvpId} className="flex items-center gap-2.5 bg-dojo-darker border border-dojo-border/60 rounded-lg px-3 py-2">
-                        <span className="text-[10px] text-dojo-muted w-4 shrink-0">{i + 1}.</span>
-                        {a.photo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={a.photo} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                        ) : (
-                          <div className="w-7 h-7 rounded-full bg-dojo-border flex items-center justify-center text-[11px] font-bold text-dojo-gold shrink-0">
-                            {a.fullName[0]?.toUpperCase() ?? "?"}
-                          </div>
-                        )}
-                        <p className="text-dojo-white text-sm font-medium truncate flex-1">{a.fullName}</p>
-                        <span className="text-[10px] text-dojo-muted shrink-0">
-                          {new Date(a.createdAt).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short", year: "numeric" })}
+                  <>
+                    {/* ── Confirmados ── */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-bold text-green-400 flex items-center gap-1.5">
+                        <CheckCircle2 size={11} />
+                        Confirmados
+                        <span className="bg-green-500/15 text-green-400 px-1.5 py-0.5 rounded-full text-[10px]">
+                          {rsvpData.attendingCount}
                         </span>
-                      </div>
-                    ))}
-                  </div>
+                      </p>
+                      {rsvpData.attendingCount === 0 ? (
+                        <p className="text-xs text-dojo-muted pl-4">Ningún alumno ha confirmado aún.</p>
+                      ) : (
+                        rsvpData.attending.map((a, i) => (
+                          <div key={a.rsvpId} className="flex items-center gap-2.5 bg-dojo-darker border border-green-900/30 rounded-lg px-3 py-2">
+                            <span className="text-[10px] text-dojo-muted w-4 shrink-0">{i + 1}.</span>
+                            {a.photo ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={a.photo} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-dojo-border flex items-center justify-center text-[11px] font-bold text-dojo-gold shrink-0">
+                                {a.fullName[0]?.toUpperCase() ?? "?"}
+                              </div>
+                            )}
+                            <p className="text-dojo-white text-sm font-medium truncate flex-1">{a.fullName}</p>
+                            <span className="text-[10px] text-dojo-muted shrink-0">
+                              {new Date(a.createdAt).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short" })}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* ── No asistirá ── */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-bold text-red-400 flex items-center gap-1.5">
+                        <X size={11} />
+                        No asistirá
+                        <span className="bg-red-500/15 text-red-400 px-1.5 py-0.5 rounded-full text-[10px]">
+                          {rsvpData.notAttendingCount}
+                        </span>
+                      </p>
+                      {rsvpData.notAttendingCount === 0 ? (
+                        <p className="text-xs text-dojo-muted pl-4">Ningún alumno ha declinado.</p>
+                      ) : (
+                        rsvpData.notAttending.map((a, i) => (
+                          <div key={a.rsvpId} className="flex items-center gap-2.5 bg-dojo-darker border border-red-900/30 rounded-lg px-3 py-2">
+                            <span className="text-[10px] text-dojo-muted w-4 shrink-0">{i + 1}.</span>
+                            <div className="w-7 h-7 rounded-full bg-red-900/20 flex items-center justify-center text-[11px] font-bold text-red-400 shrink-0">
+                              {a.fullName[0]?.toUpperCase() ?? "?"}
+                            </div>
+                            <p className="text-dojo-white text-sm font-medium truncate flex-1">{a.fullName}</p>
+                            <span className="text-[10px] text-dojo-muted shrink-0">
+                              {new Date(a.createdAt).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short" })}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* ── Sin respuesta / Pendiente ── */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-bold text-yellow-400/80 flex items-center gap-1.5">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full border border-yellow-400/60 shrink-0" />
+                        Sin respuesta
+                        <span className="bg-yellow-500/10 text-yellow-400/80 px-1.5 py-0.5 rounded-full text-[10px]">
+                          {rsvpData.pendingCount}
+                        </span>
+                      </p>
+                      {rsvpData.pendingCount === 0 ? (
+                        <p className="text-xs text-dojo-muted pl-4">Todos los alumnos respondieron.</p>
+                      ) : (
+                        <p className="text-xs text-dojo-muted pl-4">
+                          {rsvpData.pendingCount} alumno{rsvpData.pendingCount !== 1 ? "s" : ""} aún no ha{rsvpData.pendingCount !== 1 ? "n" : ""} respondido.
+                        </p>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             )}
