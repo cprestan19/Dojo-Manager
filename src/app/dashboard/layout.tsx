@@ -11,6 +11,7 @@ import { HelpButton } from "@/components/ui/HelpButton";
 import { BillingBanner } from "@/components/billing/BillingBanner";
 import PageRefreshHandler from "@/components/ui/PageRefreshHandler";
 import SystemNewsModal from "@/components/SystemNewsModal";
+import ActivityPing from "@/components/ui/ActivityPing";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId } from "@/lib/sysadmin-context";
 
@@ -67,6 +68,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </div>
       <SystemNewsModal />
+      <ActivityPing />
     </DashboardShell>
   );
 }

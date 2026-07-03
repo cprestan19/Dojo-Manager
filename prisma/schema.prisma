@@ -203,6 +203,7 @@ model User {
   pushSubscriptions PushSubscription[]
 
   lastSeenNewsAt DateTime? @map("last_seen_news_at")
+  lastActiveAt   DateTime? @map("last_active_at")
 
   @@index([email])
   @@index([dojoId])
