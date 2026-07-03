@@ -16,6 +16,7 @@ export async function GET() {
       select:  { id: true, version: true, title: true, publishedAt: true, audience: true },
     }),
     prisma.user.findMany({
+      where: { role: { not: "sysadmin" } }, // sysadmin no recibe novedades
       select: {
         id: true, name: true, email: true, role: true,
         lastSeenNewsAt: true, lastActiveAt: true,
@@ -27,14 +28,21 @@ export async function GET() {
 
   const result = news.map(n => {
     const pub = new Date(n.publishedAt).getTime();
-    const seen    = users.filter(u => u.lastSeenNewsAt && new Date(u.lastSeenNewsAt).getTime() >= pub);
-    const notSeen = users.filter(u => !u.lastSeenNewsAt || new Date(u.lastSeenNewsAt).getTime() < pub);
+
+    // Filtrar usuarios según la audiencia configurada en la novedad
+    const audience =
+      n.audience === "students" ? users.filter(u => u.role === "student")
+      : n.audience === "admins"  ? users.filter(u => u.role !== "student")
+      : users; // "all"
+
+    const seen    = audience.filter(u => u.lastSeenNewsAt && new Date(u.lastSeenNewsAt).getTime() >= pub);
+    const notSeen = audience.filter(u => !u.lastSeenNewsAt || new Date(u.lastSeenNewsAt).getTime() < pub);
     return {
       ...n,
-      totalUsers:  users.length,
-      seenCount:   seen.length,
+      totalUsers:   audience.length,
+      seenCount:    seen.length,
       notSeenCount: notSeen.length,
-      seenUsers:   seen.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, dojoName: u.dojo?.name ?? null, lastSeenAt: u.lastSeenNewsAt })),
+      seenUsers:    seen.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, dojoName: u.dojo?.name ?? null, lastSeenAt: u.lastSeenNewsAt })),
       notSeenUsers: notSeen.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, dojoName: u.dojo?.name ?? null, lastActiveAt: u.lastActiveAt })),
     };
   });
