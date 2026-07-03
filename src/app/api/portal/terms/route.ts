@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     const student = await prisma.student.findUnique({
       where:  { id: user.studentId },
-      select: { dojoId: true },
+      select: { dojoId: true, motherEmail: true, fatherEmail: true },
     });
     if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
 
@@ -69,11 +69,40 @@ export async function POST(req: NextRequest) {
       ?? req.headers.get("x-real-ip")
       ?? null;
 
-    const acceptance = await prisma.termsAcceptance.upsert({
-      where:  { studentId_dojoId: { studentId: user.studentId!, dojoId } },
-      create: { studentId: user.studentId!, dojoId, version: policy.version, ipAddress: ip },
-      update: { version: policy.version, acceptedAt: new Date(), ipAddress: ip },
-    });
+    // Buscar hermanos: alumnos del mismo dojo que comparten motherEmail o fatherEmail
+    const parentEmails = [student.motherEmail?.trim(), student.fatherEmail?.trim()]
+      .filter((e): e is string => !!e);
+
+    const siblingIds: string[] = [];
+    if (parentEmails.length > 0) {
+      const siblings = await prisma.student.findMany({
+        where: {
+          dojoId,
+          id:     { not: user.studentId! },
+          active: true,
+          OR: [
+            ...parentEmails.map(e => ({ motherEmail: e })),
+            ...parentEmails.map(e => ({ fatherEmail: e })),
+          ],
+        },
+        select: { id: true },
+      });
+      siblingIds.push(...siblings.map(s => s.id));
+    }
+
+    const allStudentIds = [user.studentId!, ...siblingIds];
+
+    // Upsert de aceptación para el principal y todos los hermanos
+    const now = new Date();
+    await Promise.all(
+      allStudentIds.map(sid =>
+        prisma.termsAcceptance.upsert({
+          where:  { studentId_dojoId: { studentId: sid, dojoId } },
+          create: { studentId: sid, dojoId, version: policy.version, ipAddress: ip },
+          update: { version: policy.version, acceptedAt: now, ipAddress: ip },
+        })
+      )
+    );
 
     const ctx = buildAuditCtx(session, req, { dojoId });
     await logAudit({
@@ -81,9 +110,9 @@ export async function POST(req: NextRequest) {
       action:       "TERMS_ACCEPTED",
       module:       AUDIT_MODULE.PORTAL,
       resourceType: "TermsAcceptance",
-      resourceId:   acceptance.id,
+      resourceId:   user.studentId!,
       statusCode:   200,
-      details:      JSON.stringify({ version: policy.version }),
+      details:      JSON.stringify({ version: policy.version, siblings: siblingIds.length }),
     });
 
     return NextResponse.json({ ok: true });
