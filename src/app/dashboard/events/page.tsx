@@ -30,10 +30,14 @@ interface RsvpAttendee {
   photo: string | null; belt: string | null;
   note: string | null; createdAt: string;
 }
+interface RsvpPending {
+  studentId: string; fullName: string; photo: string | null;
+}
 interface RsvpData {
   eventId: string; eventTitle: string;
   attending: RsvpAttendee[];
   notAttending: { rsvpId: string; studentId: string; fullName: string; createdAt: string }[];
+  pending: RsvpPending[];
   attendingCount: number; notAttendingCount: number; pendingCount: number;
 }
 
@@ -409,11 +413,22 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting }: {
                         </span>
                       </p>
                       {rsvpData.pendingCount === 0 ? (
-                        <p className="text-xs text-dojo-muted pl-4">Todos los alumnos respondieron.</p>
+                        <p className="text-xs text-dojo-muted pl-4">Todos los alumnos respondieron. ✓</p>
                       ) : (
-                        <p className="text-xs text-dojo-muted pl-4">
-                          {rsvpData.pendingCount} alumno{rsvpData.pendingCount !== 1 ? "s" : ""} aún no ha{rsvpData.pendingCount !== 1 ? "n" : ""} respondido.
-                        </p>
+                        rsvpData.pending.map((s, i) => (
+                          <div key={s.studentId} className="flex items-center gap-2.5 bg-dojo-darker border border-yellow-900/20 rounded-lg px-3 py-2">
+                            <span className="text-[10px] text-dojo-muted w-4 shrink-0">{i + 1}.</span>
+                            {s.photo ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={s.photo} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-yellow-900/20 flex items-center justify-center text-[11px] font-bold text-yellow-400/70 shrink-0">
+                                {s.fullName[0]?.toUpperCase() ?? "?"}
+                              </div>
+                            )}
+                            <p className="text-dojo-white text-sm font-medium truncate flex-1">{s.fullName}</p>
+                          </div>
+                        ))
                       )}
                     </div>
                   </>

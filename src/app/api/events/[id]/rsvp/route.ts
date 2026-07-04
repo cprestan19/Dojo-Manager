@@ -49,8 +49,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const attending    = rsvps.filter(r => r.status === "attending");
   const notAttending = rsvps.filter(r => r.status === "not_attending");
 
-  const totalStudents = await prisma.student.count({ where: { dojoId, active: true } });
-  const pendingCount  = Math.max(0, totalStudents - attending.length - notAttending.length);
+  const respondedIds = new Set(rsvps.map(r => r.studentId));
+  const pendingStudents = await prisma.student.findMany({
+    where:   { dojoId, active: true, id: { notIn: [...respondedIds] } },
+    select:  { id: true, fullName: true, photo: true },
+    orderBy: { fullName: "asc" },
+  });
 
   return NextResponse.json({
     eventId:       event.id,
@@ -70,8 +74,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       fullName:  r.student.fullName,
       createdAt: r.createdAt,
     })),
+    pending: pendingStudents.map(s => ({
+      studentId: s.id,
+      fullName:  s.fullName,
+      photo:     s.photo?.startsWith("http") ? s.photo : null,
+    })),
     attendingCount:    attending.length,
     notAttendingCount: notAttending.length,
-    pendingCount,
+    pendingCount:      pendingStudents.length,
   });
 }
