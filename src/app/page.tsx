@@ -126,12 +126,22 @@ type PlanVisual = {
 const PLAN_VISUAL: Record<string, PlanVisual> = {
   "Bronce": {
     emoji:"🥉", color:"#78716C", highlight:false, badge:null,
-    missing:["Página web del dojo","Tienda en línea","Asistencia a torneos","Módulo de torneos Pro","CRM de prospectos","Reportes avanzados"],
+    missing:[
+      "Diseño de carnet digital para cada alumno",
+      "Diplomas automáticos en cada ascenso de cinta",
+      "Módulo de eventos y postulaciones a torneos",
+      "Push de notificaciones a alumnos",
+      "Página web profesional del dojo incluida",
+      "Tienda en línea",
+      "CRM de prospectos",
+      "Reportes avanzados",
+      "Módulo de Torneos Pro",
+    ],
     cta:"Crear cuenta gratis", ctaLink:"/register",
   },
   "Silver": {
     emoji:"🥈", color:"#94A3B8", highlight:false, badge:null,
-    missing:["Torneo Pro con streaming"],
+    missing:["Módulo de Torneos Pro con streaming"],
     cta:"Empezar con Silver", ctaLink:"/register",
   },
   "Gold": {
@@ -166,7 +176,10 @@ interface DbPlan {
 const FAQS = [
   { q:"¿Necesito equipo especial para el control de asistencia?", a:"No. El scanner QR funciona desde la cámara de cualquier smartphone. El alumno muestra su código desde su portal y en menos de 1 segundo queda registrado. Sin lectores, sin tablets adicionales, sin costo extra." },
   { q:"¿Cómo reciben los alumnos sus recordatorios de pago?", a:"Automáticamente por correo electrónico. El sistema detecta pagos en mora según la tolerancia que configures y envía el recordatorio sin que hagas nada. También puedes enviarlo manualmente con un clic." },
-  { q:"¿Qué puede ver el alumno en su portal?", a:"Cada alumno ve su historial completo de pagos, registro de asistencia, cintas obtenidas y los videos de las katas de cada cinta que ya logró. Tú subes y organizas los videos desde el panel del Sensei." },
+  { q:"¿Qué puede ver el alumno en su portal?", a:"Cada alumno accede a su historial completo de pagos, asistencia, cintas obtenidas, videos de katas, carnet digital, diplomas de cada ascenso, medallas y logros ganados en torneos. También puede explorar su trayectoria y crecimiento como atleta a lo largo del tiempo." },
+  { q:"¿Cómo funcionan los diplomas y carnets digitales de cinta?", a:"Cada vez que registras un cambio de cinta en el panel, el sistema genera automáticamente el diploma y actualiza el carnet digital del alumno. El alumno lo ve al instante en su portal y puede descargarlo. Sin impresoras, sin formularios, sin demoras — todo automatizado." },
+  { q:"¿Cómo funciona el módulo de eventos para torneos?", a:"Creas el evento, seleccionas los alumnos que participarán y el sistema genera la lista de confirmados. El día del torneo pasas lista con un toque y calificas medallas y posiciones al instante. Todo queda registrado en el expediente permanente del atleta — el alumno puede ver sus logros, las katas con las que ganó medallas y explorar su crecimiento desde su portal." },
+  { q:"¿Necesito instalar alguna aplicación?", a:"No. Dojo Master es 100% en la nube. El Sensei gestiona todo desde el navegador de cualquier celular, tablet o computadora con internet. Los alumnos también acceden a su portal desde el navegador, sin descargar ninguna app. Funciona en iOS, Android, Windows y Mac." },
   { q:"¿La página web del dojo tiene costo adicional?", a:"No. En Silver y Gold la página de tu dojo está incluida: logo, horarios, galería, perfil del Sensei, formulario de clase gratuita y tienda. La configuras en menos de 30 minutos." },
   { q:"¿Qué incluye el módulo de Torneos Pro (Gold)?", a:"Torneos con streaming en vivo por YouTube u OBS, múltiples tatamis simultáneos, asignación de jueces y árbitros, inscripciones federativas online, programa del evento y overlay profesional para transmisión." },
   { q:"¿Mis datos están seguros?", a:"Sí. Cada dojo tiene sus datos completamente aislados. Las imágenes van a Cloudinary (CDN global). Base de datos PostgreSQL con cifrado. Puedes exportar todo en CSV cuando quieras." },
@@ -428,6 +441,37 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* ══ SIN INSTALACIÓN ════════════════════════════════════ */}
+      <div style={{ borderBottom:"1px solid rgba(255,255,255,.05)", padding:"22px 32px",
+        background:"linear-gradient(90deg,rgba(59,130,246,.06),rgba(99,102,241,.06),rgba(59,130,246,.06))" }}>
+        <div style={{ maxWidth:1100, margin:"0 auto", display:"flex", flexWrap:"wrap",
+          justifyContent:"center", gap:"14px 52px" }}>
+          {(es
+            ? [
+                { icon:Wifi,       text:"100% en la nube — sin instalar nada" },
+                { icon:Smartphone, text:"Funciona en cualquier celular, tablet o PC" },
+                { icon:Globe,      text:"Gestiona tu dojo desde cualquier lugar del mundo" },
+                { icon:Clock,      text:"Disponible las 24 horas, los 7 días" },
+              ]
+            : [
+                { icon:Wifi,       text:"100% cloud — nothing to install" },
+                { icon:Smartphone, text:"Works on any phone, tablet or PC" },
+                { icon:Globe,      text:"Manage your dojo from anywhere in the world" },
+                { icon:Clock,      text:"Available 24 hours, 7 days a week" },
+              ]
+          ).map(({ icon: Icon, text }) => (
+            <div key={text} style={{ display:"flex", alignItems:"center", gap:9,
+              color:"rgba(255,255,255,.65)", fontSize:13, fontWeight:600 }}>
+              <div style={{ width:28, height:28, borderRadius:8, background:"rgba(59,130,246,.18)",
+                display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <Icon size={14} color="#60a5fa"/>
+              </div>
+              {text}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ══ PROBLEMA / SOLUCIÓN ════════════════════════════════ */}
       <section style={{ padding:"96px 32px" }}>
         <div style={{ maxWidth:900, margin:"0 auto" }}>
@@ -466,8 +510,8 @@ export default function LandingPage() {
                   <Check size={14}/> {es?"Con Dojo Master":"With Dojo Master"}
                 </p>
                 {(es
-                  ? ["Ficha completa: foto, cintas, pagos, asistencia en tiempo real","Recordatorios de mora van solos por correo electrónico","QR desde la cámara de tu celular — 1 segundo por alumno","Página web de tu dojo lista en 30 minutos, incluida","Brackets automáticos de Kumite y Kata en segundos","Tus alumnos ven su historial y videos de katas en su portal","Todo en un solo lugar, sin apps adicionales"]
-                  : ["Full profile: photo, belts, payments, attendance in real time","Late payment reminders send themselves by email","QR from your phone camera — 1 second per student","Your dojo website ready in 30 min, included","Auto Kumite and Kata brackets in seconds","Students see their history and kata videos in their portal","Everything in one place"]
+                  ? ["Ficha completa: foto, cintas, pagos, asistencia en tiempo real","Recordatorios de mora van solos por correo electrónico","QR desde la cámara de tu celular — 1 segundo por alumno","Carnet digital y diploma automático con cada cambio de cinta","Página web de tu dojo lista en 30 minutos, incluida","Brackets automáticos de Kumite y Kata en segundos","Tus alumnos ven historial, logros, medallas y trayectoria en su portal","Sin instalar nada — gestiona desde cualquier celular, tablet o PC"]
+                  : ["Full profile: photo, belts, payments, attendance in real time","Late payment reminders send themselves by email","QR from your phone camera — 1 second per student","Digital ID and diploma auto-generated with each belt promotion","Your dojo website ready in 30 min, included","Auto Kumite and Kata brackets in seconds","Students see history, achievements, medals and growth in their portal","Nothing to install — manage from any phone, tablet or PC"]
                 ).map(s=>(
                   <div key={s} style={{ display:"flex", alignItems:"flex-start", gap:10, fontSize:14, color:"rgba(255,255,255,.78)", marginBottom:10 }}>
                     <Check size={13} color="#34d399" style={{ flexShrink:0, marginTop:2 }}/>{s}
@@ -626,11 +670,141 @@ export default function LandingPage() {
                     : "Each student accesses their portal: payment history, attendance, belts earned and kata videos for each belt they've already achieved. You upload the videos, they learn at home."}
                 </p>
                 {(es
-                  ? ["Historial completo de pagos y recibos","Videos de katas desbloqueados por cinta","El Sensei sube y organiza los videos","Historial de asistencia propio","Horarios de clase asignados","Acceso desde cualquier celular o PC"]
-                  : ["Complete payment history and receipts","Kata videos unlocked per belt","Sensei uploads and organizes videos","Own attendance history","Assigned class schedules","Access from any phone or PC"]
+                  ? ["Historial completo de pagos y recibos","Videos de katas desbloqueados por cinta","El Sensei sube y organiza los videos","Historial de asistencia propio","Horarios de clase asignados","Carnet y diploma digital de cada cinta obtenida","Medallas y logros de torneos registrados en su expediente","Explora tu trayectoria y crecimiento como atleta y karateka","Acceso desde cualquier celular o PC, sin instalar nada"]
+                  : ["Complete payment history and receipts","Kata videos unlocked per belt","Sensei uploads and organizes videos","Own attendance history","Assigned class schedules","Digital ID card and diploma for each belt earned","Tournament medals and achievements in their record","Explore your trajectory and growth as an athlete","Access from any phone or PC, nothing to install"]
                 ).map(i=>(
                   <div key={i} style={{ display:"flex", alignItems:"center", gap:8, fontSize:14, color:"rgba(255,255,255,.6)", marginBottom:8 }}>
                     <Check size={13} color="#60a5fa" style={{flexShrink:0}}/>{i}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Reveal>
+
+          {/* ── F3.5: Diplomas y Carnet de Cinta ── */}
+          <Reveal>
+            <div className="feat-grid">
+              <Reveal delay={150}>
+                <div style={{ display:"flex", justifyContent:"center", alignItems:"center" }}>
+                  {/* Diploma — landscape, formato certificado */}
+                  <div style={{
+                    width:"100%", maxWidth:420,
+                    background:"linear-gradient(160deg,#fffdf5 0%,#fdf8ec 60%,#faf3e0 100%)",
+                    borderRadius:12,
+                    boxShadow:`0 32px 80px rgba(0,0,0,.7), 0 0 40px ${GOLD}25`,
+                    padding:3,
+                    border:`2px solid ${GOLD}`,
+                  }}>
+                    {/* Borde decorativo interior */}
+                    <div style={{
+                      border:`1px solid ${GOLD}70`,
+                      borderRadius:9,
+                      padding:"20px 24px",
+                      background:"linear-gradient(160deg,#fffdf5,#faf3e0)",
+                      position:"relative",
+                      overflow:"hidden",
+                    }}>
+                      {/* Ornamentos en las esquinas */}
+                      {[
+                        { top:6,  left:6,  borderTop:`2px solid ${GOLD}`, borderLeft:`2px solid ${GOLD}` },
+                        { top:6,  right:6, borderTop:`2px solid ${GOLD}`, borderRight:`2px solid ${GOLD}` },
+                        { bottom:6, left:6,  borderBottom:`2px solid ${GOLD}`, borderLeft:`2px solid ${GOLD}` },
+                        { bottom:6, right:6, borderBottom:`2px solid ${GOLD}`, borderRight:`2px solid ${GOLD}` },
+                      ].map((s,i)=>(
+                        <div key={i} style={{ position:"absolute", width:16, height:16, ...s }}/>
+                      ))}
+
+                      {/* Marca de agua decorativa */}
+                      <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center",
+                        justifyContent:"center", pointerEvents:"none", opacity:.04, fontSize:110 }}>🥋</div>
+
+                      {/* Header */}
+                      <div style={{ textAlign:"center", marginBottom:14, position:"relative" }}>
+                        <div style={{ fontSize:8, fontWeight:700, color:"#b8860b", letterSpacing:".4em",
+                          textTransform:"uppercase", marginBottom:6 }}>Dojo Master Online</div>
+                        <div style={{ fontFamily:"'Cinzel',serif", fontSize:26, fontWeight:900,
+                          color:"#7f1d1d", letterSpacing:".12em", lineHeight:1 }}>DIPLOMA</div>
+                        <div style={{ fontSize:9, color:"#a0845c", letterSpacing:".25em",
+                          textTransform:"uppercase", marginTop:4 }}>de Ascenso de Grado</div>
+                      </div>
+
+                      {/* Línea divisoria dorada */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+                        <div style={{ flex:1, height:1, background:`linear-gradient(to right,transparent,${GOLD})` }}/>
+                        <div style={{ fontSize:14, color:GOLD }}>✦</div>
+                        <div style={{ flex:1, height:1, background:`linear-gradient(to left,transparent,${GOLD})` }}/>
+                      </div>
+
+                      {/* Cuerpo */}
+                      <div style={{ textAlign:"center", marginBottom:14 }}>
+                        <div style={{ fontSize:9, color:"#888", marginBottom:4, fontStyle:"italic" }}>
+                          Se certifica que el alumno
+                        </div>
+                        <div style={{ fontFamily:"'Cinzel',serif", fontSize:18, fontWeight:900,
+                          color:"#1a0a00", marginBottom:4, letterSpacing:".05em" }}>
+                          Carlos Molina
+                        </div>
+                        <div style={{ fontSize:9, color:"#888", marginBottom:8, fontStyle:"italic" }}>
+                          ha completado satisfactoriamente los requisitos y alcanzado el grado de
+                        </div>
+                        <div style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"6px 20px",
+                          borderRadius:4, background:"rgba(120,53,15,.08)",
+                          border:`1px solid rgba(120,53,15,.2)`,
+                          fontSize:13, fontWeight:800, color:"#78350f" }}>
+                          🟤 &nbsp;Cinta Café
+                        </div>
+                      </div>
+
+                      {/* Línea divisoria */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+                        <div style={{ flex:1, height:1, background:`linear-gradient(to right,transparent,${GOLD}60)` }}/>
+                        <div style={{ fontSize:10, color:`${GOLD}90` }}>✦</div>
+                        <div style={{ flex:1, height:1, background:`linear-gradient(to left,transparent,${GOLD}60)` }}/>
+                      </div>
+
+                      {/* Pie — firmas */}
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
+                        {[["Jul 2026","Fecha de otorgamiento"],["Roberto Arias","Sensei — Dojo Bushido"]].map(([v,k])=>(
+                          <div key={k} style={{ textAlign:"center", flex:1 }}>
+                            <div style={{ fontSize:11, fontWeight:700, color:"#333",
+                              borderBottom:`1px solid #c8a96e`, paddingBottom:3, marginBottom:4,
+                              fontFamily:"'Cinzel',serif" }}>{v}</div>
+                            <div style={{ fontSize:8, color:"#999", letterSpacing:".05em" }}>{k}</div>
+                          </div>
+                        ))}
+                        <div style={{ textAlign:"center", flex:1 }}>
+                          <div style={{ width:36, height:36, borderRadius:"50%",
+                            border:`2px solid ${GOLD}`, margin:"0 auto 4px",
+                            display:"flex", alignItems:"center", justifyContent:"center",
+                            fontSize:16, background:`${GOLD}15` }}>🥋</div>
+                          <div style={{ fontSize:8, color:"#999" }}>Sello oficial</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+              <div>
+                <div style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"6px 14px",
+                  borderRadius:100, fontSize:12, fontWeight:700, background:`${GOLD}22`, color:GOLD,
+                  marginBottom:20 }}>
+                  <Award size={13}/> {es?"Automático en cada ascenso":"Auto-generated on each promotion"}
+                </div>
+                <h3 style={{ fontFamily:"'Cinzel',serif", fontWeight:900, fontSize:"clamp(1.5rem,3vw,2.2rem)",
+                  lineHeight:1.15, marginBottom:16, color:"#eef0f8" }}>
+                  {es?"Diploma y carnet digital\nsin papelería ni trámites":"Digital diploma and ID card\nno paperwork needed"}
+                </h3>
+                <p style={{ color:"rgba(255,255,255,.68)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
+                  {es
+                    ? "Cada vez que un alumno asciende de cinta, el sistema genera automáticamente su diploma y actualiza su carnet digital. El alumno lo ve al instante en su portal — sin que el Sensei llene formularios ni gestione impresiones."
+                    : "Every time a student is promoted, the system auto-generates their diploma and updates their digital ID. The student sees it instantly in their portal — no forms to fill, no printing to manage."}
+                </p>
+                {(es
+                  ? ["Diploma generado al registrar el cambio de cinta","Carnet digital actualizado automáticamente con la nueva cinta","El alumno descarga su diploma desde su portal sin pedirlo","Historial completo de todos sus ascensos con fecha y Sensei firmante","Sin impresoras, sin formularios, sin demoras — 100% automatizado"]
+                  : ["Diploma generated when belt change is recorded","Digital ID auto-updated with the new belt","Student downloads their diploma from the portal without asking","Full history of all promotions with date and signing Sensei","No printers, no forms, no delays — 100% automated"]
+                ).map(i=>(
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:8, fontSize:14, color:"rgba(255,255,255,.6)", marginBottom:8 }}>
+                    <Check size={13} color={GOLD} style={{flexShrink:0}}/>{i}
                   </div>
                 ))}
               </div>
@@ -669,6 +843,79 @@ export default function LandingPage() {
                   boxShadow:`0 32px 80px rgba(0,0,0,.6), 0 0 40px ${GOLD}15` }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="https://res.cloudinary.com/dkkoivmt6/image/upload/q_auto,f_auto/dojomasteronline/hero/torneo" alt="Módulo Torneo Pro Dojo Master" width={800} height={500} style={{ width:"100%", display:"block" }}/>
+                </div>
+              </Reveal>
+            </div>
+          </Reveal>
+
+          {/* ── F4.5: Eventos y Logros del Atleta ── */}
+          <Reveal>
+            <div className="feat-grid">
+              <div>
+                <div style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"6px 14px",
+                  borderRadius:100, fontSize:12, fontWeight:700, background:"rgba(249,115,22,.18)", color:"#fb923c",
+                  marginBottom:20 }}>
+                  <Calendar size={13}/> {es?"Registro instantáneo":"Instant record"}
+                </div>
+                <h3 style={{ fontFamily:"'Cinzel',serif", fontWeight:900, fontSize:"clamp(1.5rem,3vw,2.2rem)",
+                  lineHeight:1.15, marginBottom:16, color:"#eef0f8" }}>
+                  {es?"Eventos, torneos y logros\nen el expediente del atleta":"Events, tournaments and achievements\nin the athlete's record"}
+                </h3>
+                <p style={{ color:"rgba(255,255,255,.68)", fontSize:16, lineHeight:1.75, marginBottom:24 }}>
+                  {es
+                    ? "Crea el evento, define qué alumnos participan y pasa lista el día del torneo con un toque. Califica medallas y posiciones al instante — todo queda grabado en el expediente permanente del atleta. El alumno puede explorar su historial de logros, las katas con las que ganó medallas y su crecimiento como karateka a lo largo del tiempo."
+                    : "Create the event, pick participating students and take attendance on tournament day with one tap. Record medals and rankings instantly — everything stays in the athlete's permanent record. Students can explore their achievement history, the katas they won medals with and their growth as a karateka over time."}
+                </p>
+                {(es
+                  ? ["Crea eventos con lista de participantes confirmados","Pasa lista el día del torneo en segundos","Califica medallas (oro, plata, bronce) y posiciones al instante","Los logros quedan en el expediente permanente del atleta","El alumno ve sus katas ganadoras y trayectoria en su portal","Explora el crecimiento de cada karateka a lo largo del tiempo"]
+                  : ["Create events with confirmed participant list","Take attendance on tournament day in seconds","Record gold, silver, bronze medals and rankings instantly","Achievements stay in the athlete's permanent record","Student sees winning katas and trajectory in their portal","Explore each karateka's growth over time"]
+                ).map(i=>(
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:8, fontSize:14, color:"rgba(255,255,255,.6)", marginBottom:8 }}>
+                    <Check size={13} color="#fb923c" style={{flexShrink:0}}/>{i}
+                  </div>
+                ))}
+              </div>
+              <Reveal delay={150}>
+                <div style={{ borderRadius:16, overflow:"hidden", background:BG,
+                  border:"1.5px solid rgba(249,115,22,.25)",
+                  boxShadow:"0 32px 80px rgba(0,0,0,.6), 0 0 40px rgba(249,115,22,.1)" }}>
+                  <div style={{ padding:20 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:700, color:"#eef0f8" }}>Campeonato Nacional 2026</div>
+                        <div style={{ fontSize:10, color:"rgba(255,255,255,.4)", marginTop:2 }}>15 participantes · 4 katas</div>
+                      </div>
+                      <div style={{ padding:"3px 10px", borderRadius:100, fontSize:11, fontWeight:700,
+                        background:"rgba(249,115,22,.2)", color:"#fb923c", flexShrink:0 }}>En curso</div>
+                    </div>
+                    {[
+                      { name:"Ana Moreno",  kata:"Heian Shodan", medal:"🥇", medalColor:"#F59E0B" },
+                      { name:"Luis Castro", kata:"Bassai Dai",   medal:"🥈", medalColor:"#94A3B8" },
+                      { name:"María Salas", kata:"Kanku Dai",    medal:"🥉", medalColor:"#78716C" },
+                      { name:"Juan Reyes",  kata:"Jion",         medal:"—",  medalColor:"rgba(255,255,255,.2)" },
+                    ].map(row=>(
+                      <div key={row.name} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px",
+                        borderRadius:10, marginBottom:6, background:CARD }}>
+                        <div style={{ width:28, height:28, borderRadius:"50%", background:PRIMARY,
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          fontSize:10, fontWeight:900, color:"#fff", flexShrink:0 }}>
+                          {row.name.split(" ").map((w:string)=>w[0]).join("").slice(0,2)}
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:12, fontWeight:700, color:"#eef0f8" }}>{row.name}</div>
+                          <div style={{ fontSize:10, color:"rgba(255,255,255,.4)" }}>{row.kata}</div>
+                        </div>
+                        <div style={{ fontSize:18, flexShrink:0 }}>{row.medal}</div>
+                      </div>
+                    ))}
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 12px",
+                      borderRadius:10, marginTop:6, background:"rgba(16,185,129,.08)", border:"1px solid rgba(16,185,129,.2)" }}>
+                      <Check size={13} color="#10B981" style={{flexShrink:0}}/>
+                      <p style={{ fontSize:11, color:"rgba(255,255,255,.65)" }}>
+                        {es?"Logros guardados en el expediente de cada atleta automáticamente":"Achievements saved to each athlete's record automatically"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </Reveal>
             </div>
@@ -1089,12 +1336,12 @@ export default function LandingPage() {
             {(es
               ? [
                   { icon:Shield,     title:"Gratis para siempre",        desc:"Hasta 20 alumnos, sin tarjeta de crédito y sin límite de tiempo. No es una prueba: es un plan real que podés usar indefinidamente." },
-                  { icon:TrendingUp, title:"Así financiamos el desarrollo", desc:"Los dojos que crecen y necesitan más (página web, alumnos ilimitados, Torneos Pro) pasan a Silver o Gold. Eso paga el desarrollo continuo de la plataforma para todos." },
+                  { icon:TrendingUp, title:"Así financiamos el desarrollo", desc:"Los dojos que crecen y necesitan más (carnets, diplomas, eventos, push de notificaciones, página web, postulaciones, Torneos Pro o alumnos ilimitados) pasan a Silver o Gold. Eso paga el desarrollo continuo de la plataforma para todos." },
                   { icon:Lock,       title:"Tus datos son tuyos",         desc:"Sin contratos de permanencia. Podés exportar la información de tus alumnos cuando quieras, te quedes con nosotros o no." },
                 ]
               : [
                   { icon:Shield,     title:"Free forever",       desc:"Up to 20 students, no credit card, no time limit. It's not a trial — it's a real plan you can use indefinitely." },
-                  { icon:TrendingUp, title:"How we fund development", desc:"Dojos that grow and need more (website, unlimited students, Tournament Pro) move to Silver or Gold. That funds ongoing development for everyone." },
+                  { icon:TrendingUp, title:"How we fund development", desc:"Dojos that grow and need more (digital ID cards, diplomas, events, push notifications, website, exam applications, Tournament Pro or unlimited students) move to Silver or Gold. That funds ongoing development for everyone." },
                   { icon:Lock,       title:"Your data is yours", desc:"No long-term contracts. Export your students' information anytime, whether you stay with us or not." },
                 ]
             ).map((item,i) => {

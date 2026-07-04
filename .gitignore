@@ -54,3 +54,6 @@ next-env.d.ts
 .turbo/
 #prisma/migrations/
 *.log
+
+.vercel
+.env*

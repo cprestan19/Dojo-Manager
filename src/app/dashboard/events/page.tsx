@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Calendar, Plus, Edit2, Trash2, X, Save, Image as ImageIcon,
   MapPin, Clock, CalendarCheck, Eye, Smartphone, Users, CheckCircle2,
+  Download,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 
@@ -193,14 +194,43 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting }: {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const fetched = useRef(false);
 
+  const [downloading, setDownloading] = useState(false);
+
   const fetchRsvp = useCallback((silent = false) => {
     if (!silent) setRsvpLoading(true);
     fetch(`/api/events/${ev.id}/rsvp`)
       .then(r => r.ok ? r.json() : null)
-      .then((d: RsvpData | null) => { if (d) { setRsvpData(d); setLastRefresh(new Date()); } })
+      .then((d: RsvpData | null) => {
+        if (d) {
+          // Ordenar alfabéticamente las tres listas
+          d.attending    = [...d.attending].sort((a, b) => a.fullName.localeCompare(b.fullName, "es"));
+          d.notAttending = [...d.notAttending].sort((a, b) => a.fullName.localeCompare(b.fullName, "es"));
+          d.pending      = [...d.pending].sort((a, b) => a.fullName.localeCompare(b.fullName, "es"));
+          setRsvpData(d);
+          setLastRefresh(new Date());
+        }
+      })
       .catch(() => {})
       .finally(() => { if (!silent) setRsvpLoading(false); });
   }, [ev.id]);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/events/${ev.id}/rsvp/export`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = res.headers.get("Content-Disposition")?.match(/filename="(.+?)"/)?.[1]
+        ?? `evento-asistencias.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* silent */ } finally {
+      setDownloading(false);
+    }
+  }
 
   function loadAttendees() {
     if (fetched.current) return;
@@ -326,11 +356,22 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting }: {
               </div>
             ) : (
               <div className="p-4 space-y-4 overflow-y-auto max-h-96">
-                {/* Indicador de auto-actualización */}
+                {/* Indicador de auto-actualización + botón descarga */}
                 {lastRefresh && (
-                  <div className="flex items-center gap-1.5 text-[10px] text-dojo-muted">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                    Actualiza automáticamente · última vez {lastRefresh.toLocaleTimeString("es-PA", { timeZone: "America/Panama", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-[10px] text-dojo-muted">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                      Actualiza automáticamente · última vez {lastRefresh.toLocaleTimeString("es-PA", { timeZone: "America/Panama", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                    </div>
+                    <button
+                      onClick={handleDownload}
+                      disabled={downloading}
+                      title="Descargar lista en Excel"
+                      className="flex items-center gap-1 text-[10px] font-semibold text-green-400 hover:text-green-300 border border-green-900/40 hover:border-green-700/60 bg-green-900/10 hover:bg-green-900/20 rounded px-2 py-1 transition-colors disabled:opacity-50 shrink-0"
+                    >
+                      <Download size={11} />
+                      {downloading ? "Generando..." : "Excel"}
+                    </button>
                   </div>
                 )}
                 {rsvpLoading ? (

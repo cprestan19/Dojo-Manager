@@ -97,8 +97,8 @@ async function sendWelcomeEmail(to: string, senseiName: string, dojoName: string
         <p style="margin:0 0 4px;font-size:13px;color:#555;">✓ Hasta <strong>20 alumnos</strong> activos</p>
         <p style="margin:0 0 4px;font-size:13px;color:#555;">✓ Control de asistencia QR, pagos y recordatorios automáticos</p>
         <p style="margin:0 0 12px;font-size:13px;color:#555;">✓ Portal del alumno con videos de katas</p>
-        <p style="margin:0 0 4px;font-size:12px;color:#92400E;"><strong>¿Más de 20 alumnos?</strong> → Plan Silver (hasta 40) — $29/mes</p>
-        <p style="margin:0;font-size:12px;color:#92400E;"><strong>¿Torneos + streaming + alumnos ilimitados?</strong> → Plan Gold — $59/mes</p>
+        <p style="margin:0 0 4px;font-size:12px;color:#92400E;"><strong>¿Más de 20 alumnos?</strong> → Plan Silver (hasta 60) — $60/mes · Carnets, diplomas, eventos, push y página web incluida</p>
+        <p style="margin:0;font-size:12px;color:#92400E;"><strong>¿Torneos + streaming + alumnos ilimitados?</strong> → Plan Gold — $80/mes</p>
       </div>
     </div>
 

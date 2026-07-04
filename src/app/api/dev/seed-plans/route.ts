@@ -27,12 +27,16 @@ const PLANS = [
   {
     name:         "Silver",
     description:  "Para dojos en crecimiento — hasta 60 alumnos",
-    monthlyPrice: 29,
-    annualPrice:  290,
+    monthlyPrice: 60,
+    annualPrice:  500,
     maxStudents:  60,
     features: [
       "Hasta 60 alumnos activos",
       "Todo lo del plan Bronce",
+      "Diseño de carnet digital para cada alumno",
+      "Diplomas automáticos en cada ascenso de cinta",
+      "Módulo de eventos y postulaciones a torneos",
+      "Push de notificaciones a alumnos",
       "Página web profesional del dojo incluida",
       "CRM de prospectos",
       "Reportes avanzados",
@@ -42,8 +46,8 @@ const PLANS = [
   {
     name:         "Gold",
     description:  "Solución completa — alumnos ilimitados + torneos Pro",
-    monthlyPrice: 59,
-    annualPrice:  590,
+    monthlyPrice: 80,
+    annualPrice:  700,
     maxStudents:  null,
     features: [
       "Alumnos ilimitados",
@@ -59,12 +63,8 @@ const PLANS = [
 ];
 
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
   const secret = req.headers.get("x-seed-secret");
-  if (secret !== SECRET) {
+  if (!SECRET || secret !== SECRET) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
