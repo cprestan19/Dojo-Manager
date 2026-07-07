@@ -52,6 +52,15 @@ export default function VideosSettingsPage() {
   function openCreate() { setEditing(empty()); setUploadErr(""); setUploadErrTachi(""); setModal(true); }
   function openEdit(v: BeltVideo) { setEditing({ ...v }); setUploadErr(""); setUploadErrTachi(""); setModal(true); }
 
+  // Cloudinary corta la conexión (sin responder) cuando un solo POST supera
+  // los 100 MB — el navegador lo reporta como "Failed to fetch". Por eso los
+  // archivos grandes se dividen en partes usando su API de subida chunked.
+  // 6 MB — tamaño de referencia de la propia documentación de Cloudinary,
+  // más confiable en conexiones lentas que partes de 20 MB.
+  const CLOUDINARY_CHUNK_SIZE = 6 * 1024 * 1024;
+
+  type CloudinaryUploadResponse = { secure_url?: string; public_id?: string; error?: { message: string } };
+
   // Sube un video directamente a Cloudinary desde el navegador usando una
   // firma temporal del servidor — evita el límite de 4.5 MB de Vercel.
   async function uploadVideoToCloudinary(file: File): Promise<{ url: string; publicId: string }> {
@@ -61,23 +70,52 @@ export default function VideosSettingsPage() {
     const { signature, timestamp, folder, apiKey, cloudName } =
       await sigRes.json() as { signature: string; timestamp: number; folder: string; apiKey: string; cloudName: string };
 
-    // 2. Subir el archivo directo a Cloudinary (sin pasar por Vercel)
-    const fd = new FormData();
-    fd.append("file",      file);
-    fd.append("api_key",   apiKey);
-    fd.append("timestamp", String(timestamp));
-    fd.append("signature", signature);
-    fd.append("folder",    folder);
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`;
 
-    const cloudRes  = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
-      { method: "POST", body: fd },
-    );
-    const cloudData = await cloudRes.json() as { secure_url?: string; public_id?: string; error?: { message: string } };
+    const baseForm = () => {
+      const fd = new FormData();
+      fd.append("api_key",   apiKey);
+      fd.append("timestamp", String(timestamp));
+      fd.append("signature", signature);
+      fd.append("folder",    folder);
+      return fd;
+    };
 
-    if (!cloudRes.ok) throw new Error(cloudData.error?.message ?? "Error al subir el video a Cloudinary");
+    // Archivo pequeño: subida simple, un solo request
+    if (file.size <= CLOUDINARY_CHUNK_SIZE) {
+      const fd = baseForm();
+      fd.append("file", file);
+      const cloudRes  = await fetch(uploadUrl, { method: "POST", body: fd });
+      const cloudData = await cloudRes.json() as CloudinaryUploadResponse;
+      if (!cloudRes.ok) throw new Error(cloudData.error?.message ?? "Error al subir el video a Cloudinary");
+      return { url: cloudData.secure_url!, publicId: cloudData.public_id! };
+    }
 
-    return { url: cloudData.secure_url!, publicId: cloudData.public_id! };
+    // Archivo grande: subida por partes (chunked upload de Cloudinary)
+    const uploadId = crypto.randomUUID();
+    let start = 0;
+    let lastData: CloudinaryUploadResponse | null = null;
+
+    while (start < file.size) {
+      const end   = Math.min(start + CLOUDINARY_CHUNK_SIZE, file.size);
+      const fd    = baseForm();
+      fd.append("file", file.slice(start, end), file.name);
+
+      const cloudRes = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          "X-Unique-Upload-Id": uploadId,
+          "Content-Range":      `bytes ${start}-${end - 1}/${file.size}`,
+        },
+        body: fd,
+      });
+      lastData = await cloudRes.json() as CloudinaryUploadResponse;
+      if (!cloudRes.ok) throw new Error(lastData?.error?.message ?? "Error al subir el video a Cloudinary");
+      start = end;
+    }
+
+    if (!lastData?.secure_url || !lastData?.public_id) throw new Error("Error al subir el video a Cloudinary");
+    return { url: lastData.secure_url, publicId: lastData.public_id };
   }
 
   async function handleVideoFile(e: React.ChangeEvent<HTMLInputElement>) {
