@@ -295,8 +295,8 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          {/* Mobile: login visible + hamburger */}
-          <div style={{ display:"flex", alignItems:"center", gap:8 }} className="md:hidden">
+          {/* Mobile: login visible + hamburger — display via clase (md:hidden), sin display inline que gane sobre la clase en desktop */}
+          <div style={{ alignItems:"center", gap:8 }} className="flex md:hidden">
             <Link href="/login" style={{
               fontSize:13, fontWeight:700, color:"rgba(255,255,255,.75)",
               padding:"7px 14px", borderRadius:100,
