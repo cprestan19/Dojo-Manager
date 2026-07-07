@@ -303,7 +303,7 @@ export default function LandingPage() {
               border:"1px solid rgba(255,255,255,.15)",
               whiteSpace:"nowrap",
             }}>
-              {es?"Entrar":"Login"}
+              {es?"Iniciar sesión":"Sign in"}
             </Link>
             <button onClick={()=>setNavOpen(o=>!o)} style={{ padding:8, background:"transparent", border:"none", color:"rgba(255,255,255,.7)", cursor:"pointer" }}>
               {navOpen ? <X size={20}/> : <Menu size={20}/>}
@@ -318,11 +318,8 @@ export default function LandingPage() {
               <a key={l} href={h} onClick={()=>setNavOpen(false)}
                 style={{ display:"block", padding:"10px 0", color:"rgba(255,255,255,.65)", fontSize:15, fontWeight:600 }}>{l}</a>
             ))}
+            {/* "Iniciar sesión" ya está siempre visible junto al hamburger — no repetirlo aquí */}
             <div style={{ display:"flex", flexDirection:"column", gap:10, marginTop:12 }}>
-              <Link href="/login" style={{ textAlign:"center", padding:"11px", borderRadius:12,
-                border:"1px solid rgba(255,255,255,.1)", fontSize:14, color:"rgba(255,255,255,.6)", fontWeight:600 }}>
-                {es?"Iniciar sesión":"Sign in"}
-              </Link>
               <Link href="/register" style={{ textAlign:"center", padding:"11px", borderRadius:12,
                 background:PRIMARY, fontSize:14, color:"#fff", fontWeight:700 }}>
                 {es?"Empieza gratis":"Start free"}
@@ -1491,9 +1488,9 @@ export default function LandingPage() {
                 style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"rgba(255,255,255,.45)", marginBottom:10 }}>
                 <MessageCircle size={13}/> WhatsApp soporte
               </a>
-              <a href="mailto:admin@dojomasteronline.com"
+              <a href="mailto:soporte@dojomasteronline.com"
                 style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"rgba(255,255,255,.45)", marginBottom:20 }}>
-                <Mail size={13}/> admin@dojomasteronline.com
+                <Mail size={13}/> soporte@dojomasteronline.com
               </a>
               <p style={{ fontWeight:700, fontSize:11, letterSpacing:".12em", textTransform:"uppercase",
                 color:"rgba(255,255,255,.5)", marginBottom:10 }}>Acceso</p>

@@ -14,7 +14,7 @@ const BORDER  = "#1E293B";
 const PRIMARY = "#C0392B";
 const GOLD    = "#F59E0B";
 
-const SUPPORT_EMAIL = "admin@dojomasteronline.com";
+const SUPPORT_EMAIL = "soporte@dojomasteronline.com";
 const LAST_UPDATED  = "7 de julio de 2026";
 
 /* ── Bloques tipográficos reutilizables ──────────────────────── */
