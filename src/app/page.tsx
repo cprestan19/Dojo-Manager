@@ -1507,6 +1507,14 @@ export default function LandingPage() {
             <p style={{ fontSize:13, color:"rgba(255,255,255,.35)" }}>
               © {new Date().getFullYear()} Dojo Master · Todos los derechos reservados
             </p>
+            <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
+              <Link href="/legal#terminos" style={{ fontSize:12, color:"rgba(255,255,255,.4)" }}>
+                Términos y Condiciones
+              </Link>
+              <Link href="/legal#devoluciones" style={{ fontSize:12, color:"rgba(255,255,255,.4)" }}>
+                Política de Devoluciones
+              </Link>
+            </div>
             <p style={{ fontSize:12, color:"rgba(255,255,255,.3)" }}>
               Hecho con 🥋 para Senseis del mundo entero
             </p>
