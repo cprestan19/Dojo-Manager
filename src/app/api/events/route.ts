@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { sendPushToDojoStudentsAsync } from "@/lib/push";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -64,6 +65,18 @@ export async function POST(req: NextRequest) {
         endDate:     new Date(endDate),
       },
     });
+
+    // Push a los alumnos del dojo — fire-and-forget
+    const pushSettings = await prisma.pushSettings.findUnique({ where: { dojoId }, select: { enabled: true, notifyNewEvent: true } }).catch(() => null);
+    if (pushSettings?.enabled && pushSettings.notifyNewEvent) {
+      const startStr = event.startDate.toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "long" });
+      sendPushToDojoStudentsAsync(dojoId, {
+        title: "📅 Nuevo evento en el dojo",
+        body:  `"${event.title}" — ${startStr}${event.location ? ` en ${event.location}` : ""}.`,
+        url:   "/portal/events",
+        tag:   "new-event",
+      }, { type: "event" });
+    }
 
     return NextResponse.json(event, { status: 201 });
   } catch (err) {
