@@ -18,7 +18,7 @@ const BG2     = "#0D1117";
 const CARD    = "#111827";
 const BORDER  = "#1E293B";
 
-const WA_NUMBER = "50762019999";
+const WA_NUMBER = "50766261768";
 const WA = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("¡Hola! Quiero saber más sobre Dojo Master 🥋")}`;
 
 /* ── Scroll reveal ──────────────────────────────────────────── */

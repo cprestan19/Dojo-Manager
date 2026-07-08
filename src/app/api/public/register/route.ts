@@ -105,8 +105,8 @@ async function sendWelcomeEmail(to: string, senseiName: string, dojoName: string
     <!-- Footer -->
     <div style="background:#f8f8f8;padding:20px 28px;text-align:center;border-top:1px solid #eee;">
       <p style="margin:0 0 8px;font-size:13px;color:#888;">¿Necesitas ayuda? Escríbenos por WhatsApp</p>
-      <a href="https://wa.me/50762019999" style="color:#C0392B;font-weight:bold;text-decoration:none;font-size:13px;">
-        📱 +507 6201-9999
+      <a href="https://wa.me/50766261768" style="color:#C0392B;font-weight:bold;text-decoration:none;font-size:13px;">
+        📱 +507 6626-1768
       </a>
       <p style="margin:12px 0 0;font-size:11px;color:#bbb;">© ${new Date().getFullYear()} Dojo Master · admin@dojomasteronline.com</p>
     </div>

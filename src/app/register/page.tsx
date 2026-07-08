@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 const PRIMARY = "#C0392B";
-const WA_SUPPORT = "https://wa.me/50762019999";
+const WA_SUPPORT = "https://wa.me/50766261768";
 
 const COUNTRIES = [
   "Panamá","Costa Rica","México","Colombia","Venezuela",
@@ -39,7 +39,7 @@ function buildWaGuide(senseiName: string, dojoName: string): string {
     `• Torneos con streaming en vivo → *Gold $59/mes* (ilimitado)`,
     `  Incluye: tatamis, jueces, overlay OBS, inscripciones federativas`,
     ``,
-    `*🆘 Soporte:* wa.me/50762019999`,
+    `*🆘 Soporte:* wa.me/50766261768`,
   ];
   return encodeURIComponent(lines.join("\n"));
 }

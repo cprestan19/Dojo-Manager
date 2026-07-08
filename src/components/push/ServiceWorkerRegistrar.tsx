@@ -24,7 +24,19 @@ export default function ServiceWorkerRegistrar() {
       }
     };
     navigator.serviceWorker.addEventListener("message", handler);
-    return () => navigator.serviceWorker.removeEventListener("message", handler);
+
+    // El manifest necesita display:standalone para que push funcione en iPhone
+    // (Apple exige "Agregar a inicio" antes de dar permiso de notificaciones).
+    // Eso mismo hace que Chrome/Android ofrezca su propio banner de "Instalar
+    // app" — lo bloqueamos para que el único camino de activar notificaciones
+    // sea el botón de la app, no un banner de instalación que confunde al usuario.
+    const blockInstallPrompt = (e: Event) => e.preventDefault();
+    window.addEventListener("beforeinstallprompt", blockInstallPrompt);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handler);
+      window.removeEventListener("beforeinstallprompt", blockInstallPrompt);
+    };
   }, [router]);
 
   return null;
