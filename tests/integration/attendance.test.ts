@@ -128,6 +128,7 @@ describe("POST /api/attendance", () => {
     prismaMock.attendance.create.mockResolvedValue({ id: "att-1", type: "entry", markedAt: new Date() });
     prismaMock.student.update.mockResolvedValue({ id: "s1" });
     prismaMock.auditLog.create.mockResolvedValue({});
+    prismaMock.pushSettings.findUnique.mockResolvedValue(null);
 
     const res = await POST(jsonRequest("POST", { studentId: "s1", type: "entry" }));
     const body = await res.json();

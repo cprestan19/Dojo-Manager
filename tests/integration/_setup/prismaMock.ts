@@ -17,6 +17,7 @@ export function createPrismaMock() {
     dojo:            mockModel(),
     user:            mockModel(),
     auditLog:        mockModel(),
+    pushSettings:    mockModel(),
   };
 
   mock.$transaction = vi.fn(async (arg: unknown) => {
@@ -58,5 +59,6 @@ export type PrismaMock = {
   dojo: ModelMock;
   user: ModelMock;
   auditLog: ModelMock;
+  pushSettings: ModelMock;
   $transaction: ReturnType<typeof vi.fn>;
 };
