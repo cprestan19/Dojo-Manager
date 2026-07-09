@@ -17,6 +17,7 @@ import { randomInt } from "crypto";
 import { sendStudentWelcome } from "@/lib/email";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -41,7 +42,7 @@ export interface BulkAccessResult {
   studentId:   string;
   fullName:    string;
   email:       string | null;
-  status:      "activated" | "skipped_no_email" | "skipped_already_active" | "error";
+  status:      "activated" | "skipped_no_email" | "skipped_already_active" | "skipped_staff_conflict" | "error";
   emailSent:   boolean;
   errorDetail: string | null;
 }
@@ -113,6 +114,16 @@ export async function POST(req: NextRequest) {
       }
 
       try {
+        // El correo del acudiente no puede pertenecer a una cuenta que no sea de alumno
+        // (admin/user/sysadmin) — evita secuestrar cuentas de staff vía upsert por email.
+        const emailConflict = await checkGuardianEmailConflict(email);
+        if (emailConflict) {
+          results.push({ studentId: student.id, fullName: student.fullName,
+            email, status: "skipped_staff_conflict", emailSent: false,
+            errorDetail: emailConflict });
+          return;
+        }
+
         const plainPassword = generatePassword();
         const hashed        = await bcrypt.hash(plainPassword, 12);
 
@@ -180,11 +191,12 @@ export async function POST(req: NextRequest) {
   const emailsSent   = results.filter(r => r.emailSent).length;
   const noEmail      = results.filter(r => r.status === "skipped_no_email").length;
   const alreadyActive = results.filter(r => r.status === "skipped_already_active").length;
+  const staffConflict = results.filter(r => r.status === "skipped_staff_conflict").length;
   const errors       = results.filter(r => r.status === "error").length;
 
   return NextResponse.json({
     ok: true,
-    summary: { activated, emailsSent, noEmail, alreadyActive, errors, total: results.length },
+    summary: { activated, emailsSent, noEmail, alreadyActive, staffConflict, errors, total: results.length },
     results,
   });
 }

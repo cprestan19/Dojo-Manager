@@ -7,6 +7,7 @@ import { randomInt } from "crypto";
 import { sendStudentWelcome } from "@/lib/email";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -66,6 +67,11 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     if (student.portalUser?.active)
       return NextResponse.json({ error: "El alumno ya tiene acceso activo" }, { status: 400 });
+
+    // El correo del acudiente no puede pertenecer a una cuenta que no sea de alumno
+    // (admin/user/sysadmin) — evita secuestrar cuentas de staff vía upsert por email.
+    const emailConflict = await checkGuardianEmailConflict(email);
+    if (emailConflict) return NextResponse.json({ error: emailConflict }, { status: 409 });
 
     const plainPassword = generatePassword();
     const hashed        = await bcrypt.hash(plainPassword, 12);

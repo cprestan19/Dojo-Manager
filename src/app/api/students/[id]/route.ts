@@ -8,6 +8,7 @@ import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
 import { formatStudentName } from "@/lib/utils";
 import { notifyAdmin, buildStudentDeletedEmail } from "@/lib/admin-notifications";
+import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -146,6 +147,15 @@ export async function PUT(req: NextRequest, { params }: Params) {
       const pid = extractCloudinaryPublicId(before.photo);
       if (pid) deleteResource(pid).catch(() => {});
     }
+
+    // Solo valida los correos de acudiente que realmente cambian — evita
+    // bloquear ediciones por un conflicto preexistente ajeno a este guardado.
+    const newMotherEmail = body.motherEmail ?? null;
+    const newFatherEmail = body.fatherEmail ?? null;
+    const emailConflict =
+      (newMotherEmail !== before?.motherEmail ? await checkGuardianEmailConflict(newMotherEmail) : null)
+      ?? (newFatherEmail !== before?.fatherEmail ? await checkGuardianEmailConflict(newFatherEmail) : null);
+    if (emailConflict) return NextResponse.json({ error: emailConflict }, { status: 409 });
 
     const rawFullName = String(body.fullName ?? (body.firstName + " " + (body.lastName ?? "")).trim());
     const student = await prisma.student.update({

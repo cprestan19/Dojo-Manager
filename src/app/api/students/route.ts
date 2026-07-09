@@ -10,6 +10,7 @@ import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { withReadOnlyGuard } from "@/lib/billing/readOnlyGuard";
 import { formatStudentName } from "@/lib/utils";
 import { notifyAdmin, buildStudentCreatedEmail } from "@/lib/admin-notifications";
+import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -115,6 +116,10 @@ async function _POST(req: NextRequest) {
     const parsed = CreateStudentSchema.safeParse(raw);
     if (!parsed.success) return validationError(parsed.error);
     const body = parsed.data;
+
+    const emailConflict = (await checkGuardianEmailConflict(body.motherEmail))
+                        ?? (await checkGuardianEmailConflict(body.fatherEmail));
+    if (emailConflict) return NextResponse.json({ error: emailConflict }, { status: 409 });
 
     const t0      = Date.now();
     const student = await prisma.$transaction(async (tx) => {

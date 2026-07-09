@@ -18,6 +18,7 @@ import {
 } from "@/lib/student-import";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { formatStudentName } from "@/lib/utils";
+import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
 
 type SessionUser = { role?: string; dojoId?: string | null; id?: string; email?: string };
 
@@ -169,6 +170,14 @@ export async function POST(req: NextRequest) {
     const parts     = formattedFullName.split(/\s+/);
     const firstName = formatStudentName(firstNameRaw ?? parts[0] ?? formattedFullName);
     const lastName  = formatStudentName(lastNameRaw  ?? parts.slice(1).join(" ") ?? "");
+
+    // El correo del acudiente no puede pertenecer a una cuenta de staff (admin/user/sysadmin)
+    const rowEmailConflict = (await checkGuardianEmailConflict(getCell(row, "motherEmail")))
+                           ?? (await checkGuardianEmailConflict(getCell(row, "fatherEmail")));
+    if (rowEmailConflict) {
+      rows.push({ status: "error", row: physicalRow, fullName, cedula: cedulaTrim, reason: rowEmailConflict });
+      continue;
+    }
 
     // ── Modo actualización: cédula existente → actualizar campos ────────────
     if (cedulaSet.has(cedulaTrim)) {

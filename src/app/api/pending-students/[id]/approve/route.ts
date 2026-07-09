@@ -8,6 +8,7 @@ import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { formatStudentName } from "@/lib/utils";
 import { uploadBuffer } from "@/lib/cloudinary";
 import { validateBase64Image } from "@/lib/file-validation";
+import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
 
 /** Sube un base64 de foto a Cloudinary. Retorna la URL o null si falla o el contenido es inválido. */
 async function uploadBase64Photo(base64: string, dojoId: string): Promise<string | null> {
@@ -56,6 +57,12 @@ export async function POST(
     if (pending.status !== "pending") {
       return NextResponse.json({ error: "Esta solicitud ya fue procesada" }, { status: 409 });
     }
+
+    // El correo del acudiente no puede pertenecer a una cuenta de staff (admin/user/sysadmin)
+    // — no se puede pasar por alto con force, hay que corregir el correo primero.
+    const emailConflict = (await checkGuardianEmailConflict(pending.motherEmail))
+                        ?? (await checkGuardianEmailConflict(pending.fatherEmail));
+    if (emailConflict) return NextResponse.json({ error: emailConflict }, { status: 409 });
 
     // ── Detección de duplicados (omitir si admin confirmó con force) ────────
     if (!force) {
