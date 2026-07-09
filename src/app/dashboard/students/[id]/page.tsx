@@ -15,6 +15,7 @@ import { FamilyManager } from "@/components/students/FamilyManager";
 import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { Modal } from "@/components/ui/Modal";
+import { DatePicker, panamaTodayISO } from "@/components/ui/DatePicker";
 import { calculateAge, formatDate, formatCurrency, BELT_COLORS, PAYMENT_STATUS_LABELS, MULTI_KATA_BELTS, getPaymentTypeLabel } from "@/lib/utils";
 import Image from "next/image";
 
@@ -436,8 +437,8 @@ function AddPaymentModal({ studentId, monthlyAmount, onClose, onSaved }: {
 }) {
   const [type,     setType]    = useState("monthly");
   const [amount,   setAmount]  = useState(String(monthlyAmount ?? 0));
-  const [dueDate,  setDue]     = useState(new Date().toISOString().split("T")[0]);
-  const [paidDate, setPaid]    = useState(new Date().toISOString().split("T")[0]);
+  const [dueDate,  setDue]     = useState(panamaTodayISO());
+  const [paidDate, setPaid]    = useState(panamaTodayISO());
   const [status,   setStatus]  = useState("paid");
   const [note,     setNote]    = useState("");
   const [loading,  setLoading] = useState(false);
@@ -486,12 +487,12 @@ function AddPaymentModal({ studentId, monthlyAmount, onClose, onSaved }: {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="form-label">Fecha de Vencimiento</label>
-          <input type="date" value={dueDate} onChange={e => setDue(e.target.value)} className="form-input" />
+          <DatePicker value={dueDate} onChange={setDue} />
         </div>
         {status === "paid" && (
           <div>
             <label className="form-label">Fecha de Pago</label>
-            <input type="date" value={paidDate} onChange={e => setPaid(e.target.value)} className="form-input" />
+            <DatePicker value={paidDate} onChange={setPaid} />
           </div>
         )}
       </div>
