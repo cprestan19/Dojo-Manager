@@ -40,6 +40,7 @@ const STATUS_ICON: Record<string, React.ElementType> = {
 const GATEWAY_LABEL: Record<string, string> = {
   PAYPAL:       "PayPal",
   MERCADOPAGO:  "MercadoPago",
+  PAGUELOFACIL: "PagueloFacil",
 };
 
 export default async function BillingPage() {

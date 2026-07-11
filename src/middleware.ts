@@ -105,6 +105,12 @@ export async function middleware(req: NextRequest) {
     if (!rateLimit(`payments:${ip}`, 60, 60_000)) return tooManyRequests("60");
   }
 
+  // PagueloFacil checkout: genera cobros reales — límite estricto por IP para
+  // frenar intentos de carding/fuerza bruta desde el endpoint de generación de link.
+  if (pathname === "/api/billing/checkout/paguelofacil" && req.method === "POST") {
+    if (!rateLimit(`pf-checkout:${ip}`, 10, 60_000)) return tooManyRequests("60");
+  }
+
   // Users: prevent enumeration attacks
   if (pathname === "/api/users" || pathname.startsWith("/api/users/")) {
     if (!rateLimit(`users:${ip}`, 30, 60_000)) return tooManyRequests("60");
@@ -273,6 +279,7 @@ export const config = {
     "/api/students/:path*",
     "/api/payments",
     "/api/payments/:path*",
+    "/api/billing/checkout/paguelofacil",
     "/api/users",
     "/api/users/:path*",
     "/api/upload",

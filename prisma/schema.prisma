@@ -1343,6 +1343,7 @@ enum BillingCycle {
 enum PaymentGateway {
   PAYPAL
   MERCADOPAGO
+  PAGUELOFACIL
 }
 
 enum InvoiceStatus {
@@ -1350,6 +1351,14 @@ enum InvoiceStatus {
   PAID
   FAILED
   REFUNDED
+}
+
+enum PagueloFacilLinkStatus {
+  PENDING   // link generado, esperando pago
+  PAID      // confirmado y validado server-side
+  EXPIRED   // venció EXPIRES_IN sin pago
+  FAILED    // rechazado o monto/firma inválidos
+  USED      // ya consumido — protege contra replay del RETURN_URL
 }
 
 model Plan {
@@ -1414,10 +1423,38 @@ model Invoice {
   paidAt           DateTime?      @map("paid_at")
   createdAt        DateTime       @default(now()) @map("created_at")
 
+  pagueloFacilTransactions PagueloFacilTransaction[]
+
   @@index([subscriptionId])
   @@index([dojoId])
   @@index([status])
   @@map("invoices")
+}
+
+// PagueloFacil — Enlace de Pago. Un Invoice puede tener varios intentos
+// (attemptId distinto) si un link expira y se regenera sobre el mismo ciclo.
+model PagueloFacilTransaction {
+  id             String                 @id @default(cuid())
+  invoiceId      String                 @map("invoice_id")
+  invoice        Invoice                @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  dojoId         String                 @map("dojo_id")           // sin @relation — mismo patrón que AuditLog
+  linkCode       String                 @unique @map("link_code") // "LK-..." devuelto por PagueloFacil
+  cclw           String                                            // código web del comercio usado en la solicitud
+  amountExpected Float                  @map("amount_expected")
+  amountPaid     Float?                 @map("amount_paid")
+  status         PagueloFacilLinkStatus @default(PENDING)
+  environment    String                                            // "sandbox" | "production"
+  signedToken    String                 @map("signed_token")       // HMAC atado a este intento (invoiceId+dojoId+linkCode)
+  attemptId      String                 @map("attempt_id")         // determinístico — protege reintentos del cron
+  expiresAt      DateTime               @map("expires_at")
+  rawResponse    Json?                  @map("raw_response")       // payload crudo de confirmación, para auditoría
+  createdAt      DateTime               @default(now()) @map("created_at")
+  confirmedAt    DateTime?              @map("confirmed_at")
+
+  @@unique([invoiceId, attemptId])
+  @@index([dojoId])
+  @@index([status])
+  @@map("paguelofacil_transactions")
 }
 
 // Log de correos de aviso de vencimiento de acceso especial

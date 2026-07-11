@@ -1308,6 +1308,10 @@ export default function LandingPage() {
                 {es?"Todos los planes incluyen soporte técnico. Precios en USD. Consulta disponibilidad por país."
                   :"All plans include technical support. USD pricing. Check availability in your country."}
               </p>
+              <p style={{ fontSize:11, color:"rgba(255,255,255,.38)", marginTop:4 }}>
+                {es?"Aceptamos pagos con PayPal y PagueloFacil (Visa/Mastercard)."
+                  :"We accept payments via PayPal and PagueloFacil (Visa/Mastercard)."}
+              </p>
             </div>
           </Reveal>
         </div>

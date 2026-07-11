@@ -106,7 +106,7 @@ const INV_BADGE: Record<string, string> = {
   FAILED:   "bg-red-500/20 text-red-300",
   REFUNDED: "bg-dojo-border/60 text-dojo-muted",
 };
-const GW_LABEL: Record<string, string> = { PAYPAL: "PayPal", MERCADOPAGO: "MercadoPago" };
+const GW_LABEL: Record<string, string> = { PAYPAL: "PayPal", MERCADOPAGO: "MercadoPago", PAGUELOFACIL: "PagueloFacil" };
 
 function fmtDate(d: string | null) {
   if (!d) return "—";
@@ -710,6 +710,7 @@ function InvoicesTable({ initialDojoId }: { initialDojoId?: string }) {
   const [filterGw,   setFilterGw]   = useState("ALL");
   const [filterSt,   setFilterSt]   = useState("ALL");
   const [dojoFilter, setDojoFilter] = useState(initialDojoId ?? "");
+  const [reprocessingId, setReprocessingId] = useState<string | null>(null);
 
   const limit = 50;
 
@@ -733,6 +734,31 @@ function InvoicesTable({ initialDojoId }: { initialDojoId?: string }) {
     setPage(1);
     void load(1);
   }, [load]);
+
+  async function reprocess(invoiceId: string) {
+    const reason = window.prompt("Motivo del reproceso (obligatorio) — se audita junto al resultado:");
+    if (!reason?.trim()) return;
+
+    setReprocessingId(invoiceId);
+    try {
+      const res  = await fetch("/api/billing/admin/paguelofacil/reprocess", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ invoiceId, reason: reason.trim() }),
+      });
+      const data = await res.json() as { outcome?: string; error?: string };
+      if (!res.ok) { window.alert(data.error ?? "Error al reprocesar el pago"); return; }
+      const msg = data.outcome === "paid" ? "Confirmado como pagado."
+        : data.outcome === "failed" ? "PagueloFacil sigue reportando el pago como no aprobado."
+        : "Ya estaba procesado.";
+      window.alert(msg);
+      await load(page);
+    } catch {
+      window.alert("Error de conexión al reprocesar.");
+    } finally {
+      setReprocessingId(null);
+    }
+  }
 
   // Client-side name search (on current page)
   const visible = search
@@ -787,7 +813,7 @@ function InvoicesTable({ initialDojoId }: { initialDojoId?: string }) {
         </div>
 
         <div className="flex items-center gap-1 bg-dojo-dark border border-dojo-border rounded-lg p-1 text-xs">
-          {["ALL","PAYPAL","MERCADOPAGO"].map(g => (
+          {["ALL","PAYPAL","MERCADOPAGO","PAGUELOFACIL"].map(g => (
             <button key={g} type="button" onClick={() => setFilterGw(g)}
               className={`px-2.5 py-1 rounded font-semibold transition-colors ${filterGw === g ? "bg-dojo-red text-white" : "text-dojo-muted hover:text-dojo-white"}`}>
               {g === "ALL" ? "Todas" : GW_LABEL[g]}
@@ -869,14 +895,27 @@ function InvoicesTable({ initialDojoId }: { initialDojoId?: string }) {
                         </div>
                       ) : <span className="text-dojo-muted text-xs">—</span>}
                     </td>
-                    {/* Copy all */}
+                    {/* Copy all + reproceso (solo PagueloFacil fallidas) */}
                     <td className="px-4 py-3">
-                      <CopyBtn value={JSON.stringify({
-                        invoiceId: inv.id, gatewayInvoiceId: inv.gatewayInvoiceId,
-                        subscriptionId: inv.subscriptionId, paypalSub: inv.paypalSubscriptionId,
-                        mpSub: inv.mpSubscriptionId, dojo: inv.dojoName,
-                        amount: inv.amount, currency: inv.currency, date: inv.paidAt ?? inv.createdAt,
-                      })} />
+                      <div className="flex items-center gap-2">
+                        <CopyBtn value={JSON.stringify({
+                          invoiceId: inv.id, gatewayInvoiceId: inv.gatewayInvoiceId,
+                          subscriptionId: inv.subscriptionId, paypalSub: inv.paypalSubscriptionId,
+                          mpSub: inv.mpSubscriptionId, dojo: inv.dojoName,
+                          amount: inv.amount, currency: inv.currency, date: inv.paidAt ?? inv.createdAt,
+                        })} />
+                        {inv.gateway === "PAGUELOFACIL" && inv.status === "FAILED" && (
+                          <button
+                            type="button"
+                            disabled={reprocessingId === inv.id}
+                            onClick={() => void reprocess(inv.id)}
+                            className="btn-ghost text-[10px] px-2 py-1 whitespace-nowrap disabled:opacity-50"
+                            title="Re-consulta el estado real contra PagueloFacil antes de confirmar"
+                          >
+                            {reprocessingId === inv.id ? <Loader2 size={11} className="animate-spin" /> : "Reprocesar"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

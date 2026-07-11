@@ -193,7 +193,7 @@ export default function LegalPage() {
           </P>
           <H3>3.2 Métodos de pago.</H3>
           <P>
-            Los pagos se procesan a través de proveedores externos (PayPal y/o MercadoPago, según disponibilidad en el
+            Los pagos se procesan a través de proveedores externos (PayPal y/o PagueloFacil, según disponibilidad en el
             país del Dojo). Al proporcionar información de pago, usted autoriza el cobro recurrente del plan contratado
             según la periodicidad elegida (mensual/anual).
           </P>
@@ -345,7 +345,7 @@ export default function LegalPage() {
 
           <P>
             Esta política aplica a las suscripciones pagadas de DojoMaster Online, disponible internacionalmente,
-            procesadas a través de PayPal y/o MercadoPago, y complementa nuestros{" "}
+            procesadas a través de PayPal y/o PagueloFacil, y complementa nuestros{" "}
             <a href="#terminos" style={{ color: GOLD }}>Términos y Condiciones</a>.
           </P>
 
@@ -418,7 +418,7 @@ export default function LegalPage() {
 
           <H2>7. Procesamiento de Pagos por Terceros</H2>
           <P>
-            Los pagos se procesan a través de PayPal y/o MercadoPago. Cualquier reembolso aprobado se procesará
+            Los pagos se procesan a través de PayPal y/o PagueloFacil. Cualquier reembolso aprobado se procesará
             utilizando el mismo método de pago original y estará sujeto también a los tiempos y condiciones de dichas
             plataformas de pago, que pueden tomar entre 5 y 15 días hábiles en reflejarse, dependiendo del proveedor y
             del banco emisor del Dojo.
@@ -432,7 +432,7 @@ export default function LegalPage() {
               <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: GOLD }}>{SUPPORT_EMAIL}</a>{" "}
               indicando el nombre del Dojo, correo de la cuenta y motivo de la solicitud.
             </li>
-            <li>Adjunte el comprobante de pago o número de transacción (PayPal/MercadoPago).</li>
+            <li>Adjunte el comprobante de pago o número de transacción (PayPal/PagueloFacil).</li>
             <li>Nuestro equipo evaluará la solicitud en un plazo máximo de 10 días hábiles y le notificará la resolución.</li>
           </Ol>
 

@@ -78,7 +78,7 @@ export function InvoiceHistory() {
                   ${inv.amount.toFixed(2)} {inv.currency}
                 </td>
                 <td className="px-4 py-3 text-dojo-muted capitalize">
-                  {inv.gateway === "PAYPAL" ? "PayPal" : "MercadoPago"}
+                  {inv.gateway === "PAYPAL" ? "PayPal" : inv.gateway === "PAGUELOFACIL" ? "PagueloFacil" : "MercadoPago"}
                 </td>
                 <td className="px-4 py-3">
                   <span className={STATUS_BADGE[inv.status] ?? "text-dojo-muted"}>

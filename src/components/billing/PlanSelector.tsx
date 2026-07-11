@@ -1,7 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Check, Loader2 } from "lucide-react";
+
+const PAGUELOFACIL_SANDBOX = process.env.NEXT_PUBLIC_PAGUELOFACIL_MODE !== "production";
 
 interface Plan {
   id:           string;
@@ -15,6 +18,8 @@ interface Plan {
 
 export function PlanSelector() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isSysadmin = (session?.user as { role?: string } | undefined)?.role === "sysadmin";
   const [plans,    setPlans]    = useState<Plan[]>([]);
   const [cycle,    setCycle]    = useState<"MONTHLY" | "ANNUAL">("MONTHLY");
   const [loading,  setLoading]  = useState(true);
@@ -36,7 +41,7 @@ export function PlanSelector() {
   // First paid plan — used for annual discount badge
   const firstPaid = plans.find(p => p.monthlyPrice > 0);
 
-  async function checkout(planId: string, gateway: "paypal" | "mercadopago") {
+  async function checkout(planId: string, gateway: "paypal" | "paguelofacil") {
     setPaying(`${planId}-${gateway}`);
     setError("");
     try {
@@ -45,9 +50,9 @@ export function PlanSelector() {
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ planId, cycle }),
       });
-      const data = await res.json() as { approveUrl?: string; initPoint?: string; error?: string };
+      const data = await res.json() as { approveUrl?: string; url?: string; error?: string };
       if (!res.ok) { setError(data.error ?? "Error al procesar el pago"); return; }
-      const url = data.approveUrl ?? data.initPoint;
+      const url = data.approveUrl ?? data.url;
       if (url) router.push(url);
     } catch {
       setError("Error de conexión. Intenta de nuevo.");
@@ -166,13 +171,18 @@ export function PlanSelector() {
                   <button
                     type="button"
                     disabled={paying !== null}
-                    onClick={e => { e.stopPropagation(); void checkout(plan.id, "mercadopago"); }}
+                    onClick={e => { e.stopPropagation(); void checkout(plan.id, "paguelofacil"); }}
                     className="w-full btn-secondary text-sm justify-center disabled:opacity-50"
                   >
-                    {paying === `${plan.id}-mercadopago`
+                    {paying === `${plan.id}-paguelofacil`
                       ? <><Loader2 size={14} className="animate-spin" /> Procesando...</>
-                      : "Pagar con MercadoPago"}
+                      : "Pagar con PagueloFacil (Visa/Mastercard)"}
                   </button>
+                  {isSysadmin && PAGUELOFACIL_SANDBOX && (
+                    <p className="text-[10px] text-center text-amber-400/80">
+                      Ambiente de pruebas — PagueloFacil Sandbox
+                    </p>
+                  )}
                 </div>
               )}
 

@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/exam-deadline-push",
       "schedule": "30 12 * * *"
+    },
+    {
+      "path": "/api/cron/paguelofacil-renewal",
+      "schedule": "0 9 * * *"
     }
   ]
 }

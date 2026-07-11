@@ -57,3 +57,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# reportes generados por herramientas de auditoría — no versionar
+audit-report.html
