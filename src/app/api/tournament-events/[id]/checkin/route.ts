@@ -30,21 +30,21 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     const body = await req.json().catch(() => ({})) as { studentId?: string; studentCode?: string | number };
 
-    // Resolver studentId desde código numérico o id directo
-    let studentId = body.studentId?.trim() ?? null;
+    let raw = body.studentId?.trim() || (body.studentCode != null ? String(body.studentCode).trim() : "");
+    if (!raw) return NextResponse.json({ error: "studentId requerido" }, { status: 400 });
 
-    if (!studentId && body.studentCode) {
-      const code = parseInt(String(body.studentCode), 10);
-      if (!isNaN(code)) {
-        const s = await prisma.student.findFirst({
-          where:  { studentCode: code, dojoId },
-          select: { id: true },
-        });
-        studentId = s?.id ?? null;
-      }
-    }
+    // El QR del carnet codifica la URL completa del carnet (".../id/<cardToken>") — extraer solo el token
+    const urlMatch = raw.match(/\/id\/([^/?#\s]+)\s*$/);
+    if (urlMatch) raw = urlMatch[1];
 
-    if (!studentId) return NextResponse.json({ error: "studentId requerido" }, { status: 400 });
+    // Resolver a Student.id real: por código numérico, cardToken o id directo — mismo patrón que /api/scan
+    const resolved = /^\d+$/.test(raw)
+      ? await prisma.student.findFirst({ where: { studentCode: parseInt(raw, 10), dojoId }, select: { id: true } })
+      : await prisma.student.findFirst({ where: { OR: [{ id: raw }, { cardToken: raw }], dojoId }, select: { id: true } });
+
+    const studentId = resolved?.id ?? null;
+    if (!studentId)
+      return NextResponse.json({ error: "Alumno no encontrado, inactivo o no pertenece a este dojo" }, { status: 403 });
 
     // Verificar que el torneo pertenece a este dojo
     const event = await prisma.tournamentEvent.findFirst({
