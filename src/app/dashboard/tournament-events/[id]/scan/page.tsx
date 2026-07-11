@@ -148,12 +148,13 @@ export default function TournamentEventScanPage() {
       const qr = new Html5Qrcode("te-qr-reader");
       scannerRef.current = qr;
 
+      // Sin `qrbox`: html5-qrcode dibuja su propio recuadro de escaneo interno
+      // (más chico, mal alineado con contenedores `aspect-ratio` en móvil) que
+      // aparecía superpuesto dentro del marco rojo decorativo de abajo. Al omitirlo,
+      // la librería escanea el frame completo y el único marco visible es el nuestro.
       qr.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: (w: number, h: number) => {
-          const side = Math.floor(Math.min(w, h) * 0.65);
-          return { width: side, height: side };
-        }},
+        { fps: 10 },
         decoded => { handleScan(decoded); },
         () => {},
       ).catch((err: unknown) => {
