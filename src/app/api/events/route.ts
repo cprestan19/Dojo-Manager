@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { sendPushToDojoStudentsAsync } from "@/lib/push";
+import { computeSyncDiff } from "@/lib/tournament-event-sync";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -30,7 +31,51 @@ export async function GET(req: NextRequest) {
     orderBy: { startDate: status === "active" ? "asc" : "desc" },
   });
 
-  return NextResponse.json(events);
+  // Vincula cada evento con su lista de asistencia (TournamentEvent) si ya fue generada,
+  // y calcula cuántos cambios de RSVP están pendientes de sincronizar (sin aplicarlos).
+  const eventIds = events.map(e => e.id);
+  const links = eventIds.length > 0
+    ? await prisma.tournamentEvent.findMany({
+        where:  { dojoId, sourceEventId: { in: eventIds } },
+        select: { id: true, sourceEventId: true },
+      })
+    : [];
+  const linkMap = Object.fromEntries(links.map(l => [l.sourceEventId as string, l.id]));
+  const tournamentEventIds = links.map(l => l.id);
+
+  const [rsvpRows, activeStudents, participantRows] = await Promise.all([
+    eventIds.length > 0
+      ? prisma.eventRSVP.findMany({
+          where:  { eventId: { in: eventIds }, status: "attending" },
+          select: { eventId: true, studentId: true },
+        })
+      : Promise.resolve([]),
+    prisma.student.findMany({ where: { dojoId, active: true }, select: { id: true } }),
+    tournamentEventIds.length > 0
+      ? prisma.tournamentEventParticipant.findMany({
+          where:  { eventId: { in: tournamentEventIds } },
+          select: {
+            id: true, eventId: true, studentId: true, arrived: true, kataResult: true, kumiteResult: true,
+            kataCompetitionId: true, kumiteCompetitionId: true, confirmed: true, optedOut: true,
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+  const activeStudentIds = new Set(activeStudents.map(s => s.id));
+
+  return NextResponse.json(events.map(e => {
+    const teId = linkMap[e.id] ?? null;
+    let pendingSyncCount = 0;
+    if (teId) {
+      const confirmedIds = new Set(
+        rsvpRows.filter(r => r.eventId === e.id && activeStudentIds.has(r.studentId)).map(r => r.studentId)
+      );
+      const currentParticipants = participantRows.filter(p => p.eventId === teId);
+      const { toAdd, toRemove } = computeSyncDiff(confirmedIds, currentParticipants);
+      pendingSyncCount = toAdd.length + toRemove.length;
+    }
+    return { ...e, tournamentEventId: teId, pendingSyncCount };
+  }));
 }
 
 export async function POST(req: NextRequest) {

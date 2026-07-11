@@ -1,20 +1,24 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import {
   Calendar, Plus, Edit2, Trash2, X, Save, Image as ImageIcon,
   MapPin, Clock, CalendarCheck, Eye, Smartphone, Users, CheckCircle2,
-  Download,
+  Download, Trophy, RefreshCw,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
+import { useToast, ToastContainer } from "@/components/ui/Toast";
 
 interface DojoEvent {
-  id:          string;
-  title:       string;
-  description: string | null;
-  location:    string | null;
-  imageUrl:    string | null;
-  startDate:   string;
-  endDate:     string;
+  id:                string;
+  title:             string;
+  description:       string | null;
+  location:          string | null;
+  imageUrl:          string | null;
+  startDate:         string;
+  endDate:           string;
+  tournamentEventId: string | null;
+  pendingSyncCount:  number;
 }
 
 interface PreviewData {
@@ -180,13 +184,15 @@ function PreviewModal({ data, onClose }: { data: PreviewData | null; onClose: ()
 }
 
 /* ── Card de evento con tabs inline ──────────────────────────── */
-function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting }: {
+function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting, syncing, onSyncList }: {
   ev:        DojoEvent;
   isPast:    boolean;
   onEdit:    () => void;
   onDelete:  () => void;
   onPreview: () => void;
   deleting:  boolean;
+  syncing:   boolean;
+  onSyncList: () => void;
 }) {
   const [activeTab,   setActiveTab]   = useState<"info" | "attendees">("info");
   const [rsvpData,    setRsvpData]    = useState<RsvpData | null>(null);
@@ -339,7 +345,28 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting }: {
                 </div>
 
                 {/* Acciones */}
-                <div className="flex items-center gap-1 pt-2 border-t border-dojo-border/40 mt-auto">
+                <div className="flex items-center gap-1 pt-2 border-t border-dojo-border/40 mt-auto flex-wrap">
+                  {ev.tournamentEventId ? (
+                    <>
+                      <Link href={`/dashboard/tournament-events/${ev.tournamentEventId}`}
+                        className="btn-ghost py-1.5 px-2 text-dojo-gold hover:text-dojo-gold flex items-center gap-1.5 text-xs">
+                        <Trophy size={13} /> <span className="hidden sm:inline">Ver Lista de Asistencia</span>
+                      </Link>
+                      {ev.pendingSyncCount > 0 && (
+                        <button onClick={onSyncList} disabled={syncing}
+                          title={`${ev.pendingSyncCount} cambio(s) de confirmación sin sincronizar`}
+                          className="btn-ghost py-1.5 px-2 text-yellow-400 hover:text-yellow-300 flex items-center gap-1.5 text-xs disabled:opacity-40">
+                          <RefreshCw size={13} className={syncing ? "animate-spin" : ""} />
+                          <span className="hidden sm:inline">{syncing ? "Sincronizando..." : `Sincronizar (${ev.pendingSyncCount})`}</span>
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <button onClick={onSyncList} disabled={syncing}
+                      className="btn-ghost py-1.5 px-2 text-dojo-muted hover:text-dojo-gold flex items-center gap-1.5 text-xs disabled:opacity-40">
+                      <Trophy size={13} /> <span className="hidden sm:inline">{syncing ? "Creando..." : "Crear Lista de Asistencia"}</span>
+                    </button>
+                  )}
                   <button onClick={onPreview}
                     className="btn-ghost py-1.5 px-2 text-dojo-muted hover:text-dojo-red flex items-center gap-1.5 text-xs">
                     <Eye size={13} /> <span className="hidden sm:inline">Vista previa</span>
@@ -496,6 +523,8 @@ export default function EventsPage() {
   const [error,     setError]    = useState("");
   const [uploading, setUploading]= useState(false);
   const [preview,   setPreview]  = useState<PreviewData | null>(null);
+  const [syncingList, setSyncingList] = useState<string | null>(null);
+  const { toasts, show: showToast, dismiss } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -606,6 +635,32 @@ export default function EventsPage() {
     load();
   }
 
+  async function handleSyncAttendanceList(ev: DojoEvent) {
+    setSyncingList(ev.id);
+    try {
+      const r = await fetch(`/api/events/${ev.id}/attendance-list`, { method: "POST" });
+      const j = await r.json();
+      if (!r.ok) { showToast(j.error ?? "Error al crear la lista de asistencia", "error"); return; }
+
+      // Refleja el resultado en el estado local — no navegamos, el botón queda
+      // deshabilitado (reemplazado por "Ver Lista") hasta que haya nuevos cambios.
+      setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, tournamentEventId: j.id, pendingSyncCount: 0 } : e));
+
+      if (j.created) {
+        showToast(`Lista de asistencia creada en "Asistencia de Eventos" con ${j.added} alumno(s).`, "success");
+      } else if (j.added > 0 || j.removed > 0) {
+        const parts = [];
+        if (j.added   > 0) parts.push(`${j.added} agregado(s)`);
+        if (j.removed > 0) parts.push(`${j.removed} quitado(s)`);
+        showToast(`Lista de asistencia sincronizada: ${parts.join(", ")}.`, "success");
+      }
+    } catch {
+      showToast("Error de red al crear la lista de asistencia", "error");
+    } finally {
+      setSyncingList(null);
+    }
+  }
+
   return (
     <div className="space-y-5 max-w-5xl">
 
@@ -665,6 +720,8 @@ export default function EventsPage() {
               onDelete={() => handleDelete(ev.id)}
               onPreview={() => openPreview(ev)}
               deleting={deleting === ev.id}
+              syncing={syncingList === ev.id}
+              onSyncList={() => handleSyncAttendanceList(ev)}
             />
           ))}
         </div>
@@ -769,6 +826,8 @@ export default function EventsPage() {
 
       {/* Modal vista previa */}
       <PreviewModal data={preview} onClose={() => setPreview(null)} />
+
+      <ToastContainer toasts={toasts} dismiss={dismiss} />
     </div>
   );
 }

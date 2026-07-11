@@ -1182,19 +1182,21 @@ model StoreProduct {
 // ════════════════════════════════════════════════════════════════════════════
 
 model TournamentEvent {
-  id        String   @id @default(cuid())
-  dojoId    String   @map("dojo_id")        // dojo propietario — SIEMPRE presente
-  name      String                           // nombre del torneo
-  date      DateTime                         // fecha del evento
-  location  String                           // sede/lugar
-  notes     String?  @db.Text
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  id            String   @id @default(cuid())
+  dojoId        String   @map("dojo_id")        // dojo propietario — SIEMPRE presente
+  name          String                           // nombre del torneo
+  date          DateTime                         // fecha del evento
+  location      String                           // sede/lugar
+  notes         String?  @db.Text
+  sourceEventId String?  @map("source_event_id") // Event.id de origen si se generó con "Crear Lista de Asistencia" — sin FK formal, no modifica Event
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt      @map("updated_at")
 
   participants TournamentEventParticipant[]
 
   @@index([dojoId])
   @@index([dojoId, date])
+  @@index([sourceEventId])
   @@map("tournament_events")
 }
 
