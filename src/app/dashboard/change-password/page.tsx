@@ -35,18 +35,29 @@ export default function ChangePasswordPage() {
     if (!res.ok) { setError(data.error ?? "Error al cambiar contraseña."); return; }
 
     setSuccess(true);
-    // Sign out after 2s so new token is issued on next login
-    setTimeout(() => signOut({ callbackUrl: "/login" }), 2000);
+    // Sign out after a few seconds so a fresh token is issued on next login —
+    // el mensaje explica el porqué para que no se sienta como un cierre abrupto.
+    setTimeout(() => signOut({ callbackUrl: "/login" }), 4000);
   }
 
   if (success) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-4">
         <div className="w-16 h-16 bg-green-900/30 border-2 border-green-600/40 rounded-2xl flex items-center justify-center">
           <CheckCircle size={32} className="text-green-400" />
         </div>
         <p className="font-display text-dojo-white text-xl font-bold">¡Contraseña actualizada!</p>
-        <p className="text-dojo-muted text-sm">Redirigiendo al login…</p>
+        <p className="text-dojo-muted text-sm max-w-xs">
+          Por seguridad vamos a cerrar esta sesión. Vuelve a iniciar sesión usando tu <strong className="text-dojo-white">contraseña nueva</strong>.
+        </p>
+        <div className="w-6 h-6 rounded-full border-2 border-dojo-gold border-t-transparent animate-spin mt-2" />
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="text-dojo-gold text-sm font-semibold hover:underline mt-1"
+        >
+          Ir al login ahora
+        </button>
       </div>
     );
   }
