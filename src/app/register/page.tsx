@@ -27,17 +27,18 @@ function buildWaGuide(senseiName: string, dojoName: string): string {
     `2️⃣ Agrega tus alumnos → Alumnos → Nuevo`,
     `3️⃣ Prueba el QR de asistencia → Menú → Scanner`,
     ``,
-    `*📋 Plan Bronce (gratis):*`,
-    `✓ Hasta 20 alumnos activos`,
+    `*📋 Plan Academia — tu primer mes es gratis:*`,
+    `✓ Hasta 60 alumnos activos`,
     `✓ Asistencia QR solo con tu celular`,
     `✓ Cobros y recordatorios automáticos de mora`,
-    `✓ Portal del alumno — historial + videos de katas`,
+    `✓ Auto-registro de alumnos`,
+    ``,
+    `Al finalizar el mes gratis te llega el link de pago automáticamente por correo.`,
     ``,
     `*⬆️ ¿Cuándo subir de plan?*`,
-    `• Más de 20 alumnos → *Silver $29/mes* (hasta 60)`,
-    `  Incluye: página web gratis de tu dojo + torneos básicos`,
-    `• Torneos con streaming en vivo → *Gold $59/mes* (ilimitado)`,
-    `  Incluye: tatamis, jueces, overlay OBS, inscripciones federativas`,
+    `• Portal de padres, carnet, diplomas y push → *Academia y padres $24.99/mes* (hasta 100)`,
+    `• Torneos con streaming en vivo → *Academia, padres y Torneo $44.99/mes* (ilimitado)`,
+    `  Incluye: página web, tienda, tatamis, jueces, overlay OBS, inscripciones federativas`,
     ``,
     `*🆘 Soporte:* wa.me/50766261768`,
   ];
@@ -124,7 +125,7 @@ export default function RegisterPage() {
                     Tu dojo en Dojo Master<br />en 2 minutos
                   </h1>
                   <p className="text-white/50 text-base mt-3 leading-relaxed">
-                    Sin tarjeta de crédito. El plan Bronce es <strong className="text-white/70">gratis para siempre</strong> hasta 20 alumnos.
+                    Sin tarjeta de crédito. <strong className="text-white/70">Tu primer mes es gratis</strong> en cualquier plan.
                   </p>
                 </div>
 
@@ -134,9 +135,9 @@ export default function RegisterPage() {
                     { icon: QrCode,        label: "Asistencia QR — solo tu celular, sin hardware" },
                     { icon: CreditCard,    label: "Cobros y recordatorios automáticos de mora" },
                     { icon: Users,         label: "Fichas completas de alumnos con historial" },
-                    { icon: Video,         label: "Portal del alumno con videos de katas por cinta" },
-                    { icon: Globe,         label: "Página web de tu dojo (Silver en adelante)" },
-                    { icon: Trophy,        label: "Torneos con streaming en vivo (plan Gold)" },
+                    { icon: Video,         label: "Portal del alumno con videos de katas (Academia y padres)" },
+                    { icon: Globe,         label: "Carnet digital (Academia y padres) · página web (Torneo)" },
+                    { icon: Trophy,        label: "Torneos con streaming en vivo (plan Torneo)" },
                   ].map(({ icon: Icon, label }) => (
                     <div key={label} className="flex items-center gap-3">
                       <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${PRIMARY}22` }}>
@@ -149,11 +150,11 @@ export default function RegisterPage() {
 
                 {/* Planes mini */}
                 <div className="rounded-2xl p-4 space-y-2.5 border border-white/5" style={{ background: "#0D1117" }}>
-                  <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">Planes disponibles</p>
+                  <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">Planes disponibles — 1er mes gratis</p>
                   {[
-                    { name: "🥉 Bronce", limit: "Hasta 20 alumnos", price: "Gratis", color: "#78716C" },
-                    { name: "🥈 Silver",  limit: "Hasta 60 alumnos + web", price: "$29/mes", color: "#94A3B8" },
-                    { name: "🥇 Gold",   limit: "Ilimitado + torneos Pro", price: "$59/mes", color: "#F59E0B" },
+                    { name: "🥋 Academia", limit: "Hasta 60 alumnos", price: "$14.99/mes", color: "#94A3B8" },
+                    { name: "🥈 Academia y padres",  limit: "Hasta 100 alumnos + portal", price: "$24.99/mes", color: "#F59E0B" },
+                    { name: "🥇 Academia, padres y Torneo",   limit: "Ilimitado + torneos Pro", price: "$44.99/mes", color: "#F59E0B" },
                   ].map(p => (
                     <div key={p.name} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -168,7 +169,7 @@ export default function RegisterPage() {
 
               {/* ── Columna derecha: formulario ── */}
               <div className="rounded-3xl p-8 border border-white/5" style={{ background: "#111827" }}>
-                <h2 className="font-black text-xl text-white mb-6">Crea tu cuenta gratis</h2>
+                <h2 className="font-black text-xl text-white mb-6">Crea tu cuenta — 1 mes gratis</h2>
 
                 {error && (
                   <div className="flex items-center gap-2 mb-5 px-4 py-3 rounded-xl border border-red-700/40 bg-red-900/20 text-red-300 text-sm">
@@ -218,10 +219,9 @@ export default function RegisterPage() {
                         style={{ background: "#0D1117" }}
                       >
                         <option value="">Seleccionar</option>
-                        <option value="1-20">1–20 (Plan Bronce)</option>
-                        <option value="21-60">21–60 (Plan Silver)</option>
-                        <option value="61-100">61–100 (Plan Gold)</option>
-                        <option value="100+">Más de 100 (Plan Gold)</option>
+                        <option value="1-60">1–60 (Plan Academia)</option>
+                        <option value="61-100">61–100 (Plan Academia y padres)</option>
+                        <option value="100+">Más de 100 (Plan Academia, padres y Torneo)</option>
                       </select>
                     </div>
                   </div>
@@ -302,7 +302,7 @@ export default function RegisterPage() {
                     type="submit" disabled={loading}
                     className="w-full py-4 rounded-2xl font-black text-white text-base transition-all hover:opacity-90 hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed mt-2"
                     style={{ background: PRIMARY, boxShadow: `0 4px 24px ${PRIMARY}50` }}>
-                    {loading ? "Creando tu cuenta..." : <>Crear cuenta gratis <ArrowRight size={16} className="inline ml-1" /></>}
+                    {loading ? "Creando tu cuenta..." : <>Crear cuenta — 1 mes gratis <ArrowRight size={16} className="inline ml-1" /></>}
                   </button>
 
                   <p className="text-center text-xs text-white/25">
@@ -352,23 +352,26 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Límites del plan */}
+              {/* Mes gratis y plan actual */}
               <div className="rounded-2xl p-5 text-left mb-6 border" style={{ background: "#0D1117", borderColor: "#F59E0B30" }}>
-                <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "#F59E0B" }}>📋 Tu plan actual — Bronce (gratis)</p>
+                <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "#F59E0B" }}>🎁 Tu plan actual — Academia, primer mes gratis</p>
                 <div className="space-y-2 mb-4">
-                  {["Hasta 20 alumnos activos","Asistencia QR solo desde tu celular","Cobros y recordatorios automáticos de mora","Portal del alumno con historial y videos de katas"].map(f => (
+                  {["Hasta 60 alumnos activos","Asistencia QR solo desde tu celular","Cobros y recordatorios automáticos de mora","Auto-registro de alumnos","Historial de cintas y rangos"].map(f => (
                     <div key={f} className="flex items-center gap-2 text-sm text-white/65">
                       <Check size={12} className="text-emerald-400 shrink-0" />{f}
                     </div>
                   ))}
                 </div>
+                <p className="text-xs text-white/50 border-t border-white/5 pt-3 mb-3">
+                  Al finalizar tu primer mes te enviaremos automáticamente por correo el enlace de pago para continuar — no tienes que hacer nada ahora.
+                </p>
                 <div className="border-t border-white/5 pt-3 space-y-1.5">
                   <p className="text-xs text-white/40 font-bold uppercase tracking-wider mb-2">¿Cuándo subir de plan?</p>
                   <p className="text-xs text-white/50">
-                    <span className="font-bold text-white/70">🥈 Silver $29/mes</span> — Cuando superes 20 alumnos o quieras la <strong>página web de tu dojo gratis</strong> + torneos básicos (hasta 60 alumnos)
+                    <span className="font-bold text-white/70">🥈 Academia y padres $24.99/mes</span> — Cuando quieras el <strong>portal de padres</strong>, carnet y diplomas digitales, eventos, reportes y notificaciones push (hasta 100 alumnos)
                   </p>
                   <p className="text-xs text-white/50">
-                    <span className="font-bold text-white/70">🥇 Gold $59/mes</span> — Torneos profesionales con <strong>streaming en vivo</strong>, tatamis, jueces, inscripciones federativas y alumnos ilimitados
+                    <span className="font-bold text-white/70">🥇 Academia, padres y Torneo $44.99/mes</span> — Página web, tienda, torneos profesionales con <strong>streaming en vivo</strong>, tatamis, jueces, inscripciones federativas y alumnos ilimitados
                   </p>
                 </div>
               </div>

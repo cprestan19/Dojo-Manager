@@ -18,6 +18,8 @@ import { Modal } from "@/components/ui/Modal";
 import { DatePicker, panamaTodayISO } from "@/components/ui/DatePicker";
 import { calculateAge, formatDate, formatCurrency, BELT_COLORS, PAYMENT_STATUS_LABELS, MULTI_KATA_BELTS, getPaymentTypeLabel } from "@/lib/utils";
 import Image from "next/image";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { NAV_KEYS } from "@/lib/permissions";
 
 interface Kata { id: string; name: string; beltColor: string; }
 interface BeltEntry {
@@ -735,6 +737,7 @@ export default function StudentDetailPage() {
   const { data: session } = useSession();
   const role     = (session?.user as { role?: string })?.role ?? "";
   const canEdit  = role === "admin" || role === "sysadmin";
+  const perms    = usePermissions();
 
   const [student,      setStudent]    = useState<Student | null>(null);
   const [loading,      setLoading]    = useState(true);
@@ -1039,14 +1042,14 @@ export default function StudentDetailPage() {
               className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-orange-800/60 text-orange-400 hover:bg-orange-900/20 transition-colors disabled:opacity-50">
               <KeyRound size={15}/> {accessLoading ? "..." : "Revocar Portal"}
             </button>
-          ) : (
+          ) : perms.has(NAV_KEYS.PORTAL_ACCESS) ? (
             <button onClick={enableAccess} disabled={accessLoading || (!student.motherEmail && !student.fatherEmail)}
               className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-blue-800/60 text-blue-400 hover:bg-blue-900/20 transition-colors disabled:opacity-40"
               title={!student.motherEmail && !student.fatherEmail ? "El alumno necesita un correo registrado" : ""}
             >
               <KeyRound size={15}/> {accessLoading ? "..." : "Dar acceso portal"}
             </button>
-          )}
+          ) : null}
           <button
             onClick={toggleActive}
             disabled={togglingActive}
@@ -1071,7 +1074,7 @@ export default function StudentDetailPage() {
               <Trash2 size={15}/> {deleting ? "Eliminando..." : "Eliminar"}
             </button>
           )}
-          {student.cardToken && (
+          {student.cardToken && perms.has(NAV_KEYS.SETTINGS_CARD) && (
             <Link
               href={`/id/${student.cardToken}`}
               target="_blank"

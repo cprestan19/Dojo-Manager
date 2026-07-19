@@ -43,17 +43,25 @@ export async function POST(req: NextRequest) {
     if (tx.status === PagueloFacilLinkStatus.USED) {
       return NextResponse.json({ error: "Esta factura ya está pagada — no requiere reproceso" }, { status: 400 });
     }
-    if (tx.status === PagueloFacilLinkStatus.PENDING && tx.expiresAt >= new Date()) {
-      return NextResponse.json({ error: "El link aún está vigente — espera a que el cliente pague o a que expire" }, { status: 400 });
-    }
 
-    // Un PENDING vencido que nunca volvió por el RETURN_URL nunca fue marcado
-    // EXPIRED — se normaliza aquí antes de reevaluar.
+    // Antes se bloqueaba reprocesar un PENDING todavía vigente ("espera a que
+    // expire") — pero el cliente puede haber pagado y el navegador nunca
+    // volvió por el RETURN_URL (cerró la pestaña, el sandbox no redirigió,
+    // etc.), dejando la factura huérfana sin forma de confirmarla hasta que
+    // el link expirara. El sysadmin puede forzar la re-consulta contra
+    // PagueloFacil en cualquier momento — siempre se verifica el estado real
+    // (nunca se fuerza el estado a mano), así que no hay riesgo de marcar
+    // como pagado algo que no lo esté.
     if (tx.status === PagueloFacilLinkStatus.PENDING) {
-      tx = await prisma.pagueloFacilTransaction.update({
-        where: { id: tx.id },
+      // updateMany condicionado al status actual (no un update ciego por id)
+      // para no pisar una confirmación real que el callback automático
+      // (RETURN_URL) esté aplicando en paralelo justo en este momento. Si
+      // perdemos la carrera, se relee el estado real en vez de asumir EXPIRED.
+      await prisma.pagueloFacilTransaction.updateMany({
+        where: { id: tx.id, status: PagueloFacilLinkStatus.PENDING },
         data:  { status: PagueloFacilLinkStatus.EXPIRED },
       });
+      tx = await prisma.pagueloFacilTransaction.findUniqueOrThrow({ where: { id: tx.id } });
     }
 
     const codOper = body.codOper?.trim() || extractCodOper(tx.rawResponse);

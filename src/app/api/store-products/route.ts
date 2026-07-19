@@ -3,11 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
-import { withPaidPlanGuard } from "@/lib/billing/featureGuard";
+import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
+import { NAV_KEYS } from "@/lib/permissions";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(products);
 }
 
-export const POST = withPaidPlanGuard(async (req: NextRequest) => {
+async function _POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -58,4 +59,7 @@ export const POST = withPaidPlanGuard(async (req: NextRequest) => {
   });
 
   return NextResponse.json(product, { status: 201 });
-});
+}
+
+export const GET  = withPlanFeatureGuard(NAV_KEYS.STORE, _GET);
+export const POST = withPlanFeatureGuard(NAV_KEYS.STORE, _POST);

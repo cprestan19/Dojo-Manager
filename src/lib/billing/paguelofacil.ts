@@ -140,8 +140,8 @@ export async function generatePaymentLink(
 
 export interface PagueloFacilTransactionRecord {
   codOper: string;
-  status:  string | number;   // formato exacto a confirmar con credenciales reales de sandbox (Fase 5 QA)
-  totalPay?: number;
+  status:  string | number;   // validado contra sandbox real: status numérico 1 = aprobada (Fase 5 QA)
+  totalPay?: number;          // extraído de amount/authAmount — ver comentario en getTransactionByCodOper
   raw: Record<string, unknown>;
 }
 
@@ -171,8 +171,13 @@ export async function getTransactionByCodOper(
 
   // Campos devueltos observados en la documentación pública vienen en distintas
   // convenciones (camelCase / PascalCase) según el canal — se leen ambas formas.
+  // totalPay/TotalPay/TotalPagado nunca aparecieron en una respuesta real de
+  // MerchantTransactions (validado en Fase 5 QA contra sandbox real) — el monto
+  // realmente cobrado viene en "amount" (o "authAmount", como string). Se
+  // mantienen los nombres originales primero por si producción sí los usa.
   const status   = (row.status ?? row.Status ?? row.Estado) as string | number | undefined;
-  const totalPay = (row.totalPay ?? row.TotalPay ?? row.TotalPagado) as number | string | undefined;
+  const totalPay = (row.totalPay ?? row.TotalPay ?? row.TotalPagado
+                  ?? row.amount ?? row.Amount ?? row.authAmount ?? row.AuthAmount) as number | string | undefined;
 
   return {
     codOper,

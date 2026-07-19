@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
 import { generatePaymentLink, signReturnToken, getMode, currentCclw } from "@/lib/billing/paguelofacil";
-import { sendEmail, escHtml } from "@/lib/email";
+import { sendPagueloFacilPaymentLinkEmail } from "@/lib/billing/paguelofacilNotify";
 import {
   PaymentGateway, SubscriptionStatus, InvoiceStatus, PagueloFacilLinkStatus,
   type Subscription, type Plan,
@@ -22,7 +22,8 @@ function chunk<T>(items: T[], size: number): T[][] {
 interface RenewalOutcome {
   subscriptionId: string;
   dojoId:         string;
-  action:         "skipped" | "generated" | "reused" | "past_due" | "error";
+  action:         "skipped" | "generated" | "error";
+  wasPastDue:     boolean; // orthogonal al action — una suscripción vencida puede igual generar un link nuevo
   detail?:        string;
 }
 
@@ -47,15 +48,15 @@ export async function runPagueloFacilRenewal(): Promise<{
       if (r.status === "fulfilled") {
         results.push(r.value);
       } else {
-        results.push({ subscriptionId: batch[i].id, dojoId: batch[i].dojoId, action: "error", detail: String(r.reason) });
+        results.push({ subscriptionId: batch[i].id, dojoId: batch[i].dojoId, action: "error", wasPastDue: false, detail: String(r.reason) });
       }
     });
   }
 
   return {
     scanned:   eligible.length,
-    generated: results.filter(r => r.action === "generated" || r.action === "reused").length,
-    pastDue:   results.filter(r => r.action === "past_due").length,
+    generated: results.filter(r => r.action === "generated").length,
+    pastDue:   results.filter(r => r.wasPastDue).length,
     errors:    results.filter(r => r.action === "error").length,
     results,
   };
@@ -82,7 +83,7 @@ async function processSubscription(sub: SubWithPlan, now: Date): Promise<Renewal
   }
 
   if (!overdue && !withinWindow) {
-    return { subscriptionId: sub.id, dojoId: sub.dojoId, action: "skipped", detail: "fuera de la ventana de renovación" };
+    return { subscriptionId: sub.id, dojoId: sub.dojoId, action: "skipped", wasPastDue: false, detail: "fuera de la ventana de renovación" };
   }
 
   // periodKey a nivel de día — estable mientras no haya una renovación exitosa que
@@ -97,11 +98,11 @@ async function processSubscription(sub: SubWithPlan, now: Date): Promise<Renewal
 
   const stillPending = priorAttempts.find(a => a.status === PagueloFacilLinkStatus.PENDING && a.expiresAt > now);
   if (stillPending) {
-    return { subscriptionId: sub.id, dojoId: sub.dojoId, action: overdue ? "past_due" : "skipped", detail: "ya hay un link vigente para este ciclo" };
+    return { subscriptionId: sub.id, dojoId: sub.dojoId, action: "skipped", wasPastDue: overdue, detail: "ya hay un link vigente para este ciclo" };
   }
   const alreadyPaid = priorAttempts.find(a => a.status === PagueloFacilLinkStatus.USED);
   if (alreadyPaid) {
-    return { subscriptionId: sub.id, dojoId: sub.dojoId, action: "skipped", detail: "ciclo ya pagado" };
+    return { subscriptionId: sub.id, dojoId: sub.dojoId, action: "skipped", wasPastDue: overdue, detail: "ciclo ya pagado" };
   }
 
   // Reutiliza el Invoice del ciclo si ya existe un intento previo (expirado/fallido);
@@ -168,35 +169,16 @@ async function processSubscription(sub: SubWithPlan, now: Date): Promise<Renewal
       details: JSON.stringify({ subscriptionId: sub.id, attemptId, amount, environment: getMode() }),
     });
 
-    await notifyDojoAdmins(sub.dojoId, sub.plan.name, amount, link.url).catch(() => {});
+    await sendPagueloFacilPaymentLinkEmail(sub.dojoId, sub.plan.name, amount, link.url).catch(() => {});
 
-    return { subscriptionId: sub.id, dojoId: sub.dojoId, action: overdue ? "past_due" : "generated" };
+    return { subscriptionId: sub.id, dojoId: sub.dojoId, action: "generated", wasPastDue: overdue };
   } catch (err) {
     await logAudit({
       action: "PAGUELOFACIL_RENEWAL_ERROR", module: AUDIT_MODULE.SYSADMIN,
       resourceType: "Subscription", resourceId: sub.id, dojoId: sub.dojoId,
       details: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
     });
-    return { subscriptionId: sub.id, dojoId: sub.dojoId, action: "error", detail: err instanceof Error ? err.message : String(err) };
+    return { subscriptionId: sub.id, dojoId: sub.dojoId, action: "error", wasPastDue: overdue, detail: err instanceof Error ? err.message : String(err) };
   }
 }
 
-async function notifyDojoAdmins(dojoId: string, planName: string, amount: number, payUrl: string): Promise<void> {
-  const admins = await prisma.user.findMany({
-    where:  { dojoId, role: "admin", active: true },
-    select: { email: true },
-  });
-  if (admins.length === 0) return;
-
-  const html = `
-    <p>Hola,</p>
-    <p>Tu suscripción a DojoMasterOnline (plan <strong>${escHtml(planName)}</strong>) tiene un pago pendiente de
-    <strong>US$ ${amount.toFixed(2)}</strong>.</p>
-    <p><a href="${payUrl}">Pagar ahora con PagueloFacil</a></p>
-    <p>Si el enlace expira, se generará uno nuevo automáticamente.</p>
-  `;
-
-  await Promise.allSettled(
-    admins.map(a => sendEmail({ to: a.email, subject: "Pago pendiente — DojoMasterOnline", html })),
-  );
-}

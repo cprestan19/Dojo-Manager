@@ -2,7 +2,9 @@
 import { useState, useEffect } from "react";
 import { Video, Lock } from "lucide-react";
 import { BeltBadge } from "@/components/ui/BeltBadge";
-import { BELT_COLORS } from "@/lib/utils";
+import { BELT_COLORS, VIDEO_RANKING_CATEGORIES } from "@/lib/utils";
+
+const VIDEO_CATEGORIES = [...BELT_COLORS, ...VIDEO_RANKING_CATEGORIES];
 
 interface BeltVideo {
   id: string; beltColor: string; title: string;
@@ -77,8 +79,8 @@ export default function PortalVideosPage() {
     );
   }
 
-  // Group videos by belt color, preserving BELT_COLORS order
-  const grouped = BELT_COLORS.reduce<Record<string, BeltVideo[]>>((acc, b) => {
+  // Group videos by belt color / categoría, preserving VIDEO_CATEGORIES order
+  const grouped = VIDEO_CATEGORIES.reduce<Record<string, BeltVideo[]>>((acc, b) => {
     const list = data.videos.filter(v => v.beltColor === b.value);
     if (list.length) acc[b.value] = list;
     return acc;
@@ -99,18 +101,19 @@ export default function PortalVideosPage() {
       </div>
 
       {Object.entries(grouped).map(([beltColor, list]) => {
-        const belt = BELT_COLORS.find(b => b.value === beltColor);
+        const belt = VIDEO_CATEGORIES.find(b => b.value === beltColor);
         if (!belt) return null;
+        const isRealBelt = BELT_COLORS.some(b => b.value === beltColor);
         return (
           <div key={beltColor} className="space-y-3">
-            {/* Belt header */}
+            {/* Belt / category header */}
             <div
               className="flex items-center gap-2 px-3 py-2 rounded-lg"
               style={{ backgroundColor: belt.hex + "18" }}
             >
               <span className="w-3 h-3 rounded-full border border-white/30 flex-shrink-0" style={{ backgroundColor: belt.hex }} />
               <p className="font-semibold text-sm" style={{ color: belt.hex === "#FFFFFF" ? "#ccc" : belt.hex }}>
-                Cinta {belt.label}
+                {isRealBelt ? `Cinta ${belt.label}` : belt.label}
               </p>
               <span className="text-xs text-dojo-muted ml-auto">{list.length} video(s)</span>
             </div>

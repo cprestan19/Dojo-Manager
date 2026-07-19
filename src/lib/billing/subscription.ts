@@ -1,6 +1,10 @@
 import prisma from "@/lib/prisma";
-import { SubscriptionStatus, BillingCycle, type Plan, type Subscription } from "@prisma/client";
+import { SubscriptionStatus, BillingCycle, PaymentGateway, type Plan, type Subscription } from "@prisma/client";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
+
+// Error cuyo mensaje es seguro para mostrar tal cual al cliente (a diferencia
+// de errores internos/Prisma, que nunca deben llegar sin filtrar a la UI).
+export class SubscriptionUserError extends Error {}
 
 export const FREE_STATUSES: SubscriptionStatus[] = [
   SubscriptionStatus.COMPLIMENTARY,
@@ -46,9 +50,14 @@ export async function isDojoReadOnly(dojoId: string): Promise<boolean> {
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
-// Al crear un dojo nuevo se asigna suscripción ACTIVE directamente —
-// sin período de prueba ni limitación de días.
-export async function createTrialSubscription(
+// Al crear un dojo nuevo se otorga 1 mes gratis desde hoy (status TRIAL,
+// gateway PAGUELOFACIL). No requiere ninguna otra acción: el cron diario
+// runPagueloFacilRenewal (src/lib/billing/paguelofacilRenewal.ts) detecta
+// automáticamente cuando faltan ~3 días para trialEndsAt, genera el link de
+// pago y lo envía por correo — igual que cualquier renovación posterior.
+// No existe ya un esquema separado de "trial" con expiración manual: el
+// vencimiento y el cobro los maneja siempre ese mismo cron.
+export async function createFreeMonthSubscription(
   dojoId: string,
   planId: string,
 ): Promise<Subscription> {
@@ -56,9 +65,10 @@ export async function createTrialSubscription(
     data: {
       dojoId,
       planId,
-      status:      SubscriptionStatus.ACTIVE,
+      status:      SubscriptionStatus.TRIAL,
       cycle:       BillingCycle.MONTHLY,
-      trialEndsAt: new Date(),
+      gateway:     PaymentGateway.PAGUELOFACIL,
+      trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     },
   });
 
@@ -68,43 +78,51 @@ export async function createTrialSubscription(
     resourceType: "Subscription",
     resourceId:   sub.id,
     dojoId,
-    details:      JSON.stringify({ planId }),
+    details:      JSON.stringify({ planId, freeMonthEndsAt: sub.trialEndsAt }),
   });
 
   return sub;
 }
 
-export async function checkExpiredTrials(): Promise<number> {
-  const now = new Date();
-  const expired = await prisma.subscription.findMany({
-    where: {
-      status:      SubscriptionStatus.TRIAL,
-      trialEndsAt: { lt: now },
-    },
-    select: { id: true, dojoId: true },
+// ── Cambio de plan (mantiene status y fechas de facturación intactas) ─────────
+
+// Cambia el plan de un dojo que sigue en facturación normal (TRIAL/ACTIVE/
+// PAST_DUE/etc.) sin tocar su status ni sus fechas de ciclo — a diferencia de
+// los grants de arriba, que fuerzan al dojo a un estado de acceso especial.
+// Uso típico: un dojo ya activo pide subir o bajar de plan (downgrade vía
+// WhatsApp, ver buildDowngradeWhatsApp en PlanSelector.tsx). El límite de
+// alumnos del plan nuevo aplica de inmediato (ver validación en
+// POST /api/students). No re-cobra ni prorratea nada — el próximo cobro
+// (cron de renovación PagueloFacil) ya sale con el precio del plan nuevo.
+export async function changeSubscriptionPlan(
+  dojoId:    string,
+  planId:    string,
+  changedBy: string,
+  note?:     string,
+): Promise<Subscription> {
+  const existing = await prisma.subscription.findUnique({ where: { dojoId } });
+  if (!existing) throw new SubscriptionUserError("El dojo no tiene una suscripción — usa 'Acceso' para crear una.");
+
+  // isActive: true — un plan retirado/oculto (soft-deleted) no debe poder
+  // asignarse a una suscripción en curso, aunque el id siga existiendo.
+  const plan = await prisma.plan.findFirst({ where: { id: planId, isActive: true } });
+  if (!plan) throw new SubscriptionUserError("El plan seleccionado no existe o ya no está activo.");
+
+  const sub = await prisma.subscription.update({
+    where: { dojoId },
+    data:  { planId: plan.id },
   });
 
-  if (expired.length === 0) return 0;
-
-  await prisma.subscription.updateMany({
-    where: { id: { in: expired.map(s => s.id) } },
-    data:  { status: SubscriptionStatus.ACTIVE },
+  await logAudit({
+    action:       "SUBSCRIPTION_PLAN_CHANGED",
+    module:       AUDIT_MODULE.SYSADMIN,
+    resourceType: "Subscription",
+    resourceId:   sub.id,
+    dojoId,
+    details:      JSON.stringify({ changedBy, newPlanId: plan.id, newPlanName: plan.name, note }),
   });
 
-  await Promise.allSettled(
-    expired.map(s =>
-      logAudit({
-        action:       "TRIAL_EXPIRED",
-        module:       AUDIT_MODULE.SYSADMIN,
-        resourceType: "Subscription",
-        resourceId:   s.id,
-        dojoId:       s.dojoId,
-        details:      "Trial expired — moved to ACTIVE",
-      }),
-    ),
-  );
-
-  return expired.length;
+  return sub;
 }
 
 // ── Acceso especial permanente (COMPLIMENTARY) ────────────────────────────────
@@ -119,6 +137,16 @@ export async function grantComplimentary(
     ? await prisma.plan.findUniqueOrThrow({ where: { id: planId } })
     : await getOrCreateDefaultPlan();
 
+  // COMPLIMENTARY es acceso permanente — nunca debe leer como si fuera a
+  // expirar. trialEndsAt se normaliza a +100 años (no se usa para nada en
+  // este status, pero evita que quede una fecha próxima confusa si se
+  // consulta directo en BD) y currentPeriodStart/End se limpian porque son
+  // del último ciclo pagado (si el dojo venía de un plan de pago) y ya no
+  // representan nada una vez que pasa a cortesía — se aplica igual en
+  // create y update para que un dojo que ya tenía suscripción no arrastre
+  // datos de facturación vencidos.
+  const farFuture = new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000);
+
   const sub  = await prisma.subscription.upsert({
     where:  { dojoId },
     create: {
@@ -126,17 +154,21 @@ export async function grantComplimentary(
       planId:      plan.id,
       status:      SubscriptionStatus.COMPLIMENTARY,
       cycle:       BillingCycle.MONTHLY,
-      trialEndsAt: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000),
+      trialEndsAt: farFuture,
       grantedBy,
       grantedAt:   new Date(),
       grantNote:   note ?? null,
     },
     update: {
-      planId:    plan.id,
-      status:    SubscriptionStatus.COMPLIMENTARY,
+      planId:             plan.id,
+      status:             SubscriptionStatus.COMPLIMENTARY,
+      trialEndsAt:        farFuture,
+      currentPeriodStart: null,
+      currentPeriodEnd:   null,
+      cancelAtPeriodEnd:  false,
       grantedBy,
-      grantedAt: new Date(),
-      grantNote: note ?? null,
+      grantedAt:          new Date(),
+      grantNote:          note ?? null,
     },
   });
 

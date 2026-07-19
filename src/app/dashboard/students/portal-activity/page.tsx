@@ -7,6 +7,8 @@ import {
   CheckCircle, Loader2, ChevronDown,
 } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { NAV_KEYS } from "@/lib/permissions";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +68,8 @@ function timeAgo(iso: string): string {
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function PortalActivityPage() {
+  const perms = usePermissions();
+  const canGrantPortalAccess = perms.has(NAV_KEYS.PORTAL_ACCESS);
   const [data,       setData]       = useState<Summary | null>(null);
   const [students,   setStudents]   = useState<PortalStudent[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -263,20 +267,24 @@ export default function PortalActivityPage() {
                   {withoutAccess} alumno{withoutAccess !== 1 ? "s" : ""} sin acceso al portal
                 </p>
                 <p className="text-dojo-muted text-xs mt-0.5">
-                  Solo se activan los que tienen email de madre o padre registrado
+                  {canGrantPortalAccess
+                    ? "Solo se activan los que tienen email de madre o padre registrado"
+                    : "Tu plan actual no incluye el portal de alumnos"}
                 </p>
               </div>
-              <button
-                onClick={grantAll}
-                disabled={bulkLoading}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50 shrink-0"
-                style={{ background: "#C0392B" }}
-              >
-                {bulkLoading
-                  ? <><Loader2 size={15} className="animate-spin" /> Activando...</>
-                  : <><KeyRound size={15} /> Dar acceso a todos</>
-                }
-              </button>
+              {canGrantPortalAccess && (
+                <button
+                  onClick={grantAll}
+                  disabled={bulkLoading}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50 shrink-0"
+                  style={{ background: "#C0392B" }}
+                >
+                  {bulkLoading
+                    ? <><Loader2 size={15} className="animate-spin" /> Activando...</>
+                    : <><KeyRound size={15} /> Dar acceso a todos</>
+                  }
+                </button>
+              )}
             </div>
           )}
 
@@ -373,7 +381,7 @@ export default function PortalActivityPage() {
 
                   {/* Derecha: estado o botón */}
                   <div className="text-right shrink-0 space-y-0.5 min-w-[110px]">
-                    {!hasActive && !s._grantError ? (
+                    {!hasActive && !s._grantError && canGrantPortalAccess ? (
                       /* Botón dar acceso individual */
                       <button
                         onClick={() => grantSingle(s)}

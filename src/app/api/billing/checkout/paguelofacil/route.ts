@@ -11,11 +11,13 @@ import {
   getMode,
 } from "@/lib/billing/paguelofacil";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
+import { sendPagueloFacilWelcomeEmail } from "@/lib/billing/paguelofacilNotify";
 import { PaymentGateway, BillingCycle, InvoiceStatus, PagueloFacilLinkStatus } from "@prisma/client";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
 const LINK_EXPIRES_IN_SECONDS = 24 * 60 * 60; // 24 horas
+const FREE_FIRST_MONTH_DAYS   = 30; // solo para dojos que nunca han tenido suscripción
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,6 +47,10 @@ export async function POST(req: NextRequest) {
     const amount = billingCycle === "MONTHLY" ? plan.monthlyPrice : plan.annualPrice;
     const bCycle = billingCycle === "MONTHLY" ? BillingCycle.MONTHLY : BillingCycle.ANNUAL;
 
+    // Un dojo "nuevo" es uno que nunca tuvo fila de Subscription — así se distingue
+    // de un dojo existente que cambia de plan/gateway (ese sí paga de inmediato).
+    const isNewDojo = !(await prisma.subscription.findUnique({ where: { dojoId }, select: { id: true } }));
+
     // Upsert subscription record — mismo patrón que PayPal/MercadoPago.
     // A diferencia de esos dos, PagueloFacil no tiene objeto de suscripción remoto:
     // cada ciclo se cobra generando un Invoice + link nuevo (ver Invoice más abajo).
@@ -55,7 +61,7 @@ export async function POST(req: NextRequest) {
         planId,
         gateway:     PaymentGateway.PAGUELOFACIL,
         cycle:       bCycle,
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        trialEndsAt: new Date(Date.now() + FREE_FIRST_MONTH_DAYS * 24 * 60 * 60 * 1000),
       },
       update: {
         planId,
@@ -63,6 +69,23 @@ export async function POST(req: NextRequest) {
         cycle:   bCycle,
       },
     });
+
+    // Primer mes gratis — solo para dojos nuevos. No se genera factura ni link
+    // todavía; el cron de renovación (ya existente) lo detectará automáticamente
+    // cuando falten ~3 días para trialEndsAt y enviará el link de cobro por correo,
+    // igual que cualquier otra renovación.
+    if (isNewDojo) {
+      await logAudit({
+        action:       "SUBSCRIPTION_TRIAL_STARTED",
+        module:       AUDIT_MODULE.SYSADMIN,
+        resourceType: "Subscription",
+        resourceId:   subscription.id,
+        dojoId,
+        details:      JSON.stringify({ gateway: "PAGUELOFACIL", planId, cycle: billingCycle }),
+      });
+      await sendPagueloFacilWelcomeEmail(dojoId, plan.name, amount, subscription.trialEndsAt).catch(() => {});
+      return NextResponse.json({ trial: true });
+    }
 
     // Idempotencia: si ya existe un Invoice PENDING con un link vigente (no expirado)
     // para esta suscripción, se reutiliza en vez de generar uno nuevo por doble click.

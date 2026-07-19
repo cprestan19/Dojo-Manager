@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { randomInt } from "crypto";
 import { sendEmail } from "@/lib/email";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
-import { getOrCreateDefaultPlan, createTrialSubscription } from "@/lib/billing/subscription";
+import { getOrCreateDefaultPlan, createFreeMonthSubscription } from "@/lib/billing/subscription";
 
 function slugify(text: string): string {
   return text
@@ -32,7 +32,14 @@ function generatePassword(): string {
   return chars.join("");
 }
 
-async function sendWelcomeEmail(to: string, senseiName: string, dojoName: string, password: string) {
+function fmtDate(d: Date): string {
+  return d.toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "long", year: "numeric" });
+}
+
+async function sendWelcomeEmail(
+  to: string, senseiName: string, dojoName: string, password: string,
+  planName: string, planMonthlyPrice: number, freeMonthEndsAt: Date,
+) {
   try {
     const loginUrl = `${process.env.NEXTAUTH_URL ?? "https://dojomasteronline.com"}/login`;
 
@@ -56,7 +63,7 @@ async function sendWelcomeEmail(to: string, senseiName: string, dojoName: string
     <div style="padding:32px 28px;">
       <h2 style="color:#111;font-size:22px;margin:0 0 8px;">¡Bienvenido, ${senseiName}! 🎉</h2>
       <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px;">
-        Tu dojo <strong>${dojoName}</strong> ya está registrado en Dojo Master con el <strong>Plan Bronce gratuito</strong>.
+        Tu dojo <strong>${dojoName}</strong> ya está registrado en Dojo Master con el plan <strong>${planName}</strong>.
         Aquí están tus credenciales de acceso:
       </p>
 
@@ -91,14 +98,16 @@ async function sendWelcomeEmail(to: string, senseiName: string, dojoName: string
         </div>
       `).join("")}
 
-      <!-- Límites del plan -->
+      <!-- Mes gratis y próximo cobro -->
       <div style="background:#fff8e1;border:1px solid #F59E0B;border-radius:10px;padding:16px 20px;margin-top:24px;">
-        <p style="margin:0 0 8px;font-weight:bold;color:#92400E;font-size:14px;">📋 Plan Bronce — Límites actuales</p>
-        <p style="margin:0 0 4px;font-size:13px;color:#555;">✓ Hasta <strong>20 alumnos</strong> activos</p>
-        <p style="margin:0 0 4px;font-size:13px;color:#555;">✓ Control de asistencia QR, pagos y recordatorios automáticos</p>
-        <p style="margin:0 0 12px;font-size:13px;color:#555;">✓ Portal del alumno con videos de katas</p>
-        <p style="margin:0 0 4px;font-size:12px;color:#92400E;"><strong>¿Más de 20 alumnos?</strong> → Plan Silver (hasta 60) — $60/mes · Carnets, diplomas, eventos, push y página web incluida</p>
-        <p style="margin:0;font-size:12px;color:#92400E;"><strong>¿Torneos + streaming + alumnos ilimitados?</strong> → Plan Gold — $80/mes</p>
+        <p style="margin:0 0 8px;font-weight:bold;color:#92400E;font-size:14px;">🎁 Tu primer mes es gratis</p>
+        <p style="margin:0 0 4px;font-size:13px;color:#555;">
+          A partir del <strong>${fmtDate(freeMonthEndsAt)}</strong> se generará el cobro de tu suscripción al plan
+          <strong>${planName}</strong> por <strong>US$ ${planMonthlyPrice.toFixed(2)}/mes</strong>.
+        </p>
+        <p style="margin:0;font-size:13px;color:#555;">
+          Te enviaremos a este correo el enlace de pago automáticamente cuando se acerque esa fecha — no tienes que hacer nada ahora.
+        </p>
       </div>
     </div>
 
@@ -225,10 +234,13 @@ export async function POST(req: NextRequest) {
     // Obtener el dojo recién creado para el audit log y trial
     const newDojo = await prisma.dojo.findUnique({ where: { slug }, select: { id: true } });
 
-    // Iniciar trial de 14 días automáticamente
+    // Otorgar 1 mes gratis — el link de pago se genera y envía automáticamente al vencer
+    let defaultPlan: Awaited<ReturnType<typeof getOrCreateDefaultPlan>> | null = null;
+    let freeMonthEndsAt = new Date();
     if (newDojo) {
-      const defaultPlan = await getOrCreateDefaultPlan();
-      await createTrialSubscription(newDojo.id, defaultPlan.id);
+      defaultPlan = await getOrCreateDefaultPlan();
+      const sub = await createFreeMonthSubscription(newDojo.id, defaultPlan.id);
+      freeMonthEndsAt = sub.trialEndsAt;
     }
 
     // Audit log con IP, país y dispositivo
@@ -262,7 +274,10 @@ export async function POST(req: NextRequest) {
 
     // Enviar emails (no bloqueante — no fallan el registro)
     await Promise.allSettled([
-      sendWelcomeEmail(cleanEmail, senseiName.trim(), dojoName.trim(), tempPassword),
+      sendWelcomeEmail(
+        cleanEmail, senseiName.trim(), dojoName.trim(), tempPassword,
+        defaultPlan?.name ?? "Academia", defaultPlan?.monthlyPrice ?? 0, freeMonthEndsAt,
+      ),
       notifyFounder(senseiName.trim(), dojoName.trim(), cleanEmail, phone.trim(), country, studentCount ?? "No indicado", yearsTeaching ?? "No indicado"),
     ]);
 

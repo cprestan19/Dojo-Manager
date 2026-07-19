@@ -124,30 +124,30 @@ type PlanVisual = {
 };
 
 const PLAN_VISUAL: Record<string, PlanVisual> = {
-  "Bronce": {
-    emoji:"🥉", color:"#78716C", highlight:false, badge:null,
+  "Academia": {
+    emoji:"🥋", color:"#94A3B8", highlight:false, badge:null,
     missing:[
-      "Diseño de carnet digital para cada alumno",
-      "Diplomas automáticos en cada ascenso de cinta",
-      "Módulo de eventos y postulaciones a torneos",
-      "Push de notificaciones a alumnos",
-      "Página web profesional del dojo incluida",
+      "Diseño y creación de carnet",
+      "Diseño y creación de diplomas",
+      "Reportes avanzados y módulo de eventos",
+      "Notificaciones push a alumnos",
+      "Portal del alumno (padres)",
       "Tienda en línea",
-      "CRM de prospectos",
-      "Reportes avanzados",
-      "Módulo de Torneos Pro",
+      "Página web pública",
+      "Videos de katas por cinta",
+      "Módulo de Torneos Pro con streaming",
     ],
-    cta:"Crear cuenta gratis", ctaLink:"/register",
+    cta:"Empezar con Academia", ctaLink:"/register",
   },
-  "Silver": {
-    emoji:"🥈", color:"#94A3B8", highlight:false, badge:null,
-    missing:["Módulo de Torneos Pro con streaming"],
-    cta:"Empezar con Silver", ctaLink:"/register",
+  "Academia y padres": {
+    emoji:"🥈", color:GOLD, highlight:true, badge:"Más popular",
+    missing:["Tienda en línea", "Página web pública", "Videos de katas por cinta", "Módulo de Torneos Pro con streaming"],
+    cta:"Empezar con Academia y padres", ctaLink:"/register",
   },
-  "Gold": {
-    emoji:"🥇", color:GOLD, highlight:true, badge:"Más completo",
+  "Academia, padres y Torneo": {
+    emoji:"🥇", color:"#F59E0B", highlight:false, badge:"Más completo",
     missing:[],
-    cta:"Empezar con Gold", ctaLink:"/register",
+    cta:"Empezar con el plan completo", ctaLink:"/register",
   },
 };
 
@@ -173,6 +173,10 @@ interface DbPlan {
   maxStudents: number | null; features: string;
 }
 
+interface FeaturedDojo {
+  name: string; slug: string; logo: string;
+}
+
 const FAQS = [
   { q:"¿Necesito equipo especial para el control de asistencia?", a:"No. El scanner QR funciona desde la cámara de cualquier smartphone. El alumno muestra su código desde su portal y en menos de 1 segundo queda registrado. Sin lectores, sin tablets adicionales, sin costo extra." },
   { q:"¿Cómo reciben los alumnos sus recordatorios de pago?", a:"Automáticamente por correo electrónico. El sistema detecta pagos en mora según la tolerancia que configures y envía el recordatorio sin que hagas nada. También puedes enviarlo manualmente con un clic." },
@@ -180,8 +184,8 @@ const FAQS = [
   { q:"¿Cómo funcionan los diplomas y carnets digitales de cinta?", a:"Cada vez que registras un cambio de cinta en el panel, el sistema genera automáticamente el diploma y actualiza el carnet digital del alumno. El alumno lo ve al instante en su portal y puede descargarlo. Sin impresoras, sin formularios, sin demoras — todo automatizado." },
   { q:"¿Cómo funciona el módulo de eventos para torneos?", a:"Creas el evento, seleccionas los alumnos que participarán y el sistema genera la lista de confirmados. El día del torneo pasas lista con un toque y calificas medallas y posiciones al instante. Todo queda registrado en el expediente permanente del atleta — el alumno puede ver sus logros, las katas con las que ganó medallas y explorar su crecimiento desde su portal." },
   { q:"¿Necesito instalar alguna aplicación?", a:"No. Dojo Master es 100% en la nube. El Sensei gestiona todo desde el navegador de cualquier celular, tablet o computadora con internet. Los alumnos también acceden a su portal desde el navegador, sin descargar ninguna app. Funciona en iOS, Android, Windows y Mac." },
-  { q:"¿La página web del dojo tiene costo adicional?", a:"No. En Silver y Gold la página de tu dojo está incluida: logo, horarios, galería, perfil del Sensei, formulario de clase gratuita y tienda. La configuras en menos de 30 minutos." },
-  { q:"¿Qué incluye el módulo de Torneos Pro (Gold)?", a:"Torneos con streaming en vivo por YouTube u OBS, múltiples tatamis simultáneos, asignación de jueces y árbitros, inscripciones federativas online, programa del evento y overlay profesional para transmisión." },
+  { q:"¿La página web del dojo tiene costo adicional?", a:"No tiene costo adicional — está incluida en el plan Torneo (el más completo): logo, horarios, galería, perfil del Sensei, formulario de clase gratuita y tienda. La configuras en menos de 30 minutos." },
+  { q:"¿Qué incluye el módulo de Torneos Pro (plan Academia, padres y Torneo)?", a:"Torneos con streaming en vivo por YouTube u OBS, múltiples tatamis simultáneos, asignación de jueces y árbitros, inscripciones federativas online, programa del evento y overlay profesional para transmisión." },
   { q:"¿Mis datos están seguros?", a:"Sí. Cada dojo tiene sus datos completamente aislados. Las imágenes van a Cloudinary (CDN global). Base de datos PostgreSQL con cifrado. Puedes exportar todo en CSV cuando quieras." },
   { q:"¿Cuánto tiempo toma configurarlo?", a:"La configuración básica (logo, nombre, primeros alumnos, primer QR) toma menos de 15 minutos. El primer día ya puedes pasar lista y controlar pagos. La web del dojo en menos de 30 minutos." },
 ];
@@ -198,19 +202,17 @@ const TESTIMONIALS = [
 export default function LandingPage() {
   const [navOpen,   setNavOpen]   = useState(false);
   const [openFaq,   setOpenFaq]   = useState<number | null>(null);
-  const [dojoCount, setDojoCount] = useState(120);
   const [lang,      setLang]      = useState<"es"|"en">("es");
   const [dbPlans,   setDbPlans]   = useState<DbPlan[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
+  const [featuredDojos, setFeaturedDojos] = useState<FeaturedDojo[]>([]);
 
-  // FIX: useRef evita que el contador reinicie en re-renders
-  const countedRef = useRef(false);
+  // Dojos destacados — logos reales de clientes, marcados desde Gestión de Dojos
   useEffect(() => {
-    if (countedRef.current) return;
-    countedRef.current = true;
-    const target = 120; let c = 0;
-    const t = setInterval(() => { c++; setDojoCount(c); if (c >= target) clearInterval(t); }, 18);
-    return () => clearInterval(t);
+    fetch("/api/public/featured-dojos")
+      .then(r => r.ok ? r.json() : [])
+      .then((data: FeaturedDojo[]) => { if (Array.isArray(data)) setFeaturedDojos(data); })
+      .catch(() => {});
   }, []);
 
   // Fetch planes desde la BD — se cachean en CDN 5 min
@@ -249,6 +251,15 @@ export default function LandingPage() {
           .feat-float-hide { display: none !important; }
         }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+        /* Logos de dojos destacados — a color siempre, solo un pequeño efecto al pasar el mouse */
+        .featured-logo {
+          transition: transform .25s ease, box-shadow .25s ease;
+        }
+        .featured-logo:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 18px rgba(0,0,0,.25);
+        }
       `}</style>
 
       {/* ══ NAV ════════════════════════════════════════════════ */}
@@ -337,18 +348,6 @@ export default function LandingPage() {
 
         <div style={{ maxWidth:1280, margin:"0 auto", padding:"80px 32px 0" }}>
 
-          <div style={{ display:"flex", justifyContent:"center", marginBottom:32 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 20px",
-              borderRadius:100, border:`1px solid ${PRIMARY}50`, background:`${PRIMARY}12`,
-              fontSize:14, fontWeight:600 }}>
-              <span style={{ width:8, height:8, borderRadius:"50%", background:PRIMARY, animation:"pulse 2s infinite", display:"inline-block" }}/>
-              <span style={{ color:"rgba(255,255,255,.65)" }}>
-                <span style={{ color:PRIMARY, fontWeight:900 }}>{dojoCount}+</span>
-                {" "}dojos en 🇵🇦 🇨🇷 🇲🇽 🇨🇴 y más
-              </span>
-            </div>
-          </div>
-
           <h1 style={{
             textAlign:"center", fontFamily:"'Cinzel',serif", fontWeight:900, lineHeight:1.05,
             fontSize:"clamp(2.6rem,7vw,5.5rem)", marginBottom:20,
@@ -373,7 +372,7 @@ export default function LandingPage() {
               borderRadius:14, background:PRIMARY, color:"#fff", fontWeight:700, fontSize:17,
               boxShadow:`0 8px 40px ${PRIMARY}50`, transition:"transform .2s,box-shadow .2s",
             }}>
-              {es?"Empieza gratis — sin tarjeta":"Start free — no card"} <ArrowRight size={18}/>
+              {es?"1 mes gratis — sin tarjeta":"1 month free — no card"} <ArrowRight size={18}/>
             </Link>
             <a href="#planes" style={{
               display:"flex", alignItems:"center", gap:8, padding:"16px 36px",
@@ -386,8 +385,8 @@ export default function LandingPage() {
 
           {/* FIX: precio visible debajo de los CTAs */}
           <p style={{ textAlign:"center", fontSize:13, color:"rgba(255,255,255,.58)", marginBottom:56 }}>
-            ✓ {es ? "Plan gratuito para hasta 20 alumnos · Sin tarjeta de crédito requerida"
-                   : "Free plan for up to 20 students · No credit card required"}
+            ✓ {es ? "Tu primer mes es gratis en cualquier plan · Sin tarjeta de crédito requerida"
+                   : "Your first month is free on any plan · No credit card required"}
           </p>
 
           <Reveal>
@@ -412,7 +411,7 @@ export default function LandingPage() {
                 <FloatCard icon="🎌" title="Portal del Alumno" sub="Videos de katas + historial" accent={GOLD}/>
               </div>
               <div className="feat-float-hide" style={{ position:"absolute", bottom:60, left:-20, zIndex:10 }}>
-                <FloatCard icon="🌐" title="Página Web Incluida" sub="Silver y Gold — lista en 30 min" accent="#10B981"/>
+                <FloatCard icon="🌐" title="Página Web Incluida" sub="Plan Torneo — lista en 30 min" accent="#10B981"/>
               </div>
 
               <div style={{ position:"absolute", bottom:-24, left:"5%", right:"5%", height:1,
@@ -424,19 +423,29 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ PAÍSES BAR ═════════════════════════════════════════ */}
-      <div style={{ borderTop:"1px solid rgba(255,255,255,.05)", borderBottom:"1px solid rgba(255,255,255,.05)",
-        padding:"20px 24px", background:BG2, marginTop:48 }}>
-        <p style={{ textAlign:"center", fontSize:11, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase",
-          color:"rgba(255,255,255,.32)", marginBottom:14 }}>
-          {es?"Presente en":"Present in"}
-        </p>
-        <div style={{ display:"flex", justifyContent:"center", flexWrap:"wrap", gap:"8px 40px",
-          color:"rgba(255,255,255,.42)", fontSize:14, fontWeight:600 }}>
-          {["🇵🇦 Panamá","🇨🇷 Costa Rica","🇲🇽 México","🇨🇴 Colombia","🇻🇪 Venezuela","🇩🇴 Rep. Dominicana","🇸🇻 El Salvador","🇧🇴 Bolivia"]
-            .map(c=><span key={c}>{c}</span>)}
+      {/* ══ DOJOS QUE CONFÍAN EN NOSOTROS ═══════════════════════ */}
+      {featuredDojos.length > 0 && (
+        <div style={{ borderTop:"1px solid rgba(255,255,255,.05)", borderBottom:"1px solid rgba(255,255,255,.05)",
+          padding:"24px 24px", background:BG2, marginTop:48 }}>
+          <p style={{ textAlign:"center", fontSize:11, fontWeight:700, letterSpacing:".14em", textTransform:"uppercase",
+            color:"rgba(255,255,255,.32)", marginBottom:18 }}>
+            {es?"Dojos que ya confían en nosotros":"Dojos that already trust us"}
+          </p>
+          <div style={{ display:"flex", justifyContent:"center", flexWrap:"wrap", gap:"28px 40px", alignItems:"flex-start" }}>
+            {featuredDojos.map(d => (
+              <div key={d.slug} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:7, width:84 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={d.logo} alt={d.name} width={52} height={52} className="featured-logo"
+                  style={{ width:52, height:52, borderRadius:12, objectFit:"contain", background:"#fff", padding:6 }}
+                />
+                <span style={{ fontSize:11, color:"rgba(255,255,255,.45)", fontWeight:600, textAlign:"center", lineHeight:1.3 }}>
+                  {d.name}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ══ SIN INSTALACIÓN ════════════════════════════════════ */}
       <div style={{ borderBottom:"1px solid rgba(255,255,255,.05)", padding:"22px 32px",
@@ -815,7 +824,7 @@ export default function LandingPage() {
                 <div style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"6px 14px",
                   borderRadius:100, fontSize:12, fontWeight:700, background:`${GOLD}22`, color:GOLD,
                   marginBottom:20 }}>
-                  <Trophy size={13}/> {es?"Exclusivo Plan Gold":"Gold Plan Exclusive"}
+                  <Trophy size={13}/> {es?"Exclusivo plan Academia, padres y Torneo":"Exclusive to the Torneo plan"}
                 </div>
                 <h3 style={{ fontFamily:"'Cinzel',serif", fontWeight:900, fontSize:"clamp(1.5rem,3vw,2.2rem)",
                   lineHeight:1.15, marginBottom:16, color:"#eef0f8" }}>
@@ -964,7 +973,7 @@ export default function LandingPage() {
                 <div style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"6px 14px",
                   borderRadius:100, fontSize:12, fontWeight:700, background:"rgba(16,185,129,.18)", color:"#34d399",
                   marginBottom:20 }}>
-                  <Globe size={13}/> {es?"Incluida en Silver y Gold":"Included in Silver & Gold"}
+                  <Globe size={13}/> {es?"Incluida en el plan Torneo":"Included in the Torneo plan"}
                 </div>
                 <h3 style={{ fontFamily:"'Cinzel',serif", fontWeight:900, fontSize:"clamp(1.5rem,3vw,2.2rem)",
                   lineHeight:1.15, marginBottom:16, color:"#eef0f8" }}>
@@ -994,7 +1003,7 @@ export default function LandingPage() {
                 <div style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"6px 14px",
                   borderRadius:100, fontSize:12, fontWeight:700, background:`${GOLD}22`, color:GOLD,
                   marginBottom:20 }}>
-                  <IdCard size={13}/> {es?"Incluido en Silver y Gold":"Included in Silver & Gold"}
+                  <IdCard size={13}/> {es?"Incluido desde Academia y padres":"Included from Academia y padres up"}
                 </div>
                 <h3 style={{ fontFamily:"'Cinzel',serif", fontWeight:900, fontSize:"clamp(1.5rem,3vw,2.2rem)",
                   lineHeight:1.15, marginBottom:16, color:"#eef0f8" }}>
@@ -1213,7 +1222,7 @@ export default function LandingPage() {
               {es?"Transparente y sin sorpresas":"Simple and transparent"}
             </h2>
             <p style={{ textAlign:"center", color:"rgba(255,255,255,.6)", fontSize:17, marginBottom:64 }}>
-              {es?"Empieza gratis. Crece cuando necesites. Cancela cuando quieras.":"Start free. Scale when you need. Cancel anytime."}
+              {es?"Tu primer mes es gratis. Crece cuando necesites. Cancela cuando quieras.":"Your first month is free. Scale when you need. Cancel anytime."}
             </p>
           </Reveal>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:20, alignItems:"stretch" }}>
@@ -1327,22 +1336,22 @@ export default function LandingPage() {
             </p>
             <h2 style={{ textAlign:"center", fontFamily:"'Cinzel',serif", fontWeight:900,
               fontSize:"clamp(1.6rem,4vw,2.6rem)", marginBottom:16, color:"#eef0f8" }}>
-              {es?"¿Por qué el Plan Bronce es gratis?":"Why is the Bronze Plan free?"}
+              {es?"¿Cómo funciona el primer mes gratis?":"How does the free first month work?"}
             </h2>
             <p style={{ textAlign:"center", color:"rgba(255,255,255,.6)", fontSize:17, maxWidth:560, margin:"0 auto 64px" }}>
-              {es?"No es una prueba de 14 días ni un anzuelo. Así es como funciona:":"It's not a 14-day trial or a bait. Here's how it works:"}
+              {es?"Sin letra pequeña ni sorpresas. Así es como funciona:":"No fine print, no surprises. Here's how it works:"}
             </p>
           </Reveal>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))", gap:20 }}>
             {(es
               ? [
-                  { icon:Shield,     title:"Gratis para siempre",        desc:"Hasta 20 alumnos, sin tarjeta de crédito y sin límite de tiempo. No es una prueba: es un plan real que podés usar indefinidamente." },
-                  { icon:TrendingUp, title:"Así financiamos el desarrollo", desc:"Los dojos que crecen y necesitan más (carnets, diplomas, eventos, push de notificaciones, página web, postulaciones, Torneos Pro o alumnos ilimitados) pasan a Silver o Gold. Eso paga el desarrollo continuo de la plataforma para todos." },
+                  { icon:Shield,     title:"1 mes gratis, sin tarjeta",  desc:"Regístrate y usa el plan que elijas gratis durante 30 días completos. No pedimos tarjeta de crédito para empezar." },
+                  { icon:Bell,       title:"El link de pago te llega solo", desc:"Cuando se acerca la fecha de vencimiento, el sistema genera y envía automáticamente a tu correo el enlace de pago para continuar — no tienes que acordarte de nada." },
                   { icon:Lock,       title:"Tus datos son tuyos",         desc:"Sin contratos de permanencia. Podés exportar la información de tus alumnos cuando quieras, te quedes con nosotros o no." },
                 ]
               : [
-                  { icon:Shield,     title:"Free forever",       desc:"Up to 20 students, no credit card, no time limit. It's not a trial — it's a real plan you can use indefinitely." },
-                  { icon:TrendingUp, title:"How we fund development", desc:"Dojos that grow and need more (digital ID cards, diplomas, events, push notifications, website, exam applications, Tournament Pro or unlimited students) move to Silver or Gold. That funds ongoing development for everyone." },
+                  { icon:Shield,     title:"1 free month, no card",  desc:"Sign up and use the plan you choose free for 30 full days. No credit card required to start." },
+                  { icon:Bell,       title:"The payment link comes to you", desc:"As your free month ends, the system automatically generates and emails you the payment link to continue — nothing to remember." },
                   { icon:Lock,       title:"Your data is yours", desc:"No long-term contracts. Export your students' information anytime, whether you stay with us or not." },
                 ]
             ).map((item,i) => {

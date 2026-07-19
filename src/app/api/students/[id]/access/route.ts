@@ -8,6 +8,8 @@ import { sendStudentWelcome } from "@/lib/email";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
+import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
+import { NAV_KEYS } from "@/lib/permissions";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -29,9 +31,9 @@ function generatePassword(): string {
   return chars.join("");
 }
 
-export async function POST(req: NextRequest, { params }: Params) {
+async function _POST(req: NextRequest, routeCtx: unknown) {
   try {
-    const { id } = await params;
+    const { id } = await (routeCtx as Params).params;
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -152,6 +154,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 }
 
+export const POST = withPlanFeatureGuard(NAV_KEYS.PORTAL_ACCESS, _POST);
+
+// DELETE (revocar) no se gatea por plan — siempre debe poder quitarse el
+// acceso a un alumno, incluso si el dojo ya no tiene el plan que lo otorgó.
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;

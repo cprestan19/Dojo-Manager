@@ -19,16 +19,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
-import { withPaidPlanGuard } from "@/lib/billing/featureGuard";
+import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
+import { NAV_KEYS } from "@/lib/permissions";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { computeSyncDiff } from "@/lib/tournament-event-sync";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 type Params = { params: Promise<{ id: string }> };
 
-export const POST = withPaidPlanGuard(async (req: NextRequest, ctx: unknown) => {
+async function _POST(req: NextRequest, routeCtx: unknown) {
   const t0 = Date.now();
-  const { params } = ctx as Params;
+  const { params } = routeCtx as Params;
   const { id: eventId } = await params;
 
   const session = await getServerSession(authOptions);
@@ -130,4 +131,8 @@ export const POST = withPaidPlanGuard(async (req: NextRequest, ctx: unknown) => 
   }
 
   return NextResponse.json(result, { status: result.created ? 201 : 200 });
-});
+}
+
+// Gatea por TOURNAMENT_EVENTS — esta acción crea/actualiza un TournamentEvent
+// a partir del Event (EVENTS ya gatea el Evento en sí en /api/events).
+export const POST = withPlanFeatureGuard(NAV_KEYS.TOURNAMENT_EVENTS, _POST);

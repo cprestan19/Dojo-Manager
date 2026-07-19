@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
-import { getOrCreateDefaultPlan, createTrialSubscription } from "@/lib/billing/subscription";
+import { getOrCreateDefaultPlan, createFreeMonthSubscription } from "@/lib/billing/subscription";
 import { notifyAdmin, buildDojoCreatedEmail } from "@/lib/admin-notifications";
 
 type SessionUser = { role?: string; id?: string; email?: string };
@@ -17,28 +17,43 @@ export async function GET() {
   const { role } = session.user as SessionUser;
   if (role !== "sysadmin") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-  const dojos = await prisma.dojo.findMany({
-    select: {
-      id: true, name: true, slug: true, email: true, phone: true,
-      active: true, tournamentPro: true, createdAt: true, updatedAt: true,
-      // logo y loginBgImage excluidos — son base64 de varios KB/MB
-      subscription: {
-        select: {
-          status: true,
-          currentPeriodEnd: true,
-          plan: { select: { name: true, maxStudents: true } },
+  const [dojos, activity] = await Promise.all([
+    prisma.dojo.findMany({
+      select: {
+        id: true, name: true, slug: true, email: true, phone: true,
+        active: true, tournamentPro: true, featured: true, createdAt: true, updatedAt: true,
+        // logo y loginBgImage excluidos — son base64 de varios KB/MB
+        subscription: {
+          select: {
+            status: true,
+            currentPeriodEnd: true,
+            trialEndsAt: true,
+            plan: { select: { id: true, name: true, maxStudents: true } },
+          },
+        },
+        _count: {
+          select: {
+            users:    { where: { role: { not: "student" }, active: true } },
+            students: { where: { active: true } },
+          },
         },
       },
-      _count: {
-        select: {
-          users:    { where: { role: { not: "student" }, active: true } },
-          students: { where: { active: true } },
-        },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
-  return NextResponse.json(dojos);
+      orderBy: { name: "asc" },
+    }),
+    // Última fecha de entrada por dojo — max(lastActiveAt) entre todos sus usuarios
+    // (staff y alumnos), una sola query agregada en vez de N+1.
+    prisma.user.groupBy({
+      by:     ["dojoId"],
+      where:  { dojoId: { not: null } },
+      _max:   { lastActiveAt: true },
+    }),
+  ]);
+
+  const lastActiveByDojo = new Map(activity.map(a => [a.dojoId, a._max.lastActiveAt]));
+
+  return NextResponse.json(
+    dojos.map(d => ({ ...d, lastActiveAt: lastActiveByDojo.get(d.id) ?? null })),
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -62,9 +77,9 @@ export async function POST(req: NextRequest) {
     data: { name: body.name, slug, logo: body.logo ?? null },
   });
 
-  // Iniciar trial de 14 días automáticamente
+  // Otorgar 1 mes gratis — el link de pago se genera y envía automáticamente al vencer
   const defaultPlan = await getOrCreateDefaultPlan();
-  await createTrialSubscription(dojo.id, defaultPlan.id);
+  await createFreeMonthSubscription(dojo.id, defaultPlan.id);
 
   // Copiar katas del dojo natusuki como plantilla base
   const templateDojo = await prisma.dojo.findFirst({

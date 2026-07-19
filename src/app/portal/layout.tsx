@@ -6,6 +6,8 @@ import PortalNav from "./PortalNav";
 import TermsGate from "./TermsGate";
 import SystemNewsModal from "@/components/SystemNewsModal";
 import ActivityPing from "@/components/ui/ActivityPing";
+import { hasFeature } from "@/lib/billing/featureGate";
+import { NAV_KEYS } from "@/lib/permissions";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -26,6 +28,20 @@ export default async function PortalLayout({ children }: { children: React.React
   });
 
   if (!student) redirect("/login");
+
+  const portalEnabled = await hasFeature(student.dojoId, NAV_KEYS.PORTAL_ACCESS);
+  if (!portalEnabled) {
+    return (
+      <div className="min-h-[100dvh] w-full flex items-center justify-center bg-dojo-darker px-6">
+        <div className="card max-w-sm text-center py-10">
+          <p className="text-dojo-white font-semibold mb-2">Portal no disponible</p>
+          <p className="text-dojo-muted text-sm">
+            El plan actual de tu academia no incluye el portal de alumnos. Consulta con tu academia para más información.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Verificar si el alumno necesita aceptar los términos del dojo ──
   const [termsPolicy, termsAcceptance] = await Promise.all([

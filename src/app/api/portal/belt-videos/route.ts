@@ -23,21 +23,29 @@ export async function GET() {
 
     const earnedBelts = beltRows.map(r => r.beltColor);
 
-    if (earnedBelts.length === 0) return NextResponse.json({ videos: [], earnedBelts: [] });
-
-    // Return only active videos for belts the student has earned
-    const videos = await prisma.beltVideo.findMany({
-      where: {
-        dojoId,
-        active:    true,
-        beltColor: { in: earnedBelts },
-      },
+    // Videos con lista de alumnos específica (visibleToStudentIds) pueden ser
+    // visibles para este alumno aunque no tenga ninguna cinta registrada aún
+    // (ej. katas de competencia asignadas de forma puntual), así que no se
+    // puede cortar temprano solo por earnedBelts vacío como antes.
+    const active = await prisma.beltVideo.findMany({
+      where: { dojoId, active: true },
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       select: {
-        id: true, beltColor: true, title: true,
-        description: true, videoUrl: true, tachiKataUrl: true, order: true,
+        id: true, beltColor: true, title: true, description: true,
+        videoUrl: true, tachiKataUrl: true, order: true,
+        visibleToStudentIds: true,
       },
     });
+
+    // Un video con allowlist definida SOLO es visible para los alumnos de esa
+    // lista (sin importar su cinta). Sin allowlist: regla normal por cinta.
+    const videos = active
+      .filter(v => {
+        const allowlist = Array.isArray(v.visibleToStudentIds) ? v.visibleToStudentIds as string[] : null;
+        if (allowlist && allowlist.length > 0) return allowlist.includes(studentId);
+        return earnedBelts.includes(v.beltColor);
+      })
+      .map(({ visibleToStudentIds: _omit, ...v }) => v);
 
     return NextResponse.json({ videos, earnedBelts });
   } catch (err) {

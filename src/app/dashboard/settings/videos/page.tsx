@@ -1,20 +1,27 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { Video, Plus, Edit2, Trash2, Save, X, Upload, Loader2, PlayCircle } from "lucide-react";
+import { Video, Plus, Edit2, Trash2, Save, X, Upload, Loader2, PlayCircle, Lock, Search, CheckCircle2, Users } from "lucide-react";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { Modal } from "@/components/ui/Modal";
-import { BELT_COLORS } from "@/lib/utils";
+import { BELT_COLORS, VIDEO_RANKING_CATEGORIES, getBeltInfo } from "@/lib/utils";
+
+const VIDEO_CATEGORIES = [...BELT_COLORS, ...VIDEO_RANKING_CATEGORIES];
 
 interface BeltVideo {
   id: string; beltColor: string; title: string;
   description: string | null; videoUrl: string; publicId: string;
   tachiKataUrl?: string | null; tachiKataPublicId?: string | null;
   order: number; active: boolean;
+  visibleToStudentIds?: string[] | null;
+}
+
+interface StudentLite {
+  id: string; fullName: string; belt: string;
 }
 
 const empty = (): Partial<BeltVideo> => ({
-  title: "", beltColor: "blanca", description: "", order: 0,
+  title: "", beltColor: "blanca", description: "", order: 0, visibleToStudentIds: null,
 });
 
 export default function VideosSettingsPage() {
@@ -29,6 +36,10 @@ export default function VideosSettingsPage() {
   const [saving,   setSaving]  = useState(false);
   const [deleting, setDel]     = useState<string | null>(null);
   const [preview,  setPreview] = useState<BeltVideo | null>(null);
+
+  // Alumnos del dojo — para el selector "solo alumnos específicos"
+  const [students,     setStudents]     = useState<StudentLite[]>([]);
+  const [studentSearch, setStudentSearch] = useState("");
 
   // Upload state — main video
   const [uploading,   setUploading]  = useState(false);
@@ -49,8 +60,30 @@ export default function VideosSettingsPage() {
 
   useEffect(() => { fetch_(); }, [fetch_]);
 
-  function openCreate() { setEditing(empty()); setUploadErr(""); setUploadErrTachi(""); setModal(true); }
-  function openEdit(v: BeltVideo) { setEditing({ ...v }); setUploadErr(""); setUploadErrTachi(""); setModal(true); }
+  useEffect(() => {
+    if (!canEdit) return;
+    fetch("/api/schedules/students")
+      .then(r => r.ok ? r.json() : [])
+      .then((data: StudentLite[]) => setStudents(data))
+      .catch(() => {});
+  }, [canEdit]);
+
+  function openCreate() { setEditing(empty()); setUploadErr(""); setUploadErrTachi(""); setStudentSearch(""); setModal(true); }
+  function openEdit(v: BeltVideo) { setEditing({ ...v }); setUploadErr(""); setUploadErrTachi(""); setStudentSearch(""); setModal(true); }
+
+  function toggleAllowlistMode(restricted: boolean) {
+    setEditing(p => ({ ...p, visibleToStudentIds: restricted ? (p.visibleToStudentIds ?? []) : null }));
+  }
+
+  function toggleStudentInAllowlist(studentId: string) {
+    setEditing(p => {
+      const current = p.visibleToStudentIds ?? [];
+      const next = current.includes(studentId)
+        ? current.filter(id => id !== studentId)
+        : [...current, studentId];
+      return { ...p, visibleToStudentIds: next };
+    });
+  }
 
   // Cloudinary corta la conexión (sin responder) cuando un solo POST supera
   // los 100 MB — el navegador lo reporta como "Failed to fetch". Por eso los
@@ -180,10 +213,22 @@ export default function VideosSettingsPage() {
     fetch_();
   }
 
-  const grouped = BELT_COLORS.reduce<Record<string, BeltVideo[]>>((acc, b) => {
+  const grouped = VIDEO_CATEGORIES.reduce<Record<string, BeltVideo[]>>((acc, b) => {
     acc[b.value] = videos.filter(v => v.beltColor === b.value);
     return acc;
   }, {});
+
+  const filteredStudents = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase();
+    const list = q ? students.filter(s => s.fullName.toLowerCase().includes(q)) : students;
+    const selected = editing.visibleToStudentIds ?? [];
+    return [...list].sort((a, b) => {
+      const aSel = selected.includes(a.id) ? 0 : 1;
+      const bSel = selected.includes(b.id) ? 0 : 1;
+      if (aSel !== bSel) return aSel - bSel;
+      return a.fullName.localeCompare(b.fullName);
+    });
+  }, [students, studentSearch, editing.visibleToStudentIds]);
 
   const totalActive   = videos.filter(v => v.active).length;
   const totalInactive = videos.filter(v => !v.active).length;
@@ -209,7 +254,7 @@ export default function VideosSettingsPage() {
 
       {loading && <div className="text-center py-20 text-dojo-muted">Cargando...</div>}
 
-      {!loading && BELT_COLORS.map(belt => {
+      {!loading && VIDEO_CATEGORIES.map(belt => {
         const list = grouped[belt.value] ?? [];
         if (list.length === 0) return null;
         return (
@@ -235,7 +280,19 @@ export default function VideosSettingsPage() {
                         <p className="text-xs text-dojo-muted mt-0.5">{v.description}</p>
                       )}
                     </td>
-                    <td className="px-4 py-3"><BeltBadge beltColor={v.beltColor} /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <BeltBadge beltColor={v.beltColor} />
+                        {!!v.visibleToStudentIds?.length && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-dojo-gold bg-dojo-gold/10 border border-dojo-gold/30 rounded-full px-2 py-0.5"
+                            title="Solo visible para alumnos específicos"
+                          >
+                            <Lock size={10} /> {v.visibleToStudentIds.length}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <span className={v.active ? "badge-green" : "badge-red"}>
                         {v.active ? "Activo" : "Inactivo"}
@@ -310,7 +367,12 @@ export default function VideosSettingsPage() {
                 onChange={e => setEditing(p => ({ ...p, beltColor: e.target.value }))}
                 className="form-input"
               >
-                {BELT_COLORS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                <optgroup label="Cintas">
+                  {BELT_COLORS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                </optgroup>
+                <optgroup label="Katas de competencia">
+                  {VIDEO_RANKING_CATEGORIES.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                </optgroup>
               </select>
             </div>
 
@@ -324,6 +386,91 @@ export default function VideosSettingsPage() {
                 className="form-input"
               />
             </div>
+          </div>
+
+          {/* Visibilidad */}
+          <div>
+            <label className="form-label">¿Quién puede verlo? *</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => toggleAllowlistMode(false)}
+                className={`flex-1 text-sm rounded-lg px-3 py-2 border transition-colors ${
+                  !editing.visibleToStudentIds
+                    ? "bg-dojo-red/15 border-dojo-red text-dojo-white"
+                    : "border-dojo-border text-dojo-muted hover:text-dojo-white"
+                }`}
+              >
+                Todos los alumnos con esta cinta
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleAllowlistMode(true)}
+                className={`flex-1 text-sm rounded-lg px-3 py-2 border transition-colors ${
+                  editing.visibleToStudentIds
+                    ? "bg-dojo-red/15 border-dojo-red text-dojo-white"
+                    : "border-dojo-border text-dojo-muted hover:text-dojo-white"
+                }`}
+              >
+                Solo alumnos específicos
+              </button>
+            </div>
+
+            {editing.visibleToStudentIds && (
+              <div className="mt-3 rounded-lg border border-dojo-border bg-dojo-darker overflow-hidden">
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-dojo-border bg-dojo-dark/50">
+                  <Users size={13} className="text-dojo-gold shrink-0" />
+                  <div className="relative flex-1">
+                    <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dojo-muted" />
+                    <input
+                      value={studentSearch}
+                      onChange={e => setStudentSearch(e.target.value)}
+                      className="form-input pl-7 py-1 text-xs w-full"
+                      placeholder="Buscar alumno..."
+                    />
+                  </div>
+                  <span className="text-[11px] text-dojo-gold font-medium shrink-0">
+                    {editing.visibleToStudentIds.length} seleccionado{editing.visibleToStudentIds.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="max-h-44 overflow-y-auto">
+                  {students.length === 0 && (
+                    <p className="text-center text-dojo-muted text-xs py-4">No hay alumnos activos en el dojo.</p>
+                  )}
+                  {filteredStudents.map(st => {
+                    const isSelected = (editing.visibleToStudentIds ?? []).includes(st.id);
+                    const belt = getBeltInfo(st.belt);
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => toggleStudentInAllowlist(st.id)}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors border-b border-dojo-border/30 last:border-0 ${
+                          isSelected ? "bg-dojo-red/15 hover:bg-dojo-red/25" : "hover:bg-dojo-dark"
+                        }`}
+                      >
+                        <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                          isSelected ? "bg-dojo-red border-dojo-red" : "border-dojo-border bg-transparent"
+                        }`}>
+                          {isSelected && <CheckCircle2 size={10} className="text-white" />}
+                        </div>
+                        <span className="w-2 h-2 rounded-full shrink-0 border border-white/20" style={{ backgroundColor: belt.hex }} />
+                        <span className="text-dojo-white text-xs truncate">{st.fullName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {editing.visibleToStudentIds && editing.visibleToStudentIds.length === 0 ? (
+              <p className="text-xs text-red-400 mt-1.5">Selecciona al menos un alumno.</p>
+            ) : (
+              <p className="text-xs text-dojo-muted mt-1.5">
+                {editing.visibleToStudentIds
+                  ? "Solo los alumnos marcados verán este video en su portal, sin importar su cinta."
+                  : "Visible para todos los alumnos que ya tengan registrada esta cinta en su historial."}
+              </p>
+            )}
           </div>
 
           {/* Descripción */}
@@ -450,7 +597,11 @@ export default function VideosSettingsPage() {
             <button
               type="button"
               onClick={save}
-              disabled={saving || uploading || uploadingTachi || !editing.title || (!editing.videoUrl && !editing.tachiKataUrl)}
+              disabled={
+                saving || uploading || uploadingTachi || !editing.title
+                || (!editing.videoUrl && !editing.tachiKataUrl)
+                || (!!editing.visibleToStudentIds && editing.visibleToStudentIds.length === 0)
+              }
               className="btn-primary"
             >
               <Save size={16} /> {saving ? "Guardando..." : "Guardar"}

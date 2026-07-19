@@ -19,10 +19,12 @@ import {
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { formatStudentName } from "@/lib/utils";
 import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
+import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
+import { NAV_KEYS } from "@/lib/permissions";
 
 type SessionUser = { role?: string; dojoId?: string | null; id?: string; email?: string };
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   const user    = session?.user as SessionUser | undefined;
 
@@ -342,3 +344,5 @@ export async function POST(req: NextRequest) {
     summary,
   });
 }
+
+export const POST = withPlanFeatureGuard(NAV_KEYS.SETTINGS_IMPORT, _POST);

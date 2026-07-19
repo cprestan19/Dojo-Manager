@@ -60,3 +60,6 @@ next-env.d.ts
 
 # reportes generados por herramientas de auditoría — no versionar
 audit-report.html
+
+# backups de base de datos — contienen datos reales de alumnos/dojos, nunca a git
+/backups/

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { sendNewsPushAsync } from "@/lib/push";
 
 function isSysadmin(session: { user?: { role?: string } } | null) {
   return session?.user?.role === "sysadmin";
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
   if (!isSysadmin(session)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   try {
-    const { version, title, items, audience, publishedAt, status, testUserEmail } = await req.json();
+    const { version, title, items, audience, targetDojoId, publishedAt, status, testUserEmail } = await req.json();
 
     if (!version?.trim() || !title?.trim() || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "Versión, título e ítems son obligatorios" }, { status: 400 });
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
         title:         title.trim(),
         items,
         audience:      audience ?? "all",
+        targetDojoId:  targetDojoId?.trim() || null,
         status:        status ?? "draft",
         testUserEmail: testUserEmail?.trim()?.toLowerCase() || null,
         publishedAt:   publishedAt ? new Date(publishedAt) : new Date(),
@@ -46,6 +48,15 @@ export async function POST(req: NextRequest) {
     const userId    = (session!.user as { id?: string })?.id ?? null;
     const userEmail = session!.user?.email ?? null;
     await logAudit({ action: "SYSTEM_NEWS_CREATED", userId, userEmail, details: `v${version}: ${title}` });
+
+    if (news.status === "published") {
+      const first = (news.items as { text: string }[])[0]?.text ?? "";
+      sendNewsPushAsync(
+        news.audience, news.targetDojoId,
+        { title: `Actualización DojoMasterOnline: ${news.title}`, body: first.slice(0, 150), url: "/dashboard", tag: "system-news" },
+        { sentBy: userId ?? undefined, sourceId: news.id },
+      );
+    }
 
     return NextResponse.json(news, { status: 201 });
   } catch (err) {

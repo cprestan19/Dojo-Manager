@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { sendNewsPushAsync } from "@/lib/push";
 
 function isSysadmin(session: { user?: { role?: string } } | null) {
   return session?.user?.role === "sysadmin";
@@ -14,7 +15,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   try {
-    const { version, title, items, audience, publishedAt, status, testUserEmail } = await req.json();
+    const before = await prisma.systemNews.findUnique({ where: { id }, select: { status: true } });
+
+    const { version, title, items, audience, targetDojoId, publishedAt, status, testUserEmail } = await req.json();
     const updated = await prisma.systemNews.update({
       where: { id },
       data: {
@@ -22,6 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         title:         title.trim(),
         items,
         audience,
+        targetDojoId:  targetDojoId?.trim() || null,
         status:        status ?? "draft",
         testUserEmail: testUserEmail?.trim()?.toLowerCase() || null,
         publishedAt:   new Date(publishedAt),
@@ -31,6 +35,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const userId    = (session!.user as { id?: string })?.id ?? null;
     const userEmail = session!.user?.email ?? null;
     await logAudit({ action: "SYSTEM_NEWS_UPDATED", userId, userEmail, details: `${id}: ${title}` });
+
+    // Solo envía push si esta edición es la que recién publica (evita reenviar
+    // en cada edición menor de una novedad ya publicada).
+    if (before?.status !== "published" && updated.status === "published") {
+      const first = (updated.items as { text: string }[])[0]?.text ?? "";
+      sendNewsPushAsync(
+        updated.audience, updated.targetDojoId,
+        { title: `Actualización DojoMasterOnline: ${updated.title}`, body: first.slice(0, 150), url: "/dashboard", tag: "system-news" },
+        { sentBy: userId ?? undefined, sourceId: updated.id },
+      );
+    }
 
     return NextResponse.json(updated);
   } catch {

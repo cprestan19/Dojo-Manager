@@ -8,7 +8,7 @@ type RouteHandler = (req: NextRequest, ctx: unknown) => Promise<NextResponse> | 
 
 /**
  * Bloquea handlers de funciones exclusivas de planes pagos (Torneos, Tienda,
- * Página pública) cuando el dojo está en el Plan Bronce gratuito.
+ * Página pública) cuando el dojo no tiene un plan pago vigente.
  */
 export function withPaidPlanGuard(handler: RouteHandler): RouteHandler {
   return async (req: NextRequest, ctx: unknown) => {
@@ -27,7 +27,7 @@ export function withPaidPlanGuard(handler: RouteHandler): RouteHandler {
       return NextResponse.json(
         {
           error:   "PLAN_FEATURE_LOCKED",
-          message: "Esta función no está disponible en el Plan Bronce. Adquiere el Plan Silver o Gold para habilitarla.",
+          message: "Esta función no está disponible en tu plan actual. Actualiza tu suscripción para habilitarla.",
         },
         { status: 403 },
       );

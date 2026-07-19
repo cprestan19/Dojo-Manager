@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
 import { useLocale } from "@/lib/hooks/useLocale";
 import type { Translations } from "@/lib/i18n";
+import { useAppContext } from "@/lib/context/AppContext";
 
 function buildRouteLabels(tb: Translations["topbar"]): Record<string, string> {
   return {
@@ -312,14 +313,16 @@ export function TopBar() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const bellRef     = useRef<HTMLDivElement>(null);
 
-  const role     = (session?.user as { role?: string })?.role ?? "user";
-  const name     = session?.user?.name ?? "";
-  const photo    = session?.user?.image ?? null;
-  const initials = name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  const role      = (session?.user as { role?: string })?.role ?? "user";
+  const name      = session?.user?.name ?? "";
+  const photo     = session?.user?.image ?? null;
+  const initials  = name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  const { isPreview } = useAppContext();
 
   const roleLabel =
-    role === "sysadmin" ? "Super Admin" :
-    role === "admin"    ? "Administrador" : "Usuario";
+    role === "sysadmin" && isPreview ? "Vista previa · Admin" :
+    role === "sysadmin"              ? "Super Admin" :
+    role === "admin"                 ? "Administrador" : "Usuario";
 
   const fetchNotifs = useCallback(async () => {
     if (role === "user") return;

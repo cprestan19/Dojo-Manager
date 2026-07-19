@@ -2,9 +2,9 @@ import { SubscriptionStatus } from "@prisma/client";
 import { getDojoSubscription } from "./subscription";
 
 /**
- * Funciones reservadas a planes pagos (Silver/Gold): Torneos, Tienda y
- * Página pública del dojo. El Plan Bronce (gratuito, hasta 20 alumnos)
- * no las incluye.
+ * Funciones reservadas a planes pagos: Torneos, Tienda y Página pública
+ * del dojo. Un dojo sin un plan pago vigente (monthlyPrice > 0) no las
+ * incluye.
  */
 export async function dojoHasPaidFeatures(dojoId: string): Promise<boolean> {
   const sub = await getDojoSubscription(dojoId);

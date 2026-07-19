@@ -15,7 +15,7 @@ const PRIMARY = "#C0392B";
 const GOLD    = "#F59E0B";
 
 const SUPPORT_EMAIL = "soporte@dojomasteronline.com";
-const LAST_UPDATED  = "7 de julio de 2026";
+const LAST_UPDATED  = "18 de julio de 2026";
 
 /* ── Bloques tipográficos reutilizables ──────────────────────── */
 function H2({ children, id }: { children: React.ReactNode; id?: string }) {
@@ -181,37 +181,46 @@ export default function LegalPage() {
           <Table
             head={["Plan", "Alumnos", "Precio", "Funciones"]}
             rows={[
-              ["Free", "Hasta 20 alumnos", "$0", "Funciones básicas de gestión"],
-              ["Silver", "Alumnos ilimitados", "$60/mes", "Acceso limitado a ciertas funciones avanzadas (según se detalla en el panel de facturación)"],
-              ["Gold", "Alumnos ilimitados", "$80/mes", "Acceso completo a todas las funciones de la Plataforma"],
+              ["Academia", "Hasta 60 alumnos", "$14.99/mes", "Gestión de alumnos, asistencia, pagos, cintas, carnet digital y página web del Dojo"],
+              ["Academia y padres", "Hasta 100 alumnos", "$24.99/mes", "Todo lo de Academia, más portal de padres, eventos, reportes y notificaciones push"],
+              ["Academia, padres y Torneo", "Alumnos ilimitados", "$44.99/mes", "Todo lo anterior, más el módulo de Torneos Pro (streaming, brackets, jueces, postulaciones)"],
             ]}
           />
           <P>
-            Un Dojo puede operar de forma gratuita e indefinida en el plan Free siempre que no exceda el límite de 20
-            alumnos activos. Al superar dicho límite, el Dojo deberá actualizar a un plan Silver o Gold para continuar
-            registrando nuevos alumnos.
+            Los planes y precios vigentes en todo momento son los que se muestran en el panel de facturación de la
+            Plataforma y en la página pública de precios (dojomasteronline.com/#planes), los cuales prevalecen sobre
+            esta tabla en caso de discrepancia.
           </P>
-          <H3>3.2 Métodos de pago.</H3>
+          <H3>3.2 Primer mes gratuito.</H3>
+          <P>
+            Todo Dojo nuevo recibe automáticamente un (1) mes de acceso gratuito al plan contratado, contado desde la
+            fecha de creación de la cuenta, sin necesidad de ingresar información de pago para comenzar. Al finalizar
+            ese mes, la Plataforma genera y envía automáticamente al correo del Administrador del Dojo un enlace de
+            pago para activar el cobro recurrente del plan. No existe una modalidad de uso gratuito indefinido: si el
+            Dojo no completa el pago, aplica lo previsto en la Sección 3.7.
+          </P>
+          <H3>3.3 Métodos de pago.</H3>
           <P>
             Los pagos se procesan a través de proveedores externos (PayPal y/o PagueloFacil, según disponibilidad en el
             país del Dojo). Al proporcionar información de pago, usted autoriza el cobro recurrente del plan contratado
             según la periodicidad elegida (mensual/anual).
           </P>
-          <H3>3.3 Cambios de plan.</H3>
+          <H3>3.4 Cambios de plan.</H3>
           <P>Los cambios de plan (upgrade/downgrade) se reflejan según la política de prorrateo vigente en el panel de facturación al momento del cambio.</P>
-          <H3>3.4 Impuestos.</H3>
+          <H3>3.5 Impuestos.</H3>
           <P>Los precios podrán no incluir impuestos aplicables (IVA, ventas u otros) según el país del Dojo; estos se añadirán conforme a la normativa fiscal local que corresponda.</P>
-          <H3>3.5 Modificación de precios o límites de plan.</H3>
+          <H3>3.6 Modificación de precios o límites de plan.</H3>
           <P>
-            Nos reservamos el derecho de modificar los precios o límites (por ejemplo, el número de alumnos incluidos en
-            el plan Free) notificando con al menos 30 días de anticipación a los Dojos activos. Los cambios no aplican
+            Nos reservamos el derecho de modificar los precios, límites de alumnos o duración del mes gratuito de
+            introducción, notificando con al menos 30 días de anticipación a los Dojos activos. Los cambios no aplican
             retroactivamente a períodos ya facturados.
           </P>
-          <H3>3.6 Cuentas impagas.</H3>
+          <H3>3.7 Cuentas impagas.</H3>
           <P>
-            El incumplimiento de pago en los planes Silver o Gold puede resultar en la reversión al plan Free (con las
-            limitaciones correspondientes), suspensión del acceso de escritura, o suspensión total de la cuenta tras un
-            período prolongado de impago.
+            Si el Dojo no completa el pago del enlace enviado al finalizar el mes gratuito, o si una renovación
+            posterior queda impaga, la cuenta pasa a modo de solo lectura (el Dojo conserva acceso de consulta a su
+            información, pero no puede crear ni editar registros) hasta que se regularice el pago. El impago
+            prolongado puede resultar en la suspensión total de la cuenta conforme a la Sección 9.
           </P>
 
           <H2>4. Uso Aceptable</H2>
@@ -353,42 +362,43 @@ export default function LegalPage() {
           <Table
             head={["Plan", "Alumnos", "Precio"]}
             rows={[
-              ["Free", "Hasta 20 alumnos", "$0"],
-              ["Silver", "Alumnos ilimitados", "$60/mes (funciones limitadas)"],
-              ["Gold", "Alumnos ilimitados", "$80/mes (todas las funciones)"],
+              ["Academia", "Hasta 60 alumnos", "$14.99/mes"],
+              ["Academia y padres", "Hasta 100 alumnos", "$24.99/mes"],
+              ["Academia, padres y Torneo", "Alumnos ilimitados", "$44.99/mes"],
             ]}
           />
           <P>
-            Todo Dojo puede comenzar y permanecer en el plan Free de forma indefinida y sin costo mientras no supere
-            los 20 alumnos activos. Esto le permite evaluar la Plataforma sin necesidad de ingresar información de pago
-            hasta que decida escalar a un plan Silver o Gold.
+            Todo Dojo nuevo recibe un (1) mes de acceso gratuito al plan que elija, contado desde la fecha de creación
+            de la cuenta, sin necesidad de ingresar información de pago para comenzar. Esto le permite evaluar la
+            Plataforma antes de que se genere el primer cobro. Al finalizar ese mes, la Plataforma envía
+            automáticamente el enlace de pago correspondiente; no existe una modalidad de uso gratuito indefinido.
           </P>
 
           <H2>2. Política General</H2>
           <P>
             Dado que DojoMaster es un servicio de suscripción (SaaS) con acceso inmediato a funciones digitales al
-            momento del pago, las suscripciones Silver o Gold ya activadas y facturadas no son reembolsables, salvo en
-            los casos específicos descritos en la sección 4.
+            momento del pago, las suscripciones ya activadas y facturadas no son reembolsables, salvo en los casos
+            específicos descritos en la sección 4.
           </P>
           <P>Esto significa que:</P>
           <Ul>
             <li>No se reembolsan períodos ya transcurridos de un ciclo de facturación (mensual o anual).</li>
             <li>El hecho de no usar la Plataforma durante un período pagado no genera derecho a reembolso.</li>
-            <li>El plan Free no genera cobro alguno, por lo que no aplica reembolso sobre este.</li>
+            <li>El mes gratuito de introducción no genera cobro alguno, por lo que no aplica reembolso sobre este.</li>
           </Ul>
 
-          <H2>3. Cancelación o Downgrade de Suscripción</H2>
+          <H2>3. Cancelación o Impago de Suscripción</H2>
           <Ul>
-            <li>Puede cancelar su suscripción Silver o Gold en cualquier momento desde el panel de administración del Dojo.</li>
+            <li>Puede cancelar su suscripción en cualquier momento desde el panel de administración del Dojo.</li>
             <li>
               La cancelación detiene la renovación futura, pero no genera un reembolso parcial del ciclo en curso: el
-              Dojo mantiene acceso a las funciones de su plan hasta el final del período ya pagado.
+              Dojo mantiene acceso a las funciones de su plan hasta el final del período ya pagado (o del mes
+              gratuito, si aún no se ha facturado).
             </li>
             <li>
-              Al finalizar dicho período, la cuenta pasará automáticamente al plan Free, sujeto al límite de 20 alumnos.
-              Si el Dojo tiene más de 20 alumnos activos al momento de la reversión, el acceso de escritura podrá
-              limitarse (modo de solo lectura o restricción para agregar nuevos alumnos) hasta que reactive un plan
-              pago o ajuste su número de alumnos.
+              Al finalizar dicho período sin un pago vigente, la cuenta pasa a modo de solo lectura: el Dojo conserva
+              acceso de consulta a su información, pero no puede crear ni editar registros, hasta que reactive un
+              plan pago.
             </li>
           </Ul>
 
@@ -404,8 +414,8 @@ export default function LegalPage() {
 
           <H2>5. Cambios de Plan (Upgrade / Downgrade)</H2>
           <Ul>
-            <li><strong>Upgrade</strong> (Free → Silver, Free → Gold, o Silver → Gold): el cambio se aplica de inmediato; el monto se ajusta de forma prorrateada en el ciclo de facturación vigente, según lo muestre el panel de facturación al confirmar el cambio.</li>
-            <li><strong>Downgrade</strong> (Gold → Silver, o cancelación hacia Free): el nuevo plan y su tarifa (o ausencia de esta, en el caso de Free) entran en vigencia a partir del siguiente ciclo de facturación; no se reembolsa la diferencia del ciclo en curso.</li>
+            <li><strong>Upgrade</strong> (por ejemplo, Academia → Academia y padres, o Academia y padres → Academia, padres y Torneo): el cambio se aplica de inmediato; el monto se ajusta de forma prorrateada en el ciclo de facturación vigente, según lo muestre el panel de facturación al confirmar el cambio.</li>
+            <li><strong>Downgrade</strong> (por ejemplo, Academia, padres y Torneo → Academia y padres): el nuevo plan y su tarifa entran en vigencia a partir del siguiente ciclo de facturación; no se reembolsa la diferencia del ciclo en curso.</li>
           </Ul>
 
           <H2>6. Suspensión o Eliminación de Cuentas por Incumplimiento</H2>

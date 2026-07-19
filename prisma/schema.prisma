@@ -22,6 +22,9 @@ model Dojo {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Cliente destacado en la landing (barra de logos "confían en nosotros")
+  featured  Boolean  @default(false)
+
   // Parámetros de recordatorios de pago
   reminderToleranceDays Int     @default(5)
   lateInterestPct       Float   @default(10.0)
@@ -524,6 +527,10 @@ model BeltVideo {
   tachiKataUrl      String?  @map("tachi_kata_url")
   tachiKataPublicId String?  @map("tachi_kata_public_id")
   order             Int      @default(0)
+  // Lista de Student.id — cuando tiene valores, el video SOLO es visible en el
+  // portal para esos alumnos específicos (sin importar su cinta). Null/vacío =
+  // comportamiento normal por cinta (beltColor IN cintas obtenidas del alumno).
+  visibleToStudentIds Json?  @map("visible_to_student_ids")
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1368,7 +1375,8 @@ model Plan {
   monthlyPrice    Float    @map("monthly_price")
   annualPrice     Float    @map("annual_price")
   maxStudents     Int?     @map("max_students")
-  features        String                          // JSON array de strings
+  features        String                          // JSON array de strings — texto de marketing, NO controla acceso
+  featureKeys     String?  @map("feature_keys")    // JSON array de NavKey — null = plan legado, sin restricción (compatibilidad)
   isActive        Boolean  @default(true)         @map("is_active")
   paypalProductId String?  @map("paypal_product_id")
   createdAt       DateTime @default(now())        @map("created_at")
@@ -1698,6 +1706,7 @@ model SystemNews {
   title         String                            // "Actualización de verano"
   items         Json                              // [{text, category}]
   audience      String   @default("all")          // "all" | "admins" | "students"
+  targetDojoId  String?  @map("target_dojo_id")   // null = todos los dojos; si tiene valor, solo ese dojo
   status        String   @default("published")    // "draft" | "published"
   testUserEmail String?  @map("test_user_email")  // correo que ve el borrador
   publishedAt   DateTime @default(now()) @map("published_at")

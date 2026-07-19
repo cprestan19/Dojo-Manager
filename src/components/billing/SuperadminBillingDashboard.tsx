@@ -215,22 +215,37 @@ function GrantModal({
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState("");
 
-  // Load plans for plan selector (special_access y complimentary)
+  // Cambiar plan — mantiene status/fechas, solo cambia planId
+  const [changePlanId,  setChangePlanId]  = useState(dojo.planId ?? "");
+  const [changingPlan,  setChangingPlan]  = useState(false);
+
+  // Load plans for plan selector (change_plan, special_access y complimentary)
   useEffect(() => {
-    if (!hasSpecialStatus) {
-      fetch("/api/billing/plans")
-        .then(r => r.json())
-        .then((data: PlanOption[]) => {
-          setPlans(data);
-          if (!planId && data.length > 0) {
-            const gold = data.find(p => p.maxStudents === null) ?? data[data.length - 1];
-            setPlanId(gold.id);
-          }
-        })
-        .catch(() => null);
-    }
+    fetch("/api/billing/plans")
+      .then(r => r.json())
+      .then((data: PlanOption[]) => {
+        setPlans(data);
+        if (!hasSpecialStatus && !planId && data.length > 0) {
+          const gold = data.find(p => p.maxStudents === null) ?? data[data.length - 1];
+          setPlanId(gold.id);
+        }
+        if (!changePlanId && data.length > 0) setChangePlanId(data[0].id);
+      })
+      .catch(() => null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function applyChangePlan() {
+    if (!changePlanId || changePlanId === (dojo.planId ?? "")) return;
+    setChangingPlan(true); setError("");
+    const res = await fetch("/api/billing/admin/grant", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dojoId: dojo.id, action: "change_plan", planId: changePlanId }),
+    });
+    setChangingPlan(false);
+    if (res.ok) { onDone(); onClose(); }
+    else { const d = await res.json() as { error?: string }; setError(d.error ?? "Error al cambiar de plan."); }
+  }
 
   async function apply() {
     setSaving(true); setError("");
@@ -287,6 +302,31 @@ function GrantModal({
 
       {error && (
         <p className="text-sm text-red-400 bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{error}</p>
+      )}
+
+      {/* ── Cambiar plan — no toca status ni fechas de facturación ── */}
+      {dojo.status !== "NONE" && plans.length > 0 && (
+        <div className="bg-dojo-darker border border-dojo-border rounded-xl p-4 space-y-3">
+          <p className="text-dojo-white text-sm font-semibold flex items-center gap-2">
+            <RefreshCw size={14} className="text-dojo-gold" /> Cambiar plan
+          </p>
+          <p className="text-dojo-muted text-xs">
+            Solo cambia el plan (límite de alumnos y funciones). No toca el estado ni las fechas de facturación — útil para upgrades/downgrades pedidos por el cliente.
+          </p>
+          <select value={changePlanId} onChange={e => setChangePlanId(e.target.value)} className="form-input text-sm">
+            {plans.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.name} — {p.maxStudents != null ? `hasta ${p.maxStudents} alumnos` : "alumnos ilimitados"}
+              </option>
+            ))}
+          </select>
+          <button type="button" onClick={() => void applyChangePlan()}
+            disabled={changingPlan || !changePlanId || changePlanId === (dojo.planId ?? "")}
+            className="btn-secondary text-xs w-full justify-center gap-1.5 disabled:opacity-50">
+            {changingPlan ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+            Guardar nuevo plan
+          </button>
+        </div>
       )}
 
       {/* ── SPECIAL_ACCESS: extender o revocar ── */}
@@ -572,14 +612,20 @@ function SubsTable({ subs, unsub, onSelectDojo, onRefresh }: {
                       <p className="text-dojo-white font-medium">{s.plan?.name ?? "—"}</p>
                       <p className="text-xs text-dojo-muted capitalize">{s.cycle === "MONTHLY" ? "Mensual" : "Anual"}</p>
                     </td>
-                    {/* Dates */}
+                    {/* Dates — COMPLIMENTARY es acceso permanente: nunca debe leer una fecha
+                        de vencimiento, aunque currentPeriodEnd tenga un valor heredado de un
+                        ciclo pagado anterior al otorgarse la cortesía. */}
                     <td className="px-4 py-3 text-xs text-dojo-muted">
                       {s.status === "TRIAL" ? (
                         <><span className="text-blue-400 font-medium">Vence:</span> {fmtDate(s.trialEndsAt)}</>
                       ) : s.status === "SPECIAL_ACCESS" ? (
                         <><span className="text-purple-300 font-medium">Hasta:</span> {fmtDate(s.trialEndsAt)}</>
-                      ) : s.currentPeriodEnd ? (
+                      ) : s.status === "COMPLIMENTARY" ? (
+                        <span className="text-dojo-gold font-medium">Sin vencimiento</span>
+                      ) : s.status === "ACTIVE" && s.currentPeriodEnd ? (
                         <><span className="text-dojo-white font-medium">Renueva:</span> {fmtDate(s.currentPeriodEnd)}</>
+                      ) : s.status === "PAST_DUE" && s.currentPeriodEnd ? (
+                        <><span className="text-red-300 font-medium">Venció:</span> {fmtDate(s.currentPeriodEnd)}</>
                       ) : (
                         <span className="text-dojo-muted">—</span>
                       )}
@@ -895,7 +941,7 @@ function InvoicesTable({ initialDojoId }: { initialDojoId?: string }) {
                         </div>
                       ) : <span className="text-dojo-muted text-xs">—</span>}
                     </td>
-                    {/* Copy all + reproceso (solo PagueloFacil fallidas) */}
+                    {/* Copy all + reproceso (PagueloFacil pendiente o fallida) */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <CopyBtn value={JSON.stringify({
@@ -904,7 +950,7 @@ function InvoicesTable({ initialDojoId }: { initialDojoId?: string }) {
                           mpSub: inv.mpSubscriptionId, dojo: inv.dojoName,
                           amount: inv.amount, currency: inv.currency, date: inv.paidAt ?? inv.createdAt,
                         })} />
-                        {inv.gateway === "PAGUELOFACIL" && inv.status === "FAILED" && (
+                        {inv.gateway === "PAGUELOFACIL" && (inv.status === "FAILED" || inv.status === "PENDING") && (
                           <button
                             type="button"
                             disabled={reprocessingId === inv.id}
@@ -1063,16 +1109,24 @@ export function SuperadminBillingDashboard() {
   const [tab,        setTab]        = useState<"subs" | "invoices" | "notifications">("subs");
   const [data,       setData]       = useState<{ subscriptions: DojoSub[]; unsubscribed: UnsubDojo[] } | null>(null);
   const [loading,    setLoading]    = useState(true);
+  const [loadError,  setLoadError]  = useState("");
   const [jumpDojo,   setJumpDojo]   = useState<string | undefined>(undefined);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setLoadError("");
     try {
       const res = await fetch("/api/billing/admin");
-      const d   = await res.json() as { subscriptions: DojoSub[]; unsubscribed: UnsubDojo[] };
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({})) as { error?: string };
+        setLoadError(d.error ?? `Error ${res.status} al cargar facturación`);
+        setData(null);
+        return;
+      }
+      const d = await res.json() as { subscriptions: DojoSub[]; unsubscribed: UnsubDojo[] };
       setData(d);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
+    } catch {
+      setLoadError("No se pudo conectar con el servidor. Intenta actualizar.");
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { void load(); }, [load]);
@@ -1095,6 +1149,13 @@ export function SuperadminBillingDashboard() {
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Actualizar
         </button>
       </div>
+
+      {loadError && (
+        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3">
+          <AlertTriangle size={15} className="shrink-0" />
+          {loadError}
+        </div>
+      )}
 
       {/* Summary cards */}
       {loading ? (

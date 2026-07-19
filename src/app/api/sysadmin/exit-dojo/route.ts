@@ -30,5 +30,6 @@ export async function POST(req: NextRequest) {
   const res = NextResponse.json({ ok: true });
   res.cookies.delete("sx-dojo");
   res.cookies.delete("sx-dojo-name");
+  res.cookies.delete("sx-preview");
   return res;
 }

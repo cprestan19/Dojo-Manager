@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   if (role !== "sysadmin")
     return NextResponse.json({ error: "Solo sysadmin" }, { status: 403 });
 
-  const { dojoId } = await req.json();
+  const { dojoId, preview } = await req.json() as { dojoId?: string; preview?: boolean };
   if (!dojoId) return NextResponse.json({ error: "dojoId requerido" }, { status: 400 });
 
   const dojo = await prisma.dojo.findUnique({
@@ -28,18 +28,23 @@ export async function POST(req: NextRequest) {
 
   res.cookies.set("sx-dojo",      dojo.id,   { path: "/", sameSite: "lax", httpOnly: true, secure });
   res.cookies.set("sx-dojo-name", dojo.name, { path: "/", sameSite: "lax", httpOnly: true, secure });
+  if (preview) {
+    res.cookies.set("sx-preview", "1", { path: "/", sameSite: "lax", httpOnly: true, secure });
+  } else {
+    res.cookies.delete("sx-preview");
+  }
 
   const ctx = buildAuditCtx(session, req, { dojoId: dojo.id });
   await logAudit({
     ...ctx,
-    action:      "SYSADMIN_ENTER_DOJO",
+    action:      preview ? "SYSADMIN_PREVIEW_DOJO" : "SYSADMIN_ENTER_DOJO",
     module:      AUDIT_MODULE.SYSADMIN,
     resourceType: "Dojo",
     resourceId:  dojo.id,
     dojoSlug:    dojo.slug,
     statusCode:  200,
     isSysadminProxy: true,
-    details:     JSON.stringify({ dojoName: dojo.name, dojoSlug: dojo.slug }),
+    details:     JSON.stringify({ dojoName: dojo.name, dojoSlug: dojo.slug, preview: !!preview }),
   });
 
   return res;

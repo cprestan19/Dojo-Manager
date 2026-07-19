@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useDojo } from "@/lib/hooks/useDojo";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { usePlanFeatures } from "@/lib/hooks/usePlanFeatures";
+import { useAppContext } from "@/lib/context/AppContext";
 import { useLocale } from "@/lib/hooks/useLocale";
 import { NAV_KEYS } from "@/lib/permissions";
 import type { NavKey } from "@/lib/permissions";
@@ -114,6 +115,7 @@ export function Sidebar() {
   const dojo  = useDojo();
   const perms = usePermissions();
   const { hasPaidFeatures } = usePlanFeatures();
+  const { isPreview, hasTournamentsAccess: planHasTournaments } = useAppContext();
   const { t } = useLocale();
 
   const tNav    = (key: string) => (t.nav as Record<string, string>)[key] ?? key;
@@ -133,7 +135,13 @@ export function Sidebar() {
     setSections(s => ({ ...s, [key]: !s[key] }));
 
   const isSysadmin   = role === "sysadmin";
-  const hasProAccess = isSysadmin || !!dojo?.tournamentPro;
+  // En Vista Previa el sysadmin renuncia a su acceso total — Torneo Pro solo
+  // se habilita si el dojo real lo tiene, igual que vería su admin.
+  // planHasTournaments ya combina el interruptor manual (Dojo.tournamentPro)
+  // con el plan (hasTournamentsAccess() server-side) — antes solo se miraba
+  // el flag manual, dejando el sidebar bloqueado aunque el plan sí incluyera
+  // Torneo Pro y la API ya lo permitiera.
+  const hasProAccess = (isSysadmin && !isPreview) || planHasTournaments;
 
   const { state: pushState, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushSubscription();
   const [pushLoading, setPushLoading] = useState(false);
@@ -155,12 +163,20 @@ export function Sidebar() {
   const adminItems    = filter(mapDefs(ADMIN_DEFS));
   const settingsItems = filter(mapDefs(SETTINGS_DEFS));
 
-  const showCompetencias = competencias.length > 0 || (isSysadmin || role === "admin");
+  // Solo se fuerza a mostrar (con el botón de Torneo Pro) cuando hay un dojo
+  // activo — sysadmin en "Gestión de Dojos" sin haber entrado a ninguno no
+  // debe ver secciones de operación de dojo (Academia/Captación/Competencias).
+  // No se puede usar `dojo` aquí: ese estado nunca se carga para sysadmin
+  // (ver AppContext.fetchDojo), ni siquiera cuando sí hay un dojo activo.
+  // perms.has(STUDENTS) sí distingue correctamente "tengo contexto de dojo"
+  // de "sysadmin sin dojo" en ambos roles.
+  const showCompetencias = competencias.length > 0 || ((isSysadmin || role === "admin") && perms.has(NAV_KEYS.STUDENTS));
 
   const roleLabel =
-    role === "sysadmin" ? "Super Admin" :
-    role === "admin"    ? "Administrador" :
-    role === "user"     ? "Usuario" :
+    role === "sysadmin" && isPreview ? "Vista previa · Admin" :
+    role === "sysadmin"              ? "Super Admin" :
+    role === "admin"                 ? "Administrador" :
+    role === "user"                  ? "Usuario" :
     role;
 
   const renderNavItem = (item: NavItem) => {
@@ -293,6 +309,22 @@ export function Sidebar() {
           </CollapsibleSection>
         )}
 
+        {/* FACTURACIÓN — solo admin del dojo (sysadmin ya la ve en Sistema) */}
+        {role === "admin" && (
+          <Link
+            href="/dashboard/billing"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium mt-1",
+              pathname === "/dashboard/billing" || pathname.startsWith("/dashboard/billing/")
+                ? "bg-dojo-nav-active text-white"
+                : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+            )}
+          >
+            <Receipt size={18} />
+            Facturación
+          </Link>
+        )}
+
         {/* CONFIGURACIÓN — expandible */}
         {settingsItems.length > 0 && (
           <div className="mt-1">
@@ -340,8 +372,8 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* SISTEMA — solo sysadmin */}
-        {isSysadmin && (
+        {/* SISTEMA — solo sysadmin, oculto en Vista Previa (el admin real no lo ve) */}
+        {isSysadmin && !isPreview && (
           <>
             <NavSection label="Sistema" />
             <div className="space-y-1">

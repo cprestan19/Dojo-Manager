@@ -4,9 +4,9 @@
  */
 
 export const KATA_OPTIONS = [
-  { group: "Heian / Básicos", items: ["Heian Shodan","Heian Nidan","Heian Sandan","Heian Yondan","Heian Godan","Tekki Shodan","Tekki Nidan","Tekki Sandan"] },
+  { group: "Heian / Básicos", items: ["Heian Godan","Heian Nidan","Heian Sandan","Heian Shodan","Heian Yondan","Tekki Nidan","Tekki Sandan","Tekki Shodan"] },
   { group: "Bassai / Kanku",  items: ["Bassai Dai","Bassai Sho","Kanku Dai","Kanku Sho"] },
-  { group: "Avanzados",       items: ["Jion","Empi","Hangetsu","Jitte","Nijushiho","Gojushiho Dai","Gojushiho Sho","Sochin","Meikyo","Unsu","Wankan","Chinte","Gangaku"] },
+  { group: "Avanzados",       items: ["Chinte","Empi","Gangaku","Gojushiho Dai","Gojushiho Sho","Hangetsu","Jion","Jitte","Meikyo","Nijushiho","Sochin","Unsu","Wankan"] },
 ];
 
 export const RESULT_OPTIONS = [

@@ -49,8 +49,10 @@ export default async function BillingPage() {
 
   const { role, dojoId: sessionDojoId } = session.user as SessionUser;
 
-  // Solo el sysadmin de dojomasteronline puede acceder a facturación
-  if (role !== "sysadmin") redirect("/dashboard");
+  // El admin del dojo gestiona su propia facturación; sysadmin puede
+  // consultar/gestionar la de cualquier dojo (vía cookie sx-dojo, modo
+  // mantenimiento) para dar soporte. El rol "user" no tiene acceso.
+  if (role !== "sysadmin" && role !== "admin") redirect("/dashboard");
 
   // Resolve effective dojoId (sysadmin uses sx-dojo cookie)
   const cookieStore = await cookies();
@@ -78,8 +80,9 @@ export default async function BillingPage() {
   const isActive        = sub?.status === SubscriptionStatus.ACTIVE;
 
   const StatusIcon = sub?.status ? (STATUS_ICON[sub.status] ?? CreditCard) : CreditCard;
-  // No mostrar planes si tiene acceso especial o está activo
-  const showPlans  = !isComplimentary && (!sub || isInTrial || readOnly || sub.status === SubscriptionStatus.CANCELED);
+  // No mostrar planes solo si tiene acceso especial (cortesía) — ACTIVE sí
+  // puede cambiar de plan (subir de inmediato, bajar se coordina con soporte).
+  const showPlans  = !isComplimentary && (!sub || isInTrial || isActive || readOnly || sub.status === SubscriptionStatus.CANCELED);
 
   return (
     <div className="space-y-8 max-w-4xl">
@@ -158,10 +161,10 @@ export default async function BillingPage() {
           <div className="flex items-center gap-2">
             <RefreshCw size={16} className="text-dojo-gold" />
             <h2 className="font-display text-lg font-bold text-dojo-white">
-              {isInTrial ? "Elige tu plan" : readOnly ? "Reactivar suscripción" : "Planes disponibles"}
+              {isInTrial ? "Elige tu plan" : readOnly ? "Reactivar suscripción" : isActive ? "Cambiar de plan" : "Planes disponibles"}
             </h2>
           </div>
-          <PlanSelector />
+          <PlanSelector currentPlanId={sub?.planId ?? null} />
         </div>
       )}
 

@@ -110,12 +110,17 @@ const ACTION_CFG: Record<string, { label: string; color: string }> = {
   BELT_HISTORY_CREATED:        { label: "Cinta registrada",            color: "text-dojo-gold bg-dojo-gold/10"    },
   BELT_HISTORY_UPDATED:        { label: "Cinta editada",               color: "text-blue-400 bg-blue-900/20"      },
   BELT_HISTORY_DELETED:        { label: "Cinta eliminada",             color: "text-red-400 bg-red-900/20"        },
+  BELT_VIDEO_CREATED:          { label: "Video de cinta creado",       color: "text-green-400 bg-green-900/20"    },
+  BELT_VIDEO_UPDATED:          { label: "Video de cinta editado",      color: "text-blue-400 bg-blue-900/20"      },
+  BELT_VIDEO_DELETED:          { label: "Video de cinta eliminado",    color: "text-red-400 bg-red-900/20"        },
   TOURNAMENT_ARCHIVED:         { label: "Torneo inactivado",           color: "text-yellow-400 bg-yellow-900/20"  },
   TOURNAMENT_REACTIVATED:      { label: "Torneo reactivado",           color: "text-green-400 bg-green-900/20"    },
   TOURNAMENT_DELETED:          { label: "Torneo eliminado",            color: "text-red-400 bg-red-900/20"        },
   BRACKET_REOPENED:            { label: "Bracket reabierto",           color: "text-yellow-400 bg-yellow-900/20"  },
   BRACKET_DELETED:             { label: "Bracket eliminado",           color: "text-red-400 bg-red-900/20"        },
   DOJO_UPDATED:                { label: "Config dojo actualizada",     color: "text-blue-400 bg-blue-900/20"      },
+  DOJO_DELETED:                { label: "Dojo eliminado",              color: "text-red-400 bg-red-900/20"        },
+  SUBSCRIPTION_PLAN_CHANGED:   { label: "Plan cambiado",               color: "text-blue-400 bg-blue-900/20"      },
   EMAIL_SETTINGS_UPDATED:      { label: "Config correo actualizada",   color: "text-blue-400 bg-blue-900/20"      },
 };
 
@@ -125,6 +130,9 @@ const DETAIL_LABELS: Record<string, string> = {
   note: "Nota", notify: "Familia notificada", email: "Correo", name: "Nombre",
   role: "Rol", reason: "Motivo", cascadeDeleted: "Eliminados en cascada",
   before: "Antes", after: "Después", raw: "Dato",
+  dojo: "Dojo eliminado (snapshot)", subscription: "Suscripción al momento de eliminar",
+  counts: "Conteo de datos eliminados", staffUsers: "Staff del dojo (admin/user)",
+  deletedAt: "Fecha de eliminación",
 };
 
 function parseDetails(details: string | null): Record<string, unknown> {
@@ -172,6 +180,11 @@ function summarize(log: AuditEntry): string {
       if (del?.approved) parts.push(`${del.approved} aprobados eliminados en cascada`);
       if (del?.rejected) parts.push(`${del.rejected} rechazados eliminados en cascada`);
       return parts.join(" · ");
+    }
+    case "DOJO_DELETED": {
+      const d = det.dojo as { name?: string } | undefined;
+      const c = det.counts as { users?: number; students?: number } | undefined;
+      return `"${d?.name ?? "?"}" eliminado — ${c?.users ?? 0} usuarios, ${c?.students ?? 0} alumnos`;
     }
     case "USER_CREATED":          return `Usuario "${det.email ?? det.name ?? "?"}" creado`;
     case "USER_UPDATED":          return `Usuario "${det.email ?? det.name ?? "?"}" editado`;

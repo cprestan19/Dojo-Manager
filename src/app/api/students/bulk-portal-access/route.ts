@@ -18,6 +18,8 @@ import { sendStudentWelcome } from "@/lib/email";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
+import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
+import { NAV_KEYS } from "@/lib/permissions";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -47,7 +49,7 @@ export interface BulkAccessResult {
   errorDetail: string | null;
 }
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -200,3 +202,5 @@ export async function POST(req: NextRequest) {
     results,
   });
 }
+
+export const POST = withPlanFeatureGuard(NAV_KEYS.PORTAL_ACCESS, _POST);

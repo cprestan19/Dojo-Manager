@@ -4,10 +4,12 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
+import { NAV_KEYS } from "@/lib/permissions";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -133,3 +135,5 @@ export async function GET(req: NextRequest) {
   void VALID_TYPES; // evitar warning de variable no usada
   return NextResponse.json({ error: "Tipo de reporte inválido" }, { status: 400 });
 }
+
+export const GET = withPlanFeatureGuard(NAV_KEYS.REPORTS, _GET);

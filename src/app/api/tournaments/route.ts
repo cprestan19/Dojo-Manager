@@ -4,10 +4,11 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { withReadOnlyGuard } from "@/lib/billing/readOnlyGuard";
+import { withTournamentsGuard } from "@/lib/billing/planFeatureGuard";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -102,4 +103,5 @@ async function _POST(req: NextRequest) {
   }
 }
 
-export const POST = withReadOnlyGuard(_POST);
+export const GET  = withTournamentsGuard(_GET);
+export const POST = withTournamentsGuard(withReadOnlyGuard(_POST));

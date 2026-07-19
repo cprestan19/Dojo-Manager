@@ -4,21 +4,26 @@ import { useRouter } from "next/navigation";
 import {
   Building2, Plus, Users, GraduationCap, Globe, CheckCircle, XCircle,
   Copy, KeyRound, LogIn, Lock, Eye, EyeOff, Crown, Trash2, AlertTriangle,
-  Crown as CrownIcon,
+  Crown as CrownIcon, Star, RefreshCw, Loader2,
 } from "lucide-react";
+// "Eye" ya importado arriba se reutiliza como ícono de Vista Previa (además del toggle de password)
 import { Modal } from "@/components/ui/Modal";
 
 interface Dojo {
   id: string; name: string; slug: string; logo: string | null;
-  active: boolean; tournamentPro: boolean; createdAt: string;
+  active: boolean; tournamentPro: boolean; featured: boolean; createdAt: string;
   email: string | null; phone: string | null;
   subscription: {
     status: string;
     currentPeriodEnd: string | null;
-    plan: { name: string; maxStudents: number | null } | null;
+    trialEndsAt: string | null;
+    plan: { id: string; name: string; maxStudents: number | null } | null;
   } | null;
+  lastActiveAt: string | null;
   _count: { users: number; students: number };
 }
+
+interface PlanOption { id: string; name: string; maxStudents: number | null }
 
 interface CreatedAdmin { email: string; tempPassword: string; loginUrl: string; }
 
@@ -57,10 +62,41 @@ export default function DojosPage() {
   const [error,         setError]         = useState("");
   const [createdAdmin,  setCreatedAdmin]  = useState<CreatedAdmin | null>(null);
   const [entering,      setEntering]      = useState<string | null>(null);
+  const [previewing,    setPreviewing]    = useState<string | null>(null);
   const [deleteTarget,  setDeleteTarget]  = useState<Dojo | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting,      setDeleting]      = useState(false);
   const [deleteError,   setDeleteError]   = useState("");
+
+  // Cambiar plan — mismo endpoint que el panel de Pagos SaaS, atajo directo
+  // desde Gestión de Dojos para no tener que saltar de pantalla.
+  const [plans,         setPlans]         = useState<PlanOption[]>([]);
+  const [planTarget,    setPlanTarget]    = useState<Dojo | null>(null);
+  const [selectedPlan,  setSelectedPlan]  = useState("");
+  const [changingPlan,  setChangingPlan]  = useState(false);
+  const [planError,     setPlanError]     = useState("");
+
+  useEffect(() => {
+    fetch("/api/billing/plans").then(r => r.ok ? r.json() : []).then(setPlans).catch(() => {});
+  }, []);
+
+  function openChangePlan(dojo: Dojo) {
+    setPlanTarget(dojo);
+    setSelectedPlan(dojo.subscription?.plan?.id ?? "");
+    setPlanError("");
+  }
+
+  async function saveChangePlan() {
+    if (!planTarget || !selectedPlan) return;
+    setChangingPlan(true); setPlanError("");
+    const res = await fetch("/api/billing/admin/grant", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dojoId: planTarget.id, action: "change_plan", planId: selectedPlan }),
+    });
+    setChangingPlan(false);
+    if (res.ok) { setPlanTarget(null); load(); }
+    else { const d = await res.json() as { error?: string }; setPlanError(d.error ?? "Error al cambiar de plan."); }
+  }
 
   async function enterDojo(dojo: Dojo) {
     setEntering(dojo.id);
@@ -70,6 +106,18 @@ export default function DojosPage() {
       body:    JSON.stringify({ dojoId: dojo.id }),
     });
     setEntering(null);
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  async function previewDojo(dojo: Dojo) {
+    setPreviewing(dojo.id);
+    await fetch("/api/sysadmin/set-dojo", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ dojoId: dojo.id, preview: true }),
+    });
+    setPreviewing(null);
     router.push("/dashboard");
     router.refresh();
   }
@@ -124,6 +172,14 @@ export default function DojosPage() {
     await fetch(`/api/dojos/${dojo.id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: dojo.name, tournamentPro: !dojo.tournamentPro }),
+    });
+    load();
+  }
+
+  async function toggleFeatured(dojo: Dojo) {
+    await fetch(`/api/dojos/${dojo.id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: dojo.name, featured: !dojo.featured }),
     });
     load();
   }
@@ -201,7 +257,9 @@ export default function DojosPage() {
                 <th className="text-center px-4 py-3">Alumnos</th>
                 <th className="text-center px-4 py-3 hidden sm:table-cell">Usuarios</th>
                 <th className="text-left px-4 py-3 hidden lg:table-cell">Plan</th>
+                <th className="text-left px-4 py-3 hidden lg:table-cell">Última entrada</th>
                 <th className="text-center px-4 py-3 hidden xl:table-cell">Pro</th>
+                <th className="text-center px-4 py-3 hidden xl:table-cell" title="Aparece en la barra de logos de la página principal">Destacado</th>
                 <th className="text-left px-4 py-3 hidden xl:table-cell">Creado</th>
                 <th className="text-right px-4 py-3">Acciones</th>
               </tr>
@@ -261,8 +319,10 @@ export default function DojosPage() {
                             />
                           </div>
                         )}
-                        {limit != null && (
-                          <span className="text-xs text-dojo-muted">{`/${limit}`}</span>
+                        {sub?.plan && (
+                          <span className="text-xs text-dojo-muted">
+                            {limit != null ? `/${limit}` : "Ilimitado"}
+                          </span>
                         )}
                       </div>
                     </td>
@@ -285,14 +345,54 @@ export default function DojosPage() {
                           {sub.plan && (
                             <p className="text-xs text-dojo-muted">{sub.plan.name}</p>
                           )}
-                          {sub.currentPeriodEnd && (
+                          <button
+                            onClick={() => openChangePlan(dojo)}
+                            className="inline-flex items-center gap-1 text-[11px] text-dojo-gold hover:underline"
+                          >
+                            <RefreshCw size={10} /> Cambiar plan
+                          </button>
+                          {sub.status === "TRIAL" && sub.trialEndsAt && (() => {
+                            // Mes gratis = 30 días desde el inicio. Como no se guarda la
+                            // fecha de inicio, se deriva de trialEndsAt (fin) - 30 días.
+                            const daysElapsed = 30 - Math.ceil((new Date(sub.trialEndsAt).getTime() - Date.now()) / 86_400_000);
+                            return (
+                              <p className="text-xs text-blue-300">
+                                Día {Math.min(Math.max(daysElapsed, 0), 30)} de 30 en prueba
+                              </p>
+                            );
+                          })()}
+                          {/* "Vence" solo aplica a ciclos de facturación reales (ACTIVE/PAST_DUE).
+                              COMPLIMENTARY es acceso permanente — nunca debe mostrar fecha de
+                              expiración, aunque currentPeriodEnd tenga un valor heredado de un
+                              ciclo pagado anterior al otorgarse la cortesía. */}
+                          {(sub.status === "ACTIVE" || sub.status === "PAST_DUE") && sub.currentPeriodEnd && (
                             <p className="text-xs text-dojo-muted">
                               Vence: {new Date(sub.currentPeriodEnd).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short", year: "numeric" })}
                             </p>
                           )}
+                          {sub.status === "COMPLIMENTARY" && (
+                            <p className="text-xs text-dojo-gold">Sin vencimiento</p>
+                          )}
                         </div>
                       ) : (
                         <span className="text-xs text-dojo-muted italic">Sin plan</span>
+                      )}
+                    </td>
+
+                    {/* Última entrada */}
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      {dojo.lastActiveAt ? (() => {
+                        const d    = new Date(dojo.lastActiveAt);
+                        const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+                        const color = days > 30 ? "text-red-300" : days > 7 ? "text-yellow-300" : "text-dojo-muted";
+                        return (
+                          <div className={`text-xs ${color}`}>
+                            <p>{d.toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short", year: "numeric" })}</p>
+                            <p className="opacity-70">{d.toLocaleTimeString("es-PA", { timeZone: "America/Panama", hour: "2-digit", minute: "2-digit" })}</p>
+                          </div>
+                        );
+                      })() : (
+                        <span className="text-xs text-dojo-muted italic">Nunca</span>
                       )}
                     </td>
 
@@ -310,6 +410,20 @@ export default function DojosPage() {
                       </button>
                     </td>
 
+                    {/* Destacado — logo en la barra "confían en nosotros" de la landing */}
+                    <td className="px-4 py-3 text-center hidden xl:table-cell">
+                      <button onClick={() => toggleFeatured(dojo)}
+                        title={dojo.featured ? "Quitar de destacados" : "Destacar en la página principal (requiere logo subido)"}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold transition-colors ${
+                          dojo.featured
+                            ? "bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+                            : "bg-dojo-border text-dojo-muted hover:bg-dojo-border/70"
+                        }`}
+                      >
+                        <Star size={10} /> {dojo.featured ? "SÍ" : "—"}
+                      </button>
+                    </td>
+
                     {/* Fecha creación */}
                     <td className="px-4 py-3 hidden xl:table-cell">
                       <span className="text-xs text-dojo-muted">
@@ -320,8 +434,13 @@ export default function DojosPage() {
                     {/* Acciones */}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => previewDojo(dojo)} disabled={previewing === dojo.id}
+                          title="Vista previa — ver el dashboard tal cual lo ve el admin del dojo"
+                          className="p-1.5 rounded-lg text-dojo-muted hover:text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40">
+                          <Eye size={15} />
+                        </button>
                         <button onClick={() => enterDojo(dojo)} disabled={entering === dojo.id}
-                          title="Entrar al dojo"
+                          title="Entrar al dojo (acceso total, modo mantenimiento)"
                           className="p-1.5 rounded-lg text-dojo-muted hover:text-dojo-red hover:bg-dojo-red/10 transition-colors disabled:opacity-40">
                           <LogIn size={15} />
                         </button>
@@ -374,6 +493,42 @@ export default function DojosPage() {
           <button onClick={() => setCreatedAdmin(null)} className="btn-ghost text-xs w-full justify-center">Cerrar</button>
         </div>
       )}
+
+      {/* Modal cambiar plan */}
+      <Modal open={!!planTarget} onClose={() => setPlanTarget(null)} title="Cambiar plan">
+        <div className="space-y-4">
+          <div className="bg-dojo-darker border border-dojo-border rounded-xl px-4 py-3">
+            <p className="text-dojo-white font-semibold">{planTarget?.name}</p>
+            <p className="text-dojo-muted text-xs mt-1">
+              Plan actual: {planTarget?.subscription?.plan?.name ?? "Sin plan"}
+            </p>
+          </div>
+          <p className="text-dojo-muted text-xs">
+            Solo cambia el plan (límite de alumnos y funciones). No toca el estado ni las fechas de facturación — útil para upgrades/downgrades pedidos por el cliente.
+          </p>
+          {planError && (
+            <p className="text-sm text-red-400 bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{planError}</p>
+          )}
+          <select value={selectedPlan} onChange={e => setSelectedPlan(e.target.value)} className="form-input text-sm">
+            {plans.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.name} — {p.maxStudents != null ? `hasta ${p.maxStudents} alumnos` : "alumnos ilimitados"}
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-3">
+            <button
+              type="button" onClick={() => void saveChangePlan()}
+              disabled={changingPlan || !selectedPlan || selectedPlan === (planTarget?.subscription?.plan?.id ?? "")}
+              className="btn-primary flex-1 justify-center gap-1.5 disabled:opacity-50"
+            >
+              {changingPlan ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              Guardar nuevo plan
+            </button>
+            <button type="button" onClick={() => setPlanTarget(null)} disabled={changingPlan} className="btn-secondary">Cancelar</button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Modal eliminar dojo */}
       <Modal open={!!deleteTarget} onClose={closeDelete} title="Eliminar Dojo">

@@ -89,8 +89,19 @@ export const BELT_COLORS = [
   { value: "negra-3-dan",     label: "Negra 3er Dan",    hex: "#1A1A1A", textColor: "#FFD700" },
 ];
 
+// Categorías especiales para "Videos por Cinta" — no son cintas reales de
+// progresión, sino katas de competencia que se enseñan a alumnos puntuales
+// sin importar su cinta. Solo sirven como etiqueta organizativa en el panel;
+// la visibilidad real en el portal la controla BeltVideo.visibleToStudentIds.
+export const VIDEO_RANKING_CATEGORIES = [
+  { value: "ranking-intermedio", label: "Ranking Intermedios", hex: "#B45309", textColor: "#FFF" },
+  { value: "ranking-avanzado",   label: "Ranking Avanzados",   hex: "#7C2D12", textColor: "#FFF" },
+];
+
 export function getBeltInfo(value: string) {
-  return BELT_COLORS.find((b) => b.value === value) ?? BELT_COLORS[0];
+  return BELT_COLORS.find((b) => b.value === value)
+      ?? VIDEO_RANKING_CATEGORIES.find((b) => b.value === value)
+      ?? BELT_COLORS[0];
 }
 
 export const GENDERS = [

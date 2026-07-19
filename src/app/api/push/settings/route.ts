@@ -3,11 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
+import { NAV_KEYS } from "@/lib/permissions";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
 // GET /api/push/settings — configuración de notificaciones push del dojo
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -54,7 +56,7 @@ export async function GET(req: NextRequest) {
 }
 
 // PUT /api/push/settings — actualiza configuración
-export async function PUT(req: NextRequest) {
+async function _PUT(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -102,3 +104,6 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }
+
+export const GET = withPlanFeatureGuard(NAV_KEYS.SETTINGS_PUSH, _GET);
+export const PUT = withPlanFeatureGuard(NAV_KEYS.SETTINGS_PUSH, _PUT);

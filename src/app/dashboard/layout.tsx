@@ -43,6 +43,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const cookieStore = await cookies();
   const sxDojoName  = role === "sysadmin" ? (cookieStore.get("sx-dojo-name")?.value ?? null) : null;
   const sxDojo      = cookieStore.get("sx-dojo")?.value;
+  const sxPreview   = role === "sysadmin" && cookieStore.get("sx-preview")?.value === "1";
 
   // Leer el theme del dojo desde DB (SSR — sin parpadeo)
   const theme = await getDojoTheme(role, dojoId, sxDojo);
@@ -59,7 +60,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
         <div className="flex-1 flex flex-col min-w-0">
           <MobileNav />
-          {sxDojoName && <DojoBanner dojoName={sxDojoName} />}
+          {sxDojoName && <DojoBanner dojoName={sxDojoName} mode={sxPreview ? "preview" : "maintenance"} />}
           <TopBar />
           <main className="flex-1 overflow-auto bg-dojo-darker min-w-0">
             <div className="p-4 lg:p-8 min-w-0 overflow-x-hidden">{children}</div>

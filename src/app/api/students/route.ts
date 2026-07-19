@@ -96,7 +96,7 @@ async function _POST(req: NextRequest) {
       if (activeCount >= sub.plan.maxStudents) {
         return NextResponse.json({
           error:    "STUDENT_LIMIT_REACHED",
-          message:  `Tu plan ${sub.plan.name} permite hasta ${sub.plan.maxStudents} alumnos activos. No puedes crear más alumnos — adquiere el Plan Silver o Gold para aumentar este límite.`,
+          message:  `Tu plan ${sub.plan.name} permite hasta ${sub.plan.maxStudents} alumnos activos. No puedes crear más alumnos — actualiza tu suscripción a un plan superior para aumentar este límite.`,
           planName: sub.plan.name,
           limit:    sub.plan.maxStudents,
           current:  activeCount,

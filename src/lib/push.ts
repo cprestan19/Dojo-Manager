@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import prisma from "@/lib/prisma";
+import { logAudit, AUDIT_MODULE } from "@/lib/audit";
 
 const VAPID_PUBLIC_KEY  = process.env.VAPID_PUBLIC_KEY  ?? "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY ?? "";
@@ -107,6 +108,75 @@ export async function getDojoAdminSubscriptions(dojoId: string): Promise<Subscri
     select: { endpoint: true, p256dh: true, auth: true },
   });
   return subs;
+}
+
+// Obtiene suscripciones activas de administradores de TODOS los dojos —
+// para anuncios de plataforma enviados por sysadmin (Novedades del sistema).
+export async function getAllAdminSubscriptions(): Promise<SubscriptionData[]> {
+  const subs = await prisma.pushSubscription.findMany({
+    where:  { active: true, userId: { not: null } },
+    select: { endpoint: true, p256dh: true, auth: true },
+  });
+  return subs;
+}
+
+// Obtiene suscripciones activas de alumnos de TODOS los dojos — para
+// anuncios de plataforma con alcance "todos los dojos" (Novedades del sistema).
+export async function getAllStudentSubscriptions(): Promise<SubscriptionData[]> {
+  const subs = await prisma.pushSubscription.findMany({
+    where:  { active: true, studentId: { not: null } },
+    select: { endpoint: true, p256dh: true, auth: true },
+  });
+  return subs;
+}
+
+// Resuelve las suscripciones objetivo de una Novedad del sistema según su
+// audiencia ("all" | "admins" | "students") y alcance (un dojo o todos).
+async function getNewsAudienceSubscriptions(
+  audience: string,
+  targetDojoId: string | null,
+): Promise<SubscriptionData[]> {
+  const wantsAdmins   = audience === "admins" || audience === "all";
+  const wantsStudents = audience === "students" || audience === "all";
+
+  const [admins, students] = await Promise.all([
+    wantsAdmins
+      ? (targetDojoId ? getDojoAdminSubscriptions(targetDojoId) : getAllAdminSubscriptions())
+      : Promise.resolve([]),
+    wantsStudents
+      ? (targetDojoId ? getDojoStudentSubscriptions(targetDojoId) : getAllStudentSubscriptions())
+      : Promise.resolve([]),
+  ]);
+
+  return [...admins, ...students];
+}
+
+// Helper: envía push según la audiencia/alcance de una Novedad del sistema
+// (fire-and-forget). Único punto usado por create/update/publish de Novedades.
+export function sendNewsPushAsync(
+  audience: string,
+  targetDojoId: string | null,
+  payload: PushPayload,
+  opts?: { sentBy?: string; sourceId?: string },
+): void {
+  getNewsAudienceSubscriptions(audience, targetDojoId)
+    .then((subs) => {
+      if (subs.length === 0) return;
+      return sendPushToSubscriptions(subs, payload).then((result) =>
+        logAudit({
+          action:       "SYSTEM_NEWS_PUSH_BROADCAST",
+          module:       AUDIT_MODULE.SYSADMIN,
+          resourceType: "SystemNews",
+          resourceId:   opts?.sourceId ?? null,
+          userId:       opts?.sentBy ?? null,
+          details:      JSON.stringify({
+            title: payload.title, audience, targetDojoId,
+            target: subs.length, success: result.success, failed: result.failed,
+          }),
+        })
+      );
+    })
+    .catch((err) => console.error("[push] sendNewsPushAsync:", err));
 }
 
 // Obtiene suscripciones activas de UN alumno específico

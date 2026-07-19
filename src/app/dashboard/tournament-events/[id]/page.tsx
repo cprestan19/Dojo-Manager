@@ -415,9 +415,10 @@ export default function TournamentEventDetailPage() {
     fetch("/api/katas?active=1")
       .then(r => r.ok ? r.json() : [])
       .then((katas: { name: string; description: string | null }[]) => {
-        const cinta       = katas.filter(k => k.description === "Kata de Cinta").map(k => k.name);
-        const competencia = katas.filter(k => k.description === "Kata de Competencias").map(k => k.name);
-        const sinTipo     = katas.filter(k => !k.description).map(k => k.name);
+        const byName = (a: string, b: string) => a.localeCompare(b, "es");
+        const cinta       = katas.filter(k => k.description === "Kata de Cinta").map(k => k.name).sort(byName);
+        const competencia = katas.filter(k => k.description === "Kata de Competencias").map(k => k.name).sort(byName);
+        const sinTipo     = katas.filter(k => !k.description).map(k => k.name).sort(byName);
         const groups: KataGroup[] = [];
         if (cinta.length       > 0) groups.push({ group: "Katas de Cinta",       items: cinta });
         if (competencia.length > 0) groups.push({ group: "Katas de Competencia", items: competencia });

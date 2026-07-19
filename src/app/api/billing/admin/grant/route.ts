@@ -7,6 +7,8 @@ import {
   grantFreeMonth,
   grantSpecialAccess,
   extendSpecialAccess,
+  changeSubscriptionPlan,
+  SubscriptionUserError,
 } from "@/lib/billing/subscription";
 
 type SessionUser = { role?: string; email?: string };
@@ -22,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => null) as {
       dojoId:     string;
-      action:     "complimentary" | "revoke" | "free_month" | "special_access" | "extend_special_access";
+      action:     "complimentary" | "revoke" | "free_month" | "special_access" | "extend_special_access" | "change_plan";
       months?:    number;
       note?:      string;
       endsAt?:    string;   // ISO date — para special_access / extend_special_access
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
     const { dojoId, action, months = 1, note, endsAt, planId } = body;
     const grantedBy = email ?? "sysadmin";
 
-    const validActions = ["complimentary", "revoke", "free_month", "special_access", "extend_special_access"];
+    const validActions = ["complimentary", "revoke", "free_month", "special_access", "extend_special_access", "change_plan"];
     if (!validActions.includes(action)) {
       return NextResponse.json({ error: "action inválida" }, { status: 400 });
     }
@@ -82,11 +84,19 @@ export async function POST(req: NextRequest) {
         sub = await extendSpecialAccess(dojoId, grantedBy, ends);
         break;
       }
+
+      case "change_plan":
+        if (!planId) {
+          return NextResponse.json({ error: "planId es requerido para change_plan" }, { status: 400 });
+        }
+        sub = await changeSubscriptionPlan(dojoId, planId, grantedBy, note);
+        break;
     }
 
     return NextResponse.json({ ok: true, status: sub.status, dojoId });
   } catch (err) {
     console.error("POST /api/billing/admin/grant error:", err);
-    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+    const message = err instanceof SubscriptionUserError ? err.message : "Error interno";
+    return NextResponse.json({ error: message }, { status: err instanceof SubscriptionUserError ? 400 : 500 });
   }
 }

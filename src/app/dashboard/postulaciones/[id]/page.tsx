@@ -7,6 +7,8 @@ import {
   ChevronLeft, Loader2, CheckCircle, XCircle, Clock, Users, Award, ClipboardList,
   Pencil, Archive, Trash2, UserPlus, UserMinus, Search, Lock, ChevronDown, ChevronUp
 } from "lucide-react";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { NAV_KEYS } from "@/lib/permissions";
 
 interface StudentOption {
   id:          string;
@@ -61,6 +63,7 @@ type ResponseFilter = "all" | "PENDING" | "ACCEPTED" | "REJECTED";
 export default function PostulacionDetallePage() {
   const { id }  = useParams<{ id: string }>();
   const router  = useRouter();
+  const perms   = usePermissions();
 
   const [app,       setApp]       = useState<Application | null>(null);
   const [loading,   setLoading]   = useState(true);
@@ -276,7 +279,7 @@ export default function PostulacionDetallePage() {
   const passedInvitees   = app.invitees.filter(i => i.passed === true);
   const pendingCount     = app.invitees.filter(i => i.response === "PENDING").length;
   const canShowAttendance   = app.status === "CLOSED" || app.status === "FINALIZED";
-  const canShowCertificates = app.status === "CLOSED" || app.status === "FINALIZED";
+  const canShowCertificates = (app.status === "CLOSED" || app.status === "FINALIZED") && perms.has(NAV_KEYS.CERTIFICADOS);
   const deadlinePassed      = !!app.deadline && new Date(app.deadline) < new Date();
   const canAddStudents      = (app.status === "DRAFT" || app.status === "PUBLISHED") && !deadlinePassed;
 

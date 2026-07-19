@@ -5,10 +5,12 @@ import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { sendPushToDojoStudentsAsync } from "@/lib/push";
 import { computeSyncDiff } from "@/lib/tournament-event-sync";
+import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
+import { NAV_KEYS } from "@/lib/permissions";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -78,7 +80,7 @@ export async function GET(req: NextRequest) {
   }));
 }
 
-export async function POST(req: NextRequest) {
+async function _POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
@@ -129,3 +131,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Error al crear evento" }, { status: 500 });
   }
 }
+
+export const GET  = withPlanFeatureGuard(NAV_KEYS.EVENTS, _GET);
+export const POST = withPlanFeatureGuard(NAV_KEYS.EVENTS, _POST);

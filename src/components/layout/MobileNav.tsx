@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { usePlanFeatures } from "@/lib/hooks/usePlanFeatures";
 import { useDojo } from "@/lib/hooks/useDojo";
+import { useAppContext } from "@/lib/context/AppContext";
 import { NAV_KEYS } from "@/lib/permissions";
 import type { NavKey } from "@/lib/permissions";
 import {
@@ -181,15 +182,19 @@ export function MobileNav() {
 
   const role        = (session?.user as { role?: string })?.role ?? "user";
   const isSysadmin  = role === "sysadmin";
-  const hasProAccess = isSysadmin || !!dojo?.tournamentPro;
+  const { isPreview, hasTournamentsAccess: planHasTournaments } = useAppContext();
+  // En Vista Previa el sysadmin renuncia a su acceso total — igual que en Sidebar.tsx.
+  // planHasTournaments combina el interruptor manual con el plan (ver Sidebar.tsx).
+  const hasProAccess = (isSysadmin && !isPreview) || planHasTournaments;
   const name        = session?.user?.name ?? "";
   const photo       = session?.user?.image ?? null;
   const initials    = name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
 
   const roleLabel =
-    role === "sysadmin" ? "Super Admin" :
-    role === "admin"    ? "Administrador" :
-    role === "user"     ? "Usuario" : role;
+    role === "sysadmin" && isPreview ? "Vista previa · Admin" :
+    role === "sysadmin"              ? "Super Admin" :
+    role === "admin"                 ? "Administrador" :
+    role === "user"                  ? "Usuario" : role;
 
   const PAID_PLAN_KEYS = new Set<NavKey>([NAV_KEYS.TOURNAMENT_EVENTS, NAV_KEYS.STORE, NAV_KEYS.PUBLIC_PAGE, NAV_KEYS.LEADS]);
   const planAllowed = (key: NavKey) => hasPaidFeatures || !PAID_PLAN_KEYS.has(key);
@@ -202,7 +207,11 @@ export function MobileNav() {
   const visAdmin        = filter(adminDrawerItems);
   const visSettings     = filter(settingsDrawerItems);
 
-  const showCompetencias = visCompetencias.length > 0 || (isSysadmin || role === "admin");
+  // Mismo criterio que Sidebar.tsx: solo forzar la sección (con Torneo Pro)
+  // cuando hay contexto de dojo real, no para sysadmin sin dojo en Gestión
+  // de Dojos. `dojo` no sirve como señal — nunca se carga para sysadmin
+  // (ver AppContext.fetchDojo) — se usa perms.has(STUDENTS) en su lugar.
+  const showCompetencias = visCompetencias.length > 0 || ((isSysadmin || role === "admin") && perms.has(NAV_KEYS.STUDENTS));
 
   const inSettings =
     pathname.startsWith("/dashboard/settings") &&
@@ -384,6 +393,21 @@ export function MobileNav() {
             </>
           )}
 
+          {/* FACTURACIÓN — solo admin del dojo (sysadmin ya la ve en Sistema) */}
+          {role === "admin" && (
+            <Link href="/dashboard/billing" onClick={close}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium mt-1",
+                (pathname === "/dashboard/billing" || pathname.startsWith("/dashboard/billing/"))
+                  ? "bg-dojo-nav-active text-white"
+                  : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+              )}
+            >
+              <Receipt size={18} />
+              Facturación
+            </Link>
+          )}
+
           {/* CONFIGURACIÓN — expandible */}
           {visSettings.length > 0 && (
             <div className="mt-1">
@@ -423,8 +447,8 @@ export function MobileNav() {
             </div>
           )}
 
-          {/* SISTEMA — solo sysadmin */}
-          {isSysadmin && (
+          {/* SISTEMA — solo sysadmin, oculto en Vista Previa */}
+          {isSysadmin && !isPreview && (
             <>
               <NavSection label="Sistema" />
               <div className="space-y-1">
