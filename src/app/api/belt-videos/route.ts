@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
-import { sendPushToDojoStudentsAsync } from "@/lib/push";
+import { sendPushToStudentIdsAsync } from "@/lib/push";
 import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
 import { NAV_KEYS } from "@/lib/permissions";
 import { sanitizeStudentAllowlist } from "@/lib/belt-videos";
@@ -81,19 +81,36 @@ async function _POST(req: NextRequest) {
     details:      JSON.stringify({ title: video.title, beltColor: video.beltColor, restricted: Array.isArray(video.visibleToStudentIds) }),
   });
 
-  // Notificar a los alumnos que hay un nuevo video disponible — fire-and-forget
+  // Notificar solo a los alumnos con acceso al video — fire-and-forget.
+  // Si hay visibleToStudentIds, ese allowlist manda; si no, se limita a los
+  // alumnos que ya obtuvieron la cinta del video (mismo criterio que earnedBelts
+  // en /api/portal/belt-videos: cualquier cinta en BeltHistory, no solo la actual).
   const pushSettings = await prisma.pushSettings.findUnique({ where: { dojoId }, select: { enabled: true, notifyNewVideo: true } }).catch(() => null);
   if (pushSettings?.enabled && pushSettings.notifyNewVideo) {
-    sendPushToDojoStudentsAsync(
-      dojoId,
-      {
-        title: "🎥 Nuevo video disponible",
-        body:  `"${video.title}" ya está en tu portal de videos.`,
-        url:   "/portal/videos",
-        tag:   "new-video",
-      },
-      { type: "video" },
-    );
+    const allowlist = Array.isArray(visibleToStudentIds) ? visibleToStudentIds : null;
+    const targetStudentIdsPromise = allowlist && allowlist.length > 0
+      ? Promise.resolve(allowlist)
+      : prisma.beltHistory
+          .findMany({
+            where:    { beltColor: video.beltColor, student: { dojoId, active: true } },
+            select:   { studentId: true },
+            distinct: ["studentId"],
+          })
+          .then(rows => rows.map(r => r.studentId));
+
+    targetStudentIdsPromise
+      .then(studentIds => sendPushToStudentIdsAsync(
+        studentIds,
+        dojoId,
+        {
+          title: "🎥 Nuevo video disponible",
+          body:  `"${video.title}" ya está en tu portal de videos.`,
+          url:   "/portal/videos",
+          tag:   "new-video",
+        },
+        { type: "video" },
+      ))
+      .catch(err => console.error("[belt-videos POST] push target resolve:", err));
   }
 
   return NextResponse.json(video, { status: 201 });

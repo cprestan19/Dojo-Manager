@@ -263,6 +263,39 @@ export function sendPushToDojoAdminsAsync(
     .catch((err) => console.error("[push] sendPushToDojoAdminsAsync:", err));
 }
 
+// Helper: envía push a una lista específica de alumnos (fire-and-forget) —
+// usado cuando el contenido está restringido (por cinta o allowlist explícito)
+// y NO debe llegar a todo el dojo.
+export function sendPushToStudentIdsAsync(
+  studentIds: string[],
+  dojoId: string,
+  payload: PushPayload,
+  opts?: { type?: string; sentBy?: string },
+): void {
+  if (studentIds.length === 0) return;
+
+  prisma.pushSubscription
+    .findMany({
+      where:  { studentId: { in: studentIds }, active: true },
+      select: { endpoint: true, p256dh: true, auth: true },
+    })
+    .then((subs) => {
+      if (subs.length === 0) return;
+      return sendPushToSubscriptions(subs, payload).then((result) =>
+        logPushSent({
+          dojoId,
+          type:   opts?.type  ?? "manual",
+          title:  payload.title,
+          body:   payload.body,
+          url:    payload.url,
+          result,
+          sentBy: opts?.sentBy,
+        })
+      );
+    })
+    .catch((err) => console.error("[push] sendPushToStudentIdsAsync:", err));
+}
+
 // Helper: envía push al alumno específico (fire-and-forget)
 export function sendPushToStudentAsync(
   studentId: string,
