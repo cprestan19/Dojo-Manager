@@ -10,6 +10,21 @@ type SessionUser = { role?: string; dojoId?: string | null };
 
 const VALID_TYPES = new Set(["entry", "exit"]);
 
+// Panamá no observa DST → offset fijo UTC-5
+const PANAMA_OFFSET_MS = 5 * 60 * 60 * 1000;
+
+// Límites del día calendario en Panamá, expresados como instantes UTC
+// para poder filtrar markedAt (que se guarda en UTC) con gte/lt.
+function getPanamaDayBoundsUtc(now: Date = new Date()): { start: Date; end: Date } {
+  const panamaNow = new Date(now.getTime() - PANAMA_OFFSET_MS);
+  const y = panamaNow.getUTCFullYear();
+  const m = panamaNow.getUTCMonth();
+  const d = panamaNow.getUTCDate();
+  const start = new Date(Date.UTC(y, m, d, 0, 0, 0, 0) + PANAMA_OFFSET_MS);
+  const end   = new Date(Date.UTC(y, m, d + 1, 0, 0, 0, 0) + PANAMA_OFFSET_MS);
+  return { start, end };
+}
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -122,10 +137,10 @@ export async function POST(req: NextRequest) {
       if (!schedule) return NextResponse.json({ error: "Horario no válido" }, { status: 400 });
     }
 
-    // ── Duplicate check: same student + same type in last 5 min ─
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    const recent = await prisma.attendance.findFirst({
-      where: { studentId: student.id, type, markedAt: { gte: fiveMinutesAgo } },
+    // ── Duplicate check: solo una marcación de este tipo por día (hora Panamá) ─
+    const { start: dayStart, end: dayEnd } = getPanamaDayBoundsUtc();
+    const existingToday = await prisma.attendance.findFirst({
+      where: { studentId: student.id, type, markedAt: { gte: dayStart, lt: dayEnd } },
       select: { id: true },
     });
 
@@ -136,9 +151,9 @@ export async function POST(req: NextRequest) {
       belt:     student.beltHistory[0]?.beltColor ?? null,
     };
 
-    if (recent) {
+    if (existingToday) {
       return NextResponse.json({
-        warning:   `Ya se registró ${type === "entry" ? "entrada" : "salida"} hace menos de 5 minutos.`,
+        warning:   `Ya se registró ${type === "entry" ? "una entrada" : "una salida"} hoy para este alumno.`,
         student:   studentOut,
         duplicate: true,
       });
