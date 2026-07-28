@@ -127,10 +127,10 @@ export const MULTI_KATA_BELTS = new Set([
   "negra", "negra-1-dan", "negra-2-dan", "negra-3-dan",
 ]);
 
-export const PAYMENT_STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  pending: { label: "Pendiente", className: "badge-yellow" },
-  paid:    { label: "Pagado",    className: "badge-green"  },
-  late:    { label: "Atrasado",  className: "badge-red"    },
+export const PAYMENT_STATUS_LABELS: Record<string, { label: string; className: string; variant: "warning" | "success" | "danger" }> = {
+  pending: { label: "Pendiente", className: "badge-yellow", variant: "warning" },
+  paid:    { label: "Pagado",    className: "badge-green",  variant: "success" },
+  late:    { label: "Atrasado",  className: "badge-red",    variant: "danger"  },
 };
 
 export const PAYMENT_TYPE_LABELS: Record<string, string> = {

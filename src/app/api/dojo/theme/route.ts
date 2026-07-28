@@ -7,7 +7,7 @@ import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/queries";
 
 type SessionUser = { role?: string; dojoId?: string | null };
-const VALID_THEMES = ["dark-saas", "soft-neutral", "executive-red"] as const;
+const VALID_THEMES = ["dark-saas", "white-special"] as const;
 
 export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions);

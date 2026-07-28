@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useEffect, useState, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   User, CreditCard, Clock, ClipboardList, LogOut, Video,
   Calendar, Radio, X, Bell, FileText, Award, MoreHorizontal, ChevronRight,
@@ -59,10 +60,7 @@ export default function PortalNav({ student }: Props) {
   const [showAlert, setShowAlert] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  // Drawer state — 3 niveles: intención (drawerOpen), DOM (drawerMounted), animación (drawerVisible)
-  const [drawerOpen,    setDrawerOpen]    = useState(false);
-  const [drawerMounted, setDrawerMounted] = useState(false);
-  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // ── Live tatamis ──────────────────────────────────────────────────
   useEffect(() => {
@@ -92,19 +90,6 @@ export default function PortalNav({ student }: Props) {
   }, []);
 
   useEffect(() => { checkNotifications(); }, [checkNotifications]);
-
-  // Sincronizar DOM del drawer con la intención de apertura
-  useEffect(() => {
-    let t: ReturnType<typeof setTimeout>;
-    if (drawerOpen) {
-      setDrawerMounted(true);
-      t = setTimeout(() => setDrawerVisible(true), 10);
-    } else {
-      setDrawerVisible(false);
-      t = setTimeout(() => setDrawerMounted(false), 300);
-    }
-    return () => clearTimeout(t);
-  }, [drawerOpen]);
 
   // Cerrar drawer y marcar visto al navegar
   useEffect(() => {
@@ -212,63 +197,72 @@ export default function PortalNav({ student }: Props) {
         </div>
       )}
 
-      {/* ── Overlay — solo existe en DOM cuando drawer está montado ── */}
-      {drawerMounted && (
-        <div
-          aria-hidden="true"
-          onClick={() => setDrawerOpen(false)}
-          className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ${
-            drawerVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-        />
-      )}
+      {/* ── Overlay + Drawer "Más" ── */}
+      <AnimatePresence>
+        {drawerOpen && (
+          <motion.div
+            key="drawer-overlay"
+            aria-hidden="true"
+            onClick={() => setDrawerOpen(false)}
+            className="fixed inset-0 z-40 bg-black/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* ── Drawer "Más" — solo en DOM cuando drawer está montado ── */}
-      {drawerMounted && (
-      <div
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-dojo-dark border-t border-dojo-border rounded-t-2xl transition-transform duration-300 ease-out ${
-          drawerVisible ? "translate-y-0" : "translate-y-full pointer-events-none"
-        }`}
-      >
-        <div className="w-10 h-1 bg-dojo-border rounded-full mx-auto mt-3 mb-1" />
-        <div className="max-w-2xl mx-auto px-2 pb-24">
-          {MORE_ITEMS.map(item => {
-            const Icon      = item.icon;
-            const active    = pathname === item.href || pathname.startsWith(item.href + "/");
-            const isLive    = item.href === "/portal/live";
-            const redDot    = isLive && hasLive;
-            const goldDot   = item.href === "/portal/videos"        && (notifs?.newVideos    ?? 0) > 0 && !dismissed;
-            const orangeDot = item.href === "/portal/postulaciones" && (notifs?.pendingExams ?? 0) > 0;
+      <AnimatePresence>
+        {drawerOpen && (
+          <motion.div
+            key="drawer"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-dojo-dark border-t border-dojo-border rounded-t-2xl"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <div className="w-10 h-1 bg-dojo-border rounded-full mx-auto mt-3 mb-1" />
+            <div className="max-w-2xl mx-auto px-2 pb-24">
+              {MORE_ITEMS.map(item => {
+                const Icon      = item.icon;
+                const active    = pathname === item.href || pathname.startsWith(item.href + "/");
+                const isLive    = item.href === "/portal/live";
+                const redDot    = isLive && hasLive;
+                const goldDot   = item.href === "/portal/videos"        && (notifs?.newVideos    ?? 0) > 0 && !dismissed;
+                const orangeDot = item.href === "/portal/postulaciones" && (notifs?.pendingExams ?? 0) > 0;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors ${
-                  active
-                    ? "bg-dojo-red/10 text-dojo-red"
-                    : "text-dojo-muted hover:bg-dojo-darker hover:text-dojo-white"
-                }`}
-              >
-                <span className="relative shrink-0">
-                  <Icon size={20} />
-                  {redDot    && <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
-                  {!redDot && goldDot    && <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-dojo-gold animate-pulse" />}
-                  {!redDot && !goldDot && orangeDot && <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-orange-500 animate-pulse" />}
-                </span>
-                <span className="text-sm font-medium flex-1">{item.label}</span>
-                {isLive && hasLive && (
-                  <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold tracking-wide">
-                    EN VIVO
-                  </span>
-                )}
-                <ChevronRight size={14} className="opacity-30 shrink-0" />
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-      )}
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors ${
+                      active
+                        ? "bg-dojo-red/10 text-dojo-red"
+                        : "text-dojo-muted hover:bg-dojo-darker hover:text-dojo-white"
+                    }`}
+                  >
+                    <span className="relative shrink-0">
+                      <Icon size={20} />
+                      {redDot    && <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+                      {!redDot && goldDot    && <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-dojo-gold animate-pulse" />}
+                      {!redDot && !goldDot && orangeDot && <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-orange-500 animate-pulse" />}
+                    </span>
+                    <span className="text-sm font-medium flex-1">{item.label}</span>
+                    {isLive && hasLive && (
+                      <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold tracking-wide">
+                        EN VIVO
+                      </span>
+                    )}
+                    <ChevronRight size={14} className="opacity-30 shrink-0" />
+                  </Link>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Bottom navigation fija ───────────────────────────────── */}
       <nav

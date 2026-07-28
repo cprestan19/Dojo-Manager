@@ -6,6 +6,7 @@ import PortalNav from "./PortalNav";
 import TermsGate from "./TermsGate";
 import SystemNewsModal from "@/components/SystemNewsModal";
 import ActivityPing from "@/components/ui/ActivityPing";
+import { PageTransition } from "@/components/portal/PageTransition";
 import { hasFeature } from "@/lib/billing/featureGate";
 import { NAV_KEYS } from "@/lib/permissions";
 
@@ -74,7 +75,7 @@ export default async function PortalLayout({ children }: { children: React.React
       <main className="flex-1 overflow-x-hidden overflow-y-auto min-w-0">
         {/* pb-24 = espacio para la barra de navegación inferior fija (64px) + margen */}
         <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </div>
       </main>
     </div>

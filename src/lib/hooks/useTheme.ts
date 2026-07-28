@@ -1,12 +1,11 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 
-export type ThemeId = "dark-saas" | "soft-neutral" | "executive-red";
+export type ThemeId = "dark-saas" | "white-special";
 
 export const THEMES: Array<{ id: ThemeId; label: string; preview: string }> = [
-  { id: "dark-saas",      label: "Dark Premium",  preview: "#0B0F14" },
-  { id: "soft-neutral",   label: "Light Minimal", preview: "#F9FAFB" },
-  { id: "executive-red",  label: "Ejecutivo",     preview: "#0F172A" },
+  { id: "dark-saas",     label: "Dark Premium",  preview: "#0B0F14" },
+  { id: "white-special", label: "White Special", preview: "#130481" },
 ];
 
 const DEFAULT_THEME: ThemeId = "dark-saas";

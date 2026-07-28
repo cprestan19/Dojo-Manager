@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { formatDate, formatCurrency, PAYMENT_STATUS_LABELS, getPaymentTypeLabel } from "@/lib/utils";
 import { Users } from "lucide-react";
+import { FadeIn } from "@/components/portal/FadeIn";
 
 export default async function PortalPaymentsPage() {
   const session   = await getServerSession(authOptions);
@@ -46,7 +47,7 @@ export default async function PortalPaymentsPage() {
         {isFamily ? "Pagos de la Familia" : "Mis Pagos"}
       </h1>
 
-      <div className="grid grid-cols-2 gap-3">
+      <FadeIn className="grid grid-cols-2 gap-3">
         <div className="card border border-green-800/40 bg-green-900/10 text-center">
           <p className="text-xs text-dojo-muted mb-1">Pagado</p>
           <p className="text-lg font-bold text-green-400">{formatCurrency(totals.paid)}</p>
@@ -55,14 +56,14 @@ export default async function PortalPaymentsPage() {
           <p className="text-xs text-dojo-muted mb-1">Pendiente</p>
           <p className="text-lg font-bold text-yellow-400">{formatCurrency(totals.pending)}</p>
         </div>
-      </div>
+      </FadeIn>
 
       {payments.length === 0 ? (
         <div className="card text-center py-8 text-dojo-muted text-sm">
           Sin pagos registrados.
         </div>
       ) : isFamily ? (
-        <div className="space-y-5">
+        <FadeIn delay={0.1} className="space-y-5">
           {members.map(member => {
             const memberPayments = payments.filter(p => p.studentId === member.id);
             if (memberPayments.length === 0) return null;
@@ -105,9 +106,9 @@ export default async function PortalPaymentsPage() {
               </div>
             );
           })}
-        </div>
+        </FadeIn>
       ) : (
-        <div className="card p-0 overflow-hidden">
+        <FadeIn delay={0.1} className="card p-0 overflow-hidden">
           <div className="divide-y divide-dojo-border">
             {payments.map(p => {
               const st = PAYMENT_STATUS_LABELS[p.status] ?? { label: p.status, className: "badge-blue" };
@@ -128,7 +129,7 @@ export default async function PortalPaymentsPage() {
               );
             })}
           </div>
-        </div>
+        </FadeIn>
       )}
     </div>
   );

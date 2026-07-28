@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 export const CACHE_TAGS = {
   katas:  (dojoId: string) => `katas-${dojoId}`,
   dojo:   (dojoId: string) => `dojo-${dojoId}`,
+  platformLogo: "platform-logo",
 } as const;
 
 export const getCachedKatas = (dojoId: string) =>
@@ -16,6 +17,16 @@ export const getCachedKatas = (dojoId: string) =>
       }),
     [`katas-${dojoId}`],
     { revalidate: 600, tags: [CACHE_TAGS.katas(dojoId)] }
+  )();
+
+export const getCachedPlatformLogo = () =>
+  unstable_cache(
+    async () => {
+      const cfg = await prisma.platformSettings.findUnique({ where: { id: "singleton" } });
+      return cfg?.logo ?? null;
+    },
+    ["platform-logo"],
+    { revalidate: 300, tags: [CACHE_TAGS.platformLogo] }
   )();
 
 export const getCachedDojoMeta = (dojoId: string) =>

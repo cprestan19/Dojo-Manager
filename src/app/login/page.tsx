@@ -19,6 +19,7 @@ function LoginForm() {
   const [error,    setError]    = useState("");
   const [dojo,     setDojo]     = useState<DojoInfo | null>(null);
   const [bgImage,  setBgImage]  = useState<string | null>(null);
+  const [platformLogo, setPlatformLogo] = useState<string | null>(null);
 
   // Si hay una sesión activa de otro usuario, cerrarla al cargar el login
   useEffect(() => {
@@ -40,6 +41,14 @@ function LoginForm() {
       .then(d => { if (d.loginBgImage) setBgImage(d.loginBgImage); })
       .catch(() => {});
   }, [dojoSlug]);
+
+  // Logo de plataforma configurable por sysadmin — fallback cuando el dojo no tiene logo propio
+  useEffect(() => {
+    fetch("/api/public/platform-logo")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { logo: string | null } | null) => { if (d?.logo) setPlatformLogo(d.logo); })
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -91,7 +100,7 @@ function LoginForm() {
           {/* Logo: dojo custom > app default */}
           <div className="w-20 h-20 bg-dojo-red rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-dojo-red/30 overflow-hidden">
             <Image
-              src={dojo?.logo || "/logo.png"}
+              src={dojo?.logo || platformLogo || "/logo.png"}
               alt={dojo?.name ?? "Dojo Master"}
               width={80}
               height={80}

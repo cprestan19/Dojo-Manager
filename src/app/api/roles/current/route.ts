@@ -35,20 +35,33 @@ export async function GET(req: NextRequest) {
       const planFeatures = await getEffectivePlanFeatures(sxDojo);
       const perms = new Set([...rolePerms].filter(k => planFeatures.has(k)));
       const tournamentsAccess = await hasTournamentsAccess(sxDojo);
-      return NextResponse.json({ permissions: [...perms] as NavKey[], isPreview: true, hasTournamentsAccess: tournamentsAccess });
+      return NextResponse.json({
+        permissions: [...perms] as NavKey[], isPreview: true,
+        hasTournamentsAccess: tournamentsAccess,
+        hasPortalAccess: planFeatures.has(NAV_KEYS.PORTAL_ACCESS),
+      });
     }
 
     // Modo mantenimiento (dojo activo, sin preview) → acceso total + gestión de dojos
     if (sxDojo) {
-      return NextResponse.json({ permissions: [...ALL_DOJO_KEYS, NAV_KEYS.DOJOS] as NavKey[], isPreview: false, hasTournamentsAccess: true });
+      return NextResponse.json({
+        permissions: [...ALL_DOJO_KEYS, NAV_KEYS.DOJOS] as NavKey[], isPreview: false,
+        hasTournamentsAccess: true, hasPortalAccess: true,
+      });
     }
     // Sin dojo activo → solo gestión de plataforma
-    return NextResponse.json({ permissions: SYSADMIN_NO_DOJO_PERMS, isPreview: false, hasTournamentsAccess: false });
+    return NextResponse.json({
+      permissions: SYSADMIN_NO_DOJO_PERMS, isPreview: false,
+      hasTournamentsAccess: false, hasPortalAccess: false,
+    });
   }
 
   if (!dojoId) {
     const fallback = DEFAULT_PERMISSIONS[role ?? "user"] ?? DEFAULT_PERMISSIONS.user;
-    return NextResponse.json({ permissions: fallback, isPreview: false, hasTournamentsAccess: false });
+    return NextResponse.json({
+      permissions: fallback, isPreview: false,
+      hasTournamentsAccess: false, hasPortalAccess: false,
+    });
   }
 
   const record = await prisma.dojoRolePermission.findUnique({
@@ -66,13 +79,21 @@ export async function GET(req: NextRequest) {
   // coexiste con el plan — se expone aparte porque NAV_KEYS.TOURNAMENTS no
   // participa del set de permisos estándar (ver comentario en permissions.ts).
   const tournamentsAccess = await hasTournamentsAccess(dojoId);
+  // portal-access tampoco participa de rolePerms (no es ítem de nav — ver
+  // permissions.ts), así que se expone aparte en vez de intersecarlo: de lo
+  // contrario nunca aparecería, ni para dojos cuyo plan sí lo incluye ni para
+  // COMPLIMENTARY (Natsuki/Kyodai).
+  const portalAccess = planFeatures.has(NAV_KEYS.PORTAL_ACCESS);
 
   // no-store: esta respuesta cambia por usuario/plan y el navegador no varía
   // el caché HTTP por cookie de sesión — con max-age podía servirle a un
   // usuario la respuesta cacheada de OTRO usuario/rol en el mismo navegador
   // (ej. sysadmin probando varias cuentas de prueba seguidas).
   return NextResponse.json(
-    { permissions: [...perms] as NavKey[], isPreview: false, hasTournamentsAccess: tournamentsAccess },
+    {
+      permissions: [...perms] as NavKey[], isPreview: false,
+      hasTournamentsAccess: tournamentsAccess, hasPortalAccess: portalAccess,
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

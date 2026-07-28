@@ -3,35 +3,40 @@ import "./globals.css";
 import { Providers } from "@/components/layout/Providers";
 import ServiceWorkerRegistrar from "@/components/push/ServiceWorkerRegistrar";
 import Script from "next/script";
+import { getCachedPlatformLogo } from "@/lib/queries";
 
 const GA_ID = "G-KTK190P7T3";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://dojomasteronline.com"),
-  title: "Dojo Master — Software para Dojos de Karate",
-  description: "Gestiona alumnos, pagos, asistencia QR y torneos profesionales. Tu primer mes es gratis en cualquier plan.",
-  keywords: ["software karate", "gestión dojo", "asistencia QR", "pagos karate", "torneos karate", "dojo master"],
-  openGraph: {
+export async function generateMetadata(): Promise<Metadata> {
+  const platformLogo = await getCachedPlatformLogo().catch(() => null);
+  const icon = platformLogo ?? "/logo.png";
+
+  return {
+    metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://dojomasteronline.com"),
     title: "Dojo Master — Software para Dojos de Karate",
-    description: "Alumnos, pagos, asistencia QR y torneos profesionales. Tu primer mes es gratis en cualquier plan.",
-    images: [{ url: "/og-image.jpg", width: 1200, height: 630 }],
-    type: "website",
-    locale: "es_PA",
-    siteName: "Dojo Master",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Dojo Master — Software para Dojos de Karate",
-    description: "Tu primer mes es gratis en cualquier plan.",
-    images: ["/og-image.jpg"],
-  },
-  icons: {
-    icon:    "/logo.png",
-    shortcut:"/logo.png",
-    apple:   "/logo.png",
-  },
-  manifest: "/manifest.json",
-};
+    description: "Gestiona alumnos, pagos, asistencia QR y torneos profesionales. Tu primer mes es gratis en cualquier plan.",
+    keywords: ["software karate", "gestión dojo", "asistencia QR", "pagos karate", "torneos karate", "dojo master"],
+    openGraph: {
+      title: "Dojo Master — Software para Dojos de Karate",
+      description: "Alumnos, pagos, asistencia QR y torneos profesionales. Tu primer mes es gratis en cualquier plan.",
+      images: [{ url: "/og-image.jpg", width: 1200, height: 630 }],
+      type: "website",
+      locale: "es_PA",
+      siteName: "Dojo Master",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Dojo Master — Software para Dojos de Karate",
+      description: "Tu primer mes es gratis en cualquier plan.",
+      images: ["/og-image.jpg"],
+    },
+    icons: {
+      icon,
+      shortcut: icon,
+      apple:    icon,
+    },
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

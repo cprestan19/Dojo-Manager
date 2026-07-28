@@ -26,6 +26,7 @@ const config: Config = {
           red:            "rgb(var(--c-primary)       / <alpha-value>)",
           success: "rgb(var(--c-success)  / <alpha-value>)",
           warning: "rgb(var(--c-warning)  / <alpha-value>)",
+          danger:  "rgb(var(--c-danger)   / <alpha-value>)",
           info:    "rgb(var(--c-primary)  / <alpha-value>)",
           // Fijos — no cambian con el tema
           gold:    "#F39C12",

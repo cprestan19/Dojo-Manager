@@ -15,8 +15,8 @@ import ActivityPing from "@/components/ui/ActivityPing";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId } from "@/lib/sysadmin-context";
 
-type ThemeId = "dark-saas" | "soft-neutral" | "executive-red";
-const VALID: ThemeId[] = ["dark-saas", "soft-neutral", "executive-red"];
+type ThemeId = "dark-saas" | "white-special";
+const VALID: ThemeId[] = ["dark-saas", "white-special"];
 
 async function getDojoTheme(role: string | undefined, sessionDojoId: string | null | undefined, sxDojo: string | undefined): Promise<ThemeId> {
   try {

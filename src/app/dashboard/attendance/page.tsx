@@ -6,7 +6,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { BeltBadge } from "@/components/ui/BeltBadge";
-import { Modal } from "@/components/ui/Modal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 interface AttendanceStudent {
   id: string; fullName: string; firstName: string; lastName: string;
@@ -73,13 +77,13 @@ function StudentAvatar({ student }: { student: AttendanceStudent }) {
 
 function TypeBadge({ type }: { type: string }) {
   return type === "entry" ? (
-    <span className="badge-green inline-flex items-center gap-1">
+    <Badge variant="success" className="inline-flex items-center gap-1">
       <LogIn size={10} /> Entrada
-    </span>
+    </Badge>
   ) : (
-    <span className="badge-red inline-flex items-center gap-1">
+    <Badge variant="danger" className="inline-flex items-center gap-1">
       <LogOut size={10} /> Salida
-    </span>
+    </Badge>
   );
 }
 
@@ -193,30 +197,34 @@ export default function AttendancePage() {
         {/* Search — full width on mobile */}
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            className="form-input pl-8 w-full" placeholder="Buscar alumno..." />
+          <Input value={search} onChange={e => setSearch(e.target.value)}
+            className="pl-8 w-full" placeholder="Buscar alumno..." />
         </div>
         {/* Date range + selects — wrap on mobile */}
         <div className="flex flex-wrap gap-2 items-center">
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
             <Filter size={13} className="text-dojo-muted shrink-0" />
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              className="form-input flex-1 min-w-0 text-sm" />
+            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+              className="flex-1 min-w-0 text-sm" />
             <span className="text-dojo-muted text-sm shrink-0">—</span>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              className="form-input flex-1 min-w-0 text-sm" />
+            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+              className="flex-1 min-w-0 text-sm" />
           </div>
-          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-            className="form-input text-sm flex-1 min-w-[120px]">
-            <option value="all">Todos</option>
-            <option value="entry">Entradas</option>
-            <option value="exit">Salidas</option>
-          </select>
-          <select value={scheduleFilter} onChange={e => setSchedFilter(e.target.value)}
-            className="form-input text-sm flex-1 min-w-[140px]">
-            <option value="all">Todos los horarios</option>
-            {schedules.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="text-sm flex-1 min-w-[120px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="entry">Entradas</SelectItem>
+              <SelectItem value="exit">Salidas</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={scheduleFilter} onValueChange={setSchedFilter}>
+            <SelectTrigger className="text-sm flex-1 min-w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los horarios</SelectItem>
+              {schedules.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -277,113 +285,121 @@ export default function AttendancePage() {
 
       {/* ── Desktop: table ── */}
       <div className="hidden sm:block card p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-dojo-border">
-                {["Alumno","Cinta","Tipo","Fecha / Hora","Horario","Nota","Estado","Acciones"].map(h => (
-                  <th key={h} className="text-left text-xs font-semibold text-dojo-muted uppercase tracking-wider px-4 py-3 whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading && <tr><td colSpan={8} className="text-center py-12 text-dojo-muted">Cargando...</td></tr>}
-              {!loading && filtered.length === 0 && (
-                <tr><td colSpan={8} className="text-center py-12 text-dojo-muted">No hay marcaciones en este período.</td></tr>
-              )}
-              {filtered.map(a => {
-                const belt = a.student.beltHistory[0]?.beltColor ?? null;
-                return (
-                  <tr key={a.id} className="border-b border-dojo-border/40 hover:bg-dojo-border/10 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <StudentAvatar student={a.student} />
-                        <Link
-                          href={`/dashboard/students/${a.student.id}`}
-                          className="font-semibold text-dojo-white hover:text-dojo-gold transition-colors whitespace-nowrap"
-                        >
-                          {a.student.fullName}
-                        </Link>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {belt ? <BeltBadge beltColor={belt} /> : <span className="text-dojo-muted text-xs">—</span>}
-                    </td>
-                    <td className="px-4 py-3"><TypeBadge type={a.type} /></td>
-                    <td className="px-4 py-3 text-dojo-muted whitespace-nowrap">{formatDateTime(a.markedAt)}</td>
-                    <td className="px-4 py-3 text-dojo-muted">{a.schedule?.name ?? "—"}</td>
-                    <td className="px-4 py-3 text-dojo-muted max-w-[160px] truncate">{a.note ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      {a.corrected ? (
-                        <span className="badge-yellow inline-flex items-center gap-1">
-                          <AlertTriangle size={11} /> Corregida
-                        </span>
-                      ) : (
-                        <span className="text-xs text-dojo-muted">Original</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => openCorrect(a)} className="btn-ghost p-1.5 text-dojo-muted hover:text-dojo-white" title="Corregir">
-                          <Edit2 size={14} />
-                        </button>
-                        <button onClick={() => deleteAttendance(a.id)} disabled={deleting === a.id}
-                          className="btn-ghost p-1.5 text-dojo-muted hover:text-red-400" title="Eliminar">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {["Alumno","Cinta","Tipo","Fecha / Hora","Horario","Nota","Estado","Acciones"].map(h => (
+                <TableHead key={h} className="whitespace-nowrap">{h}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading && <TableRow><TableCell colSpan={8} className="text-center py-12 text-dojo-muted">Cargando...</TableCell></TableRow>}
+            {!loading && filtered.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="text-center py-12 text-dojo-muted">No hay marcaciones en este período.</TableCell></TableRow>
+            )}
+            {filtered.map(a => {
+              const belt = a.student.beltHistory[0]?.beltColor ?? null;
+              return (
+                <TableRow key={a.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <StudentAvatar student={a.student} />
+                      <Link
+                        href={`/dashboard/students/${a.student.id}`}
+                        className="font-semibold text-dojo-white hover:text-dojo-gold transition-colors whitespace-nowrap"
+                      >
+                        {a.student.fullName}
+                      </Link>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {belt ? <BeltBadge beltColor={belt} /> : <span className="text-dojo-muted text-xs">—</span>}
+                  </TableCell>
+                  <TableCell><TypeBadge type={a.type} /></TableCell>
+                  <TableCell className="text-dojo-muted whitespace-nowrap">{formatDateTime(a.markedAt)}</TableCell>
+                  <TableCell className="text-dojo-muted">{a.schedule?.name ?? "—"}</TableCell>
+                  <TableCell className="text-dojo-muted max-w-[160px] truncate">{a.note ?? "—"}</TableCell>
+                  <TableCell>
+                    {a.corrected ? (
+                      <Badge variant="warning" className="inline-flex items-center gap-1">
+                        <AlertTriangle size={11} /> Corregida
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-dojo-muted">Original</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => openCorrect(a)} className="btn-ghost p-1.5 text-dojo-muted hover:text-dojo-white" title="Corregir">
+                        <Edit2 size={14} />
+                      </button>
+                      <button onClick={() => deleteAttendance(a.id)} disabled={deleting === a.id}
+                        className="btn-ghost p-1.5 text-dojo-muted hover:text-red-400" title="Eliminar">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       </div>
 
       {/* ── Correction Modal ── */}
-      <Modal open={corrModal} onClose={() => setCorrModal(false)} title="Corregir Marcación" size="md">
-        {corrForm && (
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-3 bg-yellow-900/20 border border-yellow-800/40 rounded-lg">
-              <AlertTriangle size={16} className="text-yellow-400 shrink-0 mt-0.5" />
-              <p className="text-yellow-300 text-sm">La corrección quedará registrada con tu usuario. El registro original se marca como corregido para auditoría.</p>
+      <Dialog open={corrModal} onOpenChange={(o) => !o && setCorrModal(false)}>
+        <DialogContent size="md">
+          <DialogHeader><DialogTitle>Corregir Marcación</DialogTitle></DialogHeader>
+          {corrForm && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-3 bg-yellow-900/20 border border-yellow-800/40 rounded-lg">
+                <AlertTriangle size={16} className="text-yellow-400 shrink-0 mt-0.5" />
+                <p className="text-yellow-300 text-sm">La corrección quedará registrada con tu usuario. El registro original se marca como corregido para auditoría.</p>
+              </div>
+              <div>
+                <label className="form-label">Tipo *</label>
+                <Select value={corrForm.type} onValueChange={v => setCorrForm(f => f && ({ ...f, type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="entry">Entrada</SelectItem>
+                    <SelectItem value="exit">Salida</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="form-label">Fecha y hora exacta *</label>
+                <Input type="datetime-local" value={corrForm.markedAt}
+                  onChange={e => setCorrForm(f => f && ({ ...f, markedAt: e.target.value }))} />
+              </div>
+              <div>
+                <label className="form-label">Horario asociado</label>
+                <Select
+                  value={corrForm.scheduleId || "none"}
+                  onValueChange={v => setCorrForm(f => f && ({ ...f, scheduleId: v === "none" ? "" : v }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Sin horario —</SelectItem>
+                    {schedules.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="form-label">Nota / Motivo de corrección</label>
+                <Input value={corrForm.note} onChange={e => setCorrForm(f => f && ({ ...f, note: e.target.value }))}
+                  placeholder="Ej. Error en el escaneo..." />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setCorrModal(false)} className="btn-secondary"><X size={16} /> Cancelar</button>
+                <button type="button" onClick={saveCorrection} disabled={saving} className="btn-primary">
+                  <Save size={16} /> {saving ? "Guardando..." : "Guardar Corrección"}
+                </button>
+              </div>
             </div>
-            <div>
-              <label className="form-label">Tipo *</label>
-              <select value={corrForm.type} onChange={e => setCorrForm(f => f && ({ ...f, type: e.target.value }))} className="form-input">
-                <option value="entry">Entrada</option>
-                <option value="exit">Salida</option>
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Fecha y hora exacta *</label>
-              <input type="datetime-local" value={corrForm.markedAt}
-                onChange={e => setCorrForm(f => f && ({ ...f, markedAt: e.target.value }))} className="form-input" />
-            </div>
-            <div>
-              <label className="form-label">Horario asociado</label>
-              <select value={corrForm.scheduleId} onChange={e => setCorrForm(f => f && ({ ...f, scheduleId: e.target.value }))} className="form-input">
-                <option value="">— Sin horario —</option>
-                {schedules.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Nota / Motivo de corrección</label>
-              <input value={corrForm.note} onChange={e => setCorrForm(f => f && ({ ...f, note: e.target.value }))}
-                className="form-input" placeholder="Ej. Error en el escaneo..." />
-            </div>
-            <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={() => setCorrModal(false)} className="btn-secondary"><X size={16} /> Cancelar</button>
-              <button type="button" onClick={saveCorrection} disabled={saving} className="btn-primary">
-                <Save size={16} /> {saving ? "Guardando..." : "Guardar Corrección"}
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

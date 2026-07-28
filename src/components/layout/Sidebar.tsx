@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -18,6 +18,7 @@ import {
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
   Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Upload,
   Receipt, LayoutList, FileText, Bell, BellOff, Sparkles,
+  Image as ImageIcon,
 } from "lucide-react";
 import { usePushSubscription } from "@/lib/hooks/usePushSubscription";
 
@@ -126,6 +127,14 @@ export function Sidebar() {
     !pathname.startsWith("/dashboard/settings/katas") &&
     !IDENTITY_PATHS.some(p => pathname.startsWith(p));
 
+  const [platformLogo, setPlatformLogo] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/public/platform-logo")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { logo: string | null } | null) => { if (d?.logo) setPlatformLogo(d.logo); })
+      .catch(() => {});
+  }, []);
+
   const [settingsOpen, setSettingsOpen] = useState(() => inSettings);
   const [showProPopup, setShowProPopup] = useState(false);
   const [sections, setSections] = useState({
@@ -206,7 +215,7 @@ export function Sidebar() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-white flex items-center justify-center shadow shadow-black/10">
             <Image
-              src={dojo?.logo && dojo.logo.startsWith("http") ? dojo.logo : "/logo.png"}
+              src={dojo?.logo && dojo.logo.startsWith("http") ? dojo.logo : (platformLogo ?? "/logo.png")}
               alt={dojo?.name ?? "Dojo Master"}
               width={40} height={40}
               className="w-full h-full object-contain"
@@ -379,6 +388,7 @@ export function Sidebar() {
             <div className="space-y-1">
               {([
                 { href: "/dashboard/dojos",                   icon: Building2,  label: "Dojos"            },
+                { href: "/dashboard/superadmin/branding",     icon: ImageIcon,  label: "Logo de la Plataforma" },
                 { href: "/dashboard/novedades-sistema",       icon: Sparkles,   label: "Novedades"        },
                 { href: "/dashboard/visitors",                icon: Globe,      label: "Visitantes"       },
                 { href: "/dashboard/superadmin/audit-logs",   icon: Shield,     label: "Auditoría"        },

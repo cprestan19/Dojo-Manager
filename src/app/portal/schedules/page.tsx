@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { formatTimeStr } from "@/lib/utils";
 import { Clock, Users } from "lucide-react";
+import { StaggerList, StaggerItem } from "@/components/portal/StaggerList";
 
 const DAY_LABELS: Record<string, string> = {
   lunes: "Lun", martes: "Mar", miercoles: "Mié", jueves: "Jue",
@@ -112,20 +113,22 @@ export default async function PortalSchedulesPage() {
                     {memberAssignments.length} horario{memberAssignments.length !== 1 ? "s" : ""}
                   </span>
                 </div>
-                {memberAssignments.map(a => (
-                  <ScheduleCard key={a.id} assignment={a} />
-                ))}
+                <StaggerList className="space-y-3">
+                  {memberAssignments.map(a => (
+                    <StaggerItem key={a.id}><ScheduleCard assignment={a} /></StaggerItem>
+                  ))}
+                </StaggerList>
               </div>
             );
           })}
         </div>
       ) : (
         // Vista individual
-        <div className="space-y-3">
+        <StaggerList className="space-y-3">
           {assignments.map(a => (
-            <ScheduleCard key={a.id} assignment={a} />
+            <StaggerItem key={a.id}><ScheduleCard assignment={a} /></StaggerItem>
           ))}
-        </div>
+        </StaggerList>
       )}
     </div>
   );

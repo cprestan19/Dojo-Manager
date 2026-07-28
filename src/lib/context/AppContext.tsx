@@ -29,6 +29,9 @@ interface AppCtx {
   /** Torneo Pro: interruptor manual (Dojo.tournamentPro) O plan que lo incluya —
    *  calculado server-side por hasTournamentsAccess(), no solo el flag manual. */
   hasTournamentsAccess: boolean;
+  /** Portal de alumnos: feature-key de Plan (no participa de `perms` porque no
+   *  es un ítem de nav) — true si el plan lo incluye o el dojo es COMPLIMENTARY. */
+  hasPortalAccess: boolean;
   /** Call after entering/exiting a dojo as sysadmin to refresh nav items */
   refreshPerms: () => void;
   /** Call after saving dojo settings (logo, name…) so the sidebar updates immediately */
@@ -41,6 +44,7 @@ const AppContext = createContext<AppCtx>({
   hasPaidFeatures: true,
   isPreview:    false,
   hasTournamentsAccess: false,
+  hasPortalAccess: false,
   refreshPerms: () => {},
   refreshDojo:  () => {},
 });
@@ -63,6 +67,7 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
   const [hasPaidFeatures, setHasPaidFeatures] = useState(true);
   const [isPreview, setIsPreview] = useState(false);
   const [hasTournamentsAccess, setHasTournamentsAccess] = useState(false);
+  const [hasPortalAccess, setHasPortalAccess] = useState(false);
 
   useEffect(() => {
     setPerms(getInitialPerms(role));
@@ -95,11 +100,12 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
     try {
       const r = await fetch("/api/roles/current");
       if (!r.ok) return;
-      const d = await r.json() as { permissions: NavKey[]; isPreview?: boolean; hasTournamentsAccess?: boolean } | null;
+      const d = await r.json() as { permissions: NavKey[]; isPreview?: boolean; hasTournamentsAccess?: boolean; hasPortalAccess?: boolean } | null;
       if (d?.permissions) {
         setPerms(new Set(d.permissions));
         setIsPreview(!!d.isPreview);
         setHasTournamentsAccess(!!d.hasTournamentsAccess);
+        setHasPortalAccess(!!d.hasPortalAccess);
       }
     } catch {
       // keep default perms on network error — non-fatal
@@ -120,7 +126,7 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
   }, [userId, role]);
 
   return (
-    <AppContext.Provider value={{ dojo, perms, hasPaidFeatures, isPreview, hasTournamentsAccess, refreshPerms: fetchPerms, refreshDojo: fetchDojo }}>
+    <AppContext.Provider value={{ dojo, perms, hasPaidFeatures, isPreview, hasTournamentsAccess, hasPortalAccess, refreshPerms: fetchPerms, refreshDojo: fetchDojo }}>
       {children}
     </AppContext.Provider>
   );

@@ -3,8 +3,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { CreditCard, Search, Bell, CheckCircle, Filter, AlertTriangle, X, Send, Mail, CalendarPlus, FileText, Pencil } from "lucide-react";
 import { formatDate, formatCurrency, PAYMENT_STATUS_LABELS, getPaymentTypeLabel } from "@/lib/utils";
-import { Modal } from "@/components/ui/Modal";
 import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 interface Payment {
   id: string; type: string; amount: number;
@@ -440,26 +444,32 @@ export default function PaymentsPage() {
       <div className="flex flex-wrap gap-3">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted"/>
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            className="form-input pl-8 w-56" placeholder="Buscar alumno..." />
+          <Input value={search} onChange={e => setSearch(e.target.value)}
+            className="pl-8 w-56" placeholder="Buscar alumno..." />
         </div>
         <div className="flex items-center gap-2">
           <Filter size={14} className="text-dojo-muted"/>
-          <select value={statusFilter} onChange={e => setStatus(e.target.value)} className="form-input w-36">
-            <option value="all">Todos los estados</option>
-            <option value="pending">Pendiente</option>
-            <option value="late">Atrasado</option>
-            <option value="paid">Pagado</option>
-          </select>
+          <Select value={statusFilter} onValueChange={setStatus}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los estados</SelectItem>
+              <SelectItem value="pending">Pendiente</SelectItem>
+              <SelectItem value="late">Atrasado</SelectItem>
+              <SelectItem value="paid">Pagado</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <select value={typeFilter} onChange={e => setType(e.target.value)} className="form-input w-36">
-          <option value="all">Todos los tipos</option>
-          <option value="monthly">Mensualidades</option>
-          <option value="biweekly">Quincenales</option>
-          <option value="annual">Anualidades</option>
-          <option value="affiliation">Afiliaciones</option>
-          <option value="other">Otros</option>
-        </select>
+        <Select value={typeFilter} onValueChange={setType}>
+          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los tipos</SelectItem>
+            <SelectItem value="monthly">Mensualidades</SelectItem>
+            <SelectItem value="biweekly">Quincenales</SelectItem>
+            <SelectItem value="annual">Anualidades</SelectItem>
+            <SelectItem value="affiliation">Afiliaciones</SelectItem>
+            <SelectItem value="other">Otros</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* ── Vista mobile: tarjetas ── */}
@@ -529,37 +539,36 @@ export default function PaymentsPage() {
 
       {/* ── Vista desktop: tabla ── */}
       <div className="hidden lg:block card p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-dojo-border">
+        <Table>
+          <TableHeader>
+            <TableRow>
               {["Alumno","Tipo","Monto","Vencimiento","Pago","Estado","Acciones"].map(h => (
-                <th key={h} className="text-left text-xs font-semibold text-dojo-muted uppercase tracking-wider px-4 py-3">{h}</th>
+                <TableHead key={h}>{h}</TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {loading && (
-              <tr><td colSpan={7} className="text-center py-12 text-dojo-muted">Cargando...</td></tr>
+              <TableRow><TableCell colSpan={7} className="text-center py-12 text-dojo-muted">Cargando...</TableCell></TableRow>
             )}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={7} className="text-center py-12 text-dojo-muted">No hay pagos que coincidan.</td></tr>
+              <TableRow><TableCell colSpan={7} className="text-center py-12 text-dojo-muted">No hay pagos que coincidan.</TableCell></TableRow>
             )}
             {filtered.map(p => {
-              const st = PAYMENT_STATUS_LABELS[p.status] ?? { label: p.status, className: "badge-blue" };
+              const st = PAYMENT_STATUS_LABELS[p.status] ?? { label: p.status, className: "badge-blue", variant: "info" as const };
               return (
-                <tr key={p.id} className="border-b border-dojo-border/40 hover:bg-dojo-border/10 transition-colors">
-                  <td className="px-4 py-3 font-semibold text-dojo-white">
+                <TableRow key={p.id}>
+                  <TableCell className="font-semibold">
                     {p.student.fullName}
-                  </td>
-                  <td className="px-4 py-3 text-dojo-muted capitalize">
+                  </TableCell>
+                  <TableCell className="text-dojo-muted capitalize">
                     {getPaymentTypeLabel(p.type)}
-                  </td>
-                  <td className="px-4 py-3 text-dojo-gold font-bold">{formatCurrency(p.amount)}</td>
-                  <td className="px-4 py-3 text-dojo-muted">{formatDate(p.dueDate)}</td>
-                  <td className="px-4 py-3 text-dojo-muted">{p.paidDate ? formatDate(p.paidDate) : "—"}</td>
-                  <td className="px-4 py-3"><span className={st.className}>{st.label}</span></td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell className="text-dojo-gold font-bold">{formatCurrency(p.amount)}</TableCell>
+                  <TableCell className="text-dojo-muted">{formatDate(p.dueDate)}</TableCell>
+                  <TableCell className="text-dojo-muted">{p.paidDate ? formatDate(p.paidDate) : "—"}</TableCell>
+                  <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-3">
                       {p.status !== "paid" && (
                         <button
@@ -602,73 +611,79 @@ export default function PaymentsPage() {
                         </button>
                       )}
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
-        </div>{/* overflow-x-auto */}
+          </TableBody>
+        </Table>
       </div>{/* card desktop */}
 
       {/* Modal recordatorio */}
-      <Modal open={!!reminderTarget} onClose={() => setReminderTarget(null)} title="Confirmar Envío de Recordatorio" size="md">
-        {reminderTarget && (
-          <ReminderConfirmModal
-            target={reminderTarget}
-            onClose={() => setReminderTarget(null)}
-            onConfirm={confirmSendReminder}
-            sending={sendingReminder}
-          />
-        )}
-      </Modal>
+      <Dialog open={!!reminderTarget} onOpenChange={(o) => !o && setReminderTarget(null)}>
+        <DialogContent size="md">
+          <DialogHeader><DialogTitle>Confirmar Envío de Recordatorio</DialogTitle></DialogHeader>
+          {reminderTarget && (
+            <ReminderConfirmModal
+              target={reminderTarget}
+              onClose={() => setReminderTarget(null)}
+              onConfirm={confirmSendReminder}
+              sending={sendingReminder}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modal recibo */}
-      <Modal open={!!receiptTarget} onClose={() => setReceiptTarget(null)} title="Enviar Recibo de Pago" size="md">
-        {receiptTarget && (
-          <ReceiptConfirmModal
-            target={receiptTarget}
-            onClose={() => setReceiptTarget(null)}
-            onConfirm={confirmSendReceipt}
-            sending={sendingReceipt}
-          />
-        )}
-      </Modal>
+      <Dialog open={!!receiptTarget} onOpenChange={(o) => !o && setReceiptTarget(null)}>
+        <DialogContent size="md">
+          <DialogHeader><DialogTitle>Enviar Recibo de Pago</DialogTitle></DialogHeader>
+          {receiptTarget && (
+            <ReceiptConfirmModal
+              target={receiptTarget}
+              onClose={() => setReceiptTarget(null)}
+              onConfirm={confirmSendReceipt}
+              sending={sendingReceipt}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modal generar mensualidades */}
-      <Modal open={showGenerate} onClose={() => setShowGenerate(false)} title="Generar Pagos del Período" size="sm">
-        <GenerateModal
-          onClose={() => setShowGenerate(false)}
-          onConfirm={generateMonthly}
-          generating={generating}
-          result={generateResult}
-        />
-      </Modal>
+      <Dialog open={showGenerate} onOpenChange={(o) => !o && setShowGenerate(false)}>
+        <DialogContent size="sm">
+          <DialogHeader><DialogTitle>Generar Pagos del Período</DialogTitle></DialogHeader>
+          <GenerateModal
+            onClose={() => setShowGenerate(false)}
+            onConfirm={generateMonthly}
+            generating={generating}
+            result={generateResult}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Modal editar pago */}
-      <Modal
-        open={!!editTarget}
-        onClose={() => setEditTarget(null)}
-        title="Editar Pago"
-        size="md"
-      >
-        {editTarget && (
-          <EditPaymentModal
-            payment={{
-              id:          editTarget.id,
-              type:        editTarget.type,
-              amount:      editTarget.amount,
-              dueDate:     editTarget.dueDate,
-              paidDate:    editTarget.paidDate,
-              status:      editTarget.status,
-              note:        editTarget.note,
-              studentName: editTarget.student.fullName,
-            }}
-            onClose={() => setEditTarget(null)}
-            onSaved={() => { void fetch_(); }}
-          />
-        )}
-      </Modal>
+      <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
+        <DialogContent size="md">
+          <DialogHeader><DialogTitle>Editar Pago</DialogTitle></DialogHeader>
+          {editTarget && (
+            <EditPaymentModal
+              payment={{
+                id:          editTarget.id,
+                type:        editTarget.type,
+                amount:      editTarget.amount,
+                dueDate:     editTarget.dueDate,
+                paidDate:    editTarget.paidDate,
+                status:      editTarget.status,
+                note:        editTarget.note,
+                studentName: editTarget.student.fullName,
+              }}
+              onClose={() => setEditTarget(null)}
+              onSaved={() => { void fetch_(); }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

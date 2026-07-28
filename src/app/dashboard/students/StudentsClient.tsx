@@ -16,6 +16,11 @@ interface BillingStatus {
 import { getBeltInfo, BELT_COLORS } from "@/lib/utils";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { calculateAge, formatDate } from "@/lib/utils";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,10 +66,9 @@ function SortTh({
 }) {
   const active = sortField === field;
   return (
-    <th
+    <TableHead
       onClick={() => onSort(field)}
-      className={`text-left text-xs font-semibold text-dojo-muted uppercase tracking-wider px-4 py-3
-                  cursor-pointer select-none hover:text-dojo-white transition-colors group ${className}`}
+      className={`cursor-pointer select-none hover:text-dojo-white transition-colors group ${className}`}
     >
       <span className="flex items-center gap-1">
         {label}
@@ -75,7 +79,7 @@ function SortTh({
           }
         </span>
       </span>
-    </th>
+    </TableHead>
   );
 }
 
@@ -307,19 +311,15 @@ export function StudentsClient({
       {/* Fila de filtros */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Activos / Inactivos / Todos */}
-        <div className="flex items-center gap-1 bg-dojo-dark border border-dojo-border rounded-lg p-1">
-          {(["active","all","inactive"] as const).map(f => (
-            <button key={f} onClick={() => setActiveFilter(f)}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                activeFilter === f
-                  ? f === "inactive" ? "bg-red-900/50 text-red-300" : "bg-dojo-red text-white"
-                  : "text-dojo-muted hover:text-dojo-white"
-              }`}
-            >
-              {f === "active" ? "Activos" : f === "inactive" ? "Inactivos" : "Todos"}
-            </button>
-          ))}
-        </div>
+        <Tabs value={activeFilter} onValueChange={(v) => setActiveFilter(v as ActiveFilter)}>
+          <TabsList>
+            <TabsTrigger value="active">Activos</TabsTrigger>
+            <TabsTrigger value="all">Todos</TabsTrigger>
+            <TabsTrigger value="inactive" className="data-[state=active]:bg-dojo-danger/20 data-[state=active]:text-dojo-danger">
+              Inactivos
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* Filtro acceso portal */}
         <div className="flex items-center gap-1 bg-dojo-dark border border-dojo-border rounded-lg p-1">
@@ -351,8 +351,8 @@ export function StudentsClient({
       {/* Búsqueda */}
       <div className="relative">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          className="form-input pl-9 max-w-sm" placeholder="Buscar por nombre..." />
+        <Input value={search} onChange={e => setSearch(e.target.value)}
+          className="pl-9 max-w-sm" placeholder="Buscar por nombre..." />
       </div>
 
       {/* Filtro cinta */}
@@ -456,27 +456,26 @@ export function StudentsClient({
 
       {/* ── Vista desktop: tabla ── */}
       <div className="hidden lg:block card p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-dojo-border">
+        <Table>
+          <TableHeader>
+            <TableRow>
               <SortTh label="Alumno"        field="name"    sortField={sortField} sortDir={sortDir} onSort={handleSort} className="pl-6" />
               <SortTh label="Edad"          field="age"     sortField={sortField} sortDir={sortDir} onSort={handleSort} />
               <SortTh label="Cinta"         field="belt"    sortField={sortField} sortDir={sortDir} onSort={handleSort} />
               <SortTh label="Estado Pago"   field="payment" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
               <SortTh label="Acceso Portal" field="portal"  sortField={sortField} sortDir={sortDir} onSort={handleSort} />
-              <th className="text-right text-xs font-semibold text-dojo-muted uppercase tracking-wider px-6 py-3">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
+              <TableHead className="text-right pr-6">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {loading && (
-              <tr><td colSpan={6} className="text-center py-12 text-dojo-muted">Buscando...</td></tr>
+              <TableRow><TableCell colSpan={6} className="text-center py-12 text-dojo-muted">Buscando...</TableCell></TableRow>
             )}
             {!loading && displayed.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-12 text-dojo-muted">
+              <TableRow><TableCell colSpan={6} className="text-center py-12 text-dojo-muted">
                 No se encontraron alumnos.{" "}
                 <Link href="/dashboard/students/new" className="text-dojo-red hover:underline">Crear el primero</Link>
-              </td></tr>
+              </TableCell></TableRow>
             )}
             {!loading && displayed.map(s => {
               const belt    = s.beltHistory[0]?.beltColor;
@@ -484,13 +483,11 @@ export function StudentsClient({
               const age     = calculateAge(s.birthDate);
               const isUrl   = s.photo?.startsWith("http");
               return (
-                <tr key={s.id}
-                  className={`border-b border-dojo-border/50 transition-colors ${
-                    s.active ? "hover:bg-dojo-border/20" : "opacity-60 hover:opacity-80"
-                  }`}
+                <TableRow key={s.id}
+                  className={s.active ? "" : "opacity-60 hover:opacity-80"}
                 >
                   {/* Nombre */}
-                  <td className="px-6 py-3">
+                  <TableCell className="pl-6">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-dojo-border rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-dojo-gold shrink-0">
                         {isUrl
@@ -511,64 +508,67 @@ export function StudentsClient({
                         <p className="text-xs text-dojo-muted">{s.nationality} · {s.gender==="M"?"Masculino":"Femenino"}</p>
                       </div>
                     </div>
-                  </td>
+                  </TableCell>
 
                   {/* Edad */}
-                  <td className="px-4 py-3 text-dojo-muted">{age} años</td>
+                  <TableCell className="text-dojo-muted">{age} años</TableCell>
 
                   {/* Cinta */}
-                  <td className="px-4 py-3">
+                  <TableCell>
                     {belt ? <BeltBadge beltColor={belt} /> : <span className="text-dojo-muted text-xs">Sin cinta</span>}
-                  </td>
+                  </TableCell>
 
                   {/* Pago */}
-                  <td className="px-4 py-3">
+                  <TableCell>
                     {payment ? (
-                      <span className={payment.status==="late"?"badge-red":payment.status==="pending"?"badge-yellow":"badge-green"}>
+                      <Badge variant={payment.status==="late"?"danger":payment.status==="pending"?"warning":"success"}>
                         {payment.status==="late" ? "Atrasado" : payment.status==="pending" ? `Vence ${formatDate(payment.dueDate)}` : "Al día"}
-                      </span>
+                      </Badge>
                     ) : (
-                      <span className="badge-green">Al día</span>
+                      <Badge variant="success">Al día</Badge>
                     )}
-                  </td>
+                  </TableCell>
 
                   {/* Acceso Portal */}
-                  <td className="px-4 py-3">
+                  <TableCell>
                     <PortalBadge portalUser={s.portalUser} />
-                  </td>
+                  </TableCell>
 
                   {/* Acciones */}
-                  <td className="px-6 py-3">
+                  <TableCell className="pr-6">
                     <div className="flex items-center justify-end gap-2">
-                      <Link href={`/dashboard/students/${s.id}`} className="btn-ghost p-2 text-dojo-muted" title="Ver perfil">
-                        <Eye size={16} />
-                      </Link>
-                      <Link href={`/dashboard/students/${s.id}/edit`} className="btn-ghost p-2 text-dojo-muted" title="Editar">
-                        <Edit size={16} />
-                      </Link>
+                      <Button variant="ghost" size="icon" className="text-dojo-muted" title="Ver perfil" asChild>
+                        <Link href={`/dashboard/students/${s.id}`}>
+                          <Eye size={16} />
+                        </Link>
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-dojo-muted" title="Editar" asChild>
+                        <Link href={`/dashboard/students/${s.id}/edit`}>
+                          <Edit size={16} />
+                        </Link>
+                      </Button>
                       {canEdit && (
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleToggleActive(s)}
                           disabled={togglingActive === s.id}
                           title={s.active ? "Desactivar alumno" : "Activar alumno"}
-                          className={`btn-ghost p-2 transition-colors disabled:opacity-40 ${
-                            s.active ? "text-red-400 hover:text-red-300" : "text-green-400 hover:text-green-300"
-                          }`}
+                          className={s.active ? "text-red-400 hover:text-red-300" : "text-green-400 hover:text-green-300"}
                         >
                           {togglingActive === s.id
                             ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
                             : s.active ? <UserX size={16} /> : <UserCheck size={16} />
                           }
-                        </button>
+                        </Button>
                       )}
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
-        </div>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

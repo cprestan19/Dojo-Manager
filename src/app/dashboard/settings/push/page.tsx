@@ -46,6 +46,7 @@ const TYPE_LABELS: Record<string, string> = {
   birthday:        "🎂 Cumpleaños",
   video:           "🎥 Video",
   event:           "📅 Evento",
+  event_rsvp:      "🙋 Confirmación de evento",
   exam_published:  "📋 Examen publicado",
   exam_result:     "🏆 Resultado examen",
   exam_deadline:   "⚠️ Recordatorio examen",

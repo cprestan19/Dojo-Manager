@@ -498,6 +498,15 @@ model EmailSettings {
   @@map("email_settings")
 }
 
+// Configuración global de la plataforma (branding) — editable solo por sysadmin.
+// No confundir con Dojo.logo (logo propio de cada dojo).
+model PlatformSettings {
+  id        String   @id @default("singleton")
+  logo      String?  @db.Text   // URL de Cloudinary
+  updatedAt DateTime @updatedAt
+  @@map("platform_settings")
+}
+
 model DojoRolePermission {
   id          String   @id @default(cuid())
   dojoId      String   @map("dojo_id")

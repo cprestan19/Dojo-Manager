@@ -206,12 +206,21 @@ export default function LandingPage() {
   const [dbPlans,   setDbPlans]   = useState<DbPlan[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [featuredDojos, setFeaturedDojos] = useState<FeaturedDojo[]>([]);
+  const [platformLogo, setPlatformLogo] = useState<string | null>(null);
 
   // Dojos destacados — logos reales de clientes, marcados desde Gestión de Dojos
   useEffect(() => {
     fetch("/api/public/featured-dojos")
       .then(r => r.ok ? r.json() : [])
       .then((data: FeaturedDojo[]) => { if (Array.isArray(data)) setFeaturedDojos(data); })
+      .catch(() => {});
+  }, []);
+
+  // Logo de plataforma configurable por sysadmin — fallback al archivo estático
+  useEffect(() => {
+    fetch("/api/public/platform-logo")
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { logo: string | null } | null) => { if (data?.logo) setPlatformLogo(data.logo); })
       .catch(() => {});
   }, []);
 
@@ -272,7 +281,7 @@ export default function LandingPage() {
 
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Dojo Master" width={36} height={36} style={{ objectFit:"contain", borderRadius:8 }}/>
+            <img src={platformLogo ?? "/logo.png"} alt="Dojo Master" width={36} height={36} style={{ objectFit:"contain", borderRadius:8 }}/>
             <span style={{ fontWeight:900, fontSize:18, letterSpacing:".02em" }}>Dojo Master</span>
           </div>
 

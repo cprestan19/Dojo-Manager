@@ -7,8 +7,7 @@ import {
   CheckCircle, Loader2, ChevronDown,
 } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
-import { usePermissions } from "@/lib/hooks/usePermissions";
-import { NAV_KEYS } from "@/lib/permissions";
+import { useAppContext } from "@/lib/context/AppContext";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -68,8 +67,7 @@ function timeAgo(iso: string): string {
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function PortalActivityPage() {
-  const perms = usePermissions();
-  const canGrantPortalAccess = perms.has(NAV_KEYS.PORTAL_ACCESS);
+  const { hasPortalAccess: canGrantPortalAccess } = useAppContext();
   const [data,       setData]       = useState<Summary | null>(null);
   const [students,   setStudents]   = useState<PortalStudent[]>([]);
   const [loading,    setLoading]    = useState(true);

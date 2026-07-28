@@ -14,8 +14,8 @@ function getChartColors(): ChartColors {
   const el    = document.getElementById("dojo-shell") ?? document.documentElement;
   const theme = el.getAttribute("data-theme") ?? "dark-saas";
   const hex   = getComputedStyle(el).getPropertyValue("--c-primary-hex").trim();
-  if (theme === "executive-red" || theme === "soft-neutral") {
-    return { primary: hex || "#DC2626", grid: "rgba(0,0,0,0.06)", axis: "#9CA3AF", tooltipBg: "#1F2937", tooltipBorder: "rgba(0,0,0,0.15)" };
+  if (theme === "white-special") {
+    return { primary: hex || "#130481", grid: "rgba(0,0,0,0.06)", axis: "#9CA3AF", tooltipBg: "#1F2937", tooltipBorder: "rgba(0,0,0,0.15)" };
   }
   return { ...darkColors, primary: hex || "#C0392B" };
 }

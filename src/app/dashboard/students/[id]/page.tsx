@@ -19,6 +19,7 @@ import { DatePicker, panamaTodayISO } from "@/components/ui/DatePicker";
 import { calculateAge, formatDate, formatCurrency, BELT_COLORS, PAYMENT_STATUS_LABELS, MULTI_KATA_BELTS, getPaymentTypeLabel } from "@/lib/utils";
 import Image from "next/image";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useAppContext } from "@/lib/context/AppContext";
 import { NAV_KEYS } from "@/lib/permissions";
 
 interface Kata { id: string; name: string; beltColor: string; }
@@ -738,6 +739,7 @@ export default function StudentDetailPage() {
   const role     = (session?.user as { role?: string })?.role ?? "";
   const canEdit  = role === "admin" || role === "sysadmin";
   const perms    = usePermissions();
+  const { hasPortalAccess } = useAppContext();
 
   const [student,      setStudent]    = useState<Student | null>(null);
   const [loading,      setLoading]    = useState(true);
@@ -1042,7 +1044,7 @@ export default function StudentDetailPage() {
               className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-orange-800/60 text-orange-400 hover:bg-orange-900/20 transition-colors disabled:opacity-50">
               <KeyRound size={15}/> {accessLoading ? "..." : "Revocar Portal"}
             </button>
-          ) : perms.has(NAV_KEYS.PORTAL_ACCESS) ? (
+          ) : hasPortalAccess ? (
             <button onClick={enableAccess} disabled={accessLoading || (!student.motherEmail && !student.fatherEmail)}
               className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-blue-800/60 text-blue-400 hover:bg-blue-900/20 transition-colors disabled:opacity-40"
               title={!student.motherEmail && !student.fatherEmail ? "El alumno necesita un correo registrado" : ""}

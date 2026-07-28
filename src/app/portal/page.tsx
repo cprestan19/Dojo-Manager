@@ -14,6 +14,7 @@ import { StudentQR } from "@/components/students/StudentQR";
 import { FamilyMemberAccordion, type FamilyMember } from "@/components/portal/FamilyMemberAccordion";
 import PushPrompt from "@/components/push/PushPrompt";
 import { DisciplineStarHero } from "@/components/discipline/DisciplineBar";
+import { StaggerList, StaggerItem } from "@/components/portal/StaggerList";
 
 export default async function PortalProfilePage() {
   const session   = await getServerSession(authOptions);
@@ -212,12 +213,13 @@ export default async function PortalProfilePage() {
   const hasLate     = student.payments.some(p => p.status === "late");
 
   return (
-    <div className="space-y-4">
+    <StaggerList className="space-y-4">
 
       {/* ── Banner notificaciones push ── */}
-      <PushPrompt dojoName={student.dojo?.name} compact />
+      <StaggerItem><PushPrompt dojoName={student.dojo?.name} compact /></StaggerItem>
 
       {/* ── HERO — foto, nombre, cinta ── */}
+      <StaggerItem>
       <div className="rounded-2xl overflow-hidden border border-dojo-border bg-dojo-dark">
         {/* Franja de color de la cinta */}
         <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${beltAccent}88, ${beltAccent}, ${beltAccent}88)` }} />
@@ -282,9 +284,11 @@ export default async function PortalProfilePage() {
         {/* ── Estrella de disciplina — debajo de la foto ── */}
         <DisciplineStarHero />
       </div>
+      </StaggerItem>
 
       {/* ── Alerta de pagos pendientes ── */}
       {student.payments.length > 0 && !familyMembers.length && (
+        <StaggerItem>
         <Link href="/portal/payments" className="block">
           <div className={`rounded-2xl border p-4 ${
             hasLate
@@ -313,14 +317,16 @@ export default async function PortalProfilePage() {
             </div>
           </div>
         </Link>
+        </StaggerItem>
       )}
 
       {/* ── Familia (acordeón) O vista individual ── */}
       {familyMembers.length > 0 ? (
-        <FamilyMemberAccordion members={familyMembers} />
+        <StaggerItem><FamilyMemberAccordion members={familyMembers} /></StaggerItem>
       ) : (
         <>
           {/* ── Accesos rápidos ── */}
+          <StaggerItem>
           <div className="grid grid-cols-2 gap-3">
             <Link href="/portal/payments" className="card flex items-center gap-3 hover:border-dojo-border/80 transition-colors group">
               <div className="w-9 h-9 rounded-xl bg-dojo-red/15 flex items-center justify-center shrink-0">
@@ -363,12 +369,16 @@ export default async function PortalProfilePage() {
               </div>
             </Link>
           </div>
+          </StaggerItem>
 
           {/* QR */}
+          <StaggerItem>
           <StudentQR studentCode={student.studentCode} cardToken={student.cardToken} fullName={student.fullName} />
+          </StaggerItem>
 
           {/* ── Historial de cintas — timeline visual ── */}
           {student.beltHistory.length > 0 && (
+            <StaggerItem>
             <div className="card">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-bold text-dojo-white flex items-center gap-2">
@@ -427,10 +437,12 @@ export default async function PortalProfilePage() {
                 </div>
               </div>
             </div>
+            </StaggerItem>
           )}
 
           {/* ── Competencias ── */}
           {student.kataCompetitions.length > 0 && (
+            <StaggerItem>
             <div className="card">
               <p className="text-sm font-bold text-dojo-white flex items-center gap-2 mb-4">
                 <Star size={15} className="text-dojo-gold" /> Katas de Competencia
@@ -462,9 +474,11 @@ export default async function PortalProfilePage() {
                 })}
               </div>
             </div>
+            </StaggerItem>
           )}
 
           {/* ── Datos personales (compacto) ── */}
+          <StaggerItem>
           <div className="card">
             <p className="text-sm font-bold text-dojo-white flex items-center gap-2 mb-3">
               <User size={14} className="text-dojo-muted" /> Datos Personales
@@ -601,8 +615,9 @@ export default async function PortalProfilePage() {
               </div>
             )}
           </div>
+          </StaggerItem>
         </>
       )}
-    </div>
+    </StaggerList>
   );
 }
