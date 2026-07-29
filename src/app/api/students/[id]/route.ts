@@ -8,7 +8,7 @@ import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
 import { formatStudentName } from "@/lib/utils";
 import { notifyAdmin, buildStudentDeletedEmail } from "@/lib/admin-notifications";
-import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
+import { checkGuardianEmailConflict, checkExistingStudentPortalUser } from "@/lib/portal-email-guard";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -108,7 +108,25 @@ export async function GET( req: NextRequest, { params }: Params) {
   });
 
   if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
-  return NextResponse.json(student);
+
+  // Si el alumno todavía no tiene acceso propio, indicar si el correo de
+  // acudiente que usaría ya está activo con un hermano — el botón "Dar acceso
+  // portal" del perfil lo usa para deshabilitarse en vez de fallar al hacer clic.
+  let portalAccessBlockedBy: string | null = null;
+  if (!student.portalUser?.active) {
+    const primaryEmail = student.primaryGuardian === "mother"
+      ? student.motherEmail?.trim()
+      : student.primaryGuardian === "father"
+      ? student.fatherEmail?.trim()
+      : null;
+    const rawEmail = primaryEmail || student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
+    if (rawEmail) {
+      const conflict = await checkExistingStudentPortalUser(rawEmail.toLowerCase(), student.id);
+      if (conflict) portalAccessBlockedBy = conflict.fullName;
+    }
+  }
+
+  return NextResponse.json({ ...student, portalAccessBlockedBy });
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {

@@ -39,13 +39,13 @@ interface Summary {
 
 interface BulkResult {
   studentId: string; fullName: string; email: string | null;
-  status: "activated" | "skipped_no_email" | "skipped_already_active" | "skipped_staff_conflict" | "error";
+  status: "activated" | "skipped_no_email" | "skipped_already_active" | "skipped_staff_conflict" | "skipped_family_conflict" | "error";
   emailSent: boolean; errorDetail: string | null;
 }
 
 interface BulkSummary {
   activated: number; emailsSent: number; noEmail: number;
-  alreadyActive: number; staffConflict: number; errors: number; total: number;
+  alreadyActive: number; staffConflict: number; familyConflict: number; errors: number; total: number;
 }
 
 type FilterType = "all" | "logged" | "never" | "no-access";
@@ -202,13 +202,14 @@ export default function PortalActivityPage() {
               </div>
 
               {/* Números clave */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-center">
                 {[
                   { label: "Activados",          value: bulkResult.summary.activated,    color: "text-green-400"  },
                   { label: "Emails enviados",    value: bulkResult.summary.emailsSent,   color: "text-blue-400"   },
                   { label: "Sin email",          value: bulkResult.summary.noEmail,      color: "text-yellow-400" },
                   { label: "Ya tenían acceso",   value: bulkResult.summary.alreadyActive,color: "text-dojo-muted" },
                   { label: "Correo en conflicto", value: bulkResult.summary.staffConflict, color: "text-orange-400" },
+                  { label: "Hermano ya con acceso", value: bulkResult.summary.familyConflict, color: "text-orange-400" },
                   { label: "Errores",            value: bulkResult.summary.errors,       color: "text-red-400"    },
                 ].map(s => (
                   <div key={s.label} className="bg-dojo-darker rounded-lg p-2">
@@ -236,7 +237,8 @@ export default function PortalActivityPage() {
                         {r.status === "activated"            ? (r.emailSent ? "✅" : "⚠️") :
                          r.status === "skipped_no_email"     ? "📵" :
                          r.status === "skipped_already_active" ? "⏭" :
-                         r.status === "skipped_staff_conflict" ? "🚫" : "❌"}
+                         r.status === "skipped_staff_conflict" ? "🚫" :
+                         r.status === "skipped_family_conflict" ? "👨‍👩‍👧" : "❌"}
                       </span>
                       <span className="flex-1 text-dojo-white truncate">{r.fullName}</span>
                       <span className="text-dojo-muted truncate max-w-[160px]">
@@ -248,6 +250,8 @@ export default function PortalActivityPage() {
                           ? "ya tenía acceso"
                           : r.status === "skipped_staff_conflict"
                           ? (r.errorDetail ?? "correo pertenece a una cuenta de staff")
+                          : r.status === "skipped_family_conflict"
+                          ? (r.errorDetail ?? "un hermano ya tiene acceso con este correo")
                           : r.errorDetail ?? "error"}
                       </span>
                     </div>

@@ -7,7 +7,7 @@ import { randomInt } from "crypto";
 import { sendStudentWelcome } from "@/lib/email";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
-import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
+import { checkGuardianEmailConflict, checkExistingStudentPortalUser } from "@/lib/portal-email-guard";
 import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
 import { NAV_KEYS } from "@/lib/permissions";
 
@@ -74,6 +74,16 @@ async function _POST(req: NextRequest, routeCtx: unknown) {
     // (admin/user/sysadmin) — evita secuestrar cuentas de staff vía upsert por email.
     const emailConflict = await checkGuardianEmailConflict(email);
     if (emailConflict) return NextResponse.json({ error: emailConflict }, { status: 409 });
+
+    // Familia con correo de acudiente compartido: si otro hermano ya tiene el
+    // acceso activo con este mismo correo, bloquear en vez de reasignárselo
+    // silenciosamente (ver checkExistingStudentPortalUser).
+    const siblingConflict = await checkExistingStudentPortalUser(email, id);
+    if (siblingConflict) {
+      return NextResponse.json({
+        error: `Este correo ya tiene acceso activo al portal con ${siblingConflict.fullName}. Solo un alumno por correo de acudiente puede tener acceso a la vez — revoca el acceso de ${siblingConflict.fullName} primero si deseas transferirlo.`,
+      }, { status: 409 });
+    }
 
     const plainPassword = generatePassword();
     const hashed        = await bcrypt.hash(plainPassword, 12);

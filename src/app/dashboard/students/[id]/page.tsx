@@ -52,6 +52,7 @@ interface Student {
   familyId: string | null;
   active: boolean;
   portalUser: { id: string; active: boolean; email: string } | null;
+  portalAccessBlockedBy: string | null;
   dojo: { name: string; phone: string | null; slug: string } | null;
   inscription: {
     inscriptionDate: string; annualPaymentDate: string | null;
@@ -1044,6 +1045,13 @@ export default function StudentDetailPage() {
               className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-orange-800/60 text-orange-400 hover:bg-orange-900/20 transition-colors disabled:opacity-50">
               <KeyRound size={15}/> {accessLoading ? "..." : "Revocar Portal"}
             </button>
+          ) : hasPortalAccess && student.portalAccessBlockedBy ? (
+            <span
+              className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-dojo-border text-dojo-muted cursor-not-allowed"
+              title={`Este correo ya tiene acceso activo con ${student.portalAccessBlockedBy}. Revoca su acceso primero para transferirlo.`}
+            >
+              <KeyRound size={15}/> Acceso con {student.portalAccessBlockedBy}
+            </span>
           ) : hasPortalAccess ? (
             <button onClick={enableAccess} disabled={accessLoading || (!student.motherEmail && !student.fatherEmail)}
               className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-blue-800/60 text-blue-400 hover:bg-blue-900/20 transition-colors disabled:opacity-40"

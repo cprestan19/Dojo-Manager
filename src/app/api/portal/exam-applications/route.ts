@@ -14,20 +14,23 @@ export async function GET(_req: NextRequest) {
       return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
     }
 
-    // Obtener emails del alumno principal para detectar hermanos de familia
+    // Obtener emails y familyId del alumno principal para detectar hermanos de familia
     const principal = await prisma.student.findUnique({
       where:  { id: user.studentId },
-      select: { dojoId: true, motherEmail: true, fatherEmail: true },
+      select: { dojoId: true, motherEmail: true, fatherEmail: true, familyId: true },
     });
     if (!principal) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
 
     const parentEmails = [principal.motherEmail?.trim(), principal.fatherEmail?.trim()]
       .filter((e): e is string => !!e);
 
-    // Buscar hermanos activos con mismo correo de padre/madre
-    const siblingIds: string[] = [];
+    // Hermanos: por correo de padre/madre compartido O por familyId (vínculo
+    // manual vía FamilyManager) — se unen ambos criterios porque algunas
+    // familias vinculadas a mano no comparten correo exacto (uno vacío,
+    // dominios distintos, etc.) y quedaban sin ver la postulación entre sí.
+    const siblingIds = new Set<string>();
     if (parentEmails.length > 0) {
-      const siblings = await prisma.student.findMany({
+      const byEmail = await prisma.student.findMany({
         where: {
           dojoId: principal.dojoId,
           id:     { not: user.studentId },
@@ -39,7 +42,14 @@ export async function GET(_req: NextRequest) {
         },
         select: { id: true },
       });
-      siblingIds.push(...siblings.map(s => s.id));
+      byEmail.forEach(s => siblingIds.add(s.id));
+    }
+    if (principal.familyId) {
+      const byFamily = await prisma.student.findMany({
+        where: { dojoId: principal.dojoId, familyId: principal.familyId, id: { not: user.studentId }, active: true },
+        select: { id: true },
+      });
+      byFamily.forEach(s => siblingIds.add(s.id));
     }
 
     const allStudentIds = [user.studentId, ...siblingIds];

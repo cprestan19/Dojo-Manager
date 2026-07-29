@@ -47,16 +47,20 @@ export async function POST(req: NextRequest, { params }: Params) {
       : user.studentId!;
 
     if (targetStudentId !== user.studentId) {
-      // Verificar que targetStudentId sea hermano (mismo correo de padre/madre)
+      // Verificar que targetStudentId sea hermano: mismo correo de padre/madre
+      // O mismo familyId (vínculo manual vía FamilyManager, que no siempre
+      // implica correos coincidentes — ver mismo criterio en
+      // /api/portal/exam-applications).
       const [principal, target] = await Promise.all([
-        prisma.student.findUnique({ where: { id: user.studentId! }, select: { dojoId: true, motherEmail: true, fatherEmail: true } }),
-        prisma.student.findUnique({ where: { id: targetStudentId },  select: { dojoId: true, motherEmail: true, fatherEmail: true } }),
+        prisma.student.findUnique({ where: { id: user.studentId! }, select: { dojoId: true, motherEmail: true, fatherEmail: true, familyId: true } }),
+        prisma.student.findUnique({ where: { id: targetStudentId },  select: { dojoId: true, motherEmail: true, fatherEmail: true, familyId: true } }),
       ]);
       const isSameDojo = principal?.dojoId === target?.dojoId;
       const principalEmails = [principal?.motherEmail?.trim(), principal?.fatherEmail?.trim()].filter(Boolean);
       const targetEmails    = [target?.motherEmail?.trim(),    target?.fatherEmail?.trim()   ].filter(Boolean);
       const shareEmail      = principalEmails.some(e => targetEmails.includes(e));
-      if (!isSameDojo || !shareEmail) {
+      const shareFamily     = !!principal?.familyId && principal.familyId === target?.familyId;
+      if (!isSameDojo || (!shareEmail && !shareFamily)) {
         return NextResponse.json({ error: "Sin permiso para responder por este alumno" }, { status: 403 });
       }
     }

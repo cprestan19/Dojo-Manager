@@ -1,10 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Video, Lock } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Video, Lock, Users } from "lucide-react";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { BELT_COLORS, VIDEO_RANKING_CATEGORIES } from "@/lib/utils";
 
 const VIDEO_CATEGORIES = [...BELT_COLORS, ...VIDEO_RANKING_CATEGORIES];
+
+interface FamilyMember { id: string; fullName: string; isMe: boolean; }
 
 interface BeltVideo {
   id: string; beltColor: string; title: string;
@@ -17,13 +19,36 @@ interface VideoData {
 }
 
 export default function PortalVideosPage() {
-  const [data,    setData]    = useState<VideoData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState("");
-  const [playing, setPlaying] = useState<string | null>(null);
+  const [data,          setData]          = useState<VideoData | null>(null);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState("");
+  const [playing,       setPlaying]       = useState<string | null>(null);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [selectedId,    setSelectedId]    = useState<string>("");
 
+  // Cargar familia al montar — solo muestra selector si hay 2+ miembros.
+  // Sin opción "Todos": cada hermano desbloquea por su propia cinta, así que
+  // combinar videos de varios alumnos filtraría de más para el de cinta menor.
   useEffect(() => {
-    fetch("/api/portal/belt-videos")
+    fetch("/api/portal/family")
+      .then(r => r.ok ? r.json() : [])
+      .then((members: FamilyMember[]) => {
+        setFamilyMembers(members);
+        if (members.length > 1) {
+          const me = members.find(m => m.isMe);
+          if (me) setSelectedId(me.id);
+        }
+      })
+      .catch(() => { /* sin familia, comportamiento normal */ });
+  }, []);
+
+  const isFamily = familyMembers.length > 1;
+
+  const load = useCallback(() => {
+    setLoading(true);
+    const p = new URLSearchParams();
+    if (isFamily && selectedId) p.set("studentId", selectedId);
+    fetch(`/api/portal/belt-videos?${p}`)
       .then(r => {
         if (!r.ok) throw new Error(`Error ${r.status}`);
         return r.json();
@@ -41,11 +66,37 @@ export default function PortalVideosPage() {
         setError("No se pudieron cargar los videos. Intenta de nuevo.");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [isFamily, selectedId]);
+
+  useEffect(() => {
+    if (!isFamily || selectedId) load();
+  }, [load, isFamily, selectedId]);
+
+  // Selector de alumno — solo cuando hay familia (2+ miembros)
+  const selector = isFamily ? (
+    <div className="w-full space-y-1">
+      <label className="form-label text-xs flex items-center gap-1.5">
+        <Users size={12} /> Alumno
+      </label>
+      <select
+        value={selectedId}
+        onChange={e => setSelectedId(e.target.value)}
+        className="form-input"
+        style={{ fontSize: "16px" }}
+      >
+        {familyMembers.map(m => (
+          <option key={m.id} value={m.id}>
+            {m.fullName}{m.isMe ? " (yo)" : ""}
+          </option>
+        ))}
+      </select>
+    </div>
+  ) : null;
 
   if (loading) {
     return (
       <div className="space-y-4">
+        {selector}
         {[1, 2, 3].map(i => (
           <div key={i} className="card space-y-2">
             <div className="h-4 w-3/4 bg-dojo-border/60 rounded animate-pulse" />
@@ -58,23 +109,29 @@ export default function PortalVideosPage() {
 
   if (error) {
     return (
-      <div className="text-center py-16 text-dojo-muted">
-        <Video size={48} className="mx-auto mb-4 opacity-30" />
-        <p className="font-semibold text-red-400">{error}</p>
+      <div className="space-y-4">
+        {selector}
+        <div className="text-center py-16 text-dojo-muted">
+          <Video size={48} className="mx-auto mb-4 opacity-30" />
+          <p className="font-semibold text-red-400">{error}</p>
+        </div>
       </div>
     );
   }
 
   if (!data || data.videos.length === 0) {
     return (
-      <div className="text-center py-16 text-dojo-muted">
-        <Video size={48} className="mx-auto mb-4 opacity-30" />
-        <p className="font-semibold text-dojo-white">Sin videos disponibles</p>
-        <p className="text-sm mt-1">
-          {data?.earnedBelts.length === 0
-            ? "Aún no tienes cintas registradas."
-            : "No hay videos cargados para tus cintas actuales."}
-        </p>
+      <div className="space-y-4">
+        {selector}
+        <div className="text-center py-16 text-dojo-muted">
+          <Video size={48} className="mx-auto mb-4 opacity-30" />
+          <p className="font-semibold text-dojo-white">Sin videos disponibles</p>
+          <p className="text-sm mt-1">
+            {data?.earnedBelts.length === 0
+              ? "Aún no tiene cintas registradas."
+              : "No hay videos cargados para las cintas actuales."}
+          </p>
+        </div>
       </div>
     );
   }
@@ -93,12 +150,14 @@ export default function PortalVideosPage() {
           <Video size={20} className="text-dojo-red" /> Videos de Entrenamiento
         </h1>
         <p className="text-dojo-muted text-sm mt-1">
-          Solo ves los videos de las cintas que has obtenido.{" "}
+          Solo se ven los videos de las cintas obtenidas.{" "}
           <span className="inline-flex items-center gap-1 text-dojo-gold">
             <Lock size={11} /> Los demás están bloqueados.
           </span>
         </p>
       </div>
+
+      {selector}
 
       {Object.entries(grouped).map(([beltColor, list]) => {
         const belt = VIDEO_CATEGORIES.find(b => b.value === beltColor);

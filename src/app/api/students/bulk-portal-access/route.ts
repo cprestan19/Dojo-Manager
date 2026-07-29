@@ -17,7 +17,7 @@ import { randomInt } from "crypto";
 import { sendStudentWelcome } from "@/lib/email";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
-import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
+import { checkGuardianEmailConflict, checkExistingStudentPortalUser } from "@/lib/portal-email-guard";
 import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
 import { NAV_KEYS } from "@/lib/permissions";
 
@@ -44,7 +44,7 @@ export interface BulkAccessResult {
   studentId:   string;
   fullName:    string;
   email:       string | null;
-  status:      "activated" | "skipped_no_email" | "skipped_already_active" | "skipped_staff_conflict" | "error";
+  status:      "activated" | "skipped_no_email" | "skipped_already_active" | "skipped_staff_conflict" | "skipped_family_conflict" | "error";
   emailSent:   boolean;
   errorDetail: string | null;
 }
@@ -89,10 +89,31 @@ async function _POST(req: NextRequest) {
   const results: BulkAccessResult[] = [];
   const ctx = buildAuditCtx(session, req, { dojoId });
 
+  // Pase secuencial previo: si dos hermanos comparten el mismo correo de
+  // acudiente y ambos se procesaran en el mismo lote paralelo, ambos harían
+  // upsert(User) por el mismo email al mismo tiempo (condición de carrera —
+  // el segundo en escribir se queda con la cuenta). Se reclama cada correo
+  // en orden antes de paralelizar, para que solo el primer hermano de cada
+  // correo compartido llegue al procesamiento real.
+  const claimedEmails = new Map<string, string>(); // email -> fullName del primero
+  const toProcess: typeof students = [];
+  for (const student of students) {
+    if (student.portalUser?.active) { toProcess.push(student); continue; }
+    const rawEmail = (student.motherEmail?.trim() || student.fatherEmail?.trim() || null)?.toLowerCase() ?? null;
+    if (rawEmail && claimedEmails.has(rawEmail)) {
+      results.push({ studentId: student.id, fullName: student.fullName,
+        email: rawEmail, status: "skipped_family_conflict", emailSent: false,
+        errorDetail: `Correo ya reclamado en este mismo lote por ${claimedEmails.get(rawEmail)}` });
+      continue;
+    }
+    if (rawEmail) claimedEmails.set(rawEmail, student.fullName);
+    toProcess.push(student);
+  }
+
   // Procesar en lotes de 5 para no saturar SMTP ni el pool de BD
   const BATCH = 5;
-  for (let i = 0; i < students.length; i += BATCH) {
-    const batch = students.slice(i, i + BATCH);
+  for (let i = 0; i < toProcess.length; i += BATCH) {
+    const batch = toProcess.slice(i, i + BATCH);
 
     await Promise.all(batch.map(async student => {
       // Ya tiene portal activo → skip
@@ -123,6 +144,16 @@ async function _POST(req: NextRequest) {
           results.push({ studentId: student.id, fullName: student.fullName,
             email, status: "skipped_staff_conflict", emailSent: false,
             errorDetail: emailConflict });
+          return;
+        }
+
+        // Familia con correo compartido: si un hermano de una ejecución
+        // anterior ya tiene el acceso activo con este correo, no reasignarlo.
+        const siblingConflict = await checkExistingStudentPortalUser(email, student.id);
+        if (siblingConflict) {
+          results.push({ studentId: student.id, fullName: student.fullName,
+            email, status: "skipped_family_conflict", emailSent: false,
+            errorDetail: `Ya tiene acceso activo ${siblingConflict.fullName} con este correo` });
           return;
         }
 
@@ -194,11 +225,12 @@ async function _POST(req: NextRequest) {
   const noEmail      = results.filter(r => r.status === "skipped_no_email").length;
   const alreadyActive = results.filter(r => r.status === "skipped_already_active").length;
   const staffConflict = results.filter(r => r.status === "skipped_staff_conflict").length;
+  const familyConflict = results.filter(r => r.status === "skipped_family_conflict").length;
   const errors       = results.filter(r => r.status === "error").length;
 
   return NextResponse.json({
     ok: true,
-    summary: { activated, emailsSent, noEmail, alreadyActive, staffConflict, errors, total: results.length },
+    summary: { activated, emailsSent, noEmail, alreadyActive, staffConflict, familyConflict, errors, total: results.length },
     results,
   });
 }
