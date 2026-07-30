@@ -140,7 +140,12 @@ function ExamCard({
   }
 
   return (
-    <div className="card space-y-3">
+    <div className="card p-0 overflow-hidden">
+      {app.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={app.imageUrl} alt="Imagen del examen" className="w-full h-auto block" />
+      )}
+      <div className="p-4 space-y-3">
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
@@ -178,13 +183,6 @@ function ExamCard({
         </div>
       )}
       {app.description && <p className="text-xs text-dojo-muted">{app.description}</p>}
-      {app.imageUrl && (
-        <img
-          src={app.imageUrl}
-          alt="Imagen del examen"
-          className="w-full rounded-xl object-cover max-h-64 border border-dojo-border/50"
-        />
-      )}
 
       {/* Estado / formulario */}
       {!canRespond && item.response !== "PENDING" && !editing ? (
@@ -247,6 +245,7 @@ function ExamCard({
           Período de respuesta cerrado
         </p>
       ) : null}
+      </div>
     </div>
   );
 }
