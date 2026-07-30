@@ -18,6 +18,7 @@ import { sendStudentWelcome } from "@/lib/email";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { checkGuardianEmailConflict, checkExistingStudentPortalUser } from "@/lib/portal-email-guard";
+import { getFamilyPrincipal } from "@/lib/family";
 import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
 import { NAV_KEYS } from "@/lib/permissions";
 
@@ -44,7 +45,7 @@ export interface BulkAccessResult {
   studentId:   string;
   fullName:    string;
   email:       string | null;
-  status:      "activated" | "skipped_no_email" | "skipped_already_active" | "skipped_staff_conflict" | "skipped_family_conflict" | "error";
+  status:      "activated" | "skipped_no_email" | "skipped_already_active" | "skipped_staff_conflict" | "skipped_family_conflict" | "skipped_not_principal" | "error";
   emailSent:   boolean;
   errorDetail: string | null;
 }
@@ -71,11 +72,21 @@ async function _POST(req: NextRequest) {
     where:  whereFilter,
     select: {
       id: true, fullName: true, dojoId: true,
-      motherEmail: true, fatherEmail: true,
+      motherEmail: true, fatherEmail: true, familyId: true,
       portalUser: { select: { id: true, active: true, email: true } },
     },
     orderBy: { fullName: "asc" },
   });
+
+  // Cache de principal por familyId para no repetir la consulta por cada hermano
+  const effectiveDojoId: string = dojoId;
+  const familyPrincipalCache = new Map<string, Awaited<ReturnType<typeof getFamilyPrincipal>>>();
+  async function resolveFamilyPrincipal(familyId: string) {
+    if (!familyPrincipalCache.has(familyId)) {
+      familyPrincipalCache.set(familyId, await getFamilyPrincipal(effectiveDojoId, familyId));
+    }
+    return familyPrincipalCache.get(familyId)!;
+  }
 
   // Cargar datos del dojo UNA sola vez (para el correo)
   const dojoRaw = await prisma.dojo.findUnique({
@@ -137,6 +148,18 @@ async function _POST(req: NextRequest) {
       }
 
       try {
+        // Solo el familiar principal (hermano activo más antiguo del familyId)
+        // puede tener acceso propio al portal.
+        if (student.familyId) {
+          const principal = await resolveFamilyPrincipal(student.familyId);
+          if (principal && principal.id !== student.id) {
+            results.push({ studentId: student.id, fullName: student.fullName,
+              email, status: "skipped_not_principal", emailSent: false,
+              errorDetail: `Solo ${principal.fullName} (familiar principal) puede tener acceso` });
+            return;
+          }
+        }
+
         // El correo del acudiente no puede pertenecer a una cuenta que no sea de alumno
         // (admin/user/sysadmin) — evita secuestrar cuentas de staff vía upsert por email.
         const emailConflict = await checkGuardianEmailConflict(email);
@@ -226,11 +249,12 @@ async function _POST(req: NextRequest) {
   const alreadyActive = results.filter(r => r.status === "skipped_already_active").length;
   const staffConflict = results.filter(r => r.status === "skipped_staff_conflict").length;
   const familyConflict = results.filter(r => r.status === "skipped_family_conflict").length;
+  const notPrincipal = results.filter(r => r.status === "skipped_not_principal").length;
   const errors       = results.filter(r => r.status === "error").length;
 
   return NextResponse.json({
     ok: true,
-    summary: { activated, emailsSent, noEmail, alreadyActive, staffConflict, familyConflict, errors, total: results.length },
+    summary: { activated, emailsSent, noEmail, alreadyActive, staffConflict, familyConflict, notPrincipal, errors, total: results.length },
     results,
   });
 }

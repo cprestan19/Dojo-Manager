@@ -9,6 +9,7 @@ import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
 import { formatStudentName } from "@/lib/utils";
 import { notifyAdmin, buildStudentDeletedEmail } from "@/lib/admin-notifications";
 import { checkGuardianEmailConflict, checkExistingStudentPortalUser } from "@/lib/portal-email-guard";
+import { getFamilyPrincipal } from "@/lib/family";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -109,24 +110,41 @@ export async function GET( req: NextRequest, { params }: Params) {
 
   if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
 
-  // Si el alumno todavía no tiene acceso propio, indicar si el correo de
-  // acudiente que usaría ya está activo con un hermano — el botón "Dar acceso
-  // portal" del perfil lo usa para deshabilitarse en vez de fallar al hacer clic.
+  // Si el alumno pertenece a una familia, solo el "familiar principal" (el
+  // hermano activo más antiguo del grupo) puede tener acceso al portal — los
+  // demás comparten sesión a través de él (selector de hermano ya existente).
+  const familyPrincipal = student.familyId
+    ? await getFamilyPrincipal(dojoId, student.familyId)
+    : null;
+
+  // Si el alumno todavía no tiene acceso propio, indicar por qué el botón
+  // "Dar acceso portal" del perfil debe deshabilitarse en vez de fallar al
+  // hacer clic: (1) no es el principal de su familia, o (2) el correo de
+  // acudiente que usaría ya está activo con un hermano.
   let portalAccessBlockedBy: string | null = null;
+  let portalAccessBlockReason: "family_principal" | "email_conflict" | null = null;
   if (!student.portalUser?.active) {
-    const primaryEmail = student.primaryGuardian === "mother"
-      ? student.motherEmail?.trim()
-      : student.primaryGuardian === "father"
-      ? student.fatherEmail?.trim()
-      : null;
-    const rawEmail = primaryEmail || student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
-    if (rawEmail) {
-      const conflict = await checkExistingStudentPortalUser(rawEmail.toLowerCase(), student.id);
-      if (conflict) portalAccessBlockedBy = conflict.fullName;
+    if (familyPrincipal && familyPrincipal.id !== student.id) {
+      portalAccessBlockedBy = familyPrincipal.fullName;
+      portalAccessBlockReason = "family_principal";
+    } else {
+      const primaryEmail = student.primaryGuardian === "mother"
+        ? student.motherEmail?.trim()
+        : student.primaryGuardian === "father"
+        ? student.fatherEmail?.trim()
+        : null;
+      const rawEmail = primaryEmail || student.motherEmail?.trim() || student.fatherEmail?.trim() || null;
+      if (rawEmail) {
+        const conflict = await checkExistingStudentPortalUser(rawEmail.toLowerCase(), student.id);
+        if (conflict) {
+          portalAccessBlockedBy = conflict.fullName;
+          portalAccessBlockReason = "email_conflict";
+        }
+      }
     }
   }
 
-  return NextResponse.json({ ...student, portalAccessBlockedBy });
+  return NextResponse.json({ ...student, portalAccessBlockedBy, portalAccessBlockReason, familyPrincipal });
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {

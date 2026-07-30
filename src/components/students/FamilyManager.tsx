@@ -1,12 +1,18 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Users, Link2, X, Plus, UserMinus } from "lucide-react";
+import { Users, Link2, X, Plus, UserMinus, Crown } from "lucide-react";
 
 interface Member {
   id: string;
   fullName: string;
   studentCode: number | null;
   familyId: string | null;
+}
+
+interface Principal {
+  id: string;
+  fullName: string;
+  email: string | null;
 }
 
 interface Props {
@@ -18,6 +24,7 @@ interface Props {
 export function FamilyManager({ studentId, currentFamilyId, studentName }: Props) {
   const [familyId, setFamilyId]       = useState(currentFamilyId);
   const [members, setMembers]         = useState<Member[]>([]);
+  const [principal, setPrincipal]     = useState<Principal | null>(null);
   const [loading, setLoading]         = useState(false);
   const [showSearch, setShowSearch]   = useState(false);
   const [confirming, setConfirming]   = useState<Member | null>(null);
@@ -29,8 +36,9 @@ export function FamilyManager({ studentId, currentFamilyId, studentName }: Props
     try {
       const res = await fetch(`/api/families?familyId=${encodeURIComponent(fid)}`);
       if (res.ok) {
-        const data: Member[] = await res.json();
-        setMembers(data.filter(m => m.id !== studentId));
+        const data: { members: Member[]; principal: Principal | null } = await res.json();
+        setMembers(data.members.filter(m => m.id !== studentId));
+        setPrincipal(data.principal);
       }
     } finally {
       setLoading(false);
@@ -84,7 +92,9 @@ export function FamilyManager({ studentId, currentFamilyId, studentName }: Props
         setError((d as { error?: string }).error ?? "Error al desvincular");
         return;
       }
-      setMembers(prev => prev.filter(m => m.id !== memberId));
+      // Recargar en vez de filtrar localmente: si se desvinculó al principal,
+      // el grupo restante tiene uno nuevo (el siguiente más antiguo).
+      if (familyId) await loadMembers(familyId);
     } finally {
       setSaving(false);
     }
@@ -106,6 +116,7 @@ export function FamilyManager({ studentId, currentFamilyId, studentName }: Props
       }
       setFamilyId(null);
       setMembers([]);
+      setPrincipal(null);
     } finally {
       setSaving(false);
     }
@@ -135,11 +146,12 @@ export function FamilyManager({ studentId, currentFamilyId, studentName }: Props
       ) : (
         <WithFamily
           members={members}
+          principal={principal}
           loading={loading}
+          studentId={studentId}
           studentName={studentName}
           showSearch={showSearch}
           setShowSearch={setShowSearch}
-          studentId={studentId}
           confirming={confirming}
           setConfirming={setConfirming}
           saving={saving}
@@ -201,16 +213,17 @@ function NoFamily({
 }
 
 function WithFamily({
-  members, loading, studentName, showSearch, setShowSearch,
-  studentId, confirming, setConfirming, saving,
+  members, principal, loading, studentId, studentName, showSearch, setShowSearch,
+  confirming, setConfirming, saving,
   onLink, onUnlinkMember, onUnlinkSelf,
 }: {
   members: Member[];
+  principal: { id: string; fullName: string; email: string | null } | null;
   loading: boolean;
+  studentId: string;
   studentName: string;
   showSearch: boolean;
   setShowSearch: (v: boolean) => void;
-  studentId: string;
   confirming: Member | null;
   setConfirming: (m: Member | null) => void;
   saving: boolean;
@@ -220,6 +233,18 @@ function WithFamily({
 }) {
   return (
     <div>
+      {principal && (
+        <div className="flex items-center gap-2 text-xs bg-dojo-gold/10 border border-dojo-gold/30 rounded-lg px-3 py-2 mb-3">
+          <Crown size={13} className="text-dojo-gold shrink-0" />
+          <span className="text-dojo-white">
+            <span className="font-medium">
+              {principal.id === studentId ? studentName : principal.fullName}
+            </span>{" "}
+            es el familiar principal
+            {principal.email && <> — único con acceso al portal ({principal.email})</>}
+          </span>
+        </div>
+      )}
       {loading ? (
         <div className="space-y-2 mb-4">
           {[1, 2].map(i => (
@@ -233,10 +258,13 @@ function WithFamily({
               key={m.id}
               className="flex items-center justify-between text-sm py-2 border-b border-dojo-border/30 last:border-0"
             >
-              <span className="text-dojo-white">
+              <span className="text-dojo-white flex items-center gap-1.5">
                 {m.fullName}
                 {m.studentCode != null && (
                   <span className="text-dojo-muted text-xs ml-1.5">#{m.studentCode}</span>
+                )}
+                {principal?.id === m.id && (
+                  <span className="badge-gold text-[10px] flex items-center gap-1"><Crown size={9}/>Principal</span>
                 )}
               </span>
               <button
@@ -250,9 +278,12 @@ function WithFamily({
               </button>
             </div>
           ))}
-          <div className="flex items-center gap-1 text-sm py-2">
+          <div className="flex items-center gap-1.5 text-sm py-2">
             <span className="text-dojo-gold font-medium">{studentName}</span>
             <span className="text-dojo-muted text-xs">(este alumno)</span>
+            {principal?.id === studentId && (
+              <span className="badge-gold text-[10px] flex items-center gap-1"><Crown size={9}/>Principal</span>
+            )}
           </div>
         </div>
       )}

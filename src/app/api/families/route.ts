@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { getFamilyPrincipal } from "@/lib/family";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -35,7 +36,9 @@ export async function GET(req: NextRequest) {
     orderBy: { fullName: "asc" },
   });
 
-  return NextResponse.json(members);
+  const principal = await getFamilyPrincipal(dojoId, familyId);
+
+  return NextResponse.json({ members, principal });
 }
 
 // POST /api/families — create or link a family group

@@ -53,6 +53,8 @@ interface Student {
   active: boolean;
   portalUser: { id: string; active: boolean; email: string } | null;
   portalAccessBlockedBy: string | null;
+  portalAccessBlockReason: "family_principal" | "email_conflict" | null;
+  familyPrincipal: { id: string; fullName: string; email: string | null } | null;
   dojo: { name: string; phone: string | null; slug: string } | null;
   inscription: {
     inscriptionDate: string; annualPaymentDate: string | null;
@@ -1045,6 +1047,13 @@ export default function StudentDetailPage() {
               className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-orange-800/60 text-orange-400 hover:bg-orange-900/20 transition-colors disabled:opacity-50">
               <KeyRound size={15}/> {accessLoading ? "..." : "Revocar Portal"}
             </button>
+          ) : hasPortalAccess && student.portalAccessBlockReason === "family_principal" ? (
+            <span
+              className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-dojo-border text-dojo-muted cursor-not-allowed"
+              title={`Solo el familiar principal (${student.portalAccessBlockedBy}) puede tener acceso al portal. Los demás hermanos ven sus datos a través de su sesión.`}
+            >
+              <KeyRound size={15}/> Principal: {student.portalAccessBlockedBy}
+            </span>
           ) : hasPortalAccess && student.portalAccessBlockedBy ? (
             <span
               className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border border-dojo-border text-dojo-muted cursor-not-allowed"

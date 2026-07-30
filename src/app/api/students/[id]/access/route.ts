@@ -8,6 +8,7 @@ import { sendStudentWelcome } from "@/lib/email";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { checkGuardianEmailConflict, checkExistingStudentPortalUser } from "@/lib/portal-email-guard";
+import { getFamilyPrincipal } from "@/lib/family";
 import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
 import { NAV_KEYS } from "@/lib/permissions";
 
@@ -49,11 +50,23 @@ async function _POST(req: NextRequest, routeCtx: unknown) {
       select: {
         id: true, fullName: true, dojoId: true,
         motherEmail: true, fatherEmail: true,
-        primaryGuardian: true,
+        primaryGuardian: true, familyId: true,
         portalUser: { select: { id: true, active: true, email: true } },
       },
     });
     if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+
+    // Solo el familiar principal (hermano activo más antiguo del familyId)
+    // puede tener acceso propio al portal — los demás hermanos ven sus datos
+    // a través de la sesión del principal (selector de hermano ya existente).
+    if (student.familyId) {
+      const principal = await getFamilyPrincipal(dojoId, student.familyId);
+      if (principal && principal.id !== student.id) {
+        return NextResponse.json({
+          error: `Solo el familiar principal (${principal.fullName}) puede tener acceso al portal en esta familia.`,
+        }, { status: 409 });
+      }
+    }
 
     // Usar el email del acudiente principal si está definido; si no, fallback materno → paterno
     // Siempre en minúsculas para coincidir con el lookup de auth.ts (credentials.email.toLowerCase())
