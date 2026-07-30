@@ -48,13 +48,15 @@ export default function PortalPostulacionesPage() {
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ response, responseNote, studentId }),
     });
-    if (res.ok) {
-      setItems(prev => prev.map(item =>
-        item.inviteeId === inviteeId
-          ? { ...item, response, responseNote: responseNote ?? null, respondedAt: new Date().toISOString() }
-          : item
-      ));
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error((data as { error?: string }).error ?? "Error al guardar la respuesta");
     }
+    setItems(prev => prev.map(item =>
+      item.inviteeId === inviteeId
+        ? { ...item, response, responseNote: responseNote ?? null, respondedAt: new Date().toISOString() }
+        : item
+    ));
   }
 
   if (loading) {
@@ -132,8 +134,8 @@ function ExamCard({
     try {
       await onRespond(item.inviteeId, app.id, localResponse, note.trim() || undefined, item.studentId);
       setEditing(false);
-    } catch {
-      setError("Error al guardar la respuesta");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al guardar la respuesta");
     } finally { setSaving(false); }
   }
 
