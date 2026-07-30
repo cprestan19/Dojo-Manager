@@ -88,12 +88,22 @@ export default function PortalPostulacionesPage() {
   }
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto">
-      <h1 className="font-display font-bold text-dojo-white text-xl">Exámenes</h1>
-      {/* Si hay más de un alumno en la familia mostrar etiqueta por card */}
-      {items.map(item => (
-        <ExamCard key={item.inviteeId} item={item} onRespond={respond} showStudentName={items.some(i => i.studentId !== item.studentId)} />
-      ))}
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <FileText size={22} className="text-dojo-red shrink-0" />
+        <div>
+          <h1 className="font-display text-xl font-bold text-dojo-white">Exámenes</h1>
+          <p className="text-dojo-muted text-xs">Postulaciones a examen de tu dojo</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {/* Si hay más de un alumno en la familia mostrar etiqueta por card */}
+        {items.map(item => (
+          <ExamCard key={item.inviteeId} item={item} onRespond={respond} showStudentName={items.some(i => i.studentId !== item.studentId)} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -147,22 +157,23 @@ function ExamCard({
       )}
       <div className="p-4 space-y-3">
       {/* Header */}
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-2 flex-wrap">
         <div className="flex-1 min-w-0">
           {showStudentName && (
             <p className="text-xs text-dojo-gold font-semibold mb-1">👤 {item.studentName}</p>
           )}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-lg">🥋</span>
-            <h2 className="font-semibold text-dojo-white text-sm">{app.title}</h2>
-          </div>
-          <p className="text-xs text-dojo-muted mt-1">
-            📍 {app.location} · 📅 {formatDate(app.examDate)} {app.examTime}
-          </p>
+          <h2 className="font-display font-bold text-dojo-white text-lg leading-tight">{app.title}</h2>
         </div>
         <span className="text-xs px-2 py-0.5 rounded-full shrink-0"
           style={{ backgroundColor: beltInfo.hex + "25", color: beltInfo.hex === "#FFFFFF" ? "#ccc" : beltInfo.hex, border: `1px solid ${beltInfo.hex}40` }}>
           {beltInfo.label}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-3 text-sm">
+        <span className="flex items-center gap-1.5 text-dojo-muted">📍 {app.location}</span>
+        <span className="flex items-center gap-1 text-dojo-muted text-sm">
+          📅 {formatDate(app.examDate)} {app.examTime}
         </span>
       </div>
 
@@ -182,7 +193,9 @@ function ExamCard({
           }
         </div>
       )}
-      {app.description && <p className="text-xs text-dojo-muted">{app.description}</p>}
+      {app.description && (
+        <p className="text-sm text-dojo-muted leading-relaxed border-t border-dojo-border/40 pt-3">{app.description}</p>
+      )}
 
       {/* Estado / formulario */}
       {!canRespond && item.response !== "PENDING" && !editing ? (
