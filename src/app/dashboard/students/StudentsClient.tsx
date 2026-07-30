@@ -35,6 +35,7 @@ export interface StudentRow {
   active:      boolean;
   photo:       string | null;           // URL Cloudinary (null si no tiene o es base64 legacy)
   familyId:    string | null;
+  hasFamilyGroup:           boolean;
   isFamilyPrincipal:        boolean;
   familyAccessViaPrincipal: boolean;
   beltHistory: { beltColor: string }[];
@@ -448,7 +449,7 @@ export function StudentsClient({
                     : <span className="text-xs text-dojo-muted">Sin cinta</span>
                   }
                   {!s.active && <span className="flex items-center gap-1 text-xs text-red-400 font-semibold"><UserX size={10}/> Inactivo</span>}
-                  {s.familyId && (
+                  {s.hasFamilyGroup && (
                     <span className="flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-sky-900/30 text-sky-400 border border-sky-800/40">
                       <Users size={9}/> Familia
                     </span>
@@ -517,7 +518,7 @@ export function StudentsClient({
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-semibold text-dojo-white">{s.fullName}</p>
                           {!s.active && <span className="flex items-center gap-1 text-xs text-red-400 font-semibold"><UserX size={10}/> Inactivo</span>}
-                          {s.familyId && (
+                          {s.hasFamilyGroup && (
                             <span className="flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-sky-900/30 text-sky-400 border border-sky-800/40" title="Familia vinculada">
                               <Users size={9}/> Familia
                             </span>

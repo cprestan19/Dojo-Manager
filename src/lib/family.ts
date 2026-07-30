@@ -48,8 +48,23 @@ export async function getFamilyPrincipal(dojoId: string, familyId: string): Prom
 export async function attachFamilyPrincipalInfo<T extends { id: string; familyId: string | null }>(
   dojoId: string,
   students: T[],
-): Promise<(T & { isFamilyPrincipal: boolean; familyAccessViaPrincipal: boolean })[]> {
+): Promise<(T & { hasFamilyGroup: boolean; isFamilyPrincipal: boolean; familyAccessViaPrincipal: boolean })[]> {
   const familyIds = Array.from(new Set(students.map(s => s.familyId).filter((v): v is string => !!v)));
+
+  // Tamaño real de cada grupo — un familyId con un solo activo es un grupo
+  // huérfano (ej. tras mover al otro miembro a otra familia) y no debe
+  // tratarse como "familia" en la UI aunque el campo siga poblado.
+  const familyMembers = familyIds.length
+    ? await prisma.student.findMany({
+        where:  { dojoId, familyId: { in: familyIds }, active: true },
+        select: { familyId: true },
+      })
+    : [];
+  const familySizes = new Map<string, number>();
+  for (const m of familyMembers) {
+    familySizes.set(m.familyId!, (familySizes.get(m.familyId!) ?? 0) + 1);
+  }
+
   const principalsByFamily = new Map<string, FamilyPrincipal | null>();
   await Promise.all(familyIds.map(async fid => {
     principalsByFamily.set(fid, await getFamilyPrincipal(dojoId, fid));
@@ -67,10 +82,11 @@ export async function attachFamilyPrincipalInfo<T extends { id: string; familyId
   const principalHasAccess = new Map(principalPortalUsers.map(u => [u.studentId, u.active]));
 
   return students.map(s => {
-    const principal = s.familyId ? principalsByFamily.get(s.familyId) ?? null : null;
+    const hasFamilyGroup = !!s.familyId && (familySizes.get(s.familyId) ?? 0) >= 2;
+    const principal = hasFamilyGroup ? principalsByFamily.get(s.familyId!) ?? null : null;
     const isFamilyPrincipal = !!principal && principal.id === s.id;
     const familyAccessViaPrincipal = !isFamilyPrincipal && !!principal
       && principalHasAccess.get(principal.id) === true;
-    return { ...s, isFamilyPrincipal, familyAccessViaPrincipal };
+    return { ...s, hasFamilyGroup, isFamilyPrincipal, familyAccessViaPrincipal };
   });
 }
