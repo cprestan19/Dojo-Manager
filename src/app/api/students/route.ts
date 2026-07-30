@@ -11,6 +11,7 @@ import { withReadOnlyGuard } from "@/lib/billing/readOnlyGuard";
 import { formatStudentName } from "@/lib/utils";
 import { notifyAdmin, buildStudentCreatedEmail } from "@/lib/admin-notifications";
 import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
+import { attachFamilyPrincipalInfo } from "@/lib/family";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -63,10 +64,11 @@ export async function GET(req: NextRequest) {
   });
 
   // Filtrar base64 legacy — solo retornar URLs de Cloudinary
-  const sanitized = students.map(s => ({
+  const withPhoto = students.map(s => ({
     ...s,
     photo: s.photo?.startsWith("http") ? s.photo : null,
   }));
+  const sanitized = await attachFamilyPrincipalInfo(dojoId, withPhoto);
 
   return NextResponse.json(sanitized);
 }

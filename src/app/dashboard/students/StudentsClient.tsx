@@ -35,6 +35,8 @@ export interface StudentRow {
   active:      boolean;
   photo:       string | null;           // URL Cloudinary (null si no tiene o es base64 legacy)
   familyId:    string | null;
+  isFamilyPrincipal:        boolean;
+  familyAccessViaPrincipal: boolean;
   beltHistory: { beltColor: string }[];
   payments:    { status: string; dueDate: string }[];
   portalUser:  { active: boolean } | null;
@@ -47,12 +49,22 @@ type SortDir      = "asc" | "desc";
 
 // ── Portal badge ──────────────────────────────────────────────────────────────
 
-function PortalBadge({ portalUser }: { portalUser: { active: boolean } | null }) {
-  if (!portalUser)
-    return <span className="badge-red text-xs flex items-center gap-1 w-fit">Sin acceso</span>;
-  if (!portalUser.active)
+function PortalBadge({ portalUser, familyAccessViaPrincipal }: {
+  portalUser: { active: boolean } | null;
+  familyAccessViaPrincipal?: boolean;
+}) {
+  if (portalUser?.active)
+    return <span className="badge-green text-xs flex items-center gap-1 w-fit">Con acceso</span>;
+  if (familyAccessViaPrincipal)
+    return (
+      <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full w-fit bg-emerald-900/20 text-emerald-400 border border-emerald-800/40"
+        title="Accede a través de la sesión del familiar principal">
+        Acceso (familiar)
+      </span>
+    );
+  if (portalUser)
     return <span className="badge-yellow text-xs flex items-center gap-1 w-fit">Revocado</span>;
-  return <span className="badge-green text-xs flex items-center gap-1 w-fit">Con acceso</span>;
+  return <span className="badge-red text-xs flex items-center gap-1 w-fit">Sin acceso</span>;
 }
 
 // ── Sortable header ───────────────────────────────────────────────────────────
@@ -169,9 +181,10 @@ export function StudentsClient({
 
   // ── Pure helper: portal status from student row ──────────────────────────
   function portalStatus(s: StudentRow): "has" | "none" | "revoked" {
-    if (!s.portalUser)        return "none";
-    if (!s.portalUser.active) return "revoked";
-    return "has";
+    if (s.portalUser?.active)       return "has";
+    if (s.familyAccessViaPrincipal) return "has";
+    if (!s.portalUser)              return "none";
+    return "revoked";
   }
 
   // ── Memoized: belt chips (only recalculates when students array changes) ──
@@ -440,7 +453,12 @@ export function StudentsClient({
                       <Users size={9}/> Familia
                     </span>
                   )}
-                  <PortalBadge portalUser={s.portalUser} />
+                  {s.isFamilyPrincipal && (
+                    <span className="flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-dojo-gold/20 text-dojo-gold border border-dojo-gold/50" title="Familiar principal — único con acceso propio">
+                      P
+                    </span>
+                  )}
+                  <PortalBadge portalUser={s.portalUser} familyAccessViaPrincipal={s.familyAccessViaPrincipal} />
                   {s.active && payment && (
                     <span className={payment.status==="late"?"badge-red text-xs":payment.status==="pending"?"badge-yellow text-xs":"badge-green text-xs"}>
                       {payment.status==="late"?"Atrasado":payment.status==="pending"?"Pendiente":"Al día"}
@@ -504,6 +522,11 @@ export function StudentsClient({
                               <Users size={9}/> Familia
                             </span>
                           )}
+                          {s.isFamilyPrincipal && (
+                            <span className="flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-dojo-gold/20 text-dojo-gold border border-dojo-gold/50" title="Familiar principal — único con acceso propio">
+                              P
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-dojo-muted">{s.nationality} · {s.gender==="M"?"Masculino":"Femenino"}</p>
                       </div>
@@ -531,7 +554,7 @@ export function StudentsClient({
 
                   {/* Acceso Portal */}
                   <TableCell>
-                    <PortalBadge portalUser={s.portalUser} />
+                    <PortalBadge portalUser={s.portalUser} familyAccessViaPrincipal={s.familyAccessViaPrincipal} />
                   </TableCell>
 
                   {/* Acciones */}

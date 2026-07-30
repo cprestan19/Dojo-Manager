@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { Award, Trophy } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Award, Trophy, Search } from "lucide-react";
 import Link from "next/link";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { calculateAge, formatDate, BELT_COLORS } from "@/lib/utils";
@@ -15,6 +15,9 @@ export default function BeltsPage() {
   const [history,  setHistory]  = useState<BeltEntry[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [filter,   setFilter]   = useState("all");
+  const [nameSearch, setNameSearch] = useState("");
+  const [dateFrom,   setDateFrom]   = useState("");
+  const [dateTo,     setDateTo]     = useState("");
 
   const fetch_ = useCallback(async () => {
     setLoading(true);
@@ -25,11 +28,25 @@ export default function BeltsPage() {
 
   useEffect(() => { fetch_(); }, [fetch_]);
 
-  const filtered = filter === "all"
-    ? history
-    : filter === "ranking"
-    ? history.filter(h => h.isRanking)
-    : history.filter(h => h.beltColor === filter);
+  const filtered = useMemo(() => {
+    let result = filter === "all"
+      ? history
+      : filter === "ranking"
+      ? history.filter(h => h.isRanking)
+      : history.filter(h => h.beltColor === filter);
+
+    if (nameSearch.trim()) {
+      const q = nameSearch.trim().toLowerCase();
+      result = result.filter(h => h.student.fullName.toLowerCase().includes(q));
+    }
+    if (dateFrom) {
+      result = result.filter(h => h.changeDate.slice(0, 10) >= dateFrom);
+    }
+    if (dateTo) {
+      result = result.filter(h => h.changeDate.slice(0, 10) <= dateTo);
+    }
+    return result;
+  }, [history, filter, nameSearch, dateFrom, dateTo]);
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -38,6 +55,37 @@ export default function BeltsPage() {
           <Award size={24} className="text-dojo-red" /> Historial de Rangos
         </h1>
         <p className="text-dojo-muted text-sm mt-1">Todos los cambios de cinta registrados en el dojo</p>
+      </div>
+
+      {/* Búsqueda por nombre + rango de fecha */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
+          <input
+            value={nameSearch}
+            onChange={e => setNameSearch(e.target.value)}
+            placeholder="Buscar alumno..."
+            className="form-input pl-9 text-sm w-full"
+          />
+        </div>
+        <div className="flex items-center gap-2 text-xs text-dojo-muted">
+          <label className="flex items-center gap-1.5">
+            Desde
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+              className="form-input text-sm py-1.5" />
+          </label>
+          <label className="flex items-center gap-1.5">
+            Hasta
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+              className="form-input text-sm py-1.5" />
+          </label>
+          {(nameSearch || dateFrom || dateTo) && (
+            <button onClick={() => { setNameSearch(""); setDateFrom(""); setDateTo(""); }}
+              className="text-dojo-red hover:underline">
+              Limpiar
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter */}

@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
+import { attachFamilyPrincipalInfo } from "@/lib/family";
 import { StudentsClient, type StudentRow } from "./StudentsClient";
 
 type SessionUser = { dojoId?: string | null; role?: string };
@@ -38,11 +39,12 @@ export default async function StudentsPage() {
   });
 
   // Serializar Date → string antes de pasar al Client Component
-  const students: StudentRow[] = raw.map(s => ({
+  const serialized = raw.map(s => ({
     ...s,
     birthDate: s.birthDate.toISOString(),
     payments:  s.payments.map(p => ({ ...p, dueDate: p.dueDate.toISOString() })),
   }));
+  const students: StudentRow[] = await attachFamilyPrincipalInfo(dojoId, serialized);
 
   const canEdit = role === "admin" || role === "sysadmin";
   return <StudentsClient initialStudents={students} canEdit={canEdit} />;

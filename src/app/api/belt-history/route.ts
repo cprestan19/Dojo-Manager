@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       id: true, beltColor: true, changeDate: true, isRanking: true, notes: true, studentId: true,
       kataIds: true,
       kata:    { select: { id: true, name: true, beltColor: true } },
-      student: { select: { fullName: true, firstName: true, lastName: true  } },
+      student: { select: { id: true, fullName: true, firstName: true, lastName: true, birthDate: true } },
     },
     orderBy: { changeDate: "desc" },
   });
