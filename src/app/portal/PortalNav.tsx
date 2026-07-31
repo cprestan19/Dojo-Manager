@@ -21,6 +21,7 @@ interface Props {
     beltHistory: { beltColor: string }[];
   };
   hasStore: boolean;
+  canHaveLiveTatami: boolean;
 }
 
 interface PortalNotifications {
@@ -53,7 +54,7 @@ const STORE_ITEM = { href: "/portal/store", label: "Tienda", icon: ShoppingBag }
 
 const STORAGE_KEY = "portal_notif_seen_at";
 
-export default function PortalNav({ student, hasStore }: Props) {
+export default function PortalNav({ student, hasStore, canHaveLiveTatami }: Props) {
   const pathname  = usePathname();
   const belt      = student.beltHistory[0]?.beltColor;
   const beltInfo  = belt ? getBeltInfo(belt) : null;
@@ -67,8 +68,11 @@ export default function PortalNav({ student, hasStore }: Props) {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // ── Live tatamis ──────────────────────────────────────────────────
+  // ── Live tatamis ── solo si el dojo tiene Torneo Pro y el alumno está
+  // inscrito en un torneo activo/listo (canHaveLiveTatami, calculado server-
+  // side) — evita el polling cada 30s para dojos que nunca usan Torneo Pro.
   useEffect(() => {
+    if (!canHaveLiveTatami) return;
     const check = () =>
       fetch("/api/portal/live-tatamis")
         .then(r => r.ok ? r.json() : { tatamis: [] })
@@ -77,7 +81,7 @@ export default function PortalNav({ student, hasStore }: Props) {
     check();
     const iv = setInterval(check, 30_000);
     return () => clearInterval(iv);
-  }, []);
+  }, [canHaveLiveTatami]);
 
   // ── Notificaciones del portal ─────────────────────────────────────
   const checkNotifications = useCallback(() => {

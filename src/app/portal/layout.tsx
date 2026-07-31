@@ -7,7 +7,7 @@ import TermsGate from "./TermsGate";
 import SystemNewsModal from "@/components/SystemNewsModal";
 import ActivityPing from "@/components/ui/ActivityPing";
 import { PageTransition } from "@/components/portal/PageTransition";
-import { hasFeature } from "@/lib/billing/featureGate";
+import { hasFeature, hasTournamentsAccess } from "@/lib/billing/featureGate";
 import { NAV_KEYS } from "@/lib/permissions";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -30,9 +30,10 @@ export default async function PortalLayout({ children }: { children: React.React
 
   if (!student) redirect("/login");
 
-  const [portalEnabled, hasStore] = await Promise.all([
+  const [portalEnabled, hasStore, hasTournaments] = await Promise.all([
     hasFeature(student.dojoId, NAV_KEYS.PORTAL_ACCESS),
     hasFeature(student.dojoId, NAV_KEYS.STORE),
+    hasTournamentsAccess(student.dojoId),
   ]);
   if (!portalEnabled) {
     return (
@@ -45,6 +46,22 @@ export default async function PortalLayout({ children }: { children: React.React
         </div>
       </div>
     );
+  }
+
+  // Solo vale la pena que el portal haga polling de "tatamis en vivo" si el
+  // dojo tiene Torneo Pro Y este alumno específico está inscrito como
+  // participante en un torneo activo/listo — evita consultar cada 30s en
+  // dojos que nunca usan Torneo Pro o alumnos sin torneo en curso.
+  let canHaveLiveTatami = false;
+  if (hasTournaments) {
+    const activeParticipation = await prisma.tournamentParticipant.findFirst({
+      where: {
+        studentId:  student.id,
+        tournament: { dojoId: student.dojoId, status: { in: ["active", "ready"] } },
+      },
+      select: { id: true },
+    });
+    canHaveLiveTatami = !!activeParticipation;
   }
 
   // ── Verificar si el alumno necesita aceptar los términos del dojo ──
@@ -72,7 +89,7 @@ export default async function PortalLayout({ children }: { children: React.React
 
   return (
     <div className="min-h-[100dvh] w-full flex flex-col bg-dojo-darker">
-      <PortalNav student={student} hasStore={hasStore} />
+      <PortalNav student={student} hasStore={hasStore} canHaveLiveTatami={canHaveLiveTatami} />
       <SystemNewsModal />
       <ActivityPing />
       <main className="flex-1 overflow-x-hidden overflow-y-auto min-w-0">
