@@ -110,6 +110,17 @@ export async function getDojoAdminSubscriptions(dojoId: string): Promise<Subscri
   return subs;
 }
 
+// Obtiene suscripciones activas SOLO del rol "admin" de un dojo (excluye
+// "user" — staff básico) — usado cuando la notificación es exclusiva del
+// administrador (ej. solicitudes de compra de la tienda).
+export async function getDojoAdminOnlySubscriptions(dojoId: string): Promise<SubscriptionData[]> {
+  const subs = await prisma.pushSubscription.findMany({
+    where:  { dojoId, active: true, userId: { not: null }, user: { role: "admin" } },
+    select: { endpoint: true, p256dh: true, auth: true },
+  });
+  return subs;
+}
+
 // Obtiene suscripciones activas de administradores de TODOS los dojos —
 // para anuncios de plataforma enviados por sysadmin (Novedades del sistema).
 export async function getAllAdminSubscriptions(): Promise<SubscriptionData[]> {
@@ -261,6 +272,31 @@ export function sendPushToDojoAdminsAsync(
       );
     })
     .catch((err) => console.error("[push] sendPushToDojoAdminsAsync:", err));
+}
+
+// Helper: envía push SOLO al rol admin del dojo (fire-and-forget) — no
+// llega al rol "user" (staff básico), a diferencia de sendPushToDojoAdminsAsync.
+export function sendPushToDojoAdminOnlyAsync(
+  dojoId: string,
+  payload: PushPayload,
+  opts?: { type?: string; sentBy?: string },
+): void {
+  getDojoAdminOnlySubscriptions(dojoId)
+    .then((subs) => {
+      if (subs.length === 0) return;
+      return sendPushToSubscriptions(subs, payload).then((result) =>
+        logPushSent({
+          dojoId,
+          type:   opts?.type  ?? "admin_only_notification",
+          title:  payload.title,
+          body:   payload.body,
+          url:    payload.url,
+          result,
+          sentBy: opts?.sentBy,
+        })
+      );
+    })
+    .catch((err) => console.error("[push] sendPushToDojoAdminOnlyAsync:", err));
 }
 
 // Helper: envía push a una lista específica de alumnos (fire-and-forget) —

@@ -30,7 +30,10 @@ export default async function PortalLayout({ children }: { children: React.React
 
   if (!student) redirect("/login");
 
-  const portalEnabled = await hasFeature(student.dojoId, NAV_KEYS.PORTAL_ACCESS);
+  const [portalEnabled, hasStore] = await Promise.all([
+    hasFeature(student.dojoId, NAV_KEYS.PORTAL_ACCESS),
+    hasFeature(student.dojoId, NAV_KEYS.STORE),
+  ]);
   if (!portalEnabled) {
     return (
       <div className="min-h-[100dvh] w-full flex items-center justify-center bg-dojo-darker px-6">
@@ -69,7 +72,7 @@ export default async function PortalLayout({ children }: { children: React.React
 
   return (
     <div className="min-h-[100dvh] w-full flex flex-col bg-dojo-darker">
-      <PortalNav student={student} />
+      <PortalNav student={student} hasStore={hasStore} />
       <SystemNewsModal />
       <ActivityPing />
       <main className="flex-1 overflow-x-hidden overflow-y-auto min-w-0">

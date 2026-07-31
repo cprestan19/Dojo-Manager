@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ShoppingBag, Plus, Edit2, Trash2, X, Save,
-  Image as ImageIcon, Tag, Eye, EyeOff, Check,
+  Image as ImageIcon, Tag, Eye, EyeOff, Check, ClipboardList, Phone,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 
@@ -17,14 +17,36 @@ interface Product {
   active:      boolean;
 }
 
+interface PurchaseRequest {
+  id:        string;
+  size:      string | null;
+  notes:     string | null;
+  status:    string; // PENDING | CONTACTED | COMPLETED | CANCELLED
+  createdAt: string;
+  product: { name: string; price: number; currency: string; imageUrl: string | null };
+  student: { fullName: string; studentCode: number | null; motherPhone: string | null; fatherPhone: string | null };
+}
+
 const PRESET_SIZES = ["XS","S","M","L","XL","XXL","Único"];
 const EMPTY_FORM   = { name:"", description:"", price:"", currency:"USD", imageUrl:"", sizes:[] as string[], active:true };
+
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: "Pendiente", CONTACTED: "Contactado", COMPLETED: "Completado", CANCELLED: "Cancelado",
+};
+const STATUS_BADGE: Record<string, string> = {
+  PENDING: "badge-yellow", CONTACTED: "badge-blue", COMPLETED: "badge-green", CANCELLED: "badge-red",
+};
 
 function fmtPrice(price: number, currency: string) {
   return new Intl.NumberFormat("es-PA", { style:"currency", currency, minimumFractionDigits:2 }).format(price);
 }
 
+function fmtRequestDate(iso: string) {
+  return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Panama" });
+}
+
 export default function StorePage() {
+  const [tab,       setTab]       = useState<"catalog" | "requests">("catalog");
   const [products,  setProducts]  = useState<Product[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [modal,     setModal]     = useState(false);
@@ -38,6 +60,10 @@ export default function StorePage() {
   const [customSize,setCustomSize]= useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [requests,        setRequests]        = useState<PurchaseRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [updatingId,      setUpdatingId]      = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     const r = await fetch("/api/store-products");
@@ -45,7 +71,27 @@ export default function StorePage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadRequests = useCallback(async () => {
+    setRequestsLoading(true);
+    const r = await fetch("/api/store-requests");
+    if (r.ok) setRequests(await r.json());
+    setRequestsLoading(false);
+  }, []);
+
+  useEffect(() => { load(); loadRequests(); }, [load, loadRequests]);
+
+  async function updateRequestStatus(id: string, status: string) {
+    setUpdatingId(id);
+    try {
+      const r = await fetch(`/api/store-requests/${id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (r.ok) setRequests(prev => prev.map(req => req.id === id ? { ...req, status } : req));
+    } finally { setUpdatingId(null); }
+  }
+
+  const pendingCount = requests.filter(r => r.status === "PENDING").length;
 
   function openCreate() {
     setEditing(null); setForm(EMPTY_FORM); setError(""); setSaved(false); setModal(true);
@@ -140,18 +186,45 @@ export default function StorePage() {
             Catálogo de productos — los clientes consultan por WhatsApp
           </p>
         </div>
-        <button onClick={openCreate} className="btn-primary">
-          <Plus size={18} /> Nuevo Producto
+        {tab === "catalog" && (
+          <button onClick={openCreate} className="btn-primary">
+            <Plus size={18} /> Nuevo Producto
+          </button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-dojo-dark border border-dojo-border rounded-lg p-1 w-fit">
+        <button onClick={() => setTab("catalog")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-semibold transition-colors ${
+            tab === "catalog" ? "bg-dojo-red text-white" : "text-dojo-muted"
+          }`}>
+          <ShoppingBag size={13} /> Catálogo
+        </button>
+        <button onClick={() => setTab("requests")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-semibold transition-colors ${
+            tab === "requests" ? "bg-dojo-red text-white" : "text-dojo-muted"
+          }`}>
+          <ClipboardList size={13} /> Solicitudes{pendingCount > 0 ? ` (${pendingCount})` : ""}
         </button>
       </div>
 
+      {tab === "requests" ? (
+        <RequestsPanel
+          requests={requests}
+          loading={requestsLoading}
+          updatingId={updatingId}
+          onUpdateStatus={updateRequestStatus}
+        />
+      ) : (
+      <>
       {/* Info banner */}
       <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-dojo-border/40 bg-dojo-border/10">
         <ShoppingBag size={15} className="text-dojo-red shrink-0 mt-0.5" />
         <p className="text-xs text-dojo-muted leading-relaxed">
-          Los productos se muestran en tu página pública. Los clientes seleccionan talla y presionan
-          <strong className="text-dojo-white"> "Consultar por WhatsApp"</strong> — el mensaje llega con el artículo,
-          talla y precio. Tú coordinas pago y entrega directamente.
+          Los productos se muestran en tu página pública y en el portal del alumno (si tu plan lo incluye). Los clientes
+          seleccionan talla y presionan <strong className="text-dojo-white">&quot;Consultar por WhatsApp&quot;</strong> o
+          <strong className="text-dojo-white"> &quot;Quiero comprar&quot;</strong> desde el portal — tú coordinas pago y entrega directamente.
         </p>
       </div>
 
@@ -221,6 +294,8 @@ export default function StorePage() {
             );
           })}
         </div>
+      )}
+      </>
       )}
 
       {/* Modal crear/editar */}
@@ -357,6 +432,98 @@ export default function StorePage() {
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+// ── Panel de solicitudes de compra (del portal del alumno) ──────────────────
+
+function RequestsPanel({
+  requests, loading, updatingId, onUpdateStatus,
+}: {
+  requests:   PurchaseRequest[];
+  loading:    boolean;
+  updatingId: string | null;
+  onUpdateStatus: (id: string, status: string) => void;
+}) {
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="w-8 h-8 rounded-full border-4 border-dojo-red border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (requests.length === 0) {
+    return (
+      <div className="card text-center py-16 space-y-2">
+        <ClipboardList size={40} className="mx-auto text-dojo-muted opacity-30" />
+        <p className="text-dojo-muted">Aún no han llegado solicitudes de compra desde el portal.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {requests.map(r => {
+        const phone = r.student.motherPhone || r.student.fatherPhone;
+        return (
+          <div key={r.id} className="card p-4 flex items-start gap-3">
+            {r.product.imageUrl
+              ? // eslint-disable-next-line @next/next/no-img-element
+                <img src={r.product.imageUrl} alt={r.product.name} className="w-16 h-16 rounded-lg object-cover shrink-0" />
+              : <div className="w-16 h-16 rounded-lg bg-dojo-border/30 flex items-center justify-center shrink-0">
+                  <ImageIcon size={20} className="text-dojo-muted opacity-30" />
+                </div>
+            }
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="font-semibold text-dojo-white">{r.product.name}</p>
+                <span className={`${STATUS_BADGE[r.status] ?? "badge-yellow"} text-xs`}>
+                  {STATUS_LABEL[r.status] ?? r.status}
+                </span>
+              </div>
+              <p className="text-sm text-dojo-gold font-semibold">{fmtPrice(r.product.price, r.product.currency)}</p>
+              <p className="text-xs text-dojo-muted mt-1">
+                {r.student.fullName}{r.student.studentCode != null ? ` · #${r.student.studentCode}` : ""}
+                {r.size ? ` · Talla ${r.size}` : ""}
+              </p>
+              {phone && (
+                <p className="text-xs text-dojo-muted flex items-center gap-1 mt-0.5">
+                  <Phone size={10} /> {phone}
+                </p>
+              )}
+              {r.notes && <p className="text-xs text-dojo-muted italic mt-1">&quot;{r.notes}&quot;</p>}
+              <p className="text-[10px] text-dojo-muted mt-1">{fmtRequestDate(r.createdAt)}</p>
+
+              {r.status === "PENDING" && (
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => onUpdateStatus(r.id, "CONTACTED")} disabled={updatingId === r.id}
+                    className="btn-secondary text-xs py-1 px-2.5 disabled:opacity-50">
+                    Marcar contactado
+                  </button>
+                  <button onClick={() => onUpdateStatus(r.id, "CANCELLED")} disabled={updatingId === r.id}
+                    className="btn-ghost text-xs py-1 px-2.5 text-dojo-muted hover:text-red-400 disabled:opacity-50">
+                    Cancelar
+                  </button>
+                </div>
+              )}
+              {r.status === "CONTACTED" && (
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => onUpdateStatus(r.id, "COMPLETED")} disabled={updatingId === r.id}
+                    className="btn-secondary text-xs py-1 px-2.5 disabled:opacity-50">
+                    Marcar completado
+                  </button>
+                  <button onClick={() => onUpdateStatus(r.id, "CANCELLED")} disabled={updatingId === r.id}
+                    className="btn-ghost text-xs py-1 px-2.5 text-dojo-muted hover:text-red-400 disabled:opacity-50">
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -1,12 +1,16 @@
 export const dynamic = "force-dynamic";
 
 import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
+import QRCode from "qrcode";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { formatDate, getBeltInfo } from "@/lib/utils";
+import { hasFeature } from "@/lib/billing/featureGate";
+import { NAV_KEYS } from "@/lib/permissions";
 import {
   Award, CreditCard, Calendar, Fingerprint, PlayCircle,
-  Heart, Phone, User, Trophy, Star,
+  Heart, Phone, User, Trophy, Star, IdCard,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -15,6 +19,20 @@ import { FamilyMemberAccordion, type FamilyMember } from "@/components/portal/Fa
 import PushPrompt from "@/components/push/PushPrompt";
 import { DisciplineStarHero } from "@/components/discipline/DisciplineBar";
 import { StaggerList, StaggerItem } from "@/components/portal/StaggerList";
+import CardClient from "@/app/id/[code]/CardClient";
+import { PrintCardButton } from "@/components/portal/PrintCardButton";
+
+// Genera el QR (mismo formato que /id/[code]) para un cardToken puntual
+async function buildCardQrDataUrl(cardToken: string, base: string): Promise<string> {
+  const cardUrl = `${base}/id/${cardToken}`;
+  const qrSvgString = await QRCode.toString(cardUrl, {
+    type: "svg",
+    margin: 2,
+    errorCorrectionLevel: "H",
+    color: { dark: "#0A0A0A", light: "#FFFFFF" },
+  });
+  return `data:image/svg+xml;base64,${Buffer.from(qrSvgString).toString("base64")}`;
+}
 
 export default async function PortalProfilePage() {
   const session   = await getServerSession(authOptions);
@@ -32,7 +50,15 @@ export default async function PortalProfilePage() {
       motherName: true, motherPhone: true,
       fatherName: true, fatherPhone: true,
       familyId: true, dojoId: true,
-      dojo: { select: { name: true, phone: true } },
+      dojo: {
+        select: {
+          id: true, slug: true, name: true, phone: true, logo: true, slogan: true,
+          cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true,
+          cardTemplateImage: true, cardLayout: true,
+          cardLayout2: true, cardTemplateImage2: true,
+          cardLayout3: true, cardTemplateImage3: true, activeCardSlot: true,
+        },
+      },
       inscription: {
         select: {
           inscriptionDate: true, monthlyAmount: true, biweeklyAmount: true,
@@ -127,6 +153,44 @@ export default async function PortalProfilePage() {
       })
     : [];
 
+  // ── Carnet digital — gateado por plan (o COMPLIMENTARY) ──────────────────────
+  const hasCardAccess = await hasFeature(student.dojoId, NAV_KEYS.PORTAL_CARD_ACCESS);
+
+  const dojoCardData = hasCardAccess ? {
+    id:     student.dojo.id,
+    slug:   student.dojo.slug,
+    name:   student.dojo.name,
+    logo:   student.dojo.logo?.startsWith("http") ? student.dojo.logo : null,
+    slogan: student.dojo.slogan,
+    primaryColor:   student.dojo.cardPrimaryColor,
+    secondaryColor: student.dojo.cardSecondaryColor,
+    tertiaryColor:  student.dojo.cardTertiaryColor,
+    cardTemplateImage:  student.dojo.cardTemplateImage?.startsWith("http")  ? student.dojo.cardTemplateImage  : null,
+    cardLayout:         student.dojo.cardLayout ?? null,
+    cardLayout2:        student.dojo.cardLayout2 ?? null,
+    cardTemplateImage2: student.dojo.cardTemplateImage2?.startsWith("http") ? student.dojo.cardTemplateImage2 : null,
+    cardLayout3:        student.dojo.cardLayout3 ?? null,
+    cardTemplateImage3: student.dojo.cardTemplateImage3?.startsWith("http") ? student.dojo.cardTemplateImage3 : null,
+    activeCardSlot:     student.dojo.activeCardSlot ?? 1,
+  } : null;
+
+  // QR por alumno (propio cardToken — nunca se mezcla entre alumnos ni dojos)
+  const cardQrByStudent = new Map<string, string>();
+  if (hasCardAccess) {
+    const reqHeaders = await headers();
+    const host  = reqHeaders.get("host") ?? "";
+    const proto = host.startsWith("localhost") ? "http" : "https";
+    const base  = (process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "") || `${proto}://${host}`;
+
+    await Promise.all(
+      [student, ...siblings]
+        .filter(s => !!s.cardToken)
+        .map(async s => {
+          cardQrByStudent.set(s.id, await buildCardQrDataUrl(s.cardToken!, base));
+        })
+    );
+  }
+
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   function parseDays(raw: string): string[] {
@@ -167,6 +231,7 @@ export default async function PortalProfilePage() {
 
     return {
       id: s.id, fullName: s.fullName, studentCode: s.studentCode, cardToken: s.cardToken, photo: s.photo, isMain,
+      cardQrDataUrl: cardQrByStudent.get(s.id) ?? null,
       currentBeltLabel: belts[0]?.label ?? null,
       currentBeltHex:   belts[0]?.hex   ?? null,
       beltHistory:      belts,
@@ -211,6 +276,10 @@ export default async function PortalProfilePage() {
   const beltAccent  = beltHex === "#FFFFFF" ? "#cccccc" : beltHex;
   const initials    = student.fullName.split(" ").slice(0, 2).map(w => w[0]).join("");
   const hasLate     = student.payments.some(p => p.status === "late");
+  const cardContact = {
+    name:  student.motherName?.trim()  || student.fatherName?.trim()  || null,
+    phone: student.motherPhone?.trim() || student.fatherPhone?.trim() || null,
+  };
 
   return (
     <StaggerList className="space-y-4">
@@ -322,7 +391,7 @@ export default async function PortalProfilePage() {
 
       {/* ── Familia (acordeón) O vista individual ── */}
       {familyMembers.length > 0 ? (
-        <StaggerItem><FamilyMemberAccordion members={familyMembers} /></StaggerItem>
+        <StaggerItem><FamilyMemberAccordion members={familyMembers} dojoCard={dojoCardData} /></StaggerItem>
       ) : (
         <>
           {/* ── Accesos rápidos ── */}
@@ -370,6 +439,27 @@ export default async function PortalProfilePage() {
             </Link>
           </div>
           </StaggerItem>
+
+          {/* Carnet digital — solo si el plan del dojo lo incluye */}
+          {hasCardAccess && dojoCardData && student.cardToken && (
+            <StaggerItem>
+            <div className="card space-y-3">
+              <p className="text-sm font-bold text-dojo-white flex items-center gap-2">
+                <IdCard size={15} className="text-dojo-gold" /> Mi Carnet Digital
+              </p>
+              <div className="flex flex-col items-center gap-3 overflow-x-auto">
+                <CardClient
+                  student={{ fullName: student.fullName, photo: student.photo?.startsWith("http") ? student.photo : null }}
+                  dojo={dojoCardData}
+                  contact={cardContact}
+                  qrDataUrl={cardQrByStudent.get(student.id) ?? ""}
+                  embedded
+                />
+                <PrintCardButton />
+              </div>
+            </div>
+            </StaggerItem>
+          )}
 
           {/* QR */}
           <StaggerItem>

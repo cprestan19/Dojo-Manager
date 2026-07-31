@@ -7,7 +7,7 @@ import { SubscriptionStatus } from "@prisma/client";
 // total" (COMPLIMENTARY, planes legado, sin suscripción) sí debe incluir
 // también el acceso al portal, para no romper el portal de alumnos de dojos
 // que nunca tuvieron esta restricción.
-const ALL_FEATURE_KEYS: NavKey[] = [...ALL_DOJO_KEYS, NAV_KEYS.PORTAL_ACCESS];
+const ALL_FEATURE_KEYS: NavKey[] = [...ALL_DOJO_KEYS, NAV_KEYS.PORTAL_ACCESS, NAV_KEYS.PORTAL_CARD_ACCESS];
 
 /**
  * Funciones efectivamente incluidas en el plan de un dojo.

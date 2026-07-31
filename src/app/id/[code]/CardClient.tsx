@@ -82,9 +82,13 @@ interface CardProps {
   };
   contact: { name: string | null; phone: string | null };
   qrDataUrl: string;
+  /** true cuando se embebe dentro de otra página (ej. portal del alumno) —
+   * oculta el botón de imprimir y el texto instructivo propios, que asumen
+   * que la tarjeta es el único contenido de la página. */
+  embedded?: boolean;
 }
 
-export default function CardClient({ student, dojo, contact, qrDataUrl }: CardProps) {
+export default function CardClient({ student, dojo, contact, qrDataUrl, embedded = false }: CardProps) {
   // Colores de marca del dojo, con fallback a la paleta roja/negra/dorada por defecto
   const RED   = dojo.primaryColor   && HEX_RE.test(dojo.primaryColor)   ? dojo.primaryColor   : DEFAULT_RED;
   const BLACK = dojo.secondaryColor && HEX_RE.test(dojo.secondaryColor) ? dojo.secondaryColor : DEFAULT_BLACK;
@@ -216,15 +220,12 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
           }
           .no-print { display: none !important; }
 
-          /* Anular el layout del main (flex + padding + bg oscuro de page.tsx) */
-          main {
-            display: block !important;
-            min-height: unset !important;
-            background: white !important;
-            padding: 0 !important; margin: 0 !important;
-            width: ${isLandscape ? "85mm" : "55mm"} !important; height: ${isLandscape ? "53.74mm" : "85mm"} !important;
-            overflow: hidden !important;
-          }
+          /* Aislar SOLO la tarjeta al imprimir — oculta todo lo demás en la
+             página (nav del portal, modales, etc.) sin asumir que la tarjeta
+             es el único contenido, para que funcione tanto en /id/[code]
+             (página standalone) como embebida dentro del portal del alumno. */
+          body * { visibility: hidden !important; }
+          .card-print-wrapper, .card-print-wrapper * { visibility: visible !important; }
 
           /* Wrapper del carnet: centrado horizontalmente en la página */
           .card-print-wrapper {
@@ -234,6 +235,7 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
             width: ${isLandscape ? "86mm" : "53.74mm"} !important; height: ${isLandscape ? "53.74mm" : "85mm"} !important;
             overflow: hidden !important;
             margin: 0 !important; padding: 0 !important;
+            background: white !important;
           }
 
           /* Escala limitada por la altura: 638px → 53.74mm (portrait) o 1009px → 85mm (portrait)
@@ -532,36 +534,40 @@ export default function CardClient({ student, dojo, contact, qrDataUrl }: CardPr
         </div>{/* fin scale */}
       </div>{/* fin wrapper */}
 
-      {/* ── Botón imprimir / guardar PDF ─────────────────────────────────── */}
-      <button
-        className="no-print"
-        onClick={printCard}
-        style={{
-          display: "flex", alignItems: "center", gap: 12,
-          background: RED, color: "#fff",
-          border: "none", borderRadius: 12, padding: "14px 36px",
-          fontSize: 15, fontWeight: 700,
-          cursor: "pointer", letterSpacing: "0.04em",
-          fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
-          boxShadow: `0 8px 24px ${hexToRgba(RED, 0.40)}`,
-          flexShrink: 0,
-        }}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth="2.5"
-          strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/>
-        </svg>
-        Imprimir / Guardar PDF
-      </button>
+      {!embedded && (
+        <>
+          {/* ── Botón imprimir / guardar PDF ─────────────────────────────── */}
+          <button
+            className="no-print"
+            onClick={printCard}
+            style={{
+              display: "flex", alignItems: "center", gap: 12,
+              background: RED, color: "#fff",
+              border: "none", borderRadius: 12, padding: "14px 36px",
+              fontSize: 15, fontWeight: 700,
+              cursor: "pointer", letterSpacing: "0.04em",
+              fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
+              boxShadow: `0 8px 24px ${hexToRgba(RED, 0.40)}`,
+              flexShrink: 0,
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/>
+            </svg>
+            Imprimir / Guardar PDF
+          </button>
 
-      <p className="no-print" style={{
-        fontSize: 12, color: "rgba(255,255,255,0.4)",
-        textAlign: "center", maxWidth: 340,
-        fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
-      }}>
-        Selecciona &quot;Guardar como PDF&quot; en el diálogo de impresión · CR80 54 × 85.6 mm
-      </p>
+          <p className="no-print" style={{
+            fontSize: 12, color: "rgba(255,255,255,0.4)",
+            textAlign: "center", maxWidth: 340,
+            fontFamily: "'Montserrat','Segoe UI',Arial,sans-serif",
+          }}>
+            Selecciona &quot;Guardar como PDF&quot; en el diálogo de impresión · CR80 54 × 85.6 mm
+          </p>
+        </>
+      )}
     </>
   );
 }

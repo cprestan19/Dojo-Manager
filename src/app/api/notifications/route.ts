@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
   // RSVPs de los últimos 2 días (confirmaciones de participación en eventos)
   const rsvpSince = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
 
-  const [latePaymentsAgg, latePaymentsList, newLeads, students, recentRsvps] = await Promise.all([
+  const [latePaymentsAgg, latePaymentsList, newLeads, students, recentRsvps, pendingStoreRequests] = await Promise.all([
     // ── 1a. Late payments: aggregate ─────────────────────────────
     prisma.payment.aggregate({
       where: { student: { dojoId }, status: "late" },
@@ -143,6 +143,20 @@ export async function GET(req: NextRequest) {
         event:   { select: { id: true, title: true, startDate: true } },
       },
     }),
+
+    // ── 5. Solicitudes de compra pendientes (Tienda del portal) ──────
+    prisma.storePurchaseRequest.findMany({
+      where:   { dojoId, status: "PENDING" },
+      orderBy: { createdAt: "desc" },
+      take:    20,
+      select: {
+        id:        true,
+        size:      true,
+        createdAt: true,
+        student: { select: { id: true, fullName: true } },
+        product: { select: { name: true } },
+      },
+    }),
   ]);
 
   // Compute current status for each student
@@ -163,7 +177,8 @@ export async function GET(req: NextRequest) {
     alertStudents.length +
     riskStudents.length +
     (newLeads ?? 0) +
-    recentRsvps.length;
+    recentRsvps.length +
+    pendingStoreRequests.length;
 
   return NextResponse.json({
     total,
@@ -211,6 +226,17 @@ export async function GET(req: NextRequest) {
           status:     "RIESGO",
         })),
       },
+    },
+    storeRequests: {
+      count: pendingStoreRequests.length,
+      items: pendingStoreRequests.map(r => ({
+        id:          r.id,
+        studentId:   r.student.id,
+        studentName: r.student.fullName,
+        productName: r.product.name,
+        size:        r.size,
+        createdAt:   r.createdAt.toISOString(),
+      })),
     },
   });
 }

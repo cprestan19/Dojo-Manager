@@ -32,6 +32,9 @@ export const NAV_KEYS = {
   // No es un ítem de navegación del dashboard — se usa como feature-key de
   // Plan para decidir si los alumnos de un dojo pueden entrar a /portal.
   PORTAL_ACCESS:   "portal-access",
+  // No es un ítem de navegación del dashboard — feature-key de Plan para
+  // decidir si el portal del alumno muestra el carnet digital embebido.
+  PORTAL_CARD_ACCESS: "portal-card-access",
 } as const;
 
 export type NavKey = typeof NAV_KEYS[keyof typeof NAV_KEYS];
@@ -128,6 +131,7 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "settings.terms":   "Políticas y Términos",
   "settings.push":    "Notificaciones Push",
   "portal-access":    "Portal de Alumnos",
+  "portal-card-access": "Carnet Digital en Portal",
 };
 
 export const ROLE_COLORS = [

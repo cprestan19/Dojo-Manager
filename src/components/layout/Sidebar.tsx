@@ -109,6 +109,24 @@ const IDENTITY_PATHS = [
   "/dashboard/settings/terms",
 ];
 
+const SYSTEM_DEFS: { href: string; icon: React.ElementType; label: string }[] = [
+  { href: "/dashboard/dojos",                 icon: Building2,  label: "Dojos"                 },
+  { href: "/dashboard/superadmin/branding",   icon: ImageIcon,  label: "Logo de la Plataforma"  },
+  { href: "/dashboard/novedades-sistema",     icon: Sparkles,   label: "Novedades"              },
+  { href: "/dashboard/visitors",              icon: Globe,      label: "Visitantes"             },
+  { href: "/dashboard/superadmin/audit-logs", icon: Shield,     label: "Auditoría"              },
+  { href: "/dashboard/superadmin/billing",    icon: Receipt,    label: "Pagos SaaS"             },
+  { href: "/dashboard/superadmin/plans",      icon: LayoutList, label: "Planes"                 },
+  { href: "/dashboard/billing",               icon: Receipt,    label: "Facturación"            },
+];
+
+// ¿La ruta actual pertenece a alguno de los items de esta sección? — se usa
+// para que la sección arranque expandida solo si el usuario ya está dentro
+// de ella, en vez de siempre abierta (sidebar muy largo con muchos menús).
+function sectionMatchesPath(hrefs: string[], pathname: string): boolean {
+  return hrefs.some(href => pathname === href || pathname.startsWith(href + "/"));
+}
+
 export function Sidebar() {
   const pathname          = usePathname();
   const { data: session } = useSession();
@@ -137,9 +155,16 @@ export function Sidebar() {
 
   const [settingsOpen, setSettingsOpen] = useState(() => inSettings);
   const [showProPopup, setShowProPopup] = useState(false);
-  const [sections, setSections] = useState({
-    academia: true, captacion: true, competencias: true, identity: true, admin: true,
-  });
+  // Cada sección arranca colapsada — solo se abre sola la que contiene la
+  // página actual, para no mostrar siempre todo el menú expandido.
+  const [sections, setSections] = useState(() => ({
+    academia:     sectionMatchesPath(ACADEMIA_DEFS.map(d => d.href), pathname),
+    captacion:    sectionMatchesPath(CAPTACION_DEFS.map(d => d.href), pathname),
+    competencias: sectionMatchesPath(COMPETENCIAS_DEFS.map(d => d.href), pathname) || pathname.startsWith("/dashboard/tournaments-pro"),
+    identity:     sectionMatchesPath(IDENTITY_DEFS.map(d => d.href), pathname),
+    admin:        sectionMatchesPath(ADMIN_DEFS.map(d => d.href), pathname),
+    sistema:      sectionMatchesPath(SYSTEM_DEFS.map(d => d.href), pathname),
+  }));
   const toggleSection = (key: keyof typeof sections) =>
     setSections(s => ({ ...s, [key]: !s[key] }));
 
@@ -383,35 +408,23 @@ export function Sidebar() {
 
         {/* SISTEMA — solo sysadmin, oculto en Vista Previa (el admin real no lo ve) */}
         {isSysadmin && !isPreview && (
-          <>
-            <NavSection label="Sistema" />
-            <div className="space-y-1">
-              {([
-                { href: "/dashboard/dojos",                   icon: Building2,  label: "Dojos"            },
-                { href: "/dashboard/superadmin/branding",     icon: ImageIcon,  label: "Logo de la Plataforma" },
-                { href: "/dashboard/novedades-sistema",       icon: Sparkles,   label: "Novedades"        },
-                { href: "/dashboard/visitors",                icon: Globe,      label: "Visitantes"       },
-                { href: "/dashboard/superadmin/audit-logs",   icon: Shield,     label: "Auditoría"        },
-                { href: "/dashboard/superadmin/billing",      icon: Receipt,    label: "Pagos SaaS"       },
-                { href: "/dashboard/superadmin/plans",        icon: LayoutList, label: "Planes"           },
-                { href: "/dashboard/billing",                 icon: Receipt,    label: "Facturación"      },
-              ] as { href: string; icon: React.ElementType; label: string }[]).map(({ href, icon: Icon, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
-                    (pathname === href || pathname.startsWith(href + "/"))
-                      ? "bg-dojo-nav-active text-white"
-                      : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
-                  )}
-                >
-                  <Icon size={18} />
-                  {label}
-                </Link>
-              ))}
-            </div>
-          </>
+          <CollapsibleSection label="Sistema" open={sections.sistema} onToggle={() => toggleSection("sistema")}>
+            {SYSTEM_DEFS.map(({ href, icon: Icon, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
+                  (pathname === href || pathname.startsWith(href + "/"))
+                    ? "bg-dojo-nav-active text-white"
+                    : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+                )}
+              >
+                <Icon size={18} />
+                {label}
+              </Link>
+            ))}
+          </CollapsibleSection>
         )}
       </nav>
 

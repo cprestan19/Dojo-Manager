@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   User, CreditCard, Clock, ClipboardList, LogOut, Video,
   Calendar, Radio, X, Bell, FileText, Award, MoreHorizontal, ChevronRight,
+  ShoppingBag,
 } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 import Image from "next/image";
@@ -19,6 +20,7 @@ interface Props {
     dojo: { name: string; logo: string | null } | null;
     beltHistory: { beltColor: string }[];
   };
+  hasStore: boolean;
 }
 
 interface PortalNotifications {
@@ -39,7 +41,7 @@ const BOTTOM_TABS = [
   { href: "/portal/events",    label: "Eventos",  icon: Calendar   },
 ];
 
-const MORE_ITEMS = [
+const MORE_ITEMS_BASE = [
   { href: "/portal/attendance",    label: "Asistencia", icon: ClipboardList },
   { href: "/portal/videos",        label: "Videos",     icon: Video         },
   { href: "/portal/postulaciones", label: "Exámenes",   icon: FileText      },
@@ -47,13 +49,16 @@ const MORE_ITEMS = [
   { href: "/portal/live",          label: "En Vivo",    icon: Radio         },
 ];
 
+const STORE_ITEM = { href: "/portal/store", label: "Tienda", icon: ShoppingBag };
+
 const STORAGE_KEY = "portal_notif_seen_at";
 
-export default function PortalNav({ student }: Props) {
-  const pathname = usePathname();
-  const belt     = student.beltHistory[0]?.beltColor;
-  const beltInfo = belt ? getBeltInfo(belt) : null;
-  const initials = student.fullName.split(" ").slice(0, 2).map(w => w[0]).join("");
+export default function PortalNav({ student, hasStore }: Props) {
+  const pathname  = usePathname();
+  const belt      = student.beltHistory[0]?.beltColor;
+  const beltInfo  = belt ? getBeltInfo(belt) : null;
+  const initials  = student.fullName.split(" ").slice(0, 2).map(w => w[0]).join("");
+  const moreItems = hasStore ? [...MORE_ITEMS_BASE, STORE_ITEM] : MORE_ITEMS_BASE;
 
   const [hasLive,   setHasLive]   = useState(false);
   const [notifs,    setNotifs]    = useState<PortalNotifications | null>(null);
@@ -115,7 +120,7 @@ export default function PortalNav({ student }: Props) {
     (notifs?.pendingExams ?? 0) > 0 ||
     hasLive;
 
-  const moreIsActive = MORE_ITEMS.some(
+  const moreIsActive = moreItems.some(
     i => pathname === i.href || pathname.startsWith(i.href + "/"),
   );
 
@@ -225,7 +230,7 @@ export default function PortalNav({ student }: Props) {
           >
             <div className="w-10 h-1 bg-dojo-border rounded-full mx-auto mt-3 mb-1" />
             <div className="max-w-2xl mx-auto px-2 pb-24">
-              {MORE_ITEMS.map(item => {
+              {moreItems.map(item => {
                 const Icon      = item.icon;
                 const active    = pathname === item.href || pathname.startsWith(item.href + "/");
                 const isLive    = item.href === "/portal/live";

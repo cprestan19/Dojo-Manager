@@ -4,18 +4,39 @@ import Link from "next/link";
 import {
   ChevronDown, ChevronUp, Award, CreditCard, Star,
   Calendar, Fingerprint, Trophy, Users, Heart,
-  Phone, User, ClipboardList, LogIn, LogOut,
+  Phone, User, ClipboardList, LogIn, LogOut, IdCard,
 } from "lucide-react";
 import { StudentQR } from "@/components/students/StudentQR";
 import { formatTimeStr } from "@/lib/utils";
+import CardClient from "@/app/id/[code]/CardClient";
+import { PrintCardButton } from "@/components/portal/PrintCardButton";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface DojoCardData {
+  id:     string;
+  slug:   string;
+  name:   string;
+  logo:   string | null;
+  slogan: string | null;
+  primaryColor:   string | null;
+  secondaryColor: string | null;
+  tertiaryColor:  string | null;
+  cardTemplateImage:  string | null;
+  cardLayout?:  unknown;
+  cardLayout2?: unknown;
+  cardTemplateImage2?: string | null;
+  cardLayout3?: unknown;
+  cardTemplateImage3?: string | null;
+  activeCardSlot?: number;
+}
 
 export interface FamilyMember {
   id:          string;
   fullName:    string;
   studentCode: number | null;
   cardToken:   string | null;
+  cardQrDataUrl: string | null;
   photo:       string | null;
   isMain:      boolean;
   // Belt
@@ -73,7 +94,7 @@ function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: s
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) {
+export function FamilyMemberAccordion({ members, dojoCard }: { members: FamilyMember[]; dojoCard: DojoCardData | null }) {
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
 
   function toggle(id: string) {
@@ -144,7 +165,27 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
             {isOpen && (
               <div className="border-t border-dojo-border/50 px-4 pb-5 pt-4 space-y-5">
 
-                {/* 1. Pagos */}
+                {/* 1. Carnet digital — solo si el plan del dojo lo incluye */}
+                {dojoCard && m.cardQrDataUrl && (
+                  <section>
+                    <SectionTitle icon={IdCard} label="Carnet Digital" />
+                    <div className="flex flex-col items-center gap-3 overflow-x-auto">
+                      <CardClient
+                        student={{ fullName: m.fullName, photo: m.photo?.startsWith("http") ? m.photo : null }}
+                        dojo={dojoCard}
+                        contact={{
+                          name:  m.motherName?.trim()  || m.fatherName?.trim()  || null,
+                          phone: m.motherPhone?.trim() || m.fatherPhone?.trim() || null,
+                        }}
+                        qrDataUrl={m.cardQrDataUrl}
+                        embedded
+                      />
+                      <PrintCardButton />
+                    </div>
+                  </section>
+                )}
+
+                {/* 2. Pagos */}
                 <section>
                   <SectionTitle icon={CreditCard} label="Pagos Pendientes" />
                   {m.payments.length > 0 ? (
@@ -170,7 +211,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
                   )}
                 </section>
 
-                {/* 2. Marcaciones recientes */}
+                {/* 3. Marcaciones recientes */}
                 <section>
                   <SectionTitle icon={ClipboardList} label="Marcaciones Recientes" />
                   {m.attendances.length > 0 ? (
@@ -201,7 +242,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
                   )}
                 </section>
 
-                {/* 3. Horarios */}
+                {/* 4. Horarios */}
                 {m.schedules.length > 0 && (
                   <section>
                     <SectionTitle icon={Calendar} label="Horarios" />
@@ -218,7 +259,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
                   </section>
                 )}
 
-                {/* 4. Cintas */}
+                {/* 5. Cintas */}
                 {m.beltHistory.length > 0 && (
                   <section>
                     <SectionTitle icon={Award} label="Cintas" />
@@ -237,7 +278,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
                   </section>
                 )}
 
-                {/* 5. Competencias */}
+                {/* 6. Competencias */}
                 {m.kataCompetitions.length > 0 && (
                   <section>
                     <SectionTitle icon={Star} label="Competencias" />
@@ -254,7 +295,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
                   </section>
                 )}
 
-                {/* 6. Datos personales */}
+                {/* 7. Datos personales */}
                 <section>
                   <SectionTitle icon={User} label="Datos Personales" />
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs bg-dojo-darker rounded-lg p-3 border border-dojo-border/60">
@@ -285,7 +326,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
                   </dl>
                 </section>
 
-                {/* 7. Salud */}
+                {/* 8. Salud */}
                 {(m.bloodType || m.condition || m.hasPrivateInsurance) && (
                   <section>
                     <SectionTitle icon={Heart} label="Salud" />
@@ -318,7 +359,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
                   </section>
                 )}
 
-                {/* 8. Acudientes */}
+                {/* 9. Acudientes */}
                 {(m.motherName || m.fatherName) && (
                   <section>
                     <SectionTitle icon={Phone} label="Acudientes" />
@@ -351,7 +392,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
                   </section>
                 )}
 
-                {/* 9. Inscripción */}
+                {/* 10. Inscripción */}
                 {m.inscription && (
                   <section>
                     <SectionTitle icon={Calendar} label="Inscripción" />
@@ -376,7 +417,7 @@ export function FamilyMemberAccordion({ members }: { members: FamilyMember[] }) 
                   </section>
                 )}
 
-                {/* 10. QR */}
+                {/* 11. QR */}
                 <StudentQR studentCode={m.studentCode} cardToken={m.cardToken} fullName={m.fullName} />
               </div>
             )}

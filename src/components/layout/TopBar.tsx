@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Bell, ChevronDown, LogOut, KeyRound,
   CreditCard, UserX, AlertTriangle, X, ExternalLink,
-  ChevronRight, ShieldAlert, CalendarCheck,
+  ChevronRight, ShieldAlert, CalendarCheck, ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -89,12 +89,17 @@ interface RsvpItem {
   id: string; studentId: string; studentName: string;
   eventId: string; eventTitle: string; eventDate: string; confirmedAt: string;
 }
+interface StoreRequestItem {
+  id: string; studentId: string; studentName: string;
+  productName: string; size: string | null; createdAt: string;
+}
 interface Notifications {
   total: number;
   securityAlerts?: { count: number; items: SecurityItem[]; sysadminLogins: SecurityItem[] };
   latePayments: { count: number; amount: number; items: LateItem[] };
   attendance: { alert: { count: number; students: AbsenceItem[] }; risk: { count: number; students: AbsenceItem[] } };
   rsvps?: { count: number; items: RsvpItem[] };
+  storeRequests?: { count: number; items: StoreRequestItem[] };
 }
 
 function fmtCurrency(n: number) {
@@ -108,7 +113,8 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
   const hasAlert   = data.attendance.alert.count > 0;
   const hasRisk    = data.attendance.risk.count > 0;
   const hasRsvps   = (data.rsvps?.count ?? 0) > 0;
-  const hasNothing = !hasSecurity && !hasLate && !hasAlert && !hasRisk && !hasRsvps;
+  const hasStoreRequests = (data.storeRequests?.count ?? 0) > 0;
+  const hasNothing = !hasSecurity && !hasLate && !hasAlert && !hasRisk && !hasRsvps && !hasStoreRequests;
 
   return (
     <div className="absolute right-0 top-full mt-2 w-80 bg-dojo-dark border border-dojo-border rounded-2xl shadow-2xl z-50 overflow-hidden">
@@ -156,6 +162,37 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
                 </p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Solicitudes de compra (Tienda del portal) ── */}
+        {hasStoreRequests && data.storeRequests && (
+          <div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-dojo-gold/10 border-b border-dojo-border/40">
+              <ShoppingBag size={13} className="text-dojo-gold shrink-0" />
+              <p className="text-xs font-bold text-dojo-gold uppercase tracking-wider">
+                Solicitudes de compra ({data.storeRequests.count})
+              </p>
+            </div>
+            {data.storeRequests.items.map(r => (
+              <Link key={r.id} href="/dashboard/store" onClick={onClose}
+                className="flex items-center gap-3 px-4 py-2.5 hover:bg-dojo-border/20 transition-colors border-b border-dojo-border/20">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                  style={{ background: "#D4AF3720", color: "#D4AF37" }}>
+                  {r.studentName.split(" ").slice(0,2).map(w=>w[0]).join("")}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-dojo-sidebar-text truncate">{r.studentName}</p>
+                  <p className="text-[10px] text-dojo-sidebar-muted truncate">
+                    🛒 {r.productName}{r.size ? ` · Talla ${r.size}` : ""}
+                  </p>
+                </div>
+              </Link>
+            ))}
+            <Link href="/dashboard/store" onClick={onClose}
+              className="block px-4 py-2 text-xs text-center text-dojo-gold hover:underline border-b border-dojo-border/20">
+              Ver todas las solicitudes →
+            </Link>
           </div>
         )}
 
