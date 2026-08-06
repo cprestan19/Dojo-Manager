@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { checkRateLimit, getClientIp } from "@/lib/tournament-security";
+import { checkRateLimit, getClientIp, verifyJudgePin } from "@/lib/tournament-security";
 
 type Params = { params: Promise<{ id: string; matchId: string }> };
 
@@ -15,12 +15,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Rate limit" }, { status: 429 });
   }
 
-  const body = await req.json().catch(() => ({})) as { judgeId?: string; vote?: string };
-  const { judgeId, vote } = body;
+  const body = await req.json().catch(() => ({})) as { judgeId?: string; vote?: string; pin?: string };
+  const { judgeId, vote, pin } = body;
 
   if (!judgeId) return NextResponse.json({ error: "judgeId requerido" }, { status: 400 });
   if (!vote || !["ao", "aka"].includes(vote)) {
     return NextResponse.json({ error: "Voto inválido — debe ser 'ao' o 'aka'" }, { status: 400 });
+  }
+
+  if (!(await verifyJudgePin(id, pin))) {
+    return NextResponse.json({ error: "PIN incorrecto" }, { status: 403 });
   }
 
   // Verificar que el juez pertenece a este torneo

@@ -7,12 +7,16 @@ import {
   Plus, Trash2, RefreshCw, Check, X, Search, Filter,
   Copy, Youtube, Monitor, QrCode, Play, Square,
   ChevronRight, AlertTriangle, Settings,
+  GripVertical, ChevronUp, ChevronDown, Shuffle,
 } from "lucide-react";
 import { cn, BELT_COLORS, calculateAge } from "@/lib/utils";
+import { participantName, participantPhoto } from "@/lib/tournament-participant-display";
+import { computeStandings } from "@/lib/round-robin";
 import { BracketView, type BracketMatch, type SaveMatchData } from "@/components/tournaments/BracketView";
 import { KataOrderList }     from "@/components/tournaments/KataOrderList";
 import { TournamentStream }  from "@/components/tournaments/TournamentStream";
 import { BeltBadge }         from "@/components/ui/BeltBadge";
+import { DatePicker }        from "@/components/ui/DatePicker";
 import { useToast, ToastContainer } from "@/components/ui/Toast";
 import { InscripcionesTab } from "./InscripcionesTab";
 import {
@@ -37,6 +41,7 @@ interface Tournament {
   requireWaiver: boolean; waiverText: string | null;
   maxAthletesPerClub: number | null;
   accreditationPin: string | null;
+  judgePin: string | null;
 }
 interface Student {
   id: string; fullName: string; birthDate: string; gender: string;
@@ -44,15 +49,18 @@ interface Student {
   active: boolean;
 }
 interface Participant {
-  id: string; studentId: string; bracketId: string | null; seed: number;
-  student: { id: string; fullName: string; birthDate: string; photo?: string | null; beltHistory: { beltColor: string }[] };
+  id: string; studentId: string | null; bracketId: string | null; seed: number;
+  poolNumber?: number | null;
+  student?: { id: string; fullName: string; birthDate: string; photo?: string | null; beltHistory: { beltColor: string }[] } | null;
+  externalAthlete?: { id: string; firstName: string; lastName: string; birthDate: string; photoUrl?: string | null; externalClub?: { clubName: string } | null } | null;
 }
 interface Bracket {
   id: string; name: string; type: string; gender: string | null;
   status: string; bracketLocked: boolean; order: number;
   categoryLabel: string | null;
   ageGroup: string | null; weightCategory: string | null;
-  beltCategory: string | null; isTeamKata: boolean;
+  beltCategory: string | null; isTeamKata: boolean; isTeamKumite: boolean;
+  format: string; poolCount: number | null;
   _count: { participants: number; matches: number };
 }
 interface Tatami {
@@ -70,6 +78,7 @@ interface Judge {
 }
 interface TournamentMatch extends BracketMatch {
   bracketId: string | null;
+  poolNumber?: number | null;
 }
 
 const GENDER_OPTIONS = [
@@ -130,7 +139,7 @@ export default function TournamentProDetailPage() {
 
   // ── Bracket seleccionado ──────────────────────────────────────────────────
   const [activeBracket,    setActiveBracket]    = useState<Bracket | null>(null);
-  const [bracketSubTab,    setBracketSubTab]    = useState<"athletes"|"bracket">("athletes");
+  const [bracketSubTab,    setBracketSubTab]    = useState<"athletes"|"seed"|"bracket">("athletes");
   const [generatingBracket,setGeneratingBracket]= useState(false);
   const [confirmingBracket,setConfirmingBracket]= useState(false);
 
@@ -143,6 +152,9 @@ export default function TournamentProDetailPage() {
   const [newBracketWeight,     setNewBracketWeight]      = useState("");
   const [newBracketBelt,       setNewBracketBelt]        = useState("");
   const [newBracketIsTeam,     setNewBracketIsTeam]      = useState(false);
+  const [newBracketIsTeamKumite, setNewBracketIsTeamKumite] = useState(false);
+  const [newBracketFormat,     setNewBracketFormat]      = useState<"single_elim"|"round_robin">("single_elim");
+  const [newBracketPoolCount,  setNewBracketPoolCount]   = useState("2");
 
   // ── Estado del torneo ────────────────────────────────────────────────────
   const [changingStatus, setChangingStatus] = useState(false);
@@ -214,7 +226,7 @@ export default function TournamentProDetailPage() {
   // ── Filtrar atletas ───────────────────────────────────────────────────────
   // Solo cuenta como "inscrito" si tiene bracketId activo — bracketId null = liberado
   const participantStudentIds = new Set(
-    participants.filter(p => p.bracketId !== null).map(p => p.studentId)
+    participants.filter(p => p.bracketId !== null && p.studentId).map(p => p.studentId as string)
   );
 
   // Solo muestra estudiantes NO inscritos en ninguna categoría activa del torneo
@@ -236,7 +248,7 @@ export default function TournamentProDetailPage() {
     setSavingPart(true);
     let anyError = false;
     for (const bId of selBrackets) {
-      const existing = participants.filter(p => p.bracketId === bId).map(p => p.studentId);
+      const existing = participants.filter(p => p.bracketId === bId && p.studentId).map(p => p.studentId as string);
       const merged   = Array.from(new Set([...existing, ...Array.from(selIds)]));
       const r = await fetch(`/api/tournaments/${id}/brackets/${bId}/participants`, {
         method:  "PUT",
@@ -251,11 +263,11 @@ export default function TournamentProDetailPage() {
   }
 
   async function removeParticipant(participantId: string, bracketId: string) {
-    const bracketParts = participants.filter(p => p.bracketId === bracketId && p.id !== participantId);
+    const bracketParts = participants.filter(p => p.bracketId === bracketId && p.id !== participantId && p.studentId);
     await fetch(`/api/tournaments/${id}/brackets/${bracketId}/participants`, {
       method:  "PUT",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ studentIds: bracketParts.map(p => p.studentId) }),
+      body:    JSON.stringify({ studentIds: bracketParts.map(p => p.studentId as string) }),
     });
     load();
   }
@@ -280,7 +292,10 @@ export default function TournamentProDetailPage() {
             ageGroup:       newBracketAgeGroup || null,
             weightCategory: t === "kumite" ? (newBracketWeight || null) : null,
             beltCategory:   newBracketBelt || null,
-            isTeamKata:     t === "kata" ? newBracketIsTeam : false,
+            isTeamKata:     t === "kata"   ? newBracketIsTeam       : false,
+            isTeamKumite:   t === "kumite" ? newBracketIsTeamKumite : false,
+            format:         t === "kumite" ? newBracketFormat : "single_elim",
+            poolCount:      t === "kumite" && newBracketFormat === "round_robin" ? parseInt(newBracketPoolCount, 10) || 2 : null,
           }),
         });
         if (!r.ok) {
@@ -302,6 +317,9 @@ export default function TournamentProDetailPage() {
         setNewBracketWeight("");
         setNewBracketBelt("");
         setNewBracketIsTeam(false);
+        setNewBracketIsTeamKumite(false);
+        setNewBracketFormat("single_elim");
+        setNewBracketPoolCount("2");
       }
       // Siempre recarga para mostrar lo que se creó
       load();
@@ -309,6 +327,21 @@ export default function TournamentProDetailPage() {
       toast("Error de conexión", "error");
     }
     setCreatingBracket(false);
+  }
+
+  // Precarga el formulario de "Nueva categoría" con los datos de un bracket existente
+  // para crear una variante rápido (ej. duplicar "-63kg" y ajustar a "-70kg").
+  function duplicateBracket(b: Bracket) {
+    setNewBracketType(b.type as "kumite" | "kata");
+    setNewBracketGender(b.gender ?? "");
+    setNewBracketAgeGroup(b.ageGroup ?? "");
+    setNewBracketWeight(b.weightCategory ?? "");
+    setNewBracketBelt(b.beltCategory ?? "");
+    setNewBracketIsTeam(b.isTeamKata);
+    setNewBracketIsTeamKumite(b.isTeamKumite);
+    setNewBracketName(`${b.name} (copia)`);
+    toast("Categoría precargada — ajusta y crea la variante", "success");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function deleteBracket(bracketId: string) {
@@ -322,6 +355,19 @@ export default function TournamentProDetailPage() {
       const d = await r.json().catch(() => ({}));
       toast(d.error ?? "No se pudo eliminar", "error");
     }
+  }
+
+  // ── Siembra manual ──────────────────────────────────────────────────────────
+  async function saveSeed(bracketId: string, order: string[]): Promise<boolean> {
+    const r = await fetch(`/api/tournaments/${id}/brackets/${bracketId}/seed`, {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ order }),
+    });
+    if (r.ok) { toast("Orden de siembra guardado", "success"); load(); return true; }
+    const d = await r.json().catch(() => ({}));
+    toast(d.error ?? "Error al guardar el orden", "error");
+    return false;
   }
 
   // ── Generar / confirmar bracket ───────────────────────────────────────────
@@ -486,7 +532,7 @@ export default function TournamentProDetailPage() {
 
             {/* Row 1: tipo + género */}
             <div className="grid grid-cols-3 gap-2">
-              <select value={newBracketType} onChange={e => { setNewBracketType(e.target.value as "kumite"|"kata"|"ambas"); setNewBracketWeight(""); setNewBracketIsTeam(false); }} className="form-input">
+              <select value={newBracketType} onChange={e => { setNewBracketType(e.target.value as "kumite"|"kata"|"ambas"); setNewBracketWeight(""); setNewBracketIsTeam(false); setNewBracketIsTeamKumite(false); }} className="form-input">
                 <option value="ambas">Kumite + Kata</option>
                 <option value="kumite">Kumite</option>
                 <option value="kata">Kata</option>
@@ -503,7 +549,29 @@ export default function TournamentProDetailPage() {
                   En Equipo (3)
                 </label>
               )}
+              {/* Kumite en equipo toggle */}
+              {(newBracketType === "kumite" || newBracketType === "ambas") && (
+                <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg border border-dojo-border bg-dojo-darker text-sm font-semibold text-dojo-white">
+                  <input type="checkbox" checked={newBracketIsTeamKumite} onChange={e => setNewBracketIsTeamKumite(e.target.checked)} />
+                  En Equipo (3-5)
+                </label>
+              )}
             </div>
+
+            {/* Row 1.5: formato de llave (solo kumite) */}
+            {(newBracketType === "kumite" || newBracketType === "ambas") && (
+              <div className="grid grid-cols-2 gap-2">
+                <select value={newBracketFormat} onChange={e => setNewBracketFormat(e.target.value as "single_elim"|"round_robin")} className="form-input">
+                  <option value="single_elim">Eliminación simple</option>
+                  <option value="round_robin">Pools (todos contra todos)</option>
+                </select>
+                {newBracketFormat === "round_robin" && (
+                  <input type="number" min={1} max={8} value={newBracketPoolCount}
+                    onChange={e => setNewBracketPoolCount(e.target.value)}
+                    className="form-input" placeholder="Cantidad de pools" />
+                )}
+              </div>
+            )}
 
             {/* Row 2: grupo de edad + peso (kumite) */}
             <div className="grid grid-cols-2 gap-2">
@@ -550,7 +618,8 @@ export default function TournamentProDetailPage() {
                   newBracketGender || null,
                   newBracketAgeGroup || null,
                   t === "kumite" ? (newBracketWeight || null) : null,
-                  t === "kata" ? newBracketIsTeam : false,
+                  t === "kata"   ? newBracketIsTeam       : false,
+                  t === "kumite" ? newBracketIsTeamKumite : false,
                 ));
                 return (
                   <p className="text-xs text-dojo-gold mt-1.5 font-semibold">
@@ -579,6 +648,11 @@ export default function TournamentProDetailPage() {
                     }}>
                     <span className="max-w-[160px] truncate" title={label}>{label}</span>
                     <span className="opacity-50">·{b._count.participants}</span>
+                    <button onClick={() => duplicateBracket(b)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-0.5 hover:text-dojo-gold"
+                      title="Duplicar para crear una variante">
+                      <Copy size={11}/>
+                    </button>
                     <button onClick={() => deleteBracket(b.id)}
                       className="opacity-0 group-hover:opacity-100 transition-opacity ml-0.5 hover:text-red-400"
                       title="Eliminar">
@@ -734,11 +808,18 @@ export default function TournamentProDetailPage() {
                 </p>
                 {bParts.map(p => (
                   <div key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-dojo-border/20">
-                    <span className="flex-1 text-sm text-dojo-white">{p.student.fullName}</span>
-                    <button onClick={() => removeParticipant(p.id, b.id)}
-                      className="text-dojo-muted hover:text-red-400 transition-colors">
-                      <X size={14}/>
-                    </button>
+                    <span className="flex-1 text-sm text-dojo-white">
+                      {participantName(p)}
+                      {p.externalAthlete && <span className="text-dojo-muted"> · {p.externalAthlete.externalClub?.clubName ?? "Club visitante"}</span>}
+                    </span>
+                    {p.studentId ? (
+                      <button onClick={() => removeParticipant(p.id, b.id)}
+                        className="text-dojo-muted hover:text-red-400 transition-colors">
+                        <X size={14}/>
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-dojo-muted" title="Rechaza este atleta en el tab Inscripciones para quitarlo">externo</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -756,7 +837,7 @@ export default function TournamentProDetailPage() {
           bracketSubTab={bracketSubTab} setBracketSubTab={setBracketSubTab}
           onDeleteBracket={deleteBracket}
           onGenerate={generateBracket} onConfirm={confirmBracket}
-          onSaveMatch={saveMatch}
+          onSaveMatch={saveMatch} onSaveSeed={saveSeed}
           generatingBracket={generatingBracket} confirmingBracket={confirmingBracket}
           isSysadmin={isSysadmin} tournamentLocked={tournament.bracketLocked}
         />
@@ -771,7 +852,7 @@ export default function TournamentProDetailPage() {
           bracketSubTab={bracketSubTab} setBracketSubTab={setBracketSubTab}
           onDeleteBracket={deleteBracket}
           onGenerate={generateBracket} onConfirm={confirmBracket}
-          onSaveMatch={saveMatch}
+          onSaveMatch={saveMatch} onSaveSeed={saveSeed}
           generatingBracket={generatingBracket} confirmingBracket={confirmingBracket}
           isSysadmin={isSysadmin} tournamentLocked={tournament.bracketLocked}
         />
@@ -969,9 +1050,9 @@ export default function TournamentProDetailPage() {
                           const p2 = participants.find(p => p.id === m.participant2Id);
                           return (
                             <option key={m.id} value={m.id}>
-                              R{m.round}M{m.matchNumber}
-                              {p1 ? ` · ${p1.student.fullName}` : ""}
-                              {p2 ? ` vs ${p2.student.fullName}` : ""}
+                              {m.poolNumber ? `Pool ${m.poolNumber}M${m.matchNumber}` : `R${m.round}M${m.matchNumber}`}
+                              {p1 ? ` · ${participantName(p1)}` : ""}
+                              {p2 ? ` vs ${participantName(p2)}` : ""}
                             </option>
                           );
                         })}
@@ -999,7 +1080,7 @@ export default function TournamentProDetailPage() {
                       ))}
 
                       {tJudges.map(j => {
-                        const url = `${judgeAppUrl}?judge=${j.id}`;
+                        const url = `${judgeAppUrl}?judge=${j.id}${tournament.judgePin ? `&pin=${tournament.judgePin}` : ""}`;
                         return (
                           <div key={j.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-dojo-darker">
                             <QrCode size={12} className="text-dojo-muted shrink-0"/>
@@ -1066,6 +1147,7 @@ function InfoTab({ tournament, onSaved, toast }: {
     waiverText:          tournament.waiverText ?? "",
     maxAthletesPerClub:  tournament.maxAthletesPerClub?.toString() ?? "",
     accreditationPin:    tournament.accreditationPin ?? "",
+    judgePin:            tournament.judgePin ?? "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -1081,6 +1163,7 @@ function InfoTab({ tournament, onSaved, toast }: {
       registrationCloseAt: form.registrationCloseAt || null,
       publicSlug:          form.publicSlug.trim() || null,
       accreditationPin:    form.accreditationPin.trim() || null,
+      judgePin:            form.judgePin.trim() || null,
     };
     const r = await fetch(`/api/tournaments/${tournament.id}`, {
       method:  "PUT",
@@ -1170,7 +1253,7 @@ function InfoTab({ tournament, onSaved, toast }: {
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="form-label">Cierre de inscripciones</label>
-                <input type="date" value={form.registrationCloseAt} onChange={e => setForm(f => ({...f, registrationCloseAt: e.target.value}))} className="form-input w-full"/>
+                <DatePicker value={form.registrationCloseAt} onChange={v => setForm(f => ({...f, registrationCloseAt: v}))} className="w-full"/>
               </div>
               <div>
                 <label className="form-label">Máx. atletas por club</label>
@@ -1205,7 +1288,31 @@ function InfoTab({ tournament, onSaved, toast }: {
             <div>
               <label className="form-label">PIN de acreditación (4-6 dígitos)</label>
               <input type="password" maxLength={6} value={form.accreditationPin} onChange={e => setForm(f => ({...f, accreditationPin: e.target.value}))} className="form-input w-full font-mono" placeholder="PIN para el scanner de entrada"/>
-              <p className="text-xs text-dojo-muted mt-1">El voluntario en la entrada usa este PIN para escanear los QRs de los atletas.</p>
+              <p className="text-xs text-dojo-muted mt-1">El voluntario en la entrada usa este PIN para escanear los QRs de los atletas. El mismo PIN sirve para el escáner de pesaje.</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <a href={`/tournament/${tournament.id}/accredit`} target="_blank" rel="noopener noreferrer" className="btn-ghost text-xs px-3 py-1.5">
+                  Abrir scanner de acreditación ↗
+                </a>
+                <a href={`/tournament/${tournament.id}/weigh-in`} target="_blank" rel="noopener noreferrer" className="btn-ghost text-xs px-3 py-1.5">
+                  Abrir scanner de pesaje ↗
+                </a>
+              </div>
+            </div>
+
+            {/* PIN de jueces */}
+            <div>
+              <label className="form-label">PIN de jueces</label>
+              <div className="flex gap-2">
+                <input type="password" maxLength={6} value={form.judgePin} onChange={e => setForm(f => ({...f, judgePin: e.target.value}))} className="form-input w-full font-mono" placeholder="PIN para la App del Juez"/>
+                <button type="button" onClick={() => setForm(f => ({...f, judgePin: String(Math.floor(100000 + Math.random() * 900000))}))} className="btn-ghost text-xs px-3 shrink-0">
+                  Generar
+                </button>
+              </div>
+              <p className="text-xs text-dojo-muted mt-1">
+                {form.judgePin
+                  ? "Protege la App del Juez (marcador, Hantei, Senshu, cronómetro) — sin este PIN nadie puede escribir resultados por esa vía. Los links de \"App juez\" por tatami ya lo incluyen."
+                  : "⚠️ Sin PIN configurado, la App del Juez queda abierta para cualquiera que conozca el link — recomendado generar uno antes del torneo."}
+              </p>
             </div>
 
             {/* Link de inscripción */}
@@ -1234,14 +1341,15 @@ function InfoTab({ tournament, onSaved, toast }: {
 function BracketTab({
   brackets, type, participants, matches,
   activeBracket, setActiveBracket, bracketSubTab, setBracketSubTab,
-  onDeleteBracket, onGenerate, onConfirm, onSaveMatch,
+  onDeleteBracket, onGenerate, onConfirm, onSaveMatch, onSaveSeed,
   generatingBracket, confirmingBracket, isSysadmin, tournamentLocked,
 }: {
   brackets: Bracket[]; type: "kumite" | "kata";
   participants: Participant[]; matches: TournamentMatch[];
   activeBracket: Bracket | null; setActiveBracket: (b: Bracket | null) => void;
-  bracketSubTab: "athletes"|"bracket"; setBracketSubTab: (t: "athletes"|"bracket") => void;
+  bracketSubTab: "athletes"|"seed"|"bracket"; setBracketSubTab: (t: "athletes"|"seed"|"bracket") => void;
   onDeleteBracket: (id: string) => void;
+  onSaveSeed: (bracketId: string, order: string[]) => Promise<boolean>;
   onGenerate: (id: string, type: string) => void; onConfirm: (id: string) => void;
   onSaveMatch: (matchId: string, data: SaveMatchData) => void;
   generatingBracket: boolean; confirmingBracket: boolean;
@@ -1302,11 +1410,11 @@ function BracketTab({
                   <div onClick={e => e.stopPropagation()} className="space-y-3 pt-2 border-t border-dojo-border">
                     {/* Sub-tabs */}
                     <div className="flex gap-1">
-                      {(["athletes","bracket"] as const).map(st => (
+                      {(type === "kumite" ? (["athletes","seed","bracket"] as const) : (["athletes","bracket"] as const)).map(st => (
                         <button key={st} onClick={() => setBracketSubTab(st)}
                           className={cn("text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors",
                             bracketSubTab === st ? "bg-dojo-gold/10 text-dojo-gold" : "text-dojo-muted hover:text-dojo-white")}>
-                          {st === "athletes" ? "Atletas" : type === "kata" ? "Orden" : "Llave"}
+                          {st === "athletes" ? "Atletas" : st === "seed" ? "Sembrar" : type === "kata" ? "Orden" : "Llave"}
                         </button>
                       ))}
                     </div>
@@ -1318,10 +1426,22 @@ function BracketTab({
                           : bParts.map((p, i) => (
                             <div key={p.id} className="flex items-center gap-2 text-xs py-1">
                               <span className="text-dojo-muted w-5 text-right shrink-0">{i+1}.</span>
-                              <span className="text-dojo-white flex-1">{p.student.fullName}</span>
+                              <span className="text-dojo-white flex-1">
+                                {participantName(p)}
+                                {p.externalAthlete && <span className="text-dojo-muted"> (externo)</span>}
+                              </span>
                             </div>
                           ))}
                       </div>
+                    )}
+
+                    {bracketSubTab === "seed" && (
+                      <SeedEditor
+                        key={b.id}
+                        participants={bParts}
+                        locked={locked}
+                        onSave={order => onSaveSeed(b.id, order)}
+                      />
                     )}
 
                     {bracketSubTab === "bracket" && (
@@ -1329,20 +1449,27 @@ function BracketTab({
                         {type === "kata" ? (
                           <KataOrderList
                             participants={bParts.map(p => ({
-                              id: p.id, seed: p.seed, studentId: p.studentId,
+                              id: p.id, seed: p.seed, studentId: p.studentId ?? p.id,
                               student: {
-                                fullName:    p.student.fullName,
-                                photo:       p.student.photo ?? null,
-                                beltHistory: p.student.beltHistory,
+                                fullName:    participantName(p),
+                                photo:       participantPhoto(p),
+                                beltHistory: p.student?.beltHistory ?? [],
                               },
                             }))}
                             bracketName={b.name} locked={locked}
+                          />
+                        ) : b.format === "round_robin" ? (
+                          <PoolStandings
+                            participants={bParts}
+                            matches={bMatches}
+                            locked={locked}
+                            onSaveMatch={onSaveMatch}
                           />
                         ) : (
                           <BracketView
                             matches={bMatches}
                             participantsMap={Object.fromEntries(
-                              bParts.map(p => [p.id, { fullName: p.student.fullName, photo: p.student.photo ?? null }])
+                              bParts.map(p => [p.id, { fullName: participantName(p), photo: participantPhoto(p) }])
                             )}
                             locked={locked}
                             onSaveMatch={onSaveMatch}
@@ -1383,6 +1510,268 @@ function BracketTab({
             );
           })}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── Sub-componente: Siembra manual (drag & drop) ─────────────────────────────
+// Fija el seed de cada participante antes de generar la llave — el algoritmo
+// WKF (seed 1/2 en cuartos opuestos, 3/4 en semifinales) ya existe en el
+// backend y se activa solo con que algún participante tenga seed > 0.
+function SeedEditor({
+  participants, locked, onSave,
+}: {
+  participants: Participant[]; locked: boolean;
+  onSave: (order: string[]) => Promise<boolean>;
+}) {
+  const initialOrder = () => [...participants]
+    .sort((a, b) => {
+      if (a.seed > 0 && b.seed > 0) return a.seed - b.seed;
+      if (a.seed > 0) return -1;
+      if (b.seed > 0) return 1;
+      return 0;
+    })
+    .map(p => p.id);
+
+  const [order,   setOrder]   = useState<string[]>(initialOrder);
+  const [dirty,   setDirty]   = useState(false);
+  const [saving,  setSaving]  = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+
+  const byId = new Map(participants.map(p => [p.id, p]));
+
+  function move(from: number, to: number) {
+    if (to < 0 || to >= order.length || from === to) return;
+    setOrder(prev => {
+      const next = [...prev];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return next;
+    });
+    setDirty(true);
+  }
+
+  function shuffleOrder() {
+    setOrder(prev => {
+      const next = [...prev];
+      for (let i = next.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [next[i], next[j]] = [next[j], next[i]];
+      }
+      return next;
+    });
+    setDirty(true);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    const ok = await onSave(order);
+    setSaving(false);
+    if (ok) setDirty(false);
+  }
+
+  if (participants.length === 0) {
+    return <p className="text-xs text-dojo-muted text-center py-3">Sin atletas. Inscríbelos en el tab Atletas.</p>;
+  }
+  if (locked) {
+    return <p className="text-xs text-dojo-muted text-center py-3">La llave está confirmada — la siembra no se puede modificar.</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-dojo-muted leading-relaxed">
+        Arrastra para fijar el orden de siembra (seed 1 = mejor sembrado). Los seeds 1-4 se ubican
+        en cuartos/semifinales separados al generar la llave. Sin siembra, el sorteo es aleatorio.
+      </p>
+      <div className="space-y-1 max-h-56 overflow-y-auto">
+        {order.map((pid, i) => {
+          const p = byId.get(pid);
+          if (!p) return null;
+          return (
+            <div
+              key={pid}
+              draggable
+              onDragStart={() => setDragIdx(i)}
+              onDragOver={e => e.preventDefault()}
+              onDrop={() => { if (dragIdx !== null) move(dragIdx, i); setDragIdx(null); }}
+              onDragEnd={() => setDragIdx(null)}
+              className={cn(
+                "flex items-center gap-2 text-xs py-1.5 px-2 rounded-lg border transition-colors",
+                dragIdx === i ? "border-dojo-gold bg-dojo-gold/5" : "border-transparent hover:bg-dojo-border/20"
+              )}
+            >
+              <GripVertical size={13} className="text-dojo-muted shrink-0 cursor-grab" />
+              <span className={cn("w-5 text-right shrink-0 font-bold", i < 4 ? "text-dojo-gold" : "text-dojo-muted")}>{i+1}</span>
+              <span className="text-dojo-white flex-1 truncate">
+                {participantName(p)}
+                {p.externalAthlete && <span className="text-dojo-muted"> (externo)</span>}
+              </span>
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button onClick={() => move(i, i - 1)} disabled={i === 0}
+                  className="p-1 text-dojo-muted hover:text-dojo-white disabled:opacity-20 disabled:cursor-not-allowed">
+                  <ChevronUp size={13}/>
+                </button>
+                <button onClick={() => move(i, i + 1)} disabled={i === order.length - 1}
+                  className="p-1 text-dojo-muted hover:text-dojo-white disabled:opacity-20 disabled:cursor-not-allowed">
+                  <ChevronDown size={13}/>
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        <button onClick={handleSave} disabled={!dirty || saving} className="btn-primary text-xs disabled:opacity-40 flex items-center gap-1.5">
+          {saving ? <><RefreshCw size={11} className="animate-spin"/> Guardando...</> : <><Check size={11}/> Guardar orden</>}
+        </button>
+        <button onClick={shuffleOrder} className="btn-ghost text-xs flex items-center gap-1.5">
+          <Shuffle size={11}/> Aleatorio
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Sub-componente: Pools / round-robin (tabla de posiciones + combates) ────
+function PoolStandings({
+  participants, matches, locked, onSaveMatch,
+}: {
+  participants: Participant[]; matches: TournamentMatch[]; locked: boolean;
+  onSaveMatch: (matchId: string, data: SaveMatchData) => void;
+}) {
+  const byId = new Map(participants.map(p => [p.id, p]));
+
+  const participantsByPool: Record<number, string[]> = {};
+  for (const p of participants) {
+    const pool = p.poolNumber ?? 1;
+    (participantsByPool[pool] ??= []).push(p.id);
+  }
+
+  const standings = computeStandings(
+    participantsByPool,
+    matches.map(m => ({
+      poolNumber: m.poolNumber ?? null, participant1Id: m.participant1Id, participant2Id: m.participant2Id,
+      score1: m.score1, score2: m.score2, winnerId: m.winnerId, isBye: m.isBye,
+    })),
+  );
+
+  const standingsByPool = new Map<number, typeof standings>();
+  for (const s of standings) {
+    if (!standingsByPool.has(s.poolNumber)) standingsByPool.set(s.poolNumber, []);
+    standingsByPool.get(s.poolNumber)!.push(s);
+  }
+
+  const matchesByPool = new Map<number, TournamentMatch[]>();
+  for (const m of matches) {
+    const pool = m.poolNumber ?? 1;
+    if (!matchesByPool.has(pool)) matchesByPool.set(pool, []);
+    matchesByPool.get(pool)!.push(m);
+  }
+
+  const poolNumbers = [...new Set([...standingsByPool.keys(), ...matchesByPool.keys()])].sort((a, b) => a - b);
+
+  if (poolNumbers.length === 0) {
+    return <p className="text-xs text-dojo-muted text-center py-3">Sin combates generados todavía.</p>;
+  }
+
+  return (
+    <div className="space-y-5">
+      {poolNumbers.map(pool => (
+        <div key={pool} className="space-y-2">
+          <p className="text-xs font-bold text-dojo-gold uppercase tracking-widest">Pool {pool}</p>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-dojo-muted text-left">
+                  <th className="py-1 pr-2">#</th>
+                  <th className="py-1 pr-2">Atleta</th>
+                  <th className="py-1 px-1 text-center">PJ</th>
+                  <th className="py-1 px-1 text-center">G</th>
+                  <th className="py-1 px-1 text-center">P</th>
+                  <th className="py-1 px-1 text-center">Dif</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(standingsByPool.get(pool) ?? []).map(s => {
+                  const p = byId.get(s.participantId);
+                  return (
+                    <tr key={s.participantId} className="border-t border-dojo-border">
+                      <td className="py-1 pr-2 font-bold text-dojo-gold">{s.rank}</td>
+                      <td className="py-1 pr-2 text-dojo-white truncate max-w-[160px]">{p ? participantName(p) : "—"}</td>
+                      <td className="py-1 px-1 text-center text-dojo-muted">{s.played}</td>
+                      <td className="py-1 px-1 text-center text-green-400 font-semibold">{s.wins}</td>
+                      <td className="py-1 px-1 text-center text-red-400 font-semibold">{s.losses}</td>
+                      <td className="py-1 px-1 text-center text-dojo-muted">{s.pointsDiff > 0 ? `+${s.pointsDiff}` : s.pointsDiff}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="space-y-1">
+            {(matchesByPool.get(pool) ?? []).sort((a, b) => a.matchNumber - b.matchNumber).map(m => (
+              <PoolMatchRow
+                key={m.id} match={m}
+                p1={m.participant1Id ? byId.get(m.participant1Id) : null}
+                p2={m.participant2Id ? byId.get(m.participant2Id) : null}
+                locked={locked} onSaveMatch={onSaveMatch}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PoolMatchRow({
+  match, p1, p2, locked, onSaveMatch,
+}: {
+  match: TournamentMatch; p1: Participant | null | undefined; p2: Participant | null | undefined;
+  locked: boolean; onSaveMatch: (matchId: string, data: SaveMatchData) => void;
+}) {
+  const [editing, setEditing] = useState(!match.winnerId);
+  const [s1, setS1] = useState(match.score1?.toString() ?? "");
+  const [s2, setS2] = useState(match.score2?.toString() ?? "");
+
+  const n1 = s1 === "" ? null : parseInt(s1, 10);
+  const n2 = s2 === "" ? null : parseInt(s2, 10);
+  const canSave = n1 !== null && !isNaN(n1) && n2 !== null && !isNaN(n2) && n1 !== n2 && !locked && !!match.participant1Id && !!match.participant2Id;
+
+  function save() {
+    if (!canSave || n1 === null || n2 === null) return;
+    onSaveMatch(match.id, { score1: n1, score2: n2, winnerId: n1 > n2 ? match.participant1Id! : match.participant2Id! });
+    setEditing(false);
+  }
+
+  return (
+    <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded-lg bg-dojo-darker border border-dojo-border">
+      <span className={cn("flex-1 truncate", match.winnerId && match.winnerId === match.participant1Id ? "text-green-400 font-bold" : "text-dojo-white")}>
+        {p1 ? participantName(p1) : "—"}
+      </span>
+      {editing && !locked ? (
+        <input type="number" value={s1} onChange={e => setS1(e.target.value)} className="form-input w-10 text-center py-0.5 px-1 text-xs" />
+      ) : (
+        <span className="w-6 text-center font-bold text-dojo-white">{match.score1 ?? "-"}</span>
+      )}
+      <span className="text-dojo-muted shrink-0">vs</span>
+      {editing && !locked ? (
+        <input type="number" value={s2} onChange={e => setS2(e.target.value)} className="form-input w-10 text-center py-0.5 px-1 text-xs" />
+      ) : (
+        <span className="w-6 text-center font-bold text-dojo-white">{match.score2 ?? "-"}</span>
+      )}
+      <span className={cn("flex-1 truncate text-right", match.winnerId && match.winnerId === match.participant2Id ? "text-green-400 font-bold" : "text-dojo-white")}>
+        {p2 ? participantName(p2) : "—"}
+      </span>
+      {!locked && (p1 && p2) && (
+        editing ? (
+          <button onClick={save} disabled={!canSave} className="btn-primary text-[10px] px-2 py-1 disabled:opacity-40 shrink-0">Guardar</button>
+        ) : (
+          <button onClick={() => setEditing(true)} className="btn-ghost text-[10px] px-2 py-1 shrink-0">Editar</button>
+        )
       )}
     </div>
   );

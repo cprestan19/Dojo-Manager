@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useTatamiRealtime } from "@/lib/hooks/useTatamiRealtime";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -10,6 +11,7 @@ interface Participant {
   photo: string | null;
   nationality: string | null;
   dojoName: string | null;
+  clubLogo: string | null;
   weight: number | null;
   belt: string | null;
 }
@@ -228,7 +230,21 @@ function CompetitorCard({
       </span>
 
       {/* Avatar */}
-      <Avatar photo={participant?.photo ?? null} name={name} size={88} />
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <Avatar photo={participant?.photo ?? null} name={name} size={88} />
+        {participant?.clubLogo && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={participant.clubLogo}
+            alt=""
+            style={{
+              position: "absolute", [isAo ? "right" : "left"]: "-6px", bottom: "-6px",
+              width: "30px", height: "30px", borderRadius: "8px", objectFit: "cover",
+              border: "2px solid #0d0d14", background: "#0d0d14", boxShadow: "0 2px 8px rgba(0,0,0,0.6)",
+            }}
+          />
+        )}
+      </div>
 
       {/* Text block */}
       <div style={{
@@ -343,6 +359,9 @@ function formatTime(secs: number): string {
 export default function TatamiOverlay() {
   const { id, tatamiId } = useParams<{ id: string; tatamiId: string }>();
   const [data, setData] = useState<TatamiData | null>(null);
+  // Con el relay SSE conectado, el polling baja a 15s (solo respaldo) —
+  // las actualizaciones reales llegan al instante por el evento push.
+  const { connected: realtimeConnected, signal } = useTatamiRealtime(id ?? null, tatamiId ?? null);
 
   useEffect(() => {
     async function poll() {
@@ -355,9 +374,18 @@ export default function TatamiOverlay() {
     }
 
     poll();
-    const iv = setInterval(poll, 3000);
+    const iv = setInterval(poll, realtimeConnected ? 15000 : 3000);
     return () => clearInterval(iv);
-  }, [tatamiId, id]);
+  }, [tatamiId, id, realtimeConnected]);
+
+  // Refetch inmediato cuando llega un evento push — no espera al siguiente tick del polling.
+  useEffect(() => {
+    if (signal === 0) return;
+    fetch(`/api/public/tatami-display/${tatamiId}`, { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then(payload => { if (payload) setData(payload); })
+      .catch(() => {});
+  }, [signal, tatamiId]);
 
   const { remaining, urgent } = useCountdown(data);
 

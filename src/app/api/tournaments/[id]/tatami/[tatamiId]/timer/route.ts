@@ -1,16 +1,23 @@
 /**
  * Control del cronómetro (Sencho) por tatami.
- * Público: el juez/cronometrador lo usa sin login.
+ * Público: el juez/cronometrador lo usa sin login, protegido por
+ * Tournament.judgePin cuando el torneo lo tiene configurado.
  * action: "start" | "pause" | "reset"
  */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { publishTatamiUpdate } from "@/lib/ably-server";
+import { verifyJudgePin } from "@/lib/tournament-security";
 
 type Params = { params: Promise<{ id: string; tatamiId: string }> };
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const { tatamiId } = await params;
-  const { action } = await req.json().catch(() => ({})) as { action?: string };
+  const { id: tournamentId, tatamiId } = await params;
+  const { action, pin } = await req.json().catch(() => ({})) as { action?: string; pin?: string };
+
+  if (!(await verifyJudgePin(tournamentId, pin))) {
+    return NextResponse.json({ error: "PIN incorrecto" }, { status: 403 });
+  }
 
   const tatami = await prisma.tournamentTatami.findUnique({
     where:  { id: tatamiId },
@@ -48,6 +55,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     data,
     select: { matchTimerRunning: true, matchTimerBaseElapsed: true, currentMatchStartedAt: true },
   });
+
+  void publishTatamiUpdate(tournamentId, tatamiId, "timer");
 
   return NextResponse.json({ ok: true, ...updated });
 }

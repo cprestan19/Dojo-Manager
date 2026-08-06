@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock, Users, DollarSign, ChevronDown, ChevronUp, Mail, RefreshCw } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Users, DollarSign, ChevronDown, ChevronUp, Mail, RefreshCw, Wand2 } from "lucide-react";
 
 interface AthleteCategory {
   id: string; categoryLabel: string; status: string;
@@ -11,11 +11,11 @@ interface Athlete {
   id: string; firstName: string; lastName: string;
   gender: string; ageGroup: string | null; weight: number | null;
   beltColor: string | null; nationality: string | null; status: string;
-  accreditedAt: string | null;
+  accreditedAt: string | null; photoUrl: string | null;
   categories: AthleteCategory[];
 }
 interface Club {
-  id: string; clubName: string; coachName: string; coachEmail: string;
+  id: string; clubName: string; logoUrl: string | null; coachName: string; coachEmail: string;
   coachPhone: string | null; country: string | null; city: string | null;
   status: string; paymentStatus: string; paymentRef: string | null;
   paymentProofUrl: string | null; rejectionReason: string | null;
@@ -82,10 +82,44 @@ export function InscripcionesTab({ tournamentId }: Props) {
   async function sendCredentials(clubId: string) {
     setSaving(`cred-${clubId}`);
     try {
-      await fetch(`/api/tournaments/${tournamentId}/external-clubs/${clubId}/send-credentials`, {
+      const r = await fetch(`/api/tournaments/${tournamentId}/external-clubs/${clubId}/send-credentials`, {
         method: "POST",
       });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error ?? "Error al enviar credenciales"); }
+      else await load();
     } finally { setSaving(null); }
+  }
+
+  async function updateAthlete(clubId: string, athleteId: string, status: string) {
+    setSaving(`ath-${athleteId}`);
+    try {
+      const r = await fetch(`/api/tournaments/${tournamentId}/external-clubs/${clubId}/athletes/${athleteId}`, {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ status }),
+      });
+      if (r.ok) await load();
+    } finally { setSaving(null); }
+  }
+
+  const [generating, setGenerating] = useState(false);
+  const [generateMsg, setGenerateMsg] = useState("");
+
+  async function generateParticipants() {
+    setGenerating(true);
+    setGenerateMsg("");
+    try {
+      const r = await fetch(`/api/tournaments/${tournamentId}/external-clubs/generate-participants`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) { setGenerateMsg(d.error ?? "Error"); return; }
+      setGenerateMsg(
+        d.created > 0
+          ? `${d.created} atleta(s) agregado(s) a sus brackets. Ve a Kumite/Kata y genera el sorteo de nuevo.`
+          : d.eligible === 0
+            ? "No hay categorías aprobadas listas para pasar a brackets todavía."
+            : "Ya estaban todos en sus brackets."
+      );
+    } finally { setGenerating(false); }
   }
 
   // Totals across all clubs
@@ -122,6 +156,20 @@ export function InscripcionesTab({ tournamentId }: Props) {
         ))}
       </div>
 
+      {/* Puente hacia brackets */}
+      <div className="card flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-dojo-white flex items-center gap-2"><Wand2 size={14}/> Pasar atletas aprobados a los brackets</p>
+          <p className="text-xs text-dojo-muted mt-0.5">
+            Los atletas de categorías aprobadas no aparecen en el sorteo hasta hacer esto — luego regenera el bracket en Kumite/Kata.
+          </p>
+          {generateMsg && <p className="text-xs text-dojo-gold mt-1">{generateMsg}</p>}
+        </div>
+        <button onClick={generateParticipants} disabled={generating} className="btn-primary text-xs py-2 px-3 shrink-0">
+          {generating ? "Generando..." : "Generar participantes"}
+        </button>
+      </div>
+
       {/* Refresh */}
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold text-dojo-muted uppercase tracking-widest">Clubs inscritos</p>
@@ -148,6 +196,14 @@ export function InscripcionesTab({ tournamentId }: Props) {
               <div key={club.id} className="card border border-dojo-border space-y-0 p-0 overflow-hidden">
                 {/* Club header */}
                 <div className="flex items-center gap-3 p-4">
+                  {club.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={club.logoUrl} alt="" className="w-9 h-9 rounded-lg object-cover border border-dojo-border shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-lg bg-dojo-darker border border-dojo-border shrink-0 flex items-center justify-center text-dojo-muted text-xs font-bold">
+                      {club.clubName.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
                   <button onClick={() => setExpanded(expanded ? null : club.id)} className="flex-1 text-left min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-dojo-white">{club.clubName}</span>
@@ -232,6 +288,12 @@ export function InscripcionesTab({ tournamentId }: Props) {
                     ) : (
                       club.athletes.map(a => (
                         <div key={a.id} className="flex items-start gap-3 py-2 border-b border-dojo-border/40 last:border-0">
+                          {a.photoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={a.photoUrl} alt="" className="w-9 h-9 rounded-full object-cover border border-dojo-border shrink-0" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-dojo-darker border border-dojo-border shrink-0" />
+                          )}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-dojo-white text-sm">
@@ -257,10 +319,33 @@ export function InscripcionesTab({ tournamentId }: Props) {
                                   <span className={STATUS_COLORS[cat.status] ?? "badge-yellow"} style={{ marginLeft: "2px" }}>
                                     {STATUS_LABELS[cat.status] ?? cat.status}
                                   </span>
+                                  <span className={PAY_LABELS[cat.paymentStatus] ? "text-dojo-muted" : ""}>
+                                    · {PAY_LABELS[cat.paymentStatus] ?? cat.paymentStatus}
+                                  </span>
                                 </span>
                               ))}
                             </div>
                           </div>
+                          {a.status !== "rejected" && (
+                            <button
+                              onClick={() => updateAthlete(club.id, a.id, "rejected")}
+                              disabled={saving === `ath-${a.id}`}
+                              title="Rechazar solo este atleta"
+                              className="btn-ghost text-xs py-1 px-2 text-red-400 shrink-0"
+                            >
+                              <XCircle size={12}/>
+                            </button>
+                          )}
+                          {a.status === "rejected" && (
+                            <button
+                              onClick={() => updateAthlete(club.id, a.id, "approved")}
+                              disabled={saving === `ath-${a.id}`}
+                              title="Aprobar de nuevo"
+                              className="btn-ghost text-xs py-1 px-2 text-green-400 shrink-0"
+                            >
+                              <CheckCircle size={12}/>
+                            </button>
+                          )}
                         </div>
                       ))
                     )}

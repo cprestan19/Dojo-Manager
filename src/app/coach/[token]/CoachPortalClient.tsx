@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Users, CreditCard, Clock, Info, Plus, RefreshCw } from "lucide-react";
+import { Users, CreditCard, Clock, Info, Plus, RefreshCw, Upload } from "lucide-react";
 import { AddAthleteModal } from "./AddAthleteModal";
 import { PaymentTab } from "./PaymentTab";
 import { StatusTimeline } from "./StatusTimeline";
@@ -20,9 +20,14 @@ interface Athlete {
   categories: AthleteCategory[];
 }
 export interface ClubData {
-  id: string; clubName: string; coachName: string; coachEmail: string;
+  id: string; clubName: string; logoUrl: string | null; coachName: string; coachEmail: string;
   status: string; paymentStatus: string; paymentRef: string | null;
   rejectionReason: string | null;
+}
+export interface TournamentBracketOption {
+  id: string; type: string; gender: string | null; ageGroup: string | null;
+  weightCategory: string | null; beltCategory: string | null;
+  isTeamKata: boolean; isTeamKumite: boolean; categoryLabel: string | null;
 }
 export interface TournamentData {
   name: string; date: string; location: string;
@@ -31,6 +36,7 @@ export interface TournamentData {
   requirePhoto: boolean; requireFederationId: boolean;
   requireWaiver: boolean; waiverText: string | null;
   maxAthletesPerClub: number | null;
+  brackets: TournamentBracketOption[];
 }
 
 interface Props { token: string }
@@ -58,6 +64,27 @@ export function CoachPortalClient({ token }: Props) {
   const [loading, setLoading]       = useState(true);
   const [registrationOpen, setRegOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("purpose", "club-logo");
+      const r = await fetch(`/api/public/tournament-club/${token}/upload`, { method: "POST", body: fd });
+      if (!r.ok) return;
+      const d = await r.json();
+      await fetch(`/api/public/tournament-club/${token}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl: d.url }),
+      });
+      load();
+    } finally { setUploadingLogo(false); }
+  }
 
   async function load() {
     setLoading(true);
@@ -99,10 +126,28 @@ export function CoachPortalClient({ token }: Props) {
         <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px", letterSpacing: "0.08em", marginBottom: "4px" }}>
           PORTAL DEL COACH
         </p>
-        <h1 style={{ color: "white", fontSize: "22px", fontWeight: 800, margin: 0 }}>{club.clubName}</h1>
-        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "13px", marginTop: "4px" }}>
-          {tournament.name} · {new Date(tournament.date).toLocaleDateString("es", { year: "numeric", month: "long", day: "numeric" })}
-        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <label style={{ position: "relative", cursor: "pointer", flexShrink: 0 }} title="Subir logo del club">
+            <input type="file" accept="image/*" onChange={handleLogoChange} style={{ display: "none" }} />
+            {club.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={club.logoUrl} alt="" style={{ width: "48px", height: "48px", borderRadius: "10px", objectFit: "cover", border: "1px solid rgba(255,255,255,0.2)" }} />
+            ) : (
+              <div style={{ width: "48px", height: "48px", borderRadius: "10px", background: "rgba(255,255,255,0.08)", border: "1px dashed rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Upload size={16} color="rgba(255,255,255,0.4)" />
+              </div>
+            )}
+            {uploadingLogo && (
+              <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "9px" }}>...</div>
+            )}
+          </label>
+          <div>
+            <h1 style={{ color: "white", fontSize: "22px", fontWeight: 800, margin: 0 }}>{club.clubName}</h1>
+            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "13px", marginTop: "4px" }}>
+              {tournament.name} · {new Date(tournament.date).toLocaleDateString("es", { year: "numeric", month: "long", day: "numeric" })}
+            </p>
+          </div>
+        </div>
         {/* Status badge */}
         <div style={{ marginTop: "10px", display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(0,0,0,0.3)", padding: "4px 12px", borderRadius: "20px" }}>
           <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: STATUS_COLORS[club.status] ?? "#888", display: "inline-block" }} />

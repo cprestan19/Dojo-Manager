@@ -5,6 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { participantName, participantPhoto, participantNationality, participantBelt, participantClubName } from "@/lib/tournament-participant-display";
 
 type Params = { params: Promise<{ tatamiId: string }> };
 
@@ -59,12 +60,14 @@ export async function GET(_req: Request, { params }: Params) {
     }, { headers: { "Cache-Control": "no-store" } });
   }
 
-  // Cargar match activo con toda la info
+  // Cargar match activo con toda la info — incluye participant1Id/2Id acá
+  // mismo para no repetir esta misma consulta más abajo.
   const match = await prisma.tournamentMatch.findUnique({
     where:  { id: tatami.currentMatchId },
     select: {
       id: true, round: true, matchNumber: true,
       score1: true, score2: true, winnerId: true, isBye: true, senshu: true,
+      participant1Id: true, participant2Id: true,
       reviewStatus: true, reviewRequestedBy: true, reviewDecision: true,
       hanteiStatus: true, hanteiVotesAo: true, hanteiVotesAka: true, hanteiWinnerId: true,
       bracket: { select: { id: true, name: true, type: true, gender: true } },
@@ -94,12 +97,6 @@ export async function GET(_req: Request, { params }: Params) {
     }, { headers: { "Cache-Control": "no-store" } });
   }
 
-  // Cargar participantes
-  const fullMatch = await prisma.tournamentMatch.findUnique({
-    where:  { id: tatami.currentMatchId },
-    select: { participant1Id: true, participant2Id: true },
-  });
-
   async function loadParticipant(pid: string | null) {
     if (!pid) return null;
     const p = await prisma.tournamentParticipant.findUnique({
@@ -114,24 +111,33 @@ export async function GET(_req: Request, { params }: Params) {
             dojo: { select: { name: true } },
           },
         },
+        externalAthlete: {
+          select: {
+            firstName: true, lastName: true, photoUrl: true,
+            nationality: true, beltColor: true,
+            externalClub: { select: { clubName: true, logoUrl: true } },
+          },
+        },
       },
     });
     if (!p) return null;
+    const clubLogo = p.externalAthlete?.externalClub?.logoUrl;
     return {
       id:          p.id,
       seed:        p.seed,
       weight:      p.weight ?? null,
-      fullName:    p.student.fullName,
-      photo:       p.student.photo?.startsWith("http") ? p.student.photo : null,
-      nationality: p.student.nationality ?? null,
-      dojoName:    p.student.dojo?.name ?? null,
-      belt:        p.student.beltHistory[0]?.beltColor ?? null,
+      fullName:    participantName(p),
+      photo:       participantPhoto(p),
+      nationality: participantNationality(p),
+      dojoName:    participantClubName(p),
+      belt:        participantBelt(p),
+      clubLogo:    clubLogo?.startsWith("http") ? clubLogo : null,
     };
   }
 
   const [participant1, participant2] = await Promise.all([
-    loadParticipant(fullMatch?.participant1Id ?? null),
-    loadParticipant(fullMatch?.participant2Id ?? null),
+    loadParticipant(match.participant1Id),
+    loadParticipant(match.participant2Id),
   ]);
 
   // Calcular totales de jueces
@@ -183,7 +189,7 @@ export async function GET(_req: Request, { params }: Params) {
   // Determinar ganador
   let winnerName: string | null = null;
   if (match.winnerId) {
-    const winnerPart = match.winnerId === fullMatch?.participant1Id ? participant1 : participant2;
+    const winnerPart = match.winnerId === match.participant1Id ? participant1 : participant2;
     winnerName = winnerPart?.fullName ?? null;
   }
 

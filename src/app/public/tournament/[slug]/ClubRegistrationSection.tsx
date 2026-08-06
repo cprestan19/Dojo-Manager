@@ -40,6 +40,9 @@ export function ClubRegistrationSection({
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState("");
   const [success,   setSuccess]   = useState(false);
+  // Campo trampa contra bots — invisible para personas, los bots de spam
+  // suelen rellenar todos los inputs del formulario sin distinguirlo.
+  const [website,   setWebsite]   = useState("");
 
   const daysLeft = registrationCloseAt
     ? Math.max(0, Math.ceil((new Date(registrationCloseAt).getTime() - Date.now()) / 86_400_000))
@@ -53,7 +56,7 @@ export function ClubRegistrationSection({
       const r = await fetch(`/api/public/tournaments/${slug}/register-club`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(form),
+        body:    JSON.stringify({ ...form, website }),
       });
       const d = await r.json();
       if (r.status === 409) { setError("Este email ya está registrado. Revisa tu correo para el link de gestión."); return; }
@@ -133,6 +136,12 @@ export function ClubRegistrationSection({
       {/* Registration form */}
       {showForm && (
         <form onSubmit={submit} style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          {/* Honeypot anti-bot — invisible y fuera del flujo de tabulación para personas reales */}
+          <input
+            type="text" name="website" value={website} onChange={e => setWebsite(e.target.value)}
+            tabIndex={-1} autoComplete="off" aria-hidden="true"
+            style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", opacity: 0 }}
+          />
           {[
             { key: "clubName",    label: "Nombre del Club *",     type: "text"  },
             { key: "country",     label: "País",                  type: "text"  },

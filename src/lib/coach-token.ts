@@ -1,5 +1,9 @@
 // Tokens JWT para acceso temporal de coaches externos.
-// Usa NEXTAUTH_SECRET para firmar — sin NextAuth, validación propia.
+// Firma con COACH_TOKEN_SECRET (dedicado) — con fallback a NEXTAUTH_SECRET
+// si esa env var todavía no está configurada, para no romper despliegues
+// existentes. Configurar COACH_TOKEN_SECRET en producción para que rotar el
+// secreto de sesión (NEXTAUTH_SECRET) no invalide de paso todos los tokens
+// de coach activos, y viceversa.
 
 import { SignJWT, jwtVerify } from "jose";
 
@@ -12,8 +16,8 @@ export interface CoachTokenPayload {
 }
 
 function getSecret() {
-  const secret = process.env.NEXTAUTH_SECRET;
-  if (!secret) throw new Error("NEXTAUTH_SECRET no configurado");
+  const secret = process.env.COACH_TOKEN_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!secret) throw new Error("COACH_TOKEN_SECRET / NEXTAUTH_SECRET no configurado");
   return new TextEncoder().encode(secret);
 }
 

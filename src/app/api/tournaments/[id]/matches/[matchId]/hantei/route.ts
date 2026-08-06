@@ -9,6 +9,7 @@ import { requiresHantei } from "@/lib/hantei";
 import { logAudit } from "@/lib/audit";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { publishTatamiUpdate } from "@/lib/ably-server";
 
 type Params = { params: Promise<{ id: string; matchId: string }> };
 type SessionUser = { id?: string; email?: string };
@@ -86,6 +87,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     dojoId:    ownership.dojoId!,
     details:   JSON.stringify({ matchId, tournamentId: id }),
   });
+
+  const tatami = await prisma.tournamentTatami.findFirst({ where: { currentMatchId: matchId }, select: { id: true } });
+  if (tatami) void publishTatamiUpdate(id, tatami.id, "hantei-called");
 
   return NextResponse.json({ ok: true, status: "voting" });
 }

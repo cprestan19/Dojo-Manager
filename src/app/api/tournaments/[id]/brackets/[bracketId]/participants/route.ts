@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -66,7 +67,7 @@ export async function PUT(
         });
 
         if (conflicting.length > 0) {
-          const conflicts = conflicting.map(p => p.student.fullName);
+          const conflicts = conflicting.map(p => p.student?.fullName ?? "?");
           return NextResponse.json(
             {
               error: `${conflicts.length} alumno(s) ya están en otro bracket de ${bracket.type === "kumite" ? "Kumite" : "Kata"}`,
@@ -78,12 +79,25 @@ export async function PUT(
       }
     }
 
+    // Un alumno puede ya tener código QR de acreditación de otra fila (otro bracket)
+    // en este mismo torneo — reutilizarlo en vez de generar uno nuevo por bracket,
+    // así un solo scan en la entrada acredita todas sus categorías.
+    const existingCodes = studentIds.length > 0
+      ? await prisma.tournamentParticipant.findMany({
+          where:  { tournamentId: id, studentId: { in: studentIds }, qrCode: { not: null } },
+          select: { studentId: true, qrCode: true },
+        })
+      : [];
+    const codeByStudent = new Map(existingCodes.map(p => [p.studentId as string, p.qrCode as string]));
+    const genCode = () => `${id.slice(-6).toUpperCase()}-${randomBytes(4).toString("hex").toUpperCase()}`;
+
     // Unlink current participants from this bracket (set bracketId = null)
     // Then link the new ones (create if not exist, update bracketId if they are already tournament participants)
     await prisma.$transaction(async (tx) => {
-      // Eliminar participantes actuales de ESTE bracket
+      // Eliminar participantes actuales de ESTE bracket (solo alumnos internos —
+      // los atletas externos se gestionan aparte desde Inscripciones y no deben perderse aquí)
       await tx.tournamentParticipant.deleteMany({
-        where: { bracketId },
+        where: { bracketId, studentId: { not: null } },
       });
 
       // Eliminar matches de este bracket
@@ -92,7 +106,13 @@ export async function PUT(
       // Crear nuevos participantes para este bracket (uno por alumno)
       if (studentIds.length > 0) {
         await tx.tournamentParticipant.createMany({
-          data: studentIds.map(studentId => ({ tournamentId: id, studentId, bracketId, seed: 0 })),
+          data: studentIds.map(studentId => ({
+            tournamentId: id,
+            studentId,
+            bracketId,
+            seed: 0,
+            qrCode: codeByStudent.get(studentId) ?? genCode(),
+          })),
           skipDuplicates: true,
         });
       }
@@ -112,11 +132,19 @@ export async function PUT(
             id: true,
             fullName: true,
             birthDate: true,
+            photo: true,
             beltHistory: {
               take: 1,
               orderBy: { changeDate: "desc" },
               select: { beltColor: true },
             },
+          },
+        },
+        externalAthlete: {
+          select: {
+            id: true, firstName: true, lastName: true, birthDate: true,
+            photoUrl: true, beltColor: true,
+            externalClub: { select: { clubName: true } },
           },
         },
       },

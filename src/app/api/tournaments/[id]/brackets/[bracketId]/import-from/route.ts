@@ -59,7 +59,7 @@ export async function POST(
     if (sourceParticipants.length === 0)
       return NextResponse.json({ error: "El bracket origen no tiene participantes" }, { status: 400 });
 
-    const studentIds = sourceParticipants.map(p => p.studentId);
+    const studentIds = sourceParticipants.map(p => p.studentId).filter((s): s is string => !!s);
 
     // Importar al bracket destino (eliminar los actuales y crear nuevos)
     await prisma.$transaction(async (tx) => {

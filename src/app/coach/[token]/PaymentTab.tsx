@@ -38,8 +38,8 @@ export function PaymentTab({ token, club, totals, onRefresh }: Props) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("type", "image");
-      const r = await fetch("/api/upload", { method: "POST", body: fd });
+      fd.append("purpose", "payment-proof");
+      const r = await fetch(`/api/public/tournament-club/${token}/upload`, { method: "POST", body: fd });
       if (!r.ok) { setError("Error al subir el archivo"); return; }
       const d = await r.json();
       setProofUrl(d.url);

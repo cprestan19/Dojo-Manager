@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { withReadOnlyGuard } from "@/lib/billing/readOnlyGuard";
 import { withTournamentsGuard } from "@/lib/billing/planFeatureGuard";
+import { randomInt } from "crypto";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -75,6 +76,11 @@ async function _POST(req: NextRequest) {
       return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
     }
 
+    // PIN de 6 dígitos generado por defecto — protege la app pública del juez
+    // (marcador, Hantei, Senshu, cronómetro) desde el día 1. El admin puede
+    // verlo/regenerarlo en la pestaña Info del torneo.
+    const judgePin = randomInt(100000, 1000000).toString();
+
     const tournament = await prisma.tournament.create({
       data: {
         dojoId,
@@ -85,6 +91,7 @@ async function _POST(req: NextRequest) {
         leader1:      leader1.trim(),
         leader2:      leader2?.trim() ?? null,
         leader3:      leader3?.trim() ?? null,
+        judgePin,
       },
       // Select solo los campos core para evitar fallos por columnas nuevas
       // pendientes de db:push (archivedAt, etc.)

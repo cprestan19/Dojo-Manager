@@ -42,6 +42,15 @@ export async function GET(req: NextRequest, { params }: Params) {
           waiverText:          true,
           maxAthletesPerClub:  true,
           status:              true,
+          brackets: {
+            where:  { bracketLocked: false, status: { not: "completed" } },
+            orderBy: { order: "asc" },
+            select: {
+              id: true, type: true, gender: true, ageGroup: true,
+              weightCategory: true, beltCategory: true, isTeamKata: true, isTeamKumite: true,
+              categoryLabel: true,
+            },
+          },
         },
       },
       athletes: {
@@ -92,6 +101,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     club: {
       id:              club.id,
       clubName:        club.clubName,
+      logoUrl:         club.logoUrl,
       country:         club.country,
       city:            club.city,
       coachName:       club.coachName,
@@ -112,4 +122,31 @@ export async function GET(req: NextRequest, { params }: Params) {
     },
     registrationOpen,
   }, { headers: { "Cache-Control": "no-store" } });
+}
+
+/** PUT — el coach actualiza el logo de su club. */
+export async function PUT(req: NextRequest, { params }: Params) {
+  const { token } = await params;
+  const ip = getClientIp(req);
+  if (!checkRateLimit(ip, "coach-portal-put", 20, 60_000)) {
+    return NextResponse.json({ error: "Rate limit" }, { status: 429 });
+  }
+
+  const auth = await requireCoachToken(token);
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
+
+  const { clubId, dojoId, tournamentId } = auth.payload;
+  const ok = await verifyClubOwnership(clubId, dojoId, tournamentId);
+  if (!ok) return NextResponse.json({ error: "Club no encontrado" }, { status: 404 });
+
+  const body = await req.json().catch(() => ({})) as { logoUrl?: string | null };
+  if (body.logoUrl && !body.logoUrl.startsWith("https://res.cloudinary.com/")) {
+    return NextResponse.json({ error: "logoUrl debe ser una URL de Cloudinary" }, { status: 400 });
+  }
+  if (body.logoUrl === undefined) {
+    return NextResponse.json({ error: "Nada para actualizar" }, { status: 400 });
+  }
+
+  await prisma.externalClub.update({ where: { id: clubId }, data: { logoUrl: body.logoUrl || null } });
+  return NextResponse.json({ ok: true });
 }

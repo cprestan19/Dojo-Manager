@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
+import { useTatamiRealtime } from "@/lib/hooks/useTatamiRealtime";
 
 /* ── Tipos ─────────────────────────────────────────────── */
 interface Participant {
@@ -925,8 +926,10 @@ function NextPreviewScreen({ tatami, tournament }: {
 
 /* ── Componente principal ───────────────────────────────── */
 export default function TatamiDisplayPage() {
-  const { tatamiId } = useParams<{ id: string; tatamiId: string }>();
+  const { id, tatamiId } = useParams<{ id: string; tatamiId: string }>();
   const [data, setData] = useState<DisplayData | null>(null);
+  // Con el relay SSE conectado, el polling de 1s pasa a ser solo respaldo cada 15s.
+  const { connected: realtimeConnected, signal } = useTatamiRealtime(id ?? null, tatamiId ?? null);
 
   const poll = useCallback(async () => {
     try {
@@ -937,9 +940,15 @@ export default function TatamiDisplayPage() {
 
   useEffect(() => {
     poll();
-    const iv = setInterval(poll, 1000); // 1 segundo para respuesta rápida
+    const iv = setInterval(poll, realtimeConnected ? 15000 : 1000);
     return () => clearInterval(iv);
-  }, [poll]);
+  }, [poll, realtimeConnected]);
+
+  // Refetch inmediato cuando llega un evento push.
+  useEffect(() => {
+    if (signal === 0) return;
+    poll();
+  }, [signal, poll]);
 
   if (!data) {
     return (

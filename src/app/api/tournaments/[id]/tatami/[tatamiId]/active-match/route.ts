@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { publishTatamiUpdate } from "@/lib/ably-server";
 
 type Params = { params: Promise<{ id: string; tatamiId: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -59,6 +60,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
       },
     });
   }
+
+  void publishTatamiUpdate(id, tatamiId, "active-match");
 
   return NextResponse.json({ ok: true, currentMatchId: matchId ?? null });
 }

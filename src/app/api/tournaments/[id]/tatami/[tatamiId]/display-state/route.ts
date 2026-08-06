@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyTournamentOwnership } from "@/lib/tournament-security";
+import { publishTatamiUpdate } from "@/lib/ably-server";
 
 type Params = { params: Promise<{ id: string; tatamiId: string }> };
 
@@ -58,6 +59,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     data,
     select: { id: true, matchDisplayState: true, winnerParticipantId: true, winnerReason: true, matchWonAt: true },
   });
+
+  void publishTatamiUpdate(id, tatamiId, "display-state");
 
   return NextResponse.json({ ok: true, ...updated });
 }

@@ -70,12 +70,14 @@ export async function POST(
     const {
       name, order, gender, type,
       ageGroup, weightCategory, beltCategory,
-      isTeamKata, categoryLabel: providedLabel,
+      isTeamKata, isTeamKumite, categoryLabel: providedLabel,
+      format, poolCount,
     } = raw as {
       name?: string; order?: number; gender?: string | null; type?: string;
       ageGroup?: string | null; weightCategory?: string | null;
-      beltCategory?: string | null; isTeamKata?: boolean;
+      beltCategory?: string | null; isTeamKata?: boolean; isTeamKumite?: boolean;
       categoryLabel?: string | null;
+      format?: string; poolCount?: number | null;
     };
 
     if (!name || !name.trim()) {
@@ -83,11 +85,15 @@ export async function POST(
     }
     const validGender  = gender === "M" || gender === "F" ? gender : null;
     const bracketType  = type === "kata" ? "kata" : "kumite";
-    const teamKata     = bracketType === "kata" ? (isTeamKata ?? false) : false;
+    const teamKata     = bracketType === "kata"   ? (isTeamKata   ?? false) : false;
+    const teamKumite   = bracketType === "kumite" ? (isTeamKumite ?? false) : false;
+    // Pools/round-robin solo aplica a kumite — kata mantiene su propio mecanismo de orden
+    const bracketFormat = bracketType === "kumite" && format === "round_robin" ? "round_robin" : "single_elim";
+    const validPoolCount = bracketFormat === "round_robin" && poolCount && poolCount >= 1 ? Math.floor(poolCount) : null;
 
     // Auto-generate categoryLabel if not provided
     const categoryLabel = providedLabel?.trim() ||
-      buildCategoryLabel(bracketType, validGender, ageGroup ?? null, weightCategory ?? null, teamKata);
+      buildCategoryLabel(bracketType, validGender, ageGroup ?? null, weightCategory ?? null, teamKata, teamKumite);
 
     // Determine next order if not provided
     let bracketOrder = order ?? 0;
@@ -113,7 +119,10 @@ export async function POST(
         weightCategory: weightCategory ?? null,
         beltCategory:  beltCategory ?? null,
         isTeamKata:    teamKata,
+        isTeamKumite:  teamKumite,
         categoryLabel,
+        format:        bracketFormat,
+        poolCount:     validPoolCount,
       },
       include: {
         _count: {

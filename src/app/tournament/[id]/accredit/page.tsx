@@ -88,7 +88,11 @@ export default function AccreditPage() {
     setResult(null);
     setQrInput(qrCode);
     try {
-      const r = await fetch(`/api/public/tournament-accredit/${encodeURIComponent(qrCode)}`);
+      const r = await fetch(`/api/public/tournament-accredit/${encodeURIComponent(qrCode)}?tournamentId=${encodeURIComponent(id)}&pin=${encodeURIComponent(pin)}`);
+      if (r.status === 403) {
+        setPinError("PIN incorrecto"); setPin(""); setScanning(false);
+        return;
+      }
       if (r.status === 404) {
         setResult({ found: false });
         return;

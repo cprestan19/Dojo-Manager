@@ -4,10 +4,11 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { verifyJudgePin } from "@/lib/tournament-security";
 
 export async function PUT(req: NextRequest) {
-  const { matchId, participantId, judgeId } = await req.json().catch(() => ({})) as {
-    matchId?: string; participantId?: string | null; judgeId?: string;
+  const { matchId, participantId, judgeId, pin } = await req.json().catch(() => ({})) as {
+    matchId?: string; participantId?: string | null; judgeId?: string; pin?: string;
   };
 
   if (!matchId)  return NextResponse.json({ error: "matchId requerido" },  { status: 400 });
@@ -32,6 +33,10 @@ export async function PUT(req: NextRequest) {
   // El juez debe pertenecer al mismo torneo que el match
   if (judge.tournamentId !== match.tournamentId) {
     return NextResponse.json({ error: "Juez no pertenece a este torneo" }, { status: 403 });
+  }
+
+  if (!(await verifyJudgePin(match.tournamentId, pin))) {
+    return NextResponse.json({ error: "PIN incorrecto" }, { status: 403 });
   }
 
   // Validar que el participante pertenece al match

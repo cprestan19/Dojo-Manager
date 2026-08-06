@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import prisma from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
+import { escHtml } from "@/lib/email";
 
 const PANAMA_TZ = "America/Panama";
 
@@ -57,7 +58,7 @@ function buildEmailHtml(params: {
 
   const bracketRows = brackets.map(b => `
     <tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #333;color:#ddd;font-size:13px;">${b.name}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #333;color:#ddd;font-size:13px;">${escHtml(b.name)}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #333;text-align:center;color:#ddd;font-size:13px;">
         ${b.tatami ? `Tatami ${b.tatami}` : "—"}
       </td>
@@ -76,8 +77,8 @@ function buildEmailHtml(params: {
        style="background:#1a1a1a;border-radius:12px;overflow:hidden;max-width:600px;">
 
   <tr><td style="background:#CC0000;padding:24px 32px;text-align:center;">
-    <p style="margin:0;color:#fff;font-size:11px;letter-spacing:3px;text-transform:uppercase;">${dojoName}</p>
-    <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:800;">🥋 ${tournamentName}</h1>
+    <p style="margin:0;color:#fff;font-size:11px;letter-spacing:3px;text-transform:uppercase;">${escHtml(dojoName)}</p>
+    <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:800;">🥋 ${escHtml(tournamentName)}</h1>
     <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Programa Oficial Confirmado</p>
   </td></tr>
 
@@ -90,7 +91,7 @@ function buildEmailHtml(params: {
         </td>
         <td style="padding:4px 0;">
           <span style="color:#aaa;font-size:11px;text-transform:uppercase;">Lugar</span><br>
-          <span style="color:#fff;font-size:15px;">${location}</span>
+          <span style="color:#fff;font-size:15px;">${escHtml(location)}</span>
         </td>
       </tr>
     </table>
@@ -120,7 +121,7 @@ function buildEmailHtml(params: {
   </td></tr>
 
   <tr><td style="padding:14px 32px;text-align:center;border-top:1px solid #333;">
-    <p style="margin:0;color:#555;font-size:10px;">${dojoName} — DojoManager</p>
+    <p style="margin:0;color:#555;font-size:10px;">${escHtml(dojoName)} — DojoManager</p>
   </td></tr>
 
 </table>
@@ -165,10 +166,12 @@ export async function sendTournamentConfirmationEmails(tournamentId: string): Pr
       },
     });
 
-    // Recopilar emails únicos
+    // Recopilar emails únicos — solo alumnos internos (los atletas de clubes
+    // externos reciben su propia notificación por el portal del coach)
     const emailSet = new Set<string>();
     for (const p of participants) {
       const s = p.student;
+      if (!s) continue;
       if (s.portalUser?.email) emailSet.add(s.portalUser.email);
       if (s.motherEmail)       emailSet.add(s.motherEmail);
       if (s.fatherEmail)       emailSet.add(s.fatherEmail);
@@ -177,7 +180,7 @@ export async function sendTournamentConfirmationEmails(tournamentId: string): Pr
     if (emailSet.size === 0) return;
 
     const { transporter, from } = await makeTransporter();
-    const subject = `🥋 ${tournament.name} — Programa Oficial Confirmado`;
+    const subject = `🥋 ${tournament.name.replace(/[\r\n]/g, "")} — Programa Oficial Confirmado`;
     const html    = buildEmailHtml({
       tournamentName: tournament.name,
       dojoName:       dojo?.name ?? "Dojo",

@@ -8,7 +8,7 @@ import { verifyTournamentOwnership, verifyClubOwnership } from "@/lib/tournament
 import { logAudit } from "@/lib/audit";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, escHtml } from "@/lib/email";
 
 type Params = { params: Promise<{ id: string; clubId: string }> };
 type SessionUser = { id?: string; email?: string };
@@ -99,6 +99,20 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   await prisma.externalClub.update({ where: { id: clubId }, data });
 
+  // Al aprobar el club, sus atletas y categorías pendientes pasan a aprobados —
+  // es la única aprobación granular que existe hoy; el organizador puede luego
+  // rechazar un atleta puntual si hace falta.
+  if (body.status === "approved") {
+    await prisma.externalAthlete.updateMany({
+      where: { externalClubId: clubId, status: "pending" },
+      data:  { status: "approved" },
+    });
+    await prisma.externalAthleteCategory.updateMany({
+      where: { athlete: { externalClubId: clubId }, status: "pending" },
+      data:  { status: "approved" },
+    });
+  }
+
   await logAudit({
     action:    "EXTERNAL_CLUB_STATUS_CHANGED",
     userId:    user?.id,
@@ -111,7 +125,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (body.status && body.status !== club.status) {
     const statusMessages: Record<string, string> = {
       approved:  "Tu inscripción ha sido <strong>APROBADA</strong>. ¡Ya puedes continuar con el pago!",
-      rejected:  `Tu inscripción ha sido <strong>RECHAZADA</strong>${body.rejectionReason ? `: ${body.rejectionReason}` : "."}`,
+      rejected:  `Tu inscripción ha sido <strong>RECHAZADA</strong>${body.rejectionReason ? `: ${escHtml(body.rejectionReason)}` : "."}`,
       waitlist:  "Tu inscripción está en <strong>LISTA DE ESPERA</strong>. Te notificaremos si hay cupos disponibles.",
     };
     const msg = statusMessages[body.status];
@@ -119,10 +133,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
       try {
         await sendEmail({
           to:      club.coachEmail,
-          subject: `Actualización de inscripción — ${club.clubName}`,
+          subject: `Actualización de inscripción — ${club.clubName.replace(/[\r\n]/g, "")}`,
           html:    `<div style="font-family:Arial,sans-serif;padding:24px;max-width:560px;">
             <h2 style="color:#C0392B;">Actualización de tu inscripción</h2>
-            <p>Hola <strong>${club.coachName}</strong>,</p>
+            <p>Hola <strong>${escHtml(club.coachName)}</strong>,</p>
             <p>${msg}</p>
             <p style="color:#888;font-size:12px;">Equipo DojoManager</p>
           </div>`,

@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const tournament = await prisma.tournament.findFirst({
     where:  { id: tournamentId, dojoId },
-    select: { id: true, date: true, registrationCloseAt: true, maxAthletesPerClub: true },
+    select: { id: true, date: true, registrationCloseAt: true, maxAthletesPerClub: true, requirePhoto: true },
   });
   if (!tournament) return NextResponse.json({ error: "Torneo no encontrado" }, { status: 404 });
 
@@ -57,11 +57,20 @@ export async function POST(req: NextRequest, { params }: Params) {
     weight?:      number | string;
     beltColor?:   string;
     fepakaId?:    string;
+    photoUrl?:    string;
     categoryIds?: string[];
   };
 
   if (!body.firstName?.trim() || !body.lastName?.trim() || !body.birthDate || !body.gender) {
     return NextResponse.json({ error: "firstName, lastName, birthDate y gender son requeridos" }, { status: 400 });
+  }
+
+  // La URL de la foto debe ser de Cloudinary — nunca aceptar base64/URLs arbitrarias del cliente.
+  if (body.photoUrl && !body.photoUrl.startsWith("https://res.cloudinary.com/")) {
+    return NextResponse.json({ error: "photoUrl debe ser una URL de Cloudinary" }, { status: 400 });
+  }
+  if (tournament.requirePhoto && !body.photoUrl) {
+    return NextResponse.json({ error: "Este torneo requiere foto del atleta" }, { status: 400 });
   }
 
   const bDate    = new Date(body.birthDate);
@@ -78,6 +87,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       birthDate:   bDate,
       gender:      body.gender,
       nationality: body.nationality,
+      photoUrl:    body.photoUrl || null,
       weight:      body.weight ? parseFloat(String(body.weight)) : null,
       beltColor:   body.beltColor,
       fepakaId:    body.fepakaId?.toUpperCase(),
@@ -134,12 +144,17 @@ export async function PUT(req: NextRequest, { params }: Params) {
     weight?:      number | string | null;
     beltColor?:   string;
     fepakaId?:    string;
+    photoUrl?:    string | null;
   };
 
   if (!body.id) return NextResponse.json({ error: "id del atleta requerido" }, { status: 400 });
 
   const ok = await verifyAthleteOwnership(body.id, clubId, dojoId);
   if (!ok) return NextResponse.json({ error: "Atleta no encontrado" }, { status: 404 });
+
+  if (body.photoUrl && !body.photoUrl.startsWith("https://res.cloudinary.com/")) {
+    return NextResponse.json({ error: "photoUrl debe ser una URL de Cloudinary" }, { status: 400 });
+  }
 
   const data: Record<string, unknown> = {};
   if (body.firstName  !== undefined) data.firstName  = body.firstName.trim();
@@ -148,6 +163,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (body.weight     !== undefined) data.weight     = body.weight != null ? parseFloat(String(body.weight)) : null;
   if (body.beltColor  !== undefined) data.beltColor  = body.beltColor;
   if (body.fepakaId   !== undefined) data.fepakaId   = body.fepakaId?.toUpperCase() ?? null;
+  if (body.photoUrl   !== undefined) data.photoUrl   = body.photoUrl || null;
 
   await prisma.externalAthlete.update({ where: { id: body.id }, data });
   return NextResponse.json({ ok: true });

@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getEffectiveDojoId } from "@/lib/sysadmin-context";
 import prisma from "@/lib/prisma";
+import { timingSafeEqual } from "crypto";
 
 type SessionUser = { role?: string; dojoId?: string | null; id?: string; email?: string };
 
@@ -110,9 +111,52 @@ export async function verifyAthleteOwnership(
 }
 
 /**
- * Extrae la IP del cliente de la request.
- * Usa x-forwarded-for cuando hay proxy/load balancer.
+ * Extrae la IP del cliente de la request. x-real-ip lo fija el edge de
+ * Vercel (no falsificable); si no está, toma el ÚLTIMO valor de
+ * x-forwarded-for — nunca el primero, que el cliente puede anteponer para
+ * evadir el rate limit rotando IPs falsas.
  */
 export function getClientIp(req: NextRequest): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",").map(p => p.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return "unknown";
+}
+
+// ── Comparación de PIN segura contra timing attacks ───────────
+
+export function constantTimeStringEqual(expected: string, actual: unknown): boolean {
+  if (typeof actual !== "string" || !actual) return false;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(actual);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+// ── PIN de la App del Juez ────────────────────────────────────
+
+/**
+ * Verifica el PIN de jueces del torneo (Tournament.judgePin) contra el valor
+ * recibido, con comparación segura contra timing attacks.
+ *
+ * Si el torneo aún no tiene judgePin configurado (torneos creados antes de
+ * este control, o el admin no lo configuró), se permite el acceso — mismo
+ * comportamiento que tenía la app del juez antes de este fix, para no
+ * romper un torneo en curso. El admin debe configurar el PIN en la pestaña
+ * Info del torneo para cerrar el hueco.
+ */
+export async function verifyJudgePin(tournamentId: string, pin: unknown): Promise<boolean> {
+  const tournament = await prisma.tournament.findUnique({
+    where:  { id: tournamentId },
+    select: { judgePin: true },
+  });
+  if (!tournament) return false;
+  if (!tournament.judgePin) return true;
+
+  return constantTimeStringEqual(tournament.judgePin, pin);
 }

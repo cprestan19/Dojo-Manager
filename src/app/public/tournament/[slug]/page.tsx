@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { Trophy } from "lucide-react";
 import { TOURNAMENT_STATUS, JUDGE_ROLES, SCHEDULE_EVENT_TYPES } from "@/lib/utils";
-import { PublicRegistrationForm } from "./PublicRegistrationForm";
 import { ClubRegistrationSection } from "./ClubRegistrationSection";
 
 interface TournamentData {
@@ -68,7 +69,6 @@ export default async function PublicTournamentPage({
 
   const statusInfo  = TOURNAMENT_STATUS[tournament.status as keyof typeof TOURNAMENT_STATUS];
   const isLive      = tournament.stream?.status === "live";
-  const isRegOpen   = tournament.status === "registration_open";
   const isOpenTournament = tournament.tournamentType === "open" || tournament.tournamentType === "federated";
   const regIsOpen   = isOpenTournament &&
     ["draft","ready","active"].includes(tournament.status) &&
@@ -117,6 +117,16 @@ export default async function PublicTournamentPage({
           )}
         </div>
 
+        <div style={{ marginBottom: "24px" }}>
+          <Link href={`/public/tournament/${tournament.publicSlug}/results`} style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+            padding: "14px", background: "#1a1d27", border: "1px solid #2d3048", borderRadius: "12px",
+            color: "#f0f0f0", fontWeight: 700, fontSize: "14px", textDecoration: "none",
+          }}>
+            <Trophy size={16} color="#fbbf24" /> Ver resultados y llaves en vivo
+          </Link>
+        </div>
+
         {isLive && tournament.stream?.youtubeVideoId && (
           <div style={{ marginBottom: "24px" }}>
             <div style={{ background: "#1a1d27", borderRadius: "16px", border: "1px solid #c0392b", overflow: "hidden" }}>
@@ -133,16 +143,6 @@ export default async function PublicTournamentPage({
                 />
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Inscripción individual (sistema legacy) */}
-        {isRegOpen && (
-          <div style={{ marginBottom: "24px", background: "#1a1d27", borderRadius: "16px", border: "1px solid #2d3048", padding: "24px" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: "700", color: "#f0f0f0", marginBottom: "16px" }}>
-              📋 Inscripción en Línea
-            </h2>
-            <PublicRegistrationForm slug={tournament.publicSlug} maxParticipants={tournament.maxParticipants} />
           </div>
         )}
 

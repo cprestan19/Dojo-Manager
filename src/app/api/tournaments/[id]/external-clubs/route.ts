@@ -35,7 +35,8 @@ export async function GET(req: NextRequest, { params }: Params) {
           nationality: true,
           status:     true,
           accreditedAt: true,
-          // documentId y photoUrl NUNCA en lista — solo en endpoint individual
+          photoUrl:   true, // URL Cloudinary — string corta, no base64; segura en lista
+          // documentId NUNCA en lista — solo en endpoint individual
           categories: {
             select: {
               id:            true,
@@ -57,6 +58,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const clubsWithTotals = clubs.map(club => ({
     id:              club.id,
     clubName:        club.clubName,
+    logoUrl:         club.logoUrl,
     country:         club.country,
     city:            club.city,
     coachName:       club.coachName,

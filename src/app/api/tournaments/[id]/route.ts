@@ -31,11 +31,19 @@ export async function GET(
               id: true,
               fullName: true,
               birthDate: true,
+              photo: true,
               beltHistory: {
                 take: 1,
                 orderBy: { changeDate: "desc" },
                 select: { beltColor: true },
               },
+            },
+          },
+          externalAthlete: {
+            select: {
+              id: true, firstName: true, lastName: true, birthDate: true,
+              photoUrl: true,
+              externalClub: { select: { clubName: true } },
             },
           },
         },
@@ -54,7 +62,8 @@ export async function GET(
           id: true, name: true, type: true, gender: true,
           order: true, status: true, bracketLocked: true,
           categoryLabel: true, ageGroup: true, weightCategory: true,
-          beltCategory: true, isTeamKata: true,
+          beltCategory: true, isTeamKata: true, isTeamKumite: true,
+          format: true, poolCount: true,
           _count: { select: { participants: true, matches: true } },
         },
       },
@@ -107,7 +116,7 @@ export async function PUT(
       entryFeePerCategory, feeCurrency,
       requirePhoto, requireFederationId, requireWaiver, waiverText,
       maxAthletesPerClub, maxTotalAthletes,
-      accreditationPin,
+      accreditationPin, judgePin,
     } = raw as {
       name?: string; date?: string; location?: string; organization?: string;
       leader1?: string; leader2?: string; leader3?: string;
@@ -121,8 +130,18 @@ export async function PUT(
       requirePhoto?: boolean; requireFederationId?: boolean;
       requireWaiver?: boolean; waiverText?: string | null;
       maxAthletesPerClub?: number | null; maxTotalAthletes?: number | null;
-      accreditationPin?: string | null;
+      accreditationPin?: string | null; judgePin?: string | null;
     };
+
+    // PINs de acceso (acreditación/pesaje y app de jueces): si se envían no vacíos,
+    // deben ser 4-6 dígitos — nunca aceptar un PIN de 1 carácter.
+    const PIN_RE = /^\d{4,6}$/;
+    if (accreditationPin?.trim() && !PIN_RE.test(accreditationPin.trim())) {
+      return NextResponse.json({ error: "El PIN de acreditación debe tener entre 4 y 6 dígitos" }, { status: 400 });
+    }
+    if (judgePin?.trim() && !PIN_RE.test(judgePin.trim())) {
+      return NextResponse.json({ error: "El PIN de jueces debe tener entre 4 y 6 dígitos" }, { status: 400 });
+    }
 
     // Validar publicSlug único si se envía
     if (publicSlug) {
@@ -168,6 +187,7 @@ export async function PUT(
         ...(maxAthletesPerClub  !== undefined ? { maxAthletesPerClub:  maxAthletesPerClub  ?? null }                  : {}),
         ...(maxTotalAthletes    !== undefined ? { maxTotalAthletes:    maxTotalAthletes    ?? null }                  : {}),
         ...(accreditationPin    !== undefined ? { accreditationPin: accreditationPin?.trim() || null }                : {}),
+        ...(judgePin            !== undefined ? { judgePin: judgePin?.trim() || null }                                : {}),
       },
     });
 

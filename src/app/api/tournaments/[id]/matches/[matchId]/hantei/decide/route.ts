@@ -10,6 +10,7 @@ import { calculateHanteiResult } from "@/lib/hantei";
 import { logAudit } from "@/lib/audit";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { publishTatamiUpdate } from "@/lib/ably-server";
 
 type Params = { params: Promise<{ id: string; matchId: string }> };
 type SessionUser = { id?: string; email?: string };
@@ -86,6 +87,9 @@ export async function POST(req: NextRequest, { params }: Params) {
       method:    result.method,
     }),
   });
+
+  const tatami = await prisma.tournamentTatami.findFirst({ where: { currentMatchId: matchId }, select: { id: true } });
+  if (tatami) void publishTatamiUpdate(id, tatami.id, "hantei-decided");
 
   return NextResponse.json({ ok: true, result });
 }

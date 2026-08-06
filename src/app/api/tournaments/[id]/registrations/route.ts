@@ -79,6 +79,13 @@ export async function POST(
 
   const categories = typeof raw.categories === "string" ? raw.categories : JSON.stringify(raw.categories);
 
+  // El alumno (si se envía uno) debe pertenecer a este dojo — nunca confiar
+  // en un studentId del cliente sin cruzarlo contra dojoId de la sesión.
+  if (raw.studentId) {
+    const student = await prisma.student.findFirst({ where: { id: raw.studentId, dojoId } });
+    if (!student) return NextResponse.json({ error: "Alumno no encontrado en este dojo" }, { status: 400 });
+  }
+
   try {
     const registration = await prisma.tournamentRegistration.create({
       data: {

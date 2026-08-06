@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Wifi, WifiOff } from "lucide-react";
+import Link from "next/link";
+import { Wifi, WifiOff, Trophy } from "lucide-react";
 
 interface Participant { fullName: string; beltColor: string | null }
 interface MatchInfo {
@@ -149,7 +150,10 @@ export default function ScoreboardPage() {
           <h1 className="font-black text-white text-lg tracking-wide">{data.tournament.name}</h1>
           <p className="text-white/40 text-xs">Marcador en tiempo real · {data.tatamis.length} tatamis</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <Link href={`/public/tournament/${slug}/results`} className="flex items-center gap-1.5 text-xs font-semibold text-white/60 hover:text-white transition-colors">
+            <Trophy size={13} className="text-yellow-400" /> Llaves
+          </Link>
           {connected
             ? <><Wifi size={14} className="text-green-400"/><span className="text-green-400 text-xs font-semibold">En vivo</span></>
             : <><WifiOff size={14} className="text-red-400"/><span className="text-red-400 text-xs">Sin conexión</span></>

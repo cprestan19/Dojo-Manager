@@ -116,12 +116,13 @@ export function buildCategoryLabel(
   ageGroup: string | null,
   weightCategory: string | null,
   isTeamKata: boolean,
+  isTeamKumite: boolean = false,
 ): string {
   const ageLabel = AGE_GROUPS.find(a => a.value === ageGroup)?.label ?? ageGroup ?? "";
   const parts: string[] = [];
 
   if (type === "kumite") {
-    parts.push("Kumite");
+    parts.push(isTeamKumite ? "Kumite en Equipo" : "Kumite");
     if (ageLabel) parts.push(ageLabel);
     if (weightCategory && weightCategory !== "open") parts.push(weightCategory);
     else if (weightCategory === "open") parts.push("Open");

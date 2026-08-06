@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { distributeParticipantsWithSeeds } from "@/lib/tournament-seeding";
+import { assignPools, generatePoolMatches } from "@/lib/round-robin";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -96,6 +97,62 @@ export async function POST(
       { error: "Se necesitan al menos 2 participantes para generar el bracket" },
       { status: 400 },
     );
+  }
+
+  // ── Formato pools / round-robin ─────────────────────────────────────────────
+  if (bracket.format === "round_robin") {
+    try {
+      const poolCount = Math.max(1, Math.min(bracket.poolCount ?? 1, bracket.participants.length));
+
+      const hasSeeds = bracket.participants.some(p => p.seed > 0);
+      const ordered = hasSeeds
+        ? [...bracket.participants].sort((a, b) => (a.seed || 999) - (b.seed || 999))
+        : shuffle(bracket.participants);
+      const orderedIds = ordered.map(p => p.id);
+
+      const assignments = assignPools(orderedIds, poolCount);
+      const poolOf = new Map(assignments.map(a => [a.participantId, a.poolNumber]));
+
+      const byPool = new Map<number, string[]>();
+      for (const a of assignments) {
+        if (!byPool.has(a.poolNumber)) byPool.set(a.poolNumber, []);
+        byPool.get(a.poolNumber)!.push(a.participantId);
+      }
+
+      const matchesToCreate = Array.from(byPool.entries()).flatMap(([poolNumber, ids]) =>
+        generatePoolMatches(poolNumber, ids).map(m => ({
+          tournamentId: id,
+          bracketId,
+          round: 1,
+          matchNumber: m.matchNumber,
+          poolNumber: m.poolNumber,
+          participant1Id: m.participant1Id,
+          participant2Id: m.participant2Id,
+          winnerId: null,
+          isBye: false,
+        })),
+      );
+
+      await prisma.$transaction([
+        prisma.tournamentMatch.deleteMany({ where: { tournamentId: id, bracketId } }),
+        ...assignments.map(a => prisma.tournamentParticipant.update({
+          where: { id: a.participantId },
+          data:  { poolNumber: poolOf.get(a.participantId) ?? null },
+        })),
+        prisma.tournamentMatch.createMany({ data: matchesToCreate }),
+        prisma.tournamentBracket.update({ where: { id: bracketId }, data: { status: "ready" } }),
+      ]);
+
+      const finalMatches = await prisma.tournamentMatch.findMany({
+        where: { tournamentId: id, bracketId },
+        orderBy: [{ poolNumber: "asc" }, { matchNumber: "asc" }],
+      });
+
+      return NextResponse.json({ matches: finalMatches, status: "ready" });
+    } catch (err) {
+      console.error("POST /bracket (round_robin) error:", err);
+      return NextResponse.json({ error: "Error interno al generar los pools" }, { status: 500 });
+    }
   }
 
   try {

@@ -60,6 +60,7 @@ export default function JudgePage() {
   const { id }       = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const judgeIdParam = searchParams.get("judge");
+  const pinParam      = searchParams.get("pin") ?? "";
 
   // Estado de selección
   const [judges,      setJudges]      = useState<Judge[]>([]);
@@ -69,6 +70,12 @@ export default function JudgePage() {
   const [loading,     setLoading]     = useState(false);
   const [saved,       setSaved]       = useState(false);
   const [error,       setError]       = useState("");
+
+  // PIN de la App del Juez (protege lectura/escritura del marcador en vivo)
+  const [judgePin,    setJudgePin]    = useState(pinParam);
+  const [pinInput,    setPinInput]    = useState("");
+  const [pinRequired, setPinRequired] = useState(false);
+  const [appLoaded,   setAppLoaded]   = useState(false);
 
   // Video Review
   const [videoReviewEnabled, setVideoReviewEnabled] = useState(false);
@@ -114,17 +121,23 @@ export default function JudgePage() {
     setKata1(""); setKata2("");
   }
 
-  // Cargar jueces y tatamis desde endpoint público (sin login)
-  useEffect(() => {
-    fetch(`/api/public/judge-app/${id}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data) {
-          setJudges(data.judges ?? []);
-          setTatamis(data.tatamis ?? []);
-        }
-      }).catch(() => {});
+  // Cargar jueces y tatamis desde endpoint público (sin login NextAuth,
+  // protegido por el PIN de jueces del torneo cuando está configurado)
+  const loadJudgeApp = useCallback(async (pinToTry: string) => {
+    try {
+      const r = await fetch(`/api/public/judge-app/${id}?pin=${encodeURIComponent(pinToTry)}`);
+      if (r.status === 403) { setPinRequired(true); setAppLoaded(true); return; }
+      if (!r.ok) { setAppLoaded(true); return; }
+      const data = await r.json();
+      setJudges(data.judges ?? []);
+      setTatamis(data.tatamis ?? []);
+      setPinRequired(false);
+      setJudgePin(pinToTry);
+      setAppLoaded(true);
+    } catch { setAppLoaded(true); }
   }, [id]);
+
+  useEffect(() => { loadJudgeApp(pinParam); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Si viene judgeId en la URL, auto-seleccionar
   useEffect(() => {
@@ -221,9 +234,9 @@ export default function JudgePage() {
     // Fire-and-forget — SenchoControls lo reflejará en el próximo poll
     fetch(`/api/tournaments/${id}/tatami/${selectedJudge.tatamiId}/timer`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body:   JSON.stringify({ action: "pause" }),
+      body:   JSON.stringify({ action: "pause", pin: judgePin }),
     }).catch(() => {});
-  }, [id, selectedJudge]);
+  }, [id, selectedJudge, judgePin]);
 
   // ── Asignar / limpiar Senshu ─────────────────────────────────────────────────
   async function castHanteiVote(vote: "ao" | "aka") {
@@ -231,7 +244,7 @@ export default function JudgePage() {
     const r = await fetch(`/api/tournaments/${id}/matches/${activeMatch.id}/hantei/vote`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ judgeId: selectedJudge.id, vote }),
+      body:    JSON.stringify({ judgeId: selectedJudge.id, vote, pin: judgePin }),
     });
     if (r.ok) {
       const d = await r.json();
@@ -263,7 +276,7 @@ export default function JudgePage() {
     if (!activeMatch) return;
     await fetch("/api/public/match-senshu", {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body:   JSON.stringify({ matchId: activeMatch.id, participantId }),
+      body:   JSON.stringify({ matchId: activeMatch.id, participantId, judgeId: selectedJudge?.id, pin: judgePin }),
     });
     // El próximo poll actualizará el senshu en activeMatch
   }
@@ -273,6 +286,7 @@ export default function JudgePage() {
   // Esto evita el problema de stale closures que tenía el enfoque con setTimeout.
   const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!activeMatch || !selectedJudge || activeMatch.bracketType === "kata") return;
     if (autoSubmitTimer.current) clearTimeout(autoSubmitTimer.current);
@@ -280,6 +294,7 @@ export default function JudgePage() {
       // Esta función se define aquí para capturar los valores actuales del render
       const body = {
         judgeId:        selectedJudge.id,
+        pin:            judgePin,
         scoreType:      "kumite",
         ippon1, wazaari1, yuko1,
         ippon2, wazaari2, yuko2,
@@ -297,7 +312,7 @@ export default function JudgePage() {
       }).then(r => { if (r.ok) setSaved(true); setTimeout(() => setSaved(false), 2000); });
     }, 350);
   }, [ippon1, wazaari1, yuko1, ippon2, wazaari2, yuko2,
-      chukoku1, hansoku1, chukoku2, hansoku2, lastTech1, lastTech2]); // eslint-disable-line react-hooks/exhaustive-deps
+      chukoku1, hansoku1, chukoku2, hansoku2, lastTech1, lastTech2]);
 
   function markTech(setter: (v: (n: number) => number) => void, lastTechSetter: (v: string) => void, tech: string) {
     setter(v => v + 1);
@@ -312,6 +327,7 @@ export default function JudgePage() {
       const isKata = activeMatch.bracketType === "kata";
       const body: Record<string, unknown> = {
         judgeId:   selectedJudge.id,
+        pin:       judgePin,
         scoreType: isKata ? "kata" : "kumite",
       };
       if (isKata) {
@@ -359,6 +375,42 @@ export default function JudgePage() {
     }
     lastBracketIdRef.current = bracketKey;
   }, [activeMatch]);
+
+  /* ── Pantalla: cargando ── */
+  if (!appLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#080C14" }}>
+        <Trophy size={28} className="animate-pulse" style={{ color: PRIMARY }}/>
+      </div>
+    );
+  }
+
+  /* ── Pantalla: PIN de jueces requerido ── */
+  if (pinRequired) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-5" style={{ background: "#080C14", fontFamily: "'Nunito',sans-serif" }}>
+        <Trophy size={32} style={{ color: PRIMARY }}/>
+        <div className="text-center">
+          <p className="text-white font-black text-xl">App del Juez</p>
+          <p className="text-white/40 text-sm mt-1">Ingresa el PIN de jueces del torneo</p>
+        </div>
+        <input
+          type="password" inputMode="numeric" maxLength={6} value={pinInput}
+          onChange={e => setPinInput(e.target.value)}
+          placeholder="PIN"
+          className="w-full max-w-[220px] py-3 px-4 rounded-2xl text-center font-mono text-white text-xl tracking-widest"
+          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", outline: "none" }}
+        />
+        <button
+          onClick={() => { setAppLoaded(false); loadJudgeApp(pinInput); }}
+          disabled={!pinInput}
+          className="w-full max-w-[220px] py-3 rounded-2xl font-black text-white active:scale-[0.98] transition-transform disabled:opacity-40"
+          style={{ background: PRIMARY }}>
+          Continuar
+        </button>
+      </div>
+    );
+  }
 
   /* ── Pantalla de selección de juez ── */
   if (!selectedJudge) {
@@ -652,6 +704,7 @@ export default function JudgePage() {
         tatamiId={selectedJudge?.tatamiId ?? null}
         tournamentId={id}
         matchId={activeMatch?.id ?? null}
+        pin={judgePin}
         onFinished={() => {
           // Vibrar si el dispositivo lo soporta
           if ("vibrate" in navigator) navigator.vibrate([300, 100, 300, 100, 300]);
@@ -949,8 +1002,8 @@ function SenchoTimer({ matchId, tatamiId }: { matchId: string; tatamiId: string 
 }
 
 // ── Sencho con controles de Pausa / Reanudar / Reset ─────────────────────────
-function SenchoControls({ tatamiId, tournamentId, matchId, onFinished }: {
-  tatamiId: string | null; tournamentId: string; matchId: string | null;
+function SenchoControls({ tatamiId, tournamentId, matchId, pin, onFinished }: {
+  tatamiId: string | null; tournamentId: string; matchId: string | null; pin: string;
   onFinished?: () => void;
 }) {
   const [timerData, setTimerData] = useState<{ running: boolean; base: number; startedAt: string | null }>({
@@ -1032,7 +1085,7 @@ function SenchoControls({ tatamiId, tournamentId, matchId, onFinished }: {
     // ── Llamada al servidor en background (sin bloquear la UI) ──
     fetch(`/api/tournaments/${tournamentId}/tatami/${tatamiId}/timer`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body:   JSON.stringify({ action }),
+      body:   JSON.stringify({ action, pin }),
     }).finally(() => setActing(false));
   }
 

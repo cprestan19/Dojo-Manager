@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { publishTatamiUpdate } from "@/lib/ably-server";
+import { verifyJudgePin } from "@/lib/tournament-security";
 
 type Params = { params: Promise<{ id: string; matchId: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -87,14 +89,18 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
 
-  const { judgeId, scoreType } = body as {
-    judgeId: string; scoreType: "kumite" | "kata";
+  const { judgeId, scoreType, pin } = body as {
+    judgeId: string; scoreType: "kumite" | "kata"; pin?: string;
     score1?: number; score2?: number;
     penalty1?: number; penalty2?: number;
     kataScore1?: number; kataScore2?: number;
   };
 
   if (!judgeId) return NextResponse.json({ error: "judgeId requerido" }, { status: 400 });
+
+  if (!(await verifyJudgePin(id, pin))) {
+    return NextResponse.json({ error: "PIN incorrecto" }, { status: 403 });
+  }
 
   // Verificar que el match existe y que el juez pertenece al torneo
   const [match, judge] = await Promise.all([
@@ -164,14 +170,20 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
   }
 
+  if (judge.tatamiId) void publishTatamiUpdate(id, judge.tatamiId, "judge-score");
+
   return NextResponse.json(score);
 }
 
 /** DELETE: el juez borra su puntuación */
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { id, matchId } = await params;
-  const { judgeId } = await req.json().catch(() => ({})) as { judgeId: string };
+  const { judgeId, pin } = await req.json().catch(() => ({})) as { judgeId: string; pin?: string };
   if (!judgeId) return NextResponse.json({ error: "judgeId requerido" }, { status: 400 });
+
+  if (!(await verifyJudgePin(id, pin))) {
+    return NextResponse.json({ error: "PIN incorrecto" }, { status: 403 });
+  }
 
   const judge = await prisma.tournamentJudge.findFirst({ where: { id: judgeId, tournamentId: id } });
   if (!judge) return NextResponse.json({ error: "Juez no autorizado" }, { status: 403 });

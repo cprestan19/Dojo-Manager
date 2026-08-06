@@ -53,7 +53,15 @@ export async function POST(req: NextRequest, { params }: Params) {
     coachEmail?:  string;
     coachPhone?:  string;
     federationId?: string;
+    website?:     string; // honeypot — campo invisible para personas, ver ClubRegistrationSection.tsx
   };
+
+  // Honeypot: un bot que rellena todos los campos del formulario cae aquí.
+  // Se responde 201 "éxito" sin crear nada, para no delatar el filtro.
+  if (body.website?.trim()) {
+    console.warn(`[register-club] honeypot activado, ip=${ip}`);
+    return NextResponse.json({ ok: true, message: "Inscripción registrada. Revisa tu correo para el enlace de gestión." }, { status: 201 });
+  }
 
   const { clubName, coachName, coachEmail } = body;
   if (!clubName?.trim() || !coachName?.trim() || !coachEmail?.trim()) {

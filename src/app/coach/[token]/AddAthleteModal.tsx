@@ -1,13 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, ChevronRight, ChevronLeft, Check } from "lucide-react";
+import { X, ChevronRight, ChevronLeft, Check, Upload, User } from "lucide-react";
 import { calculateAgeGroup, getCompatibleCategories, buildCategoryLabel } from "@/lib/tournament-categories";
-import type { TournamentData } from "./CoachPortalClient";
+import type { TournamentData, TournamentBracketOption } from "./CoachPortalClient";
 
-interface Bracket {
-  id: string; type: string; gender: string | null; ageGroup: string | null;
-  weightCategory: string | null; isTeamKata: boolean; categoryLabel: string | null;
-}
+type Bracket = TournamentBracketOption;
 interface Props {
   token:      string;
   tournament: TournamentData;
@@ -30,11 +27,12 @@ export function AddAthleteModal({ token, tournament, onClose, onSaved }: Props) 
   // Step 1 — Basic data
   const [form, setForm] = useState({
     firstName: "", lastName: "", birthDate: "", gender: "",
-    nationality: "", weight: "", beltColor: "", fepakaId: "",
+    nationality: "", weight: "", beltColor: "", fepakaId: "", photoUrl: "",
   });
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  // Step 2 — Categories
-  const [brackets, setBrackets]         = useState<Bracket[]>([]);
+  // Step 2 — Categories (las categorías del torneo ya vienen con el portal — sin fetch adicional)
+  const brackets: Bracket[] = tournament.brackets ?? [];
   const [compatible, setCompatible]     = useState<Bracket[]>([]);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   const [rankingFlags, setRankingFlags] = useState<Record<string, boolean>>({});
@@ -42,32 +40,6 @@ export function AddAthleteModal({ token, tournament, onClose, onSaved }: Props) 
 
   // Step 3 — Confirm
   const [waiverSigned, setWaiverSigned] = useState(false);
-
-  // Load brackets when moving to step 2
-  useEffect(() => {
-    if (step !== 2 || brackets.length > 0) return;
-    fetch(`/api/public/tournament-club/${token}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        // Get tournament brackets from a public endpoint — not available directly
-        // Use compatible categories based on athlete data
-        if (d?.tournament) {
-          // Fetch brackets from the tournament via the public API (we don't have a direct endpoint)
-          // For now, use empty array - brackets will be fetched via a separate call
-        }
-      });
-    // We need brackets — fetch from a public-accessible endpoint
-    // Since we have the token, we know the tournamentId from the club
-    fetch(`/api/public/tournament-club/${token}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(async d => {
-        if (!d) return;
-        // Fetch public tournament info to get brackets
-        // brackets are not directly exposed publicly - use the club token to get them
-        // We'll derive compatible categories from the athlete's data
-        setBrackets([]); // Will be populated if we add a brackets endpoint
-      });
-  }, [step, token, brackets.length]);
 
   // Compute compatible categories when step 2 opens
   useEffect(() => {
@@ -79,11 +51,30 @@ export function AddAthleteModal({ token, tournament, onClose, onSaved }: Props) 
     setCompatible(filtered);
   }, [step, brackets, form.birthDate, form.gender, form.weight, tournament.date]);
 
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("purpose", "athlete-photo");
+      const r = await fetch(`/api/public/tournament-club/${token}/upload`, { method: "POST", body: fd });
+      if (!r.ok) { setError("Error al subir la foto"); return; }
+      const d = await r.json();
+      setForm(f => ({ ...f, photoUrl: d.url }));
+    } catch {
+      setError("Error de conexión al subir la foto");
+    } finally { setUploadingPhoto(false); }
+  }
+
   function validateStep1(): string {
     if (!form.firstName.trim()) return "Nombre requerido";
     if (!form.lastName.trim())  return "Apellido requerido";
     if (!form.birthDate)        return "Fecha de nacimiento requerida";
     if (!form.gender)           return "Género requerido";
+    if (tournament.requirePhoto && !form.photoUrl) return "Este torneo requiere foto del atleta";
     return "";
   }
 
@@ -147,6 +138,31 @@ export function AddAthleteModal({ token, tournament, onClose, onSaved }: Props) 
         {/* ── STEP 1: Basic data ── */}
         {step === 1 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {/* Photo */}
+            <div>
+              <label style={{ color: "rgba(255,255,255,0.55)", fontSize: "12px", display: "block", marginBottom: "5px" }}>
+                Foto del atleta{tournament.requirePhoto ? " *" : ""}
+              </label>
+              <label style={{
+                display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px",
+                border: `2px dashed ${form.photoUrl ? "#22c55e" : border}`, borderRadius: "10px",
+                cursor: "pointer", background: form.photoUrl ? "rgba(34,197,94,0.05)" : card,
+              }}>
+                <input type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }} />
+                {form.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={form.photoUrl} alt="" style={{ width: "44px", height: "44px", borderRadius: "50%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <User size={20} color="rgba(255,255,255,0.35)" />
+                  </div>
+                )}
+                <span style={{ color: uploadingPhoto ? "rgba(255,255,255,0.4)" : form.photoUrl ? "#4ade80" : "rgba(255,255,255,0.45)", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
+                  {uploadingPhoto ? "Subiendo..." : form.photoUrl ? "Foto lista — toca para cambiar" : (<><Upload size={14}/> Toca para subir una foto</>)}
+                </span>
+              </label>
+            </div>
+
             {[
               { key: "firstName", label: "Nombre *", type: "text" },
               { key: "lastName",  label: "Apellido *", type: "text" },
