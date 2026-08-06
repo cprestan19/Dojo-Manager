@@ -1,15 +1,18 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { BookOpen, Plus, Edit2, Trash2, Save, X, Tag } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { BookOpen, Plus, Edit2, Trash2, Save, X, Tag, Trophy, Search } from "lucide-react";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { Modal } from "@/components/ui/Modal";
 import { BELT_COLORS, MULTI_KATA_BELTS } from "@/lib/utils";
 import { useToast, ToastContainer } from "@/components/ui/Toast";
 
 interface Kata {
-  id: string; name: string; beltColor: string;
+  id: string; name: string; beltColor: string | null;
   order: number; description: string | null; active: boolean;
+  assignedStudentIds?: string[];
 }
+
+interface StudentOption { id: string; fullName: string; studentCode: number | null }
 
 const KATA_TYPES = [
   { value: "",                      label: "— Sin tipo —"         },
@@ -18,7 +21,7 @@ const KATA_TYPES = [
 ];
 
 const MAX_MULTI = 5;
-const empty = (): Partial<Kata> => ({ name: "", beltColor: "blanca", order: 0, description: "" });
+const empty = (): Partial<Kata> => ({ name: "", beltColor: "blanca", order: 0, description: "", assignedStudentIds: [] });
 const emptyNames = (): string[] => Array(MAX_MULTI).fill("");
 
 export default function KatasSettingsPage() {
@@ -32,6 +35,11 @@ export default function KatasSettingsPage() {
   const [deleting,   setDel]      = useState<string | null>(null);
   const { toasts, show: showToast, dismiss } = useToast();
 
+  // Alumnos para el filtro de asignación de Kata de Competencia
+  const [students,       setStudents]     = useState<StudentOption[]>([]);
+  const [studentsLoaded, setStudentsLoaded] = useState(false);
+  const [studentSearch,  setStudentSearch]  = useState("");
+
   const fetch_ = useCallback(async () => {
     setLoading(true);
     const r = await fetch("/api/katas");
@@ -41,18 +49,53 @@ export default function KatasSettingsPage() {
 
   useEffect(() => { fetch_(); }, [fetch_]);
 
+  async function loadStudents() {
+    if (studentsLoaded) return;
+    const r = await fetch("/api/students?active=true&limit=500");
+    if (r.ok) {
+      const data = await r.json();
+      const list: StudentOption[] = Array.isArray(data) ? data : (data.students ?? []);
+      setStudents(list);
+    }
+    setStudentsLoaded(true);
+  }
+
+  const isCompetencia = editing.description === "Kata de Competencias";
+
+  const filteredStudents = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase();
+    const list = q ? students.filter(s => s.fullName.toLowerCase().includes(q)) : students;
+    const selected = new Set(editing.assignedStudentIds ?? []);
+    return [...list].sort((a, b) => {
+      const aSel = selected.has(a.id) ? 0 : 1;
+      const bSel = selected.has(b.id) ? 0 : 1;
+      return aSel !== bSel ? aSel - bSel : a.fullName.localeCompare(b.fullName);
+    });
+  }, [students, studentSearch, editing.assignedStudentIds]);
+
+  function toggleStudent(id: string) {
+    setEditing(p => {
+      const current = new Set(p.assignedStudentIds ?? []);
+      if (current.has(id)) current.delete(id); else current.add(id);
+      return { ...p, assignedStudentIds: [...current] };
+    });
+  }
+
   function openCreate() {
     setEditing(empty());
     setNames(emptyNames());
+    setStudentSearch("");
     setSaveErr("");
     setModal(true);
   }
 
   function openEdit(k: Kata) {
-    setEditing({ ...k });
+    setEditing({ ...k, assignedStudentIds: k.assignedStudentIds ?? [] });
     setNames(emptyNames());
+    setStudentSearch("");
     setSaveErr("");
     setModal(true);
+    if (k.description === "Kata de Competencias") loadStudents();
   }
 
   // ¿Está en modo multi-creación? (crear + cinta avanzada)
@@ -118,6 +161,9 @@ export default function KatasSettingsPage() {
     return acc;
   }, {});
 
+  // Katas de Competencia — sin cinta, se agrupan aparte y se asignan a alumnos puntuales.
+  const competenciaKatas = katas.filter(k => !k.beltColor);
+
   const totalActive   = katas.filter(k => k.active).length;
   const totalInactive = katas.filter(k => !k.active).length;
 
@@ -153,6 +199,56 @@ export default function KatasSettingsPage() {
 
       {loading && <div className="text-center py-20 text-dojo-muted">Cargando...</div>}
 
+      {/* Katas de Competencia — sin cinta, asignadas directo a alumnos */}
+      {!loading && competenciaKatas.length > 0 && (
+        <div className="card p-0 overflow-hidden" style={{ borderColor: "var(--color-dojo-gold, #D4AF37)" }}>
+          <div className="flex items-center gap-3 px-5 py-3 border-b border-dojo-border bg-dojo-gold/10">
+            <Trophy size={14} className="text-dojo-gold"/>
+            <p className="font-semibold text-sm text-dojo-gold">Katas de Competencia</p>
+            <span className="text-xs text-dojo-muted ml-auto">{competenciaKatas.length} kata(s)</span>
+          </div>
+          <table className="w-full text-sm">
+            <tbody>
+              {competenciaKatas.map(k => (
+                <tr key={k.id} className="border-b border-dojo-border/40 hover:bg-dojo-border/10 last:border-0">
+                  <td className="px-5 py-3 w-10 text-dojo-muted text-center text-xs">{k.order}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-dojo-white">{k.name}</p>
+                    {k.description && (
+                      <p className="text-xs text-dojo-muted flex items-center gap-1 mt-0.5">
+                        <Tag size={10}/> {k.description}
+                      </p>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="badge-gold text-xs">
+                      {(k.assignedStudentIds?.length ?? 0)} alumno(s)
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={k.active ? "badge-green" : "badge-red"}>
+                      {k.active ? "Activo" : "Inactivo"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <button onClick={() => openEdit(k)}
+                        className="btn-ghost p-1.5 text-dojo-muted hover:text-dojo-white">
+                        <Edit2 size={15}/>
+                      </button>
+                      <button onClick={() => deleteKata(k.id)} disabled={deleting === k.id}
+                        className="btn-ghost p-1.5 text-dojo-muted hover:text-red-400">
+                        <Trash2 size={15}/>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Agrupado por cinta */}
       {!loading && BELT_COLORS.map(belt => {
         const list = grouped[belt.value] ?? [];
@@ -180,7 +276,7 @@ export default function KatasSettingsPage() {
                         </p>
                       )}
                     </td>
-                    <td className="px-4 py-3"><BeltBadge beltColor={k.beltColor} /></td>
+                    <td className="px-4 py-3"><BeltBadge beltColor={k.beltColor ?? belt.value} /></td>
                     <td className="px-4 py-3">
                       <span className={k.active ? "badge-green" : "badge-red"}>
                         {k.active ? "Activo" : "Inactivo"}
@@ -210,7 +306,7 @@ export default function KatasSettingsPage() {
         <div className="text-center py-16 text-dojo-muted">
           <BookOpen size={48} className="mx-auto mb-4 opacity-30"/>
           <p className="font-semibold">No hay katas registrados.</p>
-          <p className="text-sm mt-1">Crea el primer kata usando el botón "Nuevo Kata".</p>
+          <p className="text-sm mt-1">Crea el primer kata usando el botón &quot;Nuevo Kata&quot;.</p>
         </div>
       )}
 
@@ -218,61 +314,116 @@ export default function KatasSettingsPage() {
       <Modal open={modal} onClose={() => setModal(false)} title={modalTitle}>
         <div className="space-y-4">
 
-          {/* Cinta (siempre visible) */}
-          <div className={editing.id ? "grid grid-cols-2 gap-4" : ""}>
-            <div className={editing.id ? "" : "grid grid-cols-2 gap-4 col-span-2"}>
-              <div>
-                <label className="form-label">Cinta Requerida *</label>
-                <select
-                  value={editing.beltColor ?? "blanca"}
-                  onChange={e => {
-                    setEditing(p => ({ ...p, beltColor: e.target.value, name: p.name }));
-                    setNames(emptyNames());
-                  }}
-                  className="form-input"
-                >
-                  {BELT_COLORS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
-                </select>
-                {!editing.id && MULTI_KATA_BELTS.has(editing.beltColor ?? "") && (
-                  <p className="text-xs text-dojo-gold mt-1">
-                    Puedes registrar hasta {MAX_MULTI} katas a la vez para esta cinta.
-                  </p>
-                )}
-              </div>
-
-              {/* Orden inicial */}
-              <div>
-                <label className="form-label">
-                  {isMultiCreate ? "Orden inicial" : "Orden en lista"}
-                </label>
-                <input
-                  type="number" min={0}
-                  value={editing.order ?? 0}
-                  onChange={e => setEditing(p => ({ ...p, order: Number(e.target.value) }))}
-                  className="form-input"
-                />
-                {isMultiCreate && (
-                  <p className="text-xs text-dojo-muted mt-1">
-                    Los katas siguientes tendrán orden +1, +2…
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Tipo de Kata (siempre visible) */}
+          {/* Tipo de Kata (siempre visible, primero — decide si aplica cinta o alumnos asignados) */}
           <div>
             <label className="form-label flex items-center gap-1.5">
               <Tag size={12}/> Tipo de Kata
             </label>
             <select
               value={editing.description ?? ""}
-              onChange={e => setEditing(p => ({ ...p, description: e.target.value || null }))}
+              onChange={e => {
+                const value = e.target.value || null;
+                setEditing(p => ({ ...p, description: value }));
+                if (value === "Kata de Competencias") loadStudents();
+              }}
               className="form-input"
             >
               {KATA_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
+
+          {isCompetencia ? (
+            /* ── Kata de Competencia: sin cinta, con orden + asignación de alumnos ── */
+            <>
+              <div>
+                <label className="form-label">Orden en lista</label>
+                <input
+                  type="number" min={0}
+                  value={editing.order ?? 0}
+                  onChange={e => setEditing(p => ({ ...p, order: Number(e.target.value) }))}
+                  className="form-input max-w-[160px]"
+                />
+              </div>
+
+              <div>
+                <label className="form-label flex items-center gap-1.5">
+                  <Trophy size={12} className="text-dojo-gold"/> Alumnos asignados
+                  {(editing.assignedStudentIds?.length ?? 0) > 0 && (
+                    <span className="text-dojo-gold">({editing.assignedStudentIds!.length})</span>
+                  )}
+                </label>
+                <div className="relative mb-2">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted"/>
+                  <input
+                    value={studentSearch}
+                    onChange={e => setStudentSearch(e.target.value)}
+                    placeholder="Buscar alumno..."
+                    className="form-input pl-9"
+                  />
+                </div>
+                <div className="max-h-52 overflow-y-auto border border-dojo-border rounded-lg divide-y divide-dojo-border/40">
+                  {filteredStudents.length === 0 && (
+                    <p className="text-center text-dojo-muted text-sm py-4">
+                      {studentsLoaded ? "Sin alumnos que coincidan." : "Cargando alumnos..."}
+                    </p>
+                  )}
+                  {filteredStudents.map(s => {
+                    const checked = (editing.assignedStudentIds ?? []).includes(s.id);
+                    return (
+                      <label key={s.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-dojo-border/10">
+                        <input type="checkbox" checked={checked} onChange={() => toggleStudent(s.id)}
+                          className="w-4 h-4 accent-dojo-red shrink-0" />
+                        <span className="text-sm text-dojo-white truncate">{s.fullName}</span>
+                        {s.studentCode != null && <span className="text-xs text-dojo-muted ml-auto shrink-0">#{s.studentCode}</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          ) : (
+            /* ── Kata de Cinta (o sin tipo): requiere cinta ── */
+            <div className={editing.id ? "grid grid-cols-2 gap-4" : ""}>
+              <div className={editing.id ? "" : "grid grid-cols-2 gap-4 col-span-2"}>
+                <div>
+                  <label className="form-label">Cinta Requerida *</label>
+                  <select
+                    value={editing.beltColor ?? "blanca"}
+                    onChange={e => {
+                      setEditing(p => ({ ...p, beltColor: e.target.value, name: p.name }));
+                      setNames(emptyNames());
+                    }}
+                    className="form-input"
+                  >
+                    {BELT_COLORS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                  </select>
+                  {!editing.id && MULTI_KATA_BELTS.has(editing.beltColor ?? "") && (
+                    <p className="text-xs text-dojo-gold mt-1">
+                      Puedes registrar hasta {MAX_MULTI} katas a la vez para esta cinta.
+                    </p>
+                  )}
+                </div>
+
+                {/* Orden inicial */}
+                <div>
+                  <label className="form-label">
+                    {isMultiCreate ? "Orden inicial" : "Orden en lista"}
+                  </label>
+                  <input
+                    type="number" min={0}
+                    value={editing.order ?? 0}
+                    onChange={e => setEditing(p => ({ ...p, order: Number(e.target.value) }))}
+                    className="form-input"
+                  />
+                  {isMultiCreate && (
+                    <p className="text-xs text-dojo-muted mt-1">
+                      Los katas siguientes tendrán orden +1, +2…
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Modo multi-creación ── */}
           {isMultiCreate ? (

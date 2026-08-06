@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { randomInt } from "crypto";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, escHtml } from "@/lib/email";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
 import { getOrCreateDefaultPlan, createFreeMonthSubscription } from "@/lib/billing/subscription";
 
@@ -61,17 +61,17 @@ async function sendWelcomeEmail(
 
     <!-- Body -->
     <div style="padding:32px 28px;">
-      <h2 style="color:#111;font-size:22px;margin:0 0 8px;">¡Bienvenido, ${senseiName}! 🎉</h2>
+      <h2 style="color:#111;font-size:22px;margin:0 0 8px;">¡Bienvenido, ${escHtml(senseiName)}! 🎉</h2>
       <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px;">
-        Tu dojo <strong>${dojoName}</strong> ya está registrado en Dojo Master con el plan <strong>${planName}</strong>.
+        Tu dojo <strong>${escHtml(dojoName)}</strong> ya está registrado en Dojo Master con el plan <strong>${escHtml(planName)}</strong>.
         Aquí están tus credenciales de acceso:
       </p>
 
       <!-- Credenciales -->
       <div style="background:#f8f8f8;border-left:4px solid #C0392B;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
         <p style="margin:0 0 8px;font-size:13px;color:#888;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">Tus credenciales</p>
-        <p style="margin:0 0 6px;font-size:15px;color:#111;"><strong>Email:</strong> ${to}</p>
-        <p style="margin:0;font-size:15px;color:#111;"><strong>Contraseña temporal:</strong> <code style="background:#e8e8e8;padding:2px 8px;border-radius:4px;font-size:14px;">${password}</code></p>
+        <p style="margin:0 0 6px;font-size:15px;color:#111;"><strong>Email:</strong> ${escHtml(to)}</p>
+        <p style="margin:0;font-size:15px;color:#111;"><strong>Contraseña temporal:</strong> <code style="background:#e8e8e8;padding:2px 8px;border-radius:4px;font-size:14px;">${escHtml(password)}</code></p>
       </div>
 
       <div style="text-align:center;margin-bottom:28px;">
@@ -149,8 +149,8 @@ async function notifyFounder(senseiName: string, dojoName: string, email: string
               ["Años enseñando",  yearsTeaching],
             ].map(([k, v]) => `
               <tr>
-                <td style="padding:8px 0;color:#888;font-weight:bold;width:120px;">${k}</td>
-                <td style="padding:8px 0;color:#111;">${v}</td>
+                <td style="padding:8px 0;color:#888;font-weight:bold;width:120px;">${escHtml(k)}</td>
+                <td style="padding:8px 0;color:#111;">${escHtml(v)}</td>
               </tr>
             `).join("")}
           </table>
@@ -159,7 +159,7 @@ async function notifyFounder(senseiName: string, dojoName: string, email: string
               style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:bold;font-size:14px;">
               📱 WhatsApp al Sensei
             </a>
-            <a href="mailto:${email}?subject=Bienvenido a Dojo Master"
+            <a href="mailto:${escHtml(email)}?subject=Bienvenido a Dojo Master"
               style="display:inline-block;background:#C0392B;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:bold;font-size:14px;">
               ✉️ Responder por email
             </a>

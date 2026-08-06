@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/queries";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { sanitizeKataStudentIds, syncKataRankingAssignments } from "@/lib/kata-ranking";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -34,18 +35,25 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   try {
     const body = await req.json();
+    const isCompetencia = body.description === "Kata de Competencias";
+    const studentIds = isCompetencia ? await sanitizeKataStudentIds(body.assignedStudentIds, dojoId) : [];
+
     const kata = await prisma.kata.update({
       where: { id },
       data: {
         name:        body.name,
-        beltColor:   body.beltColor,
+        beltColor:   isCompetencia ? null : body.beltColor,
         order:       Number(body.order) || 0,
         description: body.description ?? null,
         active:      body.active ?? true,
       },
     });
+
+    // Si dejó de ser Kata de Competencias, limpiar cualquier asignación previa.
+    await syncKataRankingAssignments(id, isCompetencia ? studentIds : []);
+
     revalidateTag(CACHE_TAGS.katas(dojoId));
-    return NextResponse.json(kata);
+    return NextResponse.json({ ...kata, assignedStudentIds: studentIds });
   } catch (err: unknown) {
     const code = (err as { code?: string })?.code;
     if (code === "P2002")

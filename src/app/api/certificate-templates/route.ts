@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { isOwnCloudinaryUrl } from "@/lib/upload-validation";
 
 // GET /api/certificate-templates — lista plantillas activas del dojo
 export async function GET(req: NextRequest) {
@@ -66,6 +67,11 @@ export async function POST(req: NextRequest) {
     if (!body.name?.trim())        return NextResponse.json({ error: "Nombre requerido" }, { status: 400 });
     if (!body.imageUrl?.trim())    return NextResponse.json({ error: "imageUrl requerida" }, { status: 400 });
     if (!body.imagePublicId?.trim()) return NextResponse.json({ error: "imagePublicId requerido" }, { status: 400 });
+    // Debe ser una URL del propio Cloudinary del proyecto (subida vía /api/upload) —
+    // nunca una URL arbitraria: el servidor la va a fetchear al emitir certificados.
+    if (!isOwnCloudinaryUrl(body.imageUrl.trim())) {
+      return NextResponse.json({ error: "imageUrl inválida — debe ser una imagen subida a Cloudinary" }, { status: 400 });
+    }
 
     const template = await prisma.certificateTemplate.create({
       data: {

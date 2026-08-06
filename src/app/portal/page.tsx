@@ -80,6 +80,10 @@ export default async function PortalProfilePage() {
           kata: { select: { name: true, beltColor: true } },
         },
       },
+      kataRankingAssignments: {
+        orderBy: { createdAt: "desc" },
+        select: { id: true, kata: { select: { name: true } } },
+      },
       payments: {
         where:   { status: { in: ["pending", "late"] } },
         orderBy: { dueDate: "asc" },
@@ -138,6 +142,10 @@ export default async function PortalProfilePage() {
             orderBy: { date: "desc" },
             take:    10,
             select:  { id: true, date: true, tournament: true, result: true, kata: { select: { name: true } } },
+          },
+          kataRankingAssignments: {
+            orderBy: { createdAt: "desc" },
+            select: { id: true, kata: { select: { name: true } } },
           },
           studentSchedules: {
             where:  { removedAt: null },
@@ -209,11 +217,12 @@ export default async function PortalProfilePage() {
     motherName: string | null; motherPhone: string | null;
     fatherName: string | null; fatherPhone: string | null;
     inscription: { inscriptionDate: Date; monthlyAmount: number; biweeklyAmount: number; discountAmount: number; paymentPeriod: string } | null;
-    beltHistory:      { beltColor: string; changeDate: Date; isRanking: boolean; kata?: { name: string } | null }[];
-    payments:         { id: string; amount: number; dueDate: Date; status: string }[];
-    kataCompetitions: { id: string; date: Date; tournament: string | null; result: string | null; kata?: { name: string } | null }[];
-    studentSchedules: { schedule: { name: string; days: string; startTime: string; endTime: string } }[];
-    attendances:      { id: string; type: string; markedAt: Date; schedule: { name: string } | null }[];
+    beltHistory:            { beltColor: string; changeDate: Date; isRanking: boolean; kata?: { name: string } | null }[];
+    payments:               { id: string; amount: number; dueDate: Date; status: string }[];
+    kataCompetitions:       { id: string; date: Date; tournament: string | null; result: string | null; kata?: { name: string } | null }[];
+    kataRankingAssignments: { id: string; kata: { name: string } | null }[];
+    studentSchedules:       { schedule: { name: string; days: string; startTime: string; endTime: string } }[];
+    attendances:            { id: string; type: string; markedAt: Date; schedule: { name: string } | null }[];
   };
 
   function buildMember(s: StudentLike, isMain: boolean): FamilyMember {
@@ -237,6 +246,7 @@ export default async function PortalProfilePage() {
       beltHistory:      belts,
       payments: s.payments.map(p => ({ id: p.id, amount: p.amount, dueDate: formatDate(p.dueDate), status: p.status })),
       kataCompetitions: s.kataCompetitions.map(k => ({ id: k.id, kataName: k.kata?.name ?? null, tournament: k.tournament, result: k.result, date: formatDate(k.date) })),
+      kataRankingAssignments: s.kataRankingAssignments.map(a => ({ id: a.id, kataName: a.kata?.name ?? null })),
       schedules: s.studentSchedules.map(ss => ({ name: ss.schedule.name, days: parseDays(ss.schedule.days), startTime: ss.schedule.startTime, endTime: ss.schedule.endTime })),
       attendances: s.attendances.map(a => ({ id: a.id, type: a.type, markedAt: fmtAttendance(a.markedAt), scheduleName: a.schedule?.name ?? null })),
       birthDate:   formatDate(s.birthDate),
@@ -530,6 +540,24 @@ export default async function PortalProfilePage() {
             </StaggerItem>
           )}
 
+          {/* ── Kata de Ranking — katas de competencia asignadas ── */}
+          {student.kataRankingAssignments.length > 0 && (
+            <StaggerItem>
+            <div className="card">
+              <p className="text-sm font-bold text-dojo-white flex items-center gap-2 mb-4">
+                <Trophy size={15} className="text-dojo-gold" /> Kata de Ranking
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {student.kataRankingAssignments.map(a => (
+                  <span key={a.id} className="badge-gold text-xs flex items-center gap-1.5 px-3 py-1.5">
+                    <Trophy size={11}/> {a.kata?.name ?? "Kata eliminada"}
+                  </span>
+                ))}
+              </div>
+            </div>
+            </StaggerItem>
+          )}
+
           {/* ── Competencias ── */}
           {student.kataCompetitions.length > 0 && (
             <StaggerItem>
@@ -539,7 +567,7 @@ export default async function PortalProfilePage() {
               </p>
               <div className="space-y-2.5">
                 {student.kataCompetitions.map(k => {
-                  const bi = k.kata ? getBeltInfo(k.kata.beltColor) : null;
+                  const bi = k.kata?.beltColor ? getBeltInfo(k.kata.beltColor) : null;
                   return (
                     <div key={k.id} className="p-3 rounded-xl border border-dojo-border bg-dojo-darker space-y-1.5">
                       <div className="flex items-start justify-between gap-2">

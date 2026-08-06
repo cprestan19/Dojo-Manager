@@ -47,6 +47,7 @@ export interface FamilyMember {
   payments: { id: string; amount: number; dueDate: string; status: string }[];
   // Kata competitions
   kataCompetitions: { id: string; kataName: string | null; tournament: string | null; result: string | null; date: string }[];
+  kataRankingAssignments: { id: string; kataName: string | null }[];
   // Schedules
   schedules: { name: string; days: string[]; startTime: string; endTime: string }[];
   // Attendance (recent)
@@ -273,6 +274,20 @@ export function FamilyMemberAccordion({ members, dojoCard }: { members: FamilyMe
                           {b.kataName && <span className="text-dojo-muted text-[10px] truncate flex-1">{b.kataName}</span>}
                           <span className="text-dojo-muted ml-auto shrink-0 text-[10px]">{b.date}</span>
                         </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* 5b. Kata de Ranking */}
+                {m.kataRankingAssignments.length > 0 && (
+                  <section>
+                    <SectionTitle icon={Trophy} label="Kata de Ranking" />
+                    <div className="flex flex-wrap gap-1.5">
+                      {m.kataRankingAssignments.map(a => (
+                        <span key={a.id} className="badge-gold text-[10px] flex items-center gap-1 px-2 py-1">
+                          <Trophy size={9}/> {a.kataName ?? "Kata eliminada"}
+                        </span>
                       ))}
                     </div>
                   </section>

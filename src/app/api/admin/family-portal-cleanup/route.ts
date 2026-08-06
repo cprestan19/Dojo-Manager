@@ -103,10 +103,17 @@ export async function POST(req: NextRequest) {
 
   const ctx = buildAuditCtx(session, req);
 
+  // Un solo update para todos los usuarios a revocar en vez de uno por
+  // usuario dentro del loop. El audit log SÍ se mantiene uno por usuario —
+  // cada revocación necesita su propio registro trazable.
+  const targetUserIds = report.flatMap(f => f.toRevoke.map(t => t.userId));
+  if (targetUserIds.length > 0) {
+    await prisma.user.updateMany({ where: { id: { in: targetUserIds } }, data: { active: false } });
+  }
+
   let revokedCount = 0;
   for (const family of report) {
     for (const target of family.toRevoke) {
-      await prisma.user.update({ where: { id: target.userId }, data: { active: false } });
       revokedCount++;
       await logAudit({
         ...ctx,

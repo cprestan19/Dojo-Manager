@@ -19,12 +19,21 @@ function rateLimit(key: string, maxRequests: number, windowMs: number): boolean 
   return bucket.count <= maxRequests;
 }
 
+// x-real-ip lo fija el edge de Vercel con la IP real de la conexión TCP —
+// no lo puede falsificar el cliente. Si no está, usamos el ÚLTIMO valor de
+// x-forwarded-for (el que agrega el proxy más cercano/confiable), nunca el
+// primero — un cliente puede anteponer valores falsos al principio de esa
+// cadena para intentar evadir el rate limit rotando IPs "propias".
 function getClientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown"
-  );
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",").map(p => p.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return "unknown";
 }
 
 function clearAuthCookies(req: NextRequest, res: NextResponse): void {
@@ -129,6 +138,19 @@ export async function middleware(req: NextRequest) {
   // Free trial form: prevent spam from public page
   if (pathname === "/api/public/free-trial" && req.method === "POST") {
     if (!rateLimit(`free-trial:${ip}`, 5, 60_000)) return tooManyRequests("60");
+  }
+
+  // Alta pública de dojo nuevo — sin límite quedaba abierto a spam/email
+  // bombing (crea Dojo+admin real y dispara 2 correos por request).
+  if (pathname === "/api/public/register" && req.method === "POST") {
+    if (!rateLimit(`public-register:${ip}`, 5, 900_000)) return tooManyRequests("900");
+  }
+
+  // Autoregistro de alumno por link (/registro/[token]) — más generoso que
+  // el alta de dojo a propósito: un solo link se usa para MUCHOS alumnos
+  // (ej. día de inscripciones desde el WiFi del dojo, misma IP legítima).
+  if (pathname.startsWith("/api/public/register/") && req.method === "POST") {
+    if (!rateLimit(`public-register-token:${ip}`, 20, 600_000)) return tooManyRequests("600");
   }
 
   // Belt history mutations: protect against mass data write
@@ -284,6 +306,7 @@ export const config = {
     "/api/users/:path*",
     "/api/upload",
     "/api/upload/video-signature",
+    "/api/public/register",
     "/api/public/register/:path*",
     "/api/belt-history",
     "/api/belt-history/:path*",

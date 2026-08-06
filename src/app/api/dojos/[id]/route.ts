@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/queries";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; id?: string; email?: string };
@@ -37,6 +38,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   });
 
   if (body.featured !== undefined) revalidateTag("public-featured-dojos");
+  revalidateTag(CACHE_TAGS.dojo(id));
 
   return NextResponse.json({
     ...dojo,

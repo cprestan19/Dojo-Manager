@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/queries";
 
 type SessionUser = { role?: string };
 
@@ -46,6 +48,7 @@ export async function POST(req: NextRequest) {
       data:           templateKatas.map(k => ({ ...k, dojoId: body.targetDojoId! })),
       skipDuplicates: true,
     });
+    revalidateTag(CACHE_TAGS.katas(body.targetDojoId));
     return NextResponse.json({
       ok:       true,
       template: template.slug,
@@ -82,6 +85,7 @@ export async function POST(req: NextRequest) {
       data:           templateKatas.map(k => ({ ...k, dojoId: dojo.id })),
       skipDuplicates: true,
     });
+    revalidateTag(CACHE_TAGS.katas(dojo.id));
     results.push({ dojo: dojo.slug, created: count });
   }
 

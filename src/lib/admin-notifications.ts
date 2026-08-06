@@ -1,16 +1,21 @@
-import { sendEmail } from "@/lib/email";
+import { sendEmail, escHtml } from "@/lib/email";
 
 const ADMIN_EMAIL = process.env.PLATFORM_OWNER_EMAIL ?? "soporte@dojomasteronline.com";
 
+// `title` y cada valor de `rows` se escapan siempre — varios de estos
+// builders reciben datos que vienen directo de formularios públicos sin
+// sesión (auto-registro de alumno, alta de dojo). `extra` NO se escapa a
+// propósito: siempre es un string estático con markup propio (`<strong>`)
+// escrito en este archivo, nunca interpola datos de usuario.
 function wrap(title: string, rows: [string, string][], extra?: string): string {
   return `
     <div style="font-family:Arial,sans-serif;padding:24px;max-width:520px;background:#fff;border-radius:12px;border:1px solid #e5e5e5;">
-      <h2 style="color:#C0392B;margin:0 0 16px;font-size:18px;">${title}</h2>
+      <h2 style="color:#C0392B;margin:0 0 16px;font-size:18px;">${escHtml(title)}</h2>
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
         ${rows.map(([k, v]) => `
           <tr>
-            <td style="padding:7px 0;color:#888;font-weight:bold;width:130px;vertical-align:top;">${k}</td>
-            <td style="padding:7px 0;color:#111;">${v ?? "—"}</td>
+            <td style="padding:7px 0;color:#888;font-weight:bold;width:130px;vertical-align:top;">${escHtml(k)}</td>
+            <td style="padding:7px 0;color:#111;">${v ? escHtml(v) : "—"}</td>
           </tr>`).join("")}
       </table>
       ${extra ? `<div style="margin-top:16px;padding:12px 16px;background:#fef2f2;border-radius:8px;font-size:13px;color:#7f1d1d;">${extra}</div>` : ""}

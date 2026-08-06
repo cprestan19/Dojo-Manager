@@ -30,6 +30,11 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") ?? "";
   const active = searchParams.get("active");
 
+  // Tope duro — sin esto, un dojo con miles de alumnos (activos+inactivos)
+  // trae la lista completa en cada carga. Mismo patrón que payments/attendance.
+  const limitParam = parseInt(searchParams.get("limit") ?? "", 10);
+  const take = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 5000) : 2000;
+
   const students = await prisma.student.findMany({
     where: {
       dojoId,
@@ -41,6 +46,7 @@ export async function GET(req: NextRequest) {
         ],
       } : {}),
     },
+    take,
     select: {
       id: true, fullName: true, firstName: true, lastName: true,
       birthDate: true, gender: true, nationality: true, active: true,

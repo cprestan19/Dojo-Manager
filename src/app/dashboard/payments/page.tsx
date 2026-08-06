@@ -296,6 +296,8 @@ export default function PaymentsPage() {
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatus]       = useState("all");
   const [typeFilter,   setType]         = useState("all");
+  const [dateFrom,     setDateFrom]     = useState("");
+  const [dateTo,       setDateTo]       = useState("");
   const [sending,      setSending]      = useState(false);
   const [sentMsg,      setSentMsg]      = useState("");
   const [marking,      setMarking]      = useState<string | null>(null);
@@ -314,10 +316,12 @@ export default function PaymentsPage() {
     const params = new URLSearchParams();
     if (statusFilter !== "all") params.set("status", statusFilter);
     if (typeFilter   !== "all") params.set("type",   typeFilter);
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo)   params.set("dateTo",   dateTo);
     const r = await fetch(`/api/payments?${params}`);
     if (r.ok) setPayments(await r.json());
     setLoading(false);
-  }, [statusFilter, typeFilter]);
+  }, [statusFilter, typeFilter, dateFrom, dateTo]);
 
   useEffect(() => { fetch_(); }, [fetch_]);
 
@@ -470,6 +474,18 @@ export default function PaymentsPage() {
             <SelectItem value="other">Otros</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-1.5">
+          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+            className="w-[150px]" aria-label="Vencimiento desde" title="Vencimiento desde" />
+          <span className="text-dojo-muted text-xs">a</span>
+          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+            className="w-[150px]" aria-label="Vencimiento hasta" title="Vencimiento hasta" />
+        </div>
+        {(dateFrom || dateTo) && (
+          <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="btn-ghost text-xs px-3 flex items-center gap-1">
+            <X size={12}/> Limpiar fechas
+          </button>
+        )}
       </div>
 
       {/* ── Vista mobile: tarjetas ── */}

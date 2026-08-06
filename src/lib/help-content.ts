@@ -42,6 +42,7 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
       "Los alumnos inactivos aparecen con menor opacidad y no se muestran por defecto.",
       "Desde el perfil del alumno puedes crear su acceso al portal, ver pagos y asistencia.",
       "El código QR del alumno se genera automáticamente para el scanner de asistencia.",
+      "Si el alumno tiene Katas de Competencia asignadas, aparecen en su ficha en la sección 'Kata de Ranking' (debajo de Historial de Rangos) — se asignan desde Configuración → Katas, no desde acá.",
     ],
   },
 
@@ -245,15 +246,20 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
   "/dashboard/settings/katas": {
     title:       "Katas",
     emoji:       "📖",
-    description: "Catálogo de katas y sus requisitos por grado.",
+    description: "Catálogo de katas y sus requisitos por grado, más las Katas de Competencia asignadas a alumnos puntuales.",
     steps: [
       "Crea katas con nombre, descripción y el grado al que pertenecen.",
       "Puedes asignar hasta 5 katas a un mismo grado.",
       "Las katas aparecen como requisitos en el módulo de Cintas.",
       "Los alumnos pueden ver los videos de kata desde su portal.",
+      "TIPO 'Kata de Competencias': en 'Tipo de Kata' elige esta opción para crear una kata SIN cinta asociada — es para preparar competencias, no para graduaciones.",
+      "Al elegir 'Kata de Competencias' aparece un buscador de alumnos con checkboxes — selecciona a quién(es) se les asigna esa kata puntual. Una misma kata puede tener varios alumnos, y un alumno puede tener varias katas de competencia distintas.",
+      "Las Katas de Competencia se listan aparte, arriba del catálogo por cinta, con el conteo de alumnos asignados.",
     ],
     tips: [
       "Sube videos de referencia en Configuración → Videos por Cinta.",
+      "La asignación de una Kata de Competencia se ve reflejada en la ficha del alumno (sección 'Kata de Ranking', debajo de Historial de Rangos) y en su propio portal — no hace falta avisarle aparte.",
+      "Editar una Kata de Competencia y desmarcar un alumno de la lista de asignados lo quita al instante de su ficha y portal.",
     ],
   },
 
@@ -502,7 +508,8 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
       "TAB RESPUESTAS: ve quién aceptó, rechazó o no ha respondido. Si el monto es mayor a $0, puedes marcar el pago de cada invitado.",
       "FLUJO DE ESTADOS: Borrador → Publicar → Cerrar inscripciones → Finalizar. Los botones de estado aparecen en el header de la vista de detalle.",
       "TAB ASISTENCIA: disponible cuando el estado es 'Cerrado' o 'Finalizado'. Marca quién asistió al examen y quién aprobó.",
-      "TAB CERTIFICADOS: genera certificados digitales para los alumnos aprobados. Selecciona plantilla, fecha de emisión, instructor y los alumnos — el sistema los genera en lote.",
+      "TAB CERTIFICADOS: son DOS pasos. 1) Selecciona plantilla, fecha de emisión, instructor y los alumnos aprobados → 'Generar Certificados' crea el borrador. 2) En la lista de 'Certificados generados', cada borrador tiene un botón 'Emitir' — recién ahí se genera el PDF real y el alumno lo ve en su portal.",
+      "Solo se pueden generar certificados para alumnos que ACEPTARON su invitación y fueron marcados como aprobados en la pestaña Asistencia — si no aparecen en la lista, revisa esos dos estados primero.",
       "ELIMINAR: disponible desde la lista y la vista de detalle. Elimina la postulación y todos sus invitados/respuestas (acción irreversible).",
     ],
     tips: [
@@ -510,7 +517,8 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
       "El alumno ve la postulación publicada en su portal → pestaña 'Exámenes'. Puede aceptar, rechazar y agregar una nota.",
       "El badge de contadores en cada tarjeta (✓ aceptaron / ✗ rechazaron / ⏳ pendientes) se actualiza en tiempo real.",
       "Aunque el monto sea $0, la postulación aparece en el portal sin chip de precio.",
-      "Para generar certificados necesitas al menos una plantilla creada en Configuración → Diseño de Carnet (plantillas de diploma).",
+      "Para generar certificados necesitas al menos una plantilla creada en Configuración → Diplomas/Certificados.",
+      "Un certificado en estado 'Borrador' NO es visible para el alumno todavía — solo aparece en su portal después de presionar 'Emitir'.",
     ],
   },
 
@@ -650,6 +658,7 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
       "Haz clic en 'Vista Previa' para ver el diploma con datos de ejemplo antes de guardar.",
       "Presiona 'Guardar' cuando estés satisfecho con el diseño — la plantilla queda disponible para generar diplomas.",
       "Para generar diplomas reales, ve a Postulaciones → selecciona un examen finalizado → pestaña Certificados.",
+      "Generar un diploma NO lo emite de inmediato: primero queda como 'Borrador', y hay que presionar 'Emitir' desde esa misma pestaña para que se renderice el PDF final y el alumno lo vea en su portal.",
     ],
     tips: [
       "Cinzel y Playfair Display son ideales para diplomas formales con un toque clásico.",
@@ -658,6 +667,7 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
       "El elemento Texto libre te permite agregar el título del diploma, lemas o textos fijos de la organización.",
       "No puedes eliminar una plantilla si ya tiene diplomas EMITIDOS — primero deberás revocarlos desde el módulo de diplomas.",
       "La rotación es útil para alinear texto en diplomas con diseños creativos o líneas diagonales.",
+      "La imagen de fondo no se puede cambiar después de creada la plantilla — si necesitás otro diseño, creá una plantilla nueva.",
     ],
   },
 

@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS, getCachedKatas } from "@/lib/queries";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { sanitizeKataStudentIds } from "@/lib/kata-ranking";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -26,8 +27,13 @@ export async function GET(req: NextRequest) {
   const katas = await prisma.kata.findMany({
     where:   { dojoId },
     orderBy: [{ order: "asc" }, { name: "asc" }],
+    include: { rankingAssignments: { select: { studentId: true } } },
   });
-  return NextResponse.json(katas);
+  const withAssignments = katas.map(({ rankingAssignments, ...k }) => ({
+    ...k,
+    assignedStudentIds: rankingAssignments.map(a => a.studentId),
+  }));
+  return NextResponse.json(withAssignments);
 }
 
 export async function POST(req: NextRequest) {
@@ -64,17 +70,28 @@ export async function POST(req: NextRequest) {
 
   // Creación individual (comportamiento original)
   try {
+    // Kata de Competencias — sin cinta, se asigna directo a alumnos.
+    const isCompetencia = body.description === "Kata de Competencias";
+    const studentIds = isCompetencia ? await sanitizeKataStudentIds(body.assignedStudentIds, dojoId) : [];
+
     const kata = await prisma.kata.create({
       data: {
         dojoId,
         name:        body.name,
-        beltColor:   body.beltColor,
+        beltColor:   isCompetencia ? null : body.beltColor,
         order:       Number(body.order) || 0,
         description: body.description ?? null,
       },
     });
+
+    if (isCompetencia && studentIds.length > 0) {
+      await prisma.kataRankingAssignment.createMany({
+        data: studentIds.map(studentId => ({ kataId: kata.id, studentId })),
+      });
+    }
+
     revalidateTag(CACHE_TAGS.katas(dojoId));
-    return NextResponse.json(kata, { status: 201 });
+    return NextResponse.json({ ...kata, assignedStudentIds: studentIds }, { status: 201 });
   } catch (err: unknown) {
     const code = (err as { code?: string })?.code;
     if (code === "P2002")

@@ -58,6 +58,15 @@ const STATUS_BADGE: Record<string, string> = {
   FINALIZED: "bg-blue-900/40 text-blue-400 border border-blue-800/50",
 };
 
+const CERT_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Borrador (sin emitir)", ISSUED: "Emitido", REVOKED: "Revocado",
+};
+const CERT_STATUS_BADGE: Record<string, string> = {
+  DRAFT:   "bg-dojo-border text-dojo-muted",
+  ISSUED:  "bg-green-900/40 text-green-400 border border-green-800/50",
+  REVOKED: "bg-red-900/40 text-red-400 border border-red-800/50",
+};
+
 type ResponseFilter = "all" | "PENDING" | "ACCEPTED" | "REJECTED";
 
 export default function PostulacionDetallePage() {
@@ -102,6 +111,7 @@ export default function PostulacionDetallePage() {
   const [selInvitees,  setSelInvitees]  = useState<Set<string>>(new Set());
   const [genLoading,   setGenLoading]   = useState(false);
   const [certError,    setCertError]    = useState("");
+  const [issuingId,    setIssuingId]    = useState<string | null>(null);
 
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
@@ -204,6 +214,17 @@ export default function PostulacionDetallePage() {
     } finally { setGenLoading(false); }
   }
 
+  async function issueCert(certId: string) {
+    setCertError("");
+    setIssuingId(certId);
+    try {
+      const res = await fetch(`/api/generated-certificates/${certId}/issue`, { method: "POST" });
+      const d = await res.json() as { error?: string };
+      if (!res.ok) { setCertError(d.error ?? "Error al emitir el certificado"); return; }
+      await load();
+    } finally { setIssuingId(null); }
+  }
+
   async function handleEditInviteeSave() {
     if (!editInvitee) return;
     setEditSaving(true);
@@ -276,7 +297,8 @@ export default function PostulacionDetallePage() {
     filter === "all" ? true : i.response === filter
   );
   const acceptedInvitees = app.invitees.filter(i => i.response === "ACCEPTED");
-  const passedInvitees   = app.invitees.filter(i => i.passed === true);
+  // Certificados solo para quienes aceptaron su invitación Y aprobaron el examen.
+  const passedInvitees   = app.invitees.filter(i => i.response === "ACCEPTED" && i.passed === true);
   const pendingCount     = app.invitees.filter(i => i.response === "PENDING").length;
   const canShowAttendance   = app.status === "CLOSED" || app.status === "FINALIZED";
   const canShowCertificates = (app.status === "CLOSED" || app.status === "FINALIZED") && perms.has(NAV_KEYS.CERTIFICADOS);
@@ -838,10 +860,22 @@ export default function PostulacionDetallePage() {
                 <div key={inv.id} className="card flex items-center gap-4">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-dojo-white">{inv.student.fullName}</p>
-                    <p className="text-xs text-dojo-muted">Estado: {inv.certificate!.status}</p>
+                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs ${CERT_STATUS_BADGE[inv.certificate!.status] ?? "bg-dojo-border text-dojo-muted"}`}>
+                      {CERT_STATUS_LABELS[inv.certificate!.status] ?? inv.certificate!.status}
+                    </span>
                   </div>
+                  {inv.certificate!.status === "DRAFT" && (
+                    <button
+                      onClick={() => issueCert(inv.certificate!.id)}
+                      disabled={issuingId === inv.certificate!.id}
+                      className="btn-primary flex items-center gap-2 text-xs shrink-0"
+                    >
+                      {issuingId === inv.certificate!.id ? <Loader2 size={13} className="animate-spin" /> : <Award size={13} />}
+                      Emitir
+                    </button>
+                  )}
                   {inv.certificate!.pdfUrl && (
-                    <a href={inv.certificate!.pdfUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost text-xs">
+                    <a href={inv.certificate!.pdfUrl} target="_blank" rel="noopener noreferrer" className="btn-ghost text-xs shrink-0">
                       Descargar PDF
                     </a>
                   )}

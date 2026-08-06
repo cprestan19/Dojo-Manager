@@ -34,6 +34,10 @@ interface KataComp {
   tournament: string | null; result: string | null; notes: string | null;
   kata: { id: string; name: string } | null;
 }
+interface KataRankingEntry {
+  id: string;
+  kata: { id: string; name: string } | null;
+}
 interface Payment {
   id: string; type: string; amount: number;
   dueDate: string; paidDate: string | null; status: string; note: string | null;
@@ -61,9 +65,10 @@ interface Student {
     annualAmount: number; monthlyAmount: number;
     discountAmount: number; discountNote: string | null;
   } | null;
-  beltHistory:      BeltEntry[];
-  kataCompetitions: KataComp[];
-  payments:         Payment[];
+  beltHistory:             BeltEntry[];
+  kataCompetitions:        KataComp[];
+  kataRankingAssignments:  KataRankingEntry[];
+  payments:                Payment[];
 }
 
 // ── Belt History Modal ────────────────────────────────────
@@ -1341,6 +1346,27 @@ export default function StudentDetailPage() {
                 })}
               </div>
             )}
+          </div>
+
+          {/* Kata de Ranking — katas de competencia asignadas al alumno (sin cinta) */}
+          <div className="card">
+            <p className="section-title flex items-center gap-2 mb-4">
+              <Trophy size={13} className="text-dojo-gold"/>Kata de Ranking
+            </p>
+            {student.kataRankingAssignments.length === 0 ? (
+              <p className="text-center text-dojo-muted py-6 text-sm">Sin katas de competencia asignadas.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {student.kataRankingAssignments.map(a => (
+                  <span key={a.id} className="badge-gold text-xs flex items-center gap-1.5 px-3 py-1.5">
+                    <Trophy size={11}/> {a.kata?.name ?? "Kata eliminada"}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-dojo-muted mt-3">
+              Se asignan desde Configuración → Creación de Katas, en cada Kata de Competencia.
+            </p>
           </div>
 
           {/* Kata de Competencias */}

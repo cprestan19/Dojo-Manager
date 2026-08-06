@@ -7,7 +7,7 @@ cloudinary.config({
   secure:     true,
 });
 
-export type UploadType = "image" | "video";
+export type UploadType = "image" | "video" | "raw";
 
 export interface UploadResult {
   url:      string;
@@ -24,10 +24,10 @@ export async function uploadBuffer(
       {
         folder,
         resource_type: type,
-        // Auto-quality and format for images; preserve originals for video
-        ...(type === "image"
-          ? { quality: "auto", fetch_format: "auto" }
-          : { video_codec: "auto" }),
+        // Auto-quality and format for images; preserve originals for video/raw
+        ...(type === "image" ? { quality: "auto", fetch_format: "auto" } : {}),
+        ...(type === "video" ? { video_codec: "auto" } : {}),
+        ...(type === "raw"   ? { format: "pdf" } : {}),
       },
       (error, result) => {
         if (error || !result) return reject(error ?? new Error("Cloudinary upload failed"));

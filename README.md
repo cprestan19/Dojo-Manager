@@ -76,7 +76,7 @@ curl -X POST http://localhost:3000/api/seed
 ## 🔐 Credenciales iniciales
 | Email                    | Contraseña | Rol      |
 |--------------------------|------------|----------|
-| admin@dojomanager.com    | Admin123!  | sysadmin |
+| admin@dojomaster.com     | Admin123!  | sysadmin |
 
 ⚠️ Cambia la contraseña en Usuarios después del primer login.
 

@@ -6,6 +6,7 @@ import { Users, Award, Building2, UserCheck } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
+import { DashboardOnboardingReopenButton } from "@/components/dashboard/DashboardOnboardingTour";
 import Link from "next/link";
 
 export default async function DashboardPage() {
@@ -184,11 +185,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6 lg:space-y-8">
-      <div>
-        <h1 className="font-display text-2xl lg:text-3xl font-bold text-white tracking-wide">
-          Bienvenido, <span style={{ color: "#E53935" }}>{session?.user?.name}</span>
-        </h1>
-        <p className="mt-1 text-sm" style={{ color: "#7A97B0" }}>Panel de control del Dojo</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="font-display text-2xl lg:text-3xl font-bold text-white tracking-wide">
+            Bienvenido, <span style={{ color: "#E53935" }}>{session?.user?.name}</span>
+          </h1>
+          <p className="mt-1 text-sm" style={{ color: "#7A97B0" }}>Panel de control del Dojo</p>
+        </div>
+        {role === "admin" && <DashboardOnboardingReopenButton />}
       </div>
 
       <DashboardStats

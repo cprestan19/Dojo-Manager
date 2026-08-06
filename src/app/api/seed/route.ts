@@ -7,6 +7,15 @@ export async function POST() {
     return NextResponse.json({ error: "Not available" }, { status: 404 });
   }
 
+  // Defensa en profundidad: solo sembrar si la BD todavía no tiene ningún
+  // usuario — evita que este endpoint sirva para re-crear/resetear el
+  // sysadmin si alguna vez corre mal configurado (NODE_ENV distinto de
+  // "production" en un entorno accesible).
+  const existingUsers = await prisma.user.count();
+  if (existingUsers > 0) {
+    return NextResponse.json({ error: "Seed ya ejecutado — ya existen usuarios en la base de datos" }, { status: 403 });
+  }
+
   try {
     // 1. Crear dojo por defecto
     const dojo = await prisma.dojo.upsert({

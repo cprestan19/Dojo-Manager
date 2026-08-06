@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/queries";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
 
 type SessionUser = { role?: string };
 
@@ -32,6 +33,14 @@ export async function PUT(req: NextRequest) {
   const t0   = Date.now();
   const body = await req.json();
   const logo = body.logo ? String(body.logo) : null;
+
+  // Si se reemplaza o elimina el logo, borrar el anterior de Cloudinary —
+  // mismo patrón que /api/dojo y /api/users/[id].
+  const existing = await prisma.platformSettings.findUnique({ where: { id: "singleton" }, select: { logo: true } });
+  if (existing?.logo && logo !== existing.logo) {
+    const pid = extractCloudinaryPublicId(existing.logo);
+    if (pid) deleteResource(pid).catch(() => {});
+  }
 
   const cfg = await prisma.platformSettings.upsert({
     where:  { id: "singleton" },

@@ -126,7 +126,7 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "public-page":      "Página Pública",
   "store":            "Tienda",
   "registros":        "Auto-registro",
-  "postulaciones":    "Postulaciones",
+  "postulaciones":    "Examen",
   "certificados":     "Certificados",
   "settings.terms":   "Políticas y Términos",
   "settings.push":    "Notificaciones Push",

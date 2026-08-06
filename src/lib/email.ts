@@ -583,5 +583,8 @@ export async function sendEmail({
   html:    string;
 }): Promise<void> {
   const { transporter: t, smtpUser, fromName } = await createTransporter();
-  await t.sendMail({ from: fromAddress(smtpUser, fromName), to, subject, html });
+  // Defensa central contra header injection — algunos subjects interpolan
+  // datos de formularios públicos sin sesión; se sanea acá una vez para
+  // todos los llamadores en vez de repetirlo en cada call site.
+  await t.sendMail({ from: fromAddress(smtpUser, fromName), to, subject: subject.replace(/[\r\n]/g, ""), html });
 }

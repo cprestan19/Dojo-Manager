@@ -26,7 +26,7 @@ const translations = {
       settingsRoles:  "Roles y Accesos",
       importStudents: "Importar Alumnos",
       settingsCard:   "Diseño de Carnet",
-      postulaciones:          "Postulaciones",
+      postulaciones:          "Examen",
       certificados:           "Diplomas/Certificados",
       "tournament-events":    "Asistencia de Eventos",
       settingsTerms:          "Políticas y Términos",

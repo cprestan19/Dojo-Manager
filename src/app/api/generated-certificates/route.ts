@@ -24,6 +24,7 @@ async function _GET(req: NextRequest) {
     const certificates = await prisma.generatedCertificate.findMany({
       where:   { dojoId },
       orderBy: { createdAt: "desc" },
+      take:    1000,
       select: {
         id:             true,
         title:          true,
@@ -84,11 +85,16 @@ async function _POST(req: NextRequest) {
     });
     if (!template) return NextResponse.json({ error: "Plantilla no encontrada" }, { status: 404 });
 
-    // Obtener invitados con sus datos de alumno y cinta
+    // Obtener invitados con sus datos de alumno y cinta.
+    // Solo postulados que ACEPTARON su invitación y fueron marcados como
+    // aprobados (passed), y cuya postulación pertenezca a este dojo — el
+    // filtro `application: { dojoId }` además impide que un inviteeId de
+    // otro dojo (tenant) reciba certificado aquí.
     const invitees = await prisma.examApplicationInvitee.findMany({
       where: {
-        id:        { in: body.inviteeIds },
-        passed:    true,
+        id:          { in: body.inviteeIds },
+        passed:      true,
+        response:    "ACCEPTED",
         application: { dojoId },
       },
       include: {
@@ -98,7 +104,7 @@ async function _POST(req: NextRequest) {
     });
 
     if (!invitees.length) {
-      return NextResponse.json({ error: "No hay invitados aprobados en la selección" }, { status: 400 });
+      return NextResponse.json({ error: "No hay invitados aprobados que hayan aceptado en la selección" }, { status: 400 });
     }
 
     // Verificar duplicados (inviteeId ya con certificado)

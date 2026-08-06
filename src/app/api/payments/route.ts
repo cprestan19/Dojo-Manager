@@ -25,6 +25,8 @@ export async function GET(req: NextRequest) {
   const studentId = searchParams.get("studentId");
   const status    = searchParams.get("status");
   const type      = searchParams.get("type");
+  const dateFrom  = searchParams.get("dateFrom"); // filtra por dueDate — YYYY-MM-DD
+  const dateTo    = searchParams.get("dateTo");
 
   const payments = await prisma.payment.findMany({
     where: {
@@ -32,6 +34,12 @@ export async function GET(req: NextRequest) {
       ...(studentId ? { studentId } : {}),
       ...(status    ? { status }    : {}),
       ...(type      ? { type }      : {}),
+      ...(dateFrom || dateTo ? {
+        dueDate: {
+          ...(dateFrom ? { gte: new Date(`${dateFrom}T00:00:00`) } : {}),
+          ...(dateTo   ? { lte: new Date(`${dateTo}T23:59:59`) }   : {}),
+        },
+      } : {}),
     },
     include: {
       student: { select: { fullName: true, firstName: true, lastName: true, motherName: true, motherEmail: true, fatherName: true, fatherEmail: true } },
@@ -208,10 +216,17 @@ async function _PATCH(req: NextRequest) {
           dojo: dojoInfo ?? undefined,
         });
         sent++;
-      } catch (_) { /* skip */ }
+      } catch { /* skip */ }
     }
+  }
 
-    await prisma.payment.update({ where: { id: p.id }, data: { status: "late", reminderSent: true } });
+  // Todos los pagos procesados reciben el mismo cambio — un solo update
+  // en vez de uno por pago dentro del loop.
+  if (latePayments.length > 0) {
+    await prisma.payment.updateMany({
+      where: { id: { in: latePayments.map(p => p.id) } },
+      data:  { status: "late", reminderSent: true },
+    });
   }
 
   return NextResponse.json({ processed: latePayments.length, emailsSent: sent });

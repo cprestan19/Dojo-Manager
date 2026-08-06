@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 type Params = { params: Promise<{ id: string }> };
@@ -25,6 +26,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const existing = await prisma.dojoOrganization.findUnique({ where: { id } });
   if (!existing || existing.dojoId !== dojoId)
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  // Si se reemplaza o elimina el logo, borrar el anterior de Cloudinary.
+  if (body.logoUrl !== undefined && existing.logoUrl && body.logoUrl !== existing.logoUrl) {
+    const pid = extractCloudinaryPublicId(existing.logoUrl);
+    if (pid) deleteResource(pid).catch(() => {});
+  }
 
   const org = await prisma.dojoOrganization.update({
     where: { id },
@@ -55,5 +62,11 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   await prisma.dojoOrganization.delete({ where: { id } });
+
+  if (existing.logoUrl) {
+    const pid = extractCloudinaryPublicId(existing.logoUrl);
+    if (pid) deleteResource(pid).catch(() => {});
+  }
+
   return NextResponse.json({ ok: true });
 }

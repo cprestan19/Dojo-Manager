@@ -29,7 +29,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/schedules":                 "Horarios",
   "/dashboard/attendance":                "Asistencia",
   "/dashboard/registros":                 "Auto-registro",
-  "/dashboard/postulaciones":             "Postulaciones",
+  "/dashboard/postulaciones":             "Examen",
   "/dashboard/leads":                     "Prospectos",
   "/dashboard/reports":                   "Reportes",
   "/dashboard/users":                     "Usuarios",
@@ -72,7 +72,7 @@ const academiaItems: NavItem[] = [
 
 const captacionItems: NavItem[] = [
   { href: "/dashboard/registros",          label: "Auto-registro",     icon: Receipt,      permKey: NAV_KEYS.REGISTROS          },
-  { href: "/dashboard/postulaciones",      label: "Postulaciones",     icon: FileText,     permKey: NAV_KEYS.POSTULACIONES      },
+  { href: "/dashboard/postulaciones",      label: "Examen",            icon: FileText,     permKey: NAV_KEYS.POSTULACIONES      },
   { href: "/dashboard/leads",              label: "Prospectos",        icon: UserPlus,     permKey: NAV_KEYS.LEADS              },
 ];
 

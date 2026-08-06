@@ -500,7 +500,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
                 </p>
               </div>
             </div>
-            <input ref={photoRef} type="file" accept="image/*" capture="user"
+            <input ref={photoRef} type="file" accept="image/*"
               className="hidden" onChange={handlePhotoChange} />
           </div>
         </Field>
