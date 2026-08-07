@@ -325,8 +325,11 @@ export default function DojosPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 bg-dojo-red rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
-                          {dojo.logo?.startsWith("http")
-                            ? <img src={dojo.logo} alt="" className="w-full h-full object-contain" />
+                          {/* Logo real del dojo si lo tiene; si no, el logo de la vitrina "destacado"
+                              (featuredLogo) como referencia visual en esta tabla — no significa que
+                              ese sea el logo real de la cuenta del cliente. */}
+                          {dojo.logo?.startsWith("http") || dojo.featuredLogo
+                            ? <img src={dojo.logo?.startsWith("http") ? dojo.logo : dojo.featuredLogo!} alt="" className="w-full h-full object-contain" />
                             : <Building2 size={14} className="text-white" />
                           }
                         </div>
