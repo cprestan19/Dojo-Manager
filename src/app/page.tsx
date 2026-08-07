@@ -110,6 +110,82 @@ function FloatCard({ icon, title, sub, accent }: { icon: string; title: string; 
   );
 }
 
+/* ── Banderas de países ──────────────────────────────────────────
+   SVG propios (no emoji): en Windows, los emoji de bandera (🇵🇦 etc.)
+   se renderizan como las dos letras del código de país en vez de la
+   bandera real — así que se dibujan a mano para que se vean igual en
+   cualquier sistema operativo. */
+const STAR = "M0,-6 1.76,-1.85 6,-1.85 2.65,0.95 3.7,5.85 0,3 -3.7,5.85 -2.65,0.95 -6,-1.85 -1.76,-1.85 Z";
+
+const COUNTRY_FLAGS: Record<string, { name: string; render: () => React.ReactNode }> = {
+  PA: {
+    name: "Panamá",
+    render: () => (
+      <>
+        <rect width="30" height="20" x="0"  y="0"  fill="#fff"/>
+        <rect width="30" height="20" x="30" y="0"  fill="#DA121A"/>
+        <rect width="30" height="20" x="0"  y="20" fill="#0038A8"/>
+        <rect width="30" height="20" x="30" y="20" fill="#fff"/>
+        <path d={STAR} fill="#0038A8" transform="translate(15,10) scale(1.15)"/>
+        <path d={STAR} fill="#DA121A" transform="translate(45,30) scale(1.15)"/>
+      </>
+    ),
+  },
+  PE: {
+    name: "Perú",
+    render: () => (
+      <>
+        <rect width="20" height="40" x="0"  fill="#D91023"/>
+        <rect width="20" height="40" x="20" fill="#fff"/>
+        <rect width="20" height="40" x="40" fill="#D91023"/>
+      </>
+    ),
+  },
+  VE: {
+    name: "Venezuela",
+    // 8 estrellas en arco de medio círculo (no en línea recta) sobre la franja azul,
+    // como en la bandera real — una por cada provincia firmante del acta de 1811 + Guayana Esequiba.
+    render: () => {
+      const R = 26;
+      const stars = Array.from({ length: 8 }, (_, i) => {
+        const rad = ((-35 + i * (70 / 7)) * Math.PI) / 180;
+        return { x: 30 + R * Math.sin(rad), y: 17.6 + R * (1 - Math.cos(rad)) };
+      });
+      return (
+        <>
+          <rect width="60" height="13.34" y="0"     fill="#FCD116"/>
+          <rect width="60" height="13.33" y="13.34" fill="#00247D"/>
+          <rect width="60" height="13.33" y="26.67" fill="#CF142B"/>
+          {stars.map((s, i) => (
+            <path key={i} d={STAR} fill="#fff" transform={`translate(${s.x},${s.y}) scale(.4)`}/>
+          ))}
+        </>
+      );
+    },
+  },
+  CO: {
+    name: "Colombia",
+    render: () => (
+      <>
+        <rect width="60" height="20" y="0"  fill="#FCD116"/>
+        <rect width="60" height="10" y="20" fill="#003893"/>
+        <rect width="60" height="10" y="30" fill="#CE1126"/>
+      </>
+    ),
+  },
+};
+
+function CountryFlag({ code }: { code: keyof typeof COUNTRY_FLAGS }) {
+  const flag = COUNTRY_FLAGS[code];
+  return (
+    <svg viewBox="0 0 60 40" width={30} height={20} role="img" aria-label={flag.name}
+      style={{ boxShadow:"0 2px 8px rgba(0,0,0,.35)", display:"block" }}>
+      <title>{flag.name}</title>
+      {flag.render()}
+    </svg>
+  );
+}
+
 /* ── Pricing plans ───────────────────────────────────────────── */
 
 // Visual config por nombre de plan — precios y features vienen de la BD
@@ -355,7 +431,16 @@ export default function LandingPage() {
           width:1000, height:600, borderRadius:"50%", opacity:.12, pointerEvents:"none",
           background:`radial-gradient(ellipse, ${PRIMARY} 0%, transparent 65%)`, filter:"blur(1px)" }}/>
 
-        <div style={{ maxWidth:1280, margin:"0 auto", padding:"80px 32px 0" }}>
+        <div style={{ maxWidth:1280, margin:"0 auto", padding:"24px 32px 0 64px" }}>
+          <div style={{ display:"flex", justifyContent:"flex-start", gap:6 }}>
+            <CountryFlag code="PA"/>
+            <CountryFlag code="PE"/>
+            <CountryFlag code="VE"/>
+            <CountryFlag code="CO"/>
+          </div>
+        </div>
+
+        <div style={{ maxWidth:1280, margin:"0 auto", padding:"32px 32px 0" }}>
 
           <h1 style={{
             textAlign:"center", fontFamily:"'Cinzel',serif", fontWeight:900, lineHeight:1.05,
