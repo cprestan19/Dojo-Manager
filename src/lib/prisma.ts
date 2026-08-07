@@ -19,6 +19,14 @@
  *   Env vars are validated on the FIRST real runtime request, not at
  *   module import time — this prevents build failures when env vars
  *   are only available at runtime (standard Vercel behaviour).
+ *
+ * Retry on transient connection errors:
+ *   Neon (y otros Postgres serverless) pueden cerrar una conexión del lado
+ *   del servidor mientras el pool local todavía la considera viva — la
+ *   siguiente query sobre esa conexión falla con "Connection terminated
+ *   unexpectedly" aunque la base de datos esté sana. Se reintenta esa
+ *   query (no otros errores) un par de veces con backoff corto — ver
+ *   isTransientConnectionError() más abajo.
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -38,6 +46,33 @@ function getSslConfig(url: string): PoolConfig["ssl"] {
   }
   return false;
 }
+
+// Mensajes de errores de conexión que SÍ es seguro reintentar — la conexión
+// murió antes de (o mientras) se enviaba la query, así que no hay riesgo de
+// duplicar un efecto ya aplicado. No incluye timeouts de query lenta ni
+// errores de datos/constraints, que nunca se reintentan.
+const TRANSIENT_CONNECTION_PATTERNS = [
+  "connection terminated",
+  "connection terminated unexpectedly",
+  "connection terminated due to connection timeout",
+  "econnreset",
+  "econnrefused",
+  "connection reset by peer",
+  "server closed the connection unexpectedly",
+  "the pool is draining",
+];
+
+function isTransientConnectionError(err: unknown): boolean {
+  const message = String((err as { message?: unknown })?.message ?? "").toLowerCase();
+  const causeMessage = String(
+    (err as { cause?: { message?: unknown } })?.cause?.message ?? ""
+  ).toLowerCase();
+  return TRANSIENT_CONNECTION_PATTERNS.some(p => message.includes(p) || causeMessage.includes(p));
+}
+
+const RETRY_ATTEMPTS   = 2; // reintentos además del intento original
+const RETRY_DELAY_MS   = 150;
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 function createPrismaClient(): PrismaClient {
   // Skip validation during build — env vars are only available at runtime on Vercel.
@@ -64,10 +99,29 @@ function createPrismaClient(): PrismaClient {
 
   const adapter = new PrismaPg(pool);
 
-  return new PrismaClient({
+  const client = new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "production" ? ["error"] : ["error", "warn"],
   });
+
+  return client.$extends({
+    name: "retry-transient-connection-errors",
+    query: {
+      $allOperations: async ({ operation, model, args, query }) => {
+        for (let attempt = 0; ; attempt++) {
+          try {
+            return await query(args);
+          } catch (err) {
+            if (attempt >= RETRY_ATTEMPTS || !isTransientConnectionError(err)) throw err;
+            console.warn(
+              `[db] ${model ?? ""}.${operation} falló por conexión transitoria — reintento ${attempt + 1}/${RETRY_ATTEMPTS}`,
+            );
+            await sleep(RETRY_DELAY_MS * (attempt + 1));
+          }
+        }
+      },
+    },
+  }) as unknown as PrismaClient;
 }
 
 // Reuse a single instance in development (hot-reload safe via globalThis)
