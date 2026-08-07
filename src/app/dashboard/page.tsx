@@ -29,7 +29,11 @@ export default async function DashboardPage() {
     const recentDojos = await prisma.dojo.findMany({
       orderBy: { createdAt: "desc" },
       take:    6,
-      select:  { id: true, name: true, slug: true, active: true, createdAt: true, _count: { select: { students: true, users: true } } },
+      select:  {
+        id: true, name: true, slug: true, active: true, createdAt: true,
+        logo: true, featuredLogo: true,
+        _count: { select: { students: true, users: true } },
+      },
     });
 
     return (
@@ -81,9 +85,14 @@ export default async function DashboardPage() {
                 style={{ borderBottom: idx < recentDojos.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden"
                     style={{ background: "rgba(229,57,53,0.12)", color: "#E53935" }}>
-                    {d.name[0]}
+                    {(() => {
+                      const logoUrl = d.logo?.startsWith("http") ? d.logo : d.featuredLogo;
+                      if (!logoUrl) return d.name[0];
+                      // eslint-disable-next-line @next/next/no-img-element
+                      return <img src={logoUrl} alt="" className="w-full h-full object-contain" />;
+                    })()}
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-white">{d.name}</p>

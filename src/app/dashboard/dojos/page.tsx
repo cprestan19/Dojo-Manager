@@ -8,10 +8,17 @@ import {
 } from "lucide-react";
 // "Eye" ya importado arriba se reutiliza como ícono de Vista Previa (además del toggle de password)
 import { Modal } from "@/components/ui/Modal";
+import { TIMEZONE_OPTIONS } from "@/lib/timezone";
+
+// El dojo no guarda un campo "país" propio — se deriva de su zona horaria
+// (que el sysadmin ya configura en Ajustes de cada dojo), quitando el "(UTC-X)".
+const TZ_COUNTRY: Record<string, string> = Object.fromEntries(
+  TIMEZONE_OPTIONS.map(o => [o.value, o.label.replace(/\s*\(UTC[^)]*\)/, "")]),
+);
 
 interface Dojo {
   id: string; name: string; slug: string; logo: string | null;
-  featuredLogo: string | null;
+  featuredLogo: string | null; timezone: string;
   active: boolean; tournamentPro: boolean; featured: boolean; createdAt: string;
   email: string | null; phone: string | null;
   subscription: {
@@ -300,6 +307,9 @@ export default function DojosPage() {
               <tr className="bg-dojo-darker text-dojo-muted text-xs uppercase tracking-wide border-b border-dojo-border">
                 <th className="text-left px-4 py-3">Dojo</th>
                 <th className="text-left px-4 py-3 hidden md:table-cell">Slug</th>
+                <th className="text-left px-4 py-3 hidden md:table-cell">País</th>
+                <th className="text-left px-4 py-3 hidden lg:table-cell">Correo</th>
+                <th className="text-left px-4 py-3 hidden lg:table-cell">Teléfono</th>
                 <th className="text-center px-4 py-3">Alumnos</th>
                 <th className="text-center px-4 py-3 hidden sm:table-cell">Usuarios</th>
                 <th className="text-left px-4 py-3 hidden lg:table-cell">Plan</th>
@@ -335,9 +345,6 @@ export default function DojosPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-dojo-white font-medium truncate">{dojo.name}</p>
-                          {dojo.email && (
-                            <p className="text-dojo-muted text-xs truncate hidden lg:block">{dojo.email}</p>
-                          )}
                         </div>
                         {dojo.active
                           ? <CheckCircle size={13} className="text-green-400 shrink-0" />
@@ -352,6 +359,27 @@ export default function DojosPage() {
                         className="font-mono text-xs text-dojo-gold hover:underline">
                         {dojo.slug}
                       </a>
+                    </td>
+
+                    {/* País — derivado de la zona horaria configurada en Ajustes del dojo */}
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <span className="text-dojo-muted text-xs">{TZ_COUNTRY[dojo.timezone] ?? dojo.timezone}</span>
+                    </td>
+
+                    {/* Correo */}
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      {dojo.email
+                        ? <a href={`mailto:${dojo.email}`} className="text-dojo-muted text-xs truncate hover:text-dojo-white transition-colors block max-w-[180px]">{dojo.email}</a>
+                        : <span className="text-dojo-muted/40 text-xs italic">—</span>
+                      }
+                    </td>
+
+                    {/* Teléfono */}
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      {dojo.phone
+                        ? <span className="text-dojo-muted text-xs font-mono">{dojo.phone}</span>
+                        : <span className="text-dojo-muted/40 text-xs italic">—</span>
+                      }
                     </td>
 
                     {/* Alumnos */}

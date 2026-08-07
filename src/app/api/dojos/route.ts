@@ -20,7 +20,7 @@ export async function GET() {
   const [dojos, activity] = await Promise.all([
     prisma.dojo.findMany({
       select: {
-        id: true, name: true, slug: true, email: true, phone: true,
+        id: true, name: true, slug: true, email: true, phone: true, timezone: true,
         active: true, tournamentPro: true, featured: true, featuredLogo: true, createdAt: true, updatedAt: true,
         // logo y loginBgImage excluidos — son base64 de varios KB/MB. featuredLogo sí se
         // incluye: siempre es una URL corta de Cloudinary (nunca base64), y el sysadmin
