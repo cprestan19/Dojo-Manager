@@ -21,8 +21,10 @@ export async function GET() {
     prisma.dojo.findMany({
       select: {
         id: true, name: true, slug: true, email: true, phone: true,
-        active: true, tournamentPro: true, featured: true, createdAt: true, updatedAt: true,
-        // logo y loginBgImage excluidos — son base64 de varios KB/MB
+        active: true, tournamentPro: true, featured: true, featuredLogo: true, createdAt: true, updatedAt: true,
+        // logo y loginBgImage excluidos — son base64 de varios KB/MB. featuredLogo sí se
+        // incluye: siempre es una URL corta de Cloudinary (nunca base64), y el sysadmin
+        // necesita verla en esta tabla para gestionar la vitrina "confían en nosotros".
         subscription: {
           select: {
             status: true,

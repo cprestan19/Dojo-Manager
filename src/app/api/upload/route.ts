@@ -30,8 +30,9 @@ export async function POST(req: NextRequest) {
   // purpose: "student-photo" | "user-photo" | "belt-video"
   const purpose = (formData.get("purpose") as string | null) ?? "user-photo";
 
-  // El logo de plataforma es global (no de un dojo) — solo sysadmin puede subirlo.
-  if (purpose === "platform-logo" && role !== "sysadmin")
+  // El logo de plataforma y el logo de la vitrina "confían en nosotros" son
+  // globales/editoriales (no pertenecen al dojo destino) — solo sysadmin puede subirlos.
+  if ((purpose === "platform-logo" || purpose === "featured-logo") && role !== "sysadmin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
   if (!file) return NextResponse.json({ error: "No se recibió archivo" }, { status: 400 });
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
     : purpose === "card-template"                 ? "card-templates"
     : purpose === "event-image"                   ? "events"
     : purpose === "platform-logo"                 ? "platform"
+    : purpose === "featured-logo"                 ? "featured-logos"
     :                                               "users";
   const folder = `dojo-manager/${scope}/${subfolder}`;
 

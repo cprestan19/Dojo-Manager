@@ -1,16 +1,17 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2, Plus, Users, GraduationCap, Globe, CheckCircle, XCircle,
   Copy, KeyRound, LogIn, Lock, Eye, EyeOff, Crown, Trash2, AlertTriangle,
-  Crown as CrownIcon, Star, RefreshCw, Loader2,
+  Crown as CrownIcon, Star, RefreshCw, Loader2, Upload, ImageIcon,
 } from "lucide-react";
 // "Eye" ya importado arriba se reutiliza como ícono de Vista Previa (además del toggle de password)
 import { Modal } from "@/components/ui/Modal";
 
 interface Dojo {
   id: string; name: string; slug: string; logo: string | null;
+  featuredLogo: string | null;
   active: boolean; tournamentPro: boolean; featured: boolean; createdAt: string;
   email: string | null; phone: string | null;
   subscription: {
@@ -176,12 +177,57 @@ export default function DojosPage() {
     load();
   }
 
-  async function toggleFeatured(dojo: Dojo) {
-    await fetch(`/api/dojos/${dojo.id}`, {
+  // Modal "Vitrina destacada" — logo independiente del logo real del dojo,
+  // solo para la barra "confían en nosotros" de la landing. Sube/reemplaza/quita
+  // la imagen y controla el on/off de featured en un mismo lugar.
+  const [featuredTarget,   setFeaturedTarget]   = useState<Dojo | null>(null);
+  const [featuredOn,       setFeaturedOn]       = useState(false);
+  const [featuredLogo,     setFeaturedLogo]     = useState<string | null>(null);
+  const [featuredUploading, setFeaturedUploading] = useState(false);
+  const [featuredSaving,   setFeaturedSaving]   = useState(false);
+  const [featuredError,    setFeaturedError]    = useState("");
+  const featuredFileRef = useRef<HTMLInputElement>(null);
+
+  function openFeaturedModal(dojo: Dojo) {
+    setFeaturedTarget(dojo);
+    setFeaturedOn(dojo.featured);
+    setFeaturedLogo(dojo.featuredLogo);
+    setFeaturedError("");
+  }
+  function closeFeaturedModal() { setFeaturedTarget(null); }
+
+  async function handleFeaturedFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { setFeaturedError("El archivo supera 2 MB"); return; }
+    setFeaturedError(""); setFeaturedUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "image");
+      fd.append("purpose", "featured-logo");
+      const res  = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok) setFeaturedLogo(data.url);
+      else        setFeaturedError(data.error ?? "Error al subir el logo");
+    } catch {
+      setFeaturedError("Error de conexión al subir el logo");
+    } finally {
+      setFeaturedUploading(false);
+      if (featuredFileRef.current) featuredFileRef.current.value = "";
+    }
+  }
+
+  async function saveFeatured() {
+    if (!featuredTarget) return;
+    setFeaturedSaving(true); setFeaturedError("");
+    const res = await fetch(`/api/dojos/${featuredTarget.id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: dojo.name, featured: !dojo.featured }),
+      body: JSON.stringify({ name: featuredTarget.name, featured: featuredOn, featuredLogo }),
     });
-    load();
+    setFeaturedSaving(false);
+    if (res.ok) { closeFeaturedModal(); load(); }
+    else { const d = await res.json() as { error?: string }; setFeaturedError(d.error ?? "Error al guardar"); }
   }
 
   function openDelete(dojo: Dojo) { setDeleteTarget(dojo); setDeleteConfirm(""); setDeleteError(""); }
@@ -412,15 +458,21 @@ export default function DojosPage() {
 
                     {/* Destacado — logo en la barra "confían en nosotros" de la landing */}
                     <td className="px-4 py-3 text-center hidden xl:table-cell">
-                      <button onClick={() => toggleFeatured(dojo)}
-                        title={dojo.featured ? "Quitar de destacados" : "Destacar en la página principal (requiere logo subido)"}
+                      <button onClick={() => openFeaturedModal(dojo)}
+                        title={
+                          dojo.featured && dojo.featuredLogo ? "Visible en la página principal — clic para gestionar"
+                          : dojo.featured ? "Destacado pero sin logo de vitrina subido — no aparece en la landing"
+                          : "Gestionar vitrina de la página principal"
+                        }
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold transition-colors ${
-                          dojo.featured
+                          dojo.featured && dojo.featuredLogo
                             ? "bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+                            : dojo.featured
+                            ? "bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30"
                             : "bg-dojo-border text-dojo-muted hover:bg-dojo-border/70"
                         }`}
                       >
-                        <Star size={10} /> {dojo.featured ? "SÍ" : "—"}
+                        <Star size={10} /> {dojo.featured && dojo.featuredLogo ? "SÍ" : dojo.featured ? "Sin logo" : "—"}
                       </button>
                     </td>
 
@@ -526,6 +578,68 @@ export default function DojosPage() {
               Guardar nuevo plan
             </button>
             <button type="button" onClick={() => setPlanTarget(null)} disabled={changingPlan} className="btn-secondary">Cancelar</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal vitrina destacada — logo independiente del logo real del dojo */}
+      <Modal open={!!featuredTarget} onClose={closeFeaturedModal} title="Vitrina de la página principal">
+        <div className="space-y-4">
+          <div className="bg-dojo-darker border border-dojo-border rounded-xl px-4 py-3">
+            <p className="text-dojo-white font-semibold">{featuredTarget?.name}</p>
+            <p className="text-dojo-muted text-xs mt-1">
+              Este logo es independiente del logo real del dojo — solo se usa en la sección
+              &ldquo;Dojos que ya confían en nosotros&rdquo; de la página principal. Subirlo, cambiarlo o
+              quitarlo no afecta el login, portal ni certificados de este cliente.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-black/10 overflow-hidden flex-shrink-0 border border-dojo-border">
+              {featuredLogo
+                ? <img src={featuredLogo} alt="" className="w-full h-full object-contain" />
+                : <ImageIcon size={22} className="text-dojo-muted/40" />
+              }
+            </div>
+            <div className="space-y-2 flex-1">
+              <button
+                onClick={() => !featuredUploading && featuredFileRef.current?.click()}
+                disabled={featuredUploading}
+                className="btn-secondary flex items-center gap-2 w-full justify-center disabled:opacity-60 text-sm"
+              >
+                {featuredUploading
+                  ? <><Loader2 size={14} className="animate-spin" /> Subiendo...</>
+                  : <><Upload size={14} /> {featuredLogo ? "Reemplazar imagen" : "Subir imagen"}</>
+                }
+              </button>
+              {featuredLogo && !featuredUploading && (
+                <button onClick={() => setFeaturedLogo(null)} className="btn-ghost text-red-400 hover:text-red-300 flex items-center gap-2 w-full justify-center text-xs">
+                  <Trash2 size={12} /> Quitar logo
+                </button>
+              )}
+              <input ref={featuredFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFeaturedFileChange} />
+              <p className="text-[11px] text-dojo-muted">PNG, JPG o WebP · Máximo 2 MB</p>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input type="checkbox" checked={featuredOn} onChange={e => setFeaturedOn(e.target.checked)}
+              className="w-4 h-4 rounded accent-dojo-red" />
+            <span className="text-sm text-dojo-white">Mostrar en la página principal</span>
+          </label>
+          {featuredOn && !featuredLogo && (
+            <p className="text-xs text-yellow-400">Falta subir un logo — no aparecerá en la landing hasta que subas uno.</p>
+          )}
+
+          {featuredError && <p className="text-sm text-red-400">{featuredError}</p>}
+
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => void saveFeatured()} disabled={featuredSaving || featuredUploading}
+              className="btn-primary flex-1 justify-center gap-2 disabled:opacity-50">
+              {featuredSaving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+              Guardar
+            </button>
+            <button onClick={closeFeaturedModal} disabled={featuredSaving} className="btn-secondary flex-1 justify-center">Cancelar</button>
           </div>
         </div>
       </Modal>

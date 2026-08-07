@@ -25,6 +25,11 @@ model Dojo {
   // Cliente destacado en la landing (barra de logos "confían en nosotros")
   featured Boolean @default(false)
 
+  // Logo mostrado en esa vitrina — imagen independiente subida por el sysadmin,
+  // NO es el logo real del dojo (Dojo.logo). Editarla nunca toca la marca del
+  // cliente. La vitrina solo muestra dojos con featured=true Y featuredLogo seteado.
+  featuredLogo String? @map("featured_logo") @db.Text
+
   // Parámetros de recordatorios de pago
   reminderToleranceDays Int     @default(5)
   lateInterestPct       Float   @default(10.0)

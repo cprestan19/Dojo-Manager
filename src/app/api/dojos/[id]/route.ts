@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { logAudit } from "@/lib/audit";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/queries";
+import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; id?: string; email?: string };
@@ -18,6 +19,20 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (role !== "sysadmin") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
   const body = await req.json();
+
+  // featuredLogo: imagen de la vitrina "confían en nosotros", independiente del
+  // logo real del dojo (Dojo.logo). Si se reemplaza o elimina, borrar el
+  // anterior de Cloudinary — mismo patrón que /api/dojo y /api/superadmin/platform-settings.
+  if ("featuredLogo" in body) {
+    const current = await prisma.dojo.findUnique({ where: { id }, select: { featuredLogo: true } });
+    const nextLogo = body.featuredLogo ? String(body.featuredLogo) : null;
+    if (current?.featuredLogo && nextLogo !== current.featuredLogo) {
+      const pid = extractCloudinaryPublicId(current.featuredLogo);
+      if (pid) deleteResource(pid).catch(() => {});
+    }
+  }
+
+  const t0   = Date.now();
   const dojo = await prisma.dojo.update({
     where: { id },
     data: {
@@ -29,16 +44,32 @@ export async function PUT(req: NextRequest, { params }: Params) {
       logo:          body.logo          !== undefined ? body.logo          : undefined,
       tournamentPro: body.tournamentPro !== undefined ? Boolean(body.tournamentPro) : undefined,
       featured:      body.featured      !== undefined ? Boolean(body.featured)      : undefined,
+      featuredLogo:  "featuredLogo" in body ? (body.featuredLogo ?? null) : undefined,
     },
     select: {
       id: true, name: true, slug: true, active: true,
       tournamentPro: true, featured: true, createdAt: true,
-      logo: true,
+      logo: true, featuredLogo: true,
     },
   });
 
-  if (body.featured !== undefined) revalidateTag("public-featured-dojos");
+  if (body.featured !== undefined || "featuredLogo" in body) revalidateTag("public-featured-dojos");
   revalidateTag(CACHE_TAGS.dojo(id));
+
+  if ("featuredLogo" in body) {
+    const ctx = buildAuditCtx(session, req, { startTime: t0 });
+    await logAudit({
+      ...ctx,
+      action:       "DOJO_FEATURED_LOGO_UPDATED",
+      module:       AUDIT_MODULE.SYSADMIN,
+      resourceType: "Dojo",
+      resourceId:   id,
+      dojoId:       id,
+      dojoSlug:     dojo.slug,
+      statusCode:   200,
+      details:      JSON.stringify({ logoSet: !!dojo.featuredLogo }),
+    });
+  }
 
   return NextResponse.json({
     ...dojo,
