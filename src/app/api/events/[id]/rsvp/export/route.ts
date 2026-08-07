@@ -4,13 +4,12 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import ExcelJS from "exceljs";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
-const TZ = "America/Panama";
-
-function fmtDate(d: Date): string {
-  return d.toLocaleDateString("es-PA", { timeZone: TZ, day: "2-digit", month: "short", year: "numeric" });
+function fmtDate(d: Date, tz: string): string {
+  return d.toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "short", year: "numeric" });
 }
 
 // GET /api/events/[id]/rsvp/export — descarga Excel con asistencias del evento
@@ -32,6 +31,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     select: { id: true, title: true, startDate: true },
   });
   if (!event) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
+
+  const tz = await resolveDojoTimezone(dojoId);
 
   // ── Fetch RSVPs ──────────────────────────────────────────────────────────────
   const rsvps = await prisma.eventRSVP.findMany({
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   ws.mergeCells("A2:D2");
   const subCell = ws.getCell("A2");
-  subCell.value = `Fecha del evento: ${fmtDate(event.startDate)}   ·   Generado: ${fmtDate(new Date())}`;
+  subCell.value = `Fecha del evento: ${fmtDate(event.startDate, tz)}   ·   Generado: ${fmtDate(new Date(), tz)}`;
   subCell.font  = { italic: true, size: 10, color: { argb: "FF888888" } };
   subCell.alignment = { horizontal: "center" };
   ws.getRow(2).height = 18;
@@ -133,7 +134,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ws.addRow(["", "Ningún alumno ha confirmado asistencia.", "", ""]);
   } else {
     attending.forEach((r, i) =>
-      addStudentRow(i + 1, r.student.fullName, "Confirmado", fmtDate(r.createdAt), i % 2 === 0 ? "FFFAFFF8" : "FFF0FBF0"),
+      addStudentRow(i + 1, r.student.fullName, "Confirmado", fmtDate(r.createdAt, tz), i % 2 === 0 ? "FFFAFFF8" : "FFF0FBF0"),
     );
   }
 
@@ -144,7 +145,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ws.addRow(["", "Ningún alumno ha declinado.", "", ""]);
   } else {
     notAttending.forEach((r, i) =>
-      addStudentRow(i + 1, r.student.fullName, "No asistirá", fmtDate(r.createdAt), i % 2 === 0 ? "FFFFF8F8" : "FFFDF0F0"),
+      addStudentRow(i + 1, r.student.fullName, "No asistirá", fmtDate(r.createdAt, tz), i % 2 === 0 ? "FFFFF8F8" : "FFFDF0F0"),
     );
   }
 

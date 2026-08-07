@@ -1,7 +1,9 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { formatDate, formatCurrency, PAYMENT_STATUS_LABELS, getPaymentTypeLabel } from "@/lib/utils";
+import { formatDate, PAYMENT_STATUS_LABELS, getPaymentTypeLabel } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
+import { resolveDojoCurrency } from "@/lib/currency-server";
 import { Users } from "lucide-react";
 import { FadeIn } from "@/components/portal/FadeIn";
 
@@ -14,6 +16,8 @@ export default async function PortalPaymentsPage() {
     select: { id: true, fullName: true, familyId: true, dojoId: true },
   });
   if (!me) return null;
+
+  const currency = await resolveDojoCurrency(me.dojoId);
 
   let members: { id: string; fullName: string; isMe: boolean }[];
 
@@ -50,11 +54,11 @@ export default async function PortalPaymentsPage() {
       <FadeIn className="grid grid-cols-2 gap-3">
         <div className="card border border-green-800/40 bg-green-900/10 text-center">
           <p className="text-xs text-dojo-muted mb-1">Pagado</p>
-          <p className="text-lg font-bold text-green-400">{formatCurrency(totals.paid)}</p>
+          <p className="text-lg font-bold text-green-400">{formatCurrency(totals.paid, currency)}</p>
         </div>
         <div className="card border border-yellow-800/40 bg-yellow-900/10 text-center">
           <p className="text-xs text-dojo-muted mb-1">Pendiente</p>
-          <p className="text-lg font-bold text-yellow-400">{formatCurrency(totals.pending)}</p>
+          <p className="text-lg font-bold text-yellow-400">{formatCurrency(totals.pending, currency)}</p>
         </div>
       </FadeIn>
 
@@ -95,7 +99,7 @@ export default async function PortalPaymentsPage() {
                             {p.paidDate && <p className="text-xs text-green-400">Pagado: {formatDate(p.paidDate)}</p>}
                           </div>
                           <div className="text-right">
-                            <p className="text-dojo-gold font-bold">{formatCurrency(p.amount)}</p>
+                            <p className="text-dojo-gold font-bold">{formatCurrency(p.amount, currency)}</p>
                             <span className={`${st.className} text-xs`}>{st.label}</span>
                           </div>
                         </div>
@@ -122,7 +126,7 @@ export default async function PortalPaymentsPage() {
                     {p.paidDate && <p className="text-xs text-green-400">Pagado: {formatDate(p.paidDate)}</p>}
                   </div>
                   <div className="text-right">
-                    <p className="text-dojo-gold font-bold">{formatCurrency(p.amount)}</p>
+                    <p className="text-dojo-gold font-bold">{formatCurrency(p.amount, currency)}</p>
                     <span className={`${st.className} text-xs`}>{st.label}</span>
                   </div>
                 </div>

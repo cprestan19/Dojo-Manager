@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { Eye, ShieldX, Copy, CheckCircle2, UserCheck, UserX, Link2, RefreshCw } from "lucide-react";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 interface ActivityEvent {
   id:         string;
@@ -47,6 +48,7 @@ function ActionBadge({ action }: { action: string }) {
 }
 
 export default function RegistrationActivityLog({ linkId }: { linkId?: string }) {
+  const tz = useDojoTimeZone();
   const [events,  setEvents]  = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -106,7 +108,7 @@ export default function RegistrationActivityLog({ linkId }: { linkId?: string })
                   <tr key={ev.id} className="hover:bg-dojo-card/40 transition-colors">
                     <td className="py-2.5 pr-4 text-xs text-dojo-muted whitespace-nowrap">
                       {new Date(ev.createdAt).toLocaleString("es-PA", {
-                        timeZone: "America/Panama",
+                        timeZone: tz,
                         day: "2-digit", month: "short", year: "numeric",
                         hour: "2-digit", minute: "2-digit", hour12: true,
                       })}

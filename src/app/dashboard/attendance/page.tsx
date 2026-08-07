@@ -11,6 +11,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
+import { ymdInTz, ymdToUtc, toDateTimeLocalInTz, dateTimeLocalToUtc } from "@/lib/timezone";
 
 interface AttendanceStudent {
   id: string; fullName: string; firstName: string; lastName: string;
@@ -28,34 +30,22 @@ interface CorrectionForm {
   id: string; type: string; markedAt: string; scheduleId: string; note: string;
 }
 
-function todayStr() {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-const TZ = "America/Panama";
-function formatDateTime(iso: string) {
+function formatDateTime(iso: string, tz: string) {
   const d = new Date(iso);
-  const date = d.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: TZ });
-  const time = d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: TZ });
+  const date = d.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: tz });
+  const time = d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
   return `${date}, ${time}`;
 }
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", timeZone: TZ });
+function formatDate(iso: string, tz: string) {
+  return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", timeZone: tz });
 }
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: TZ });
+function formatTime(iso: string, tz: string) {
+  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
 }
-function toDateTimeLocal(iso: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-function exportExcel(dateFrom: string, dateTo: string, typeFilter: string, scheduleFilter: string) {
+function exportExcel(dateFrom: string, dateTo: string, typeFilter: string, scheduleFilter: string, tz: string) {
   const p = new URLSearchParams();
-  if (dateFrom)                 p.set("dateFrom",    `${dateFrom}T00:00:00-05:00`);
-  if (dateTo)                   p.set("dateTo",      `${dateTo}T23:59:59-05:00`);
+  if (dateFrom)                 p.set("dateFrom",    ymdToUtc(dateFrom, tz).toISOString());
+  if (dateTo)                   p.set("dateTo",      ymdToUtc(dateTo, tz, 23, 59, 59).toISOString());
   if (typeFilter !== "all")     p.set("type",         typeFilter);
   if (scheduleFilter !== "all") p.set("scheduleId",   scheduleFilter);
   window.open(`/api/attendance/export?${p}`, "_blank");
@@ -88,12 +78,13 @@ function TypeBadge({ type }: { type: string }) {
 }
 
 export default function AttendancePage() {
+  const tz = useDojoTimeZone();
   const [attendances,    setAttendances]  = useState<Attendance[]>([]);
   const [schedules,      setSchedules]    = useState<Schedule[]>([]);
   const [loading,        setLoading]      = useState(true);
   const [search,         setSearch]       = useState("");
-  const [dateFrom,       setDateFrom]     = useState(todayStr());
-  const [dateTo,         setDateTo]       = useState(todayStr());
+  const [dateFrom,       setDateFrom]     = useState(() => ymdInTz(new Date(), tz));
+  const [dateTo,         setDateTo]       = useState(() => ymdInTz(new Date(), tz));
   const [typeFilter,     setTypeFilter]   = useState("all");
   const [scheduleFilter, setSchedFilter]  = useState("all");
   const [deleting,       setDeleting]     = useState<string | null>(null);
@@ -104,14 +95,14 @@ export default function AttendancePage() {
   const loadAttendances = useCallback(async () => {
     setLoading(true);
     const p = new URLSearchParams();
-    if (dateFrom)                 p.set("dateFrom",  `${dateFrom}T00:00:00-05:00`);
-    if (dateTo)                   p.set("dateTo",    `${dateTo}T23:59:59-05:00`);
+    if (dateFrom)                 p.set("dateFrom",  ymdToUtc(dateFrom, tz).toISOString());
+    if (dateTo)                   p.set("dateTo",    ymdToUtc(dateTo, tz, 23, 59, 59).toISOString());
     if (typeFilter !== "all")     p.set("type",       typeFilter);
     if (scheduleFilter !== "all") p.set("scheduleId", scheduleFilter);
     const r = await fetch(`/api/attendance?${p}`);
     if (r.ok) setAttendances(await r.json());
     setLoading(false);
-  }, [dateFrom, dateTo, typeFilter, scheduleFilter]);
+  }, [dateFrom, dateTo, typeFilter, scheduleFilter, tz]);
 
   useEffect(() => { loadAttendances(); }, [loadAttendances]);
   useEffect(() => {
@@ -129,7 +120,7 @@ export default function AttendancePage() {
   };
 
   function openCorrect(a: Attendance) {
-    setCorrForm({ id: a.id, type: a.type, markedAt: toDateTimeLocal(a.markedAt), scheduleId: a.scheduleId ?? "", note: a.note ?? "" });
+    setCorrForm({ id: a.id, type: a.type, markedAt: toDateTimeLocalInTz(a.markedAt, tz), scheduleId: a.scheduleId ?? "", note: a.note ?? "" });
     setCorrModal(true);
   }
 
@@ -139,7 +130,7 @@ export default function AttendancePage() {
     await fetch(`/api/attendance/${corrForm.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: corrForm.type, markedAt: corrForm.markedAt ? new Date(corrForm.markedAt).toISOString() : undefined, scheduleId: corrForm.scheduleId || null, note: corrForm.note || null }),
+      body: JSON.stringify({ type: corrForm.type, markedAt: corrForm.markedAt ? dateTimeLocalToUtc(corrForm.markedAt, tz).toISOString() : undefined, scheduleId: corrForm.scheduleId || null, note: corrForm.note || null }),
     });
     setSaving(false); setCorrModal(false); loadAttendances();
   }
@@ -169,7 +160,7 @@ export default function AttendancePage() {
           <a href="/scanner" target="_blank" rel="noopener noreferrer" className="btn-primary text-xs sm:text-sm py-1.5 px-3">
             <LogIn size={14} /> <span className="hidden sm:inline">Abrir </span>Scanner
           </a>
-          <button onClick={() => exportExcel(dateFrom, dateTo, typeFilter, scheduleFilter)} disabled={filtered.length === 0}
+          <button onClick={() => exportExcel(dateFrom, dateTo, typeFilter, scheduleFilter, tz)} disabled={filtered.length === 0}
             className="btn-secondary text-xs sm:text-sm py-1.5 px-3 disabled:opacity-40">
             <FileSpreadsheet size={14} /> <span className="hidden sm:inline">Exportar Excel</span>
           </button>
@@ -263,8 +254,8 @@ export default function AttendancePage() {
               {/* Row 2: type + date + time */}
               <div className="flex items-center gap-2 flex-wrap">
                 <TypeBadge type={a.type} />
-                <span className="text-xs text-dojo-muted">{formatDate(a.markedAt)}</span>
-                <span className="text-xs font-semibold text-dojo-white">{formatTime(a.markedAt)}</span>
+                <span className="text-xs text-dojo-muted">{formatDate(a.markedAt, tz)}</span>
+                <span className="text-xs font-semibold text-dojo-white">{formatTime(a.markedAt, tz)}</span>
                 {a.corrected && (
                   <span className="badge-yellow inline-flex items-center gap-0.5">
                     <AlertTriangle size={9} /> Corregida
@@ -317,7 +308,7 @@ export default function AttendancePage() {
                     {belt ? <BeltBadge beltColor={belt} /> : <span className="text-dojo-muted text-xs">—</span>}
                   </TableCell>
                   <TableCell><TypeBadge type={a.type} /></TableCell>
-                  <TableCell className="text-dojo-muted whitespace-nowrap">{formatDateTime(a.markedAt)}</TableCell>
+                  <TableCell className="text-dojo-muted whitespace-nowrap">{formatDateTime(a.markedAt, tz)}</TableCell>
                   <TableCell className="text-dojo-muted">{a.schedule?.name ?? "—"}</TableCell>
                   <TableCell className="text-dojo-muted max-w-[160px] truncate">{a.note ?? "—"}</TableCell>
                   <TableCell>

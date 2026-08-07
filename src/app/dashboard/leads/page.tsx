@@ -7,6 +7,7 @@ import {
   UserPlus, AlertCircle, FileText,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 interface Lead {
   id:          string;
@@ -33,8 +34,8 @@ const STATUS_CFG: Record<string, { label: string; color: string; icon: React.Ele
   cancelled: { label: "Cancelado",  color: "#6B7280", icon: XCircle,      badge: "badge-red"    },
 };
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short", year: "numeric" });
+function formatDate(iso: string, tz: string) {
+  return new Date(iso).toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "short", year: "numeric" });
 }
 function formatPhone(p: string) {
   const clean = p.replace(/\D/g, "");
@@ -42,6 +43,7 @@ function formatPhone(p: string) {
 }
 
 export default function LeadsPage() {
+  const tz = useDojoTimeZone();
   const [leads,    setLeads]    = useState<Lead[]>([]);
   const [tab,      setTab]      = useState<Status>("all");
   const [loading,  setLoading]  = useState(true);
@@ -211,7 +213,7 @@ export default function LeadsPage() {
                       </td>
 
                       {/* Fecha */}
-                      <td className="px-4 py-3 text-dojo-muted whitespace-nowrap">{formatDate(lead.createdAt)}</td>
+                      <td className="px-4 py-3 text-dojo-muted whitespace-nowrap">{formatDate(lead.createdAt, tz)}</td>
 
                       {/* Estado */}
                       <td className="px-4 py-3">

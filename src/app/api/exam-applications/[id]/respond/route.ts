@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { sendPushToDojoAdminsAsync } from "@/lib/push";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
+import { ymdInTz } from "@/lib/timezone";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -29,12 +31,12 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "La postulación no está disponible para responder" }, { status: 400 });
     }
 
-    // Verificar deadline comparando solo la fecha en Panama (UTC-5).
+    // Verificar deadline comparando solo la fecha en la zona horaria del dojo.
     // El deadline se guarda como medianoche UTC; comparar timestamps exactos
-    // expiraría 7 horas antes del día real en Panama.
+    // expiraría varias horas antes del día real del dojo.
     if (application.deadline) {
-      const toYMD = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Panama" });
-      if (toYMD(new Date()) > toYMD(application.deadline)) {
+      const dojoTz = await resolveDojoTimezone(application.dojoId);
+      if (ymdInTz(new Date(), dojoTz) > ymdInTz(application.deadline, dojoTz)) {
         return NextResponse.json({ error: "El período de respuesta ha cerrado" }, { status: 400 });
       }
     }

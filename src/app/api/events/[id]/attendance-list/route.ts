@@ -23,6 +23,7 @@ import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
 import { NAV_KEYS } from "@/lib/permissions";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { computeSyncDiff } from "@/lib/tournament-event-sync";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 type Params = { params: Promise<{ id: string }> };
@@ -71,7 +72,8 @@ async function _POST(req: NextRequest, routeCtx: unknown) {
     if (!existing) {
       if (confirmedIds.size === 0) return { error: "No hay alumnos confirmados para este evento" as const };
 
-      const endStr = event.endDate.toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "long", year: "numeric" });
+      const dojoTz = await resolveDojoTimezone(dojoId);
+      const endStr = event.endDate.toLocaleDateString("es-PA", { timeZone: dojoTz, day: "2-digit", month: "long", year: "numeric" });
       const notesParts = [`Fecha fin del evento: ${endStr}`];
       if (event.description?.trim()) notesParts.push(event.description.trim());
 

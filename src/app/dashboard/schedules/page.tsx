@@ -7,6 +7,7 @@ import {
 import { Modal } from "@/components/ui/Modal";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { BELT_COLORS, getBeltInfo, formatTimeStr } from "@/lib/utils";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 /* ── Types ── */
 
@@ -77,16 +78,17 @@ function parseDays(raw: string): string[] {
   try { return JSON.parse(raw); } catch { return []; }
 }
 
-function formatAttendanceDate(iso: string): string {
+function formatAttendanceDate(iso: string, tz: string): string {
   const d = new Date(iso);
-  const date = d.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Panama" });
-  const time = d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Panama" });
+  const date = d.toLocaleDateString("es-PA", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: tz });
+  const time = d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
   return `${date}, ${time}`;
 }
 
 /* ── Component ── */
 
 export default function SchedulesPage() {
+  const tz = useDojoTimeZone();
   const [schedules,   setSchedules]   = useState<Schedule[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [modal,       setModal]       = useState(false);
@@ -633,10 +635,10 @@ export default function SchedulesPage() {
                                     <BeltBadge beltColor={beltColor} size="sm" />
                                   </td>
                                   <td className="px-3 py-2 text-dojo-muted hidden md:table-cell">
-                                    {entryAtt ? formatAttendanceDate(entryAtt.markedAt) : "—"}
+                                    {entryAtt ? formatAttendanceDate(entryAtt.markedAt, tz) : "—"}
                                   </td>
                                   <td className="px-3 py-2 text-dojo-muted hidden md:table-cell">
-                                    {exitAtt ? formatAttendanceDate(exitAtt.markedAt) : "—"}
+                                    {exitAtt ? formatAttendanceDate(exitAtt.markedAt, tz) : "—"}
                                   </td>
                                   <td className="px-3 py-2 text-right">
                                     <button

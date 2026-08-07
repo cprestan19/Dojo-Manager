@@ -10,6 +10,7 @@ import {
   GripVertical, ChevronUp, ChevronDown, Shuffle,
 } from "lucide-react";
 import { cn, BELT_COLORS, calculateAge } from "@/lib/utils";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 import { participantName, participantPhoto } from "@/lib/tournament-participant-display";
 import { computeStandings } from "@/lib/round-robin";
 import { BracketView, type BracketMatch, type SaveMatchData } from "@/components/tournaments/BracketView";
@@ -108,6 +109,7 @@ function CopyBtn({ value }: { value: string }) {
 // ── Página principal ──────────────────────────────────────────────────────────
 
 export default function TournamentProDetailPage() {
+  const tz                = useDojoTimeZone();
   const { id }            = useParams<{ id: string }>();
   const router            = useRouter();
   const { data: session } = useSession();
@@ -491,7 +493,7 @@ export default function TournamentProDetailPage() {
               </select>
             </div>
             <p className="text-dojo-muted text-xs mt-0.5 ml-6">
-              {new Date(tournament.date).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "2-digit", year: "numeric" })} · {tournament.location} · {tournament.organization}
+              {new Date(tournament.date).toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric" })} · {tournament.location} · {tournament.organization}
             </p>
           </div>
         </div>

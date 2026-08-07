@@ -23,6 +23,7 @@ interface Props {
   token:             string;
   dojoName:          string;
   dojoLogo:          string | null;
+  dojoTimezone:      string;
   expiresAt:         string | null;
   reset?:            boolean;
   termsContent:      string | null;
@@ -97,15 +98,15 @@ function inputCls(error?: string) {
   return `form-input ${error ? "border-red-600 focus:ring-red-500" : ""}`;
 }
 
-function formatExpiry(iso: string): string {
+function formatExpiry(iso: string, tz: string): string {
   return new Date(iso).toLocaleString("es-PA", {
-    timeZone: "America/Panama",
+    timeZone: tz,
     day: "2-digit", month: "long", year: "numeric",
     hour: "2-digit", minute: "2-digit", hour12: true,
   });
 }
 
-export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, reset, termsContent, termsVersion, alreadySubmitted }: Props) {
+export default function RegistroForm({ token, dojoName, dojoLogo, dojoTimezone, expiresAt, reset, termsContent, termsVersion, alreadySubmitted }: Props) {
   const [step,     setStep]     = useState<Step>(alreadySubmitted ? "already-submitted" : "splash");
   const [form,     setForm]     = useState<FormData>(INIT);
   const [errors,   setErrors]   = useState<FieldErrors>({});
@@ -303,7 +304,7 @@ export default function RegistroForm({ token, dojoName, dojoLogo, expiresAt, res
             <Clock size={14} className="text-yellow-400 shrink-0 mt-0.5" />
             <p className="text-sm text-yellow-300 leading-snug">
               Este enlace estará disponible hasta el{" "}
-              <strong className="text-yellow-200">{formatExpiry(expiresAt)}</strong>.
+              <strong className="text-yellow-200">{formatExpiry(expiresAt, dojoTimezone)}</strong>.
             </p>
           </div>
         )}

@@ -5,25 +5,12 @@ import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { sendPushToStudentAsync } from "@/lib/push";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
+import { getDayBoundsUtc } from "@/lib/timezone";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
 const VALID_TYPES = new Set(["entry", "exit"]);
-
-// Panamá no observa DST → offset fijo UTC-5
-const PANAMA_OFFSET_MS = 5 * 60 * 60 * 1000;
-
-// Límites del día calendario en Panamá, expresados como instantes UTC
-// para poder filtrar markedAt (que se guarda en UTC) con gte/lt.
-function getPanamaDayBoundsUtc(now: Date = new Date()): { start: Date; end: Date } {
-  const panamaNow = new Date(now.getTime() - PANAMA_OFFSET_MS);
-  const y = panamaNow.getUTCFullYear();
-  const m = panamaNow.getUTCMonth();
-  const d = panamaNow.getUTCDate();
-  const start = new Date(Date.UTC(y, m, d, 0, 0, 0, 0) + PANAMA_OFFSET_MS);
-  const end   = new Date(Date.UTC(y, m, d + 1, 0, 0, 0, 0) + PANAMA_OFFSET_MS);
-  return { start, end };
-}
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -137,10 +124,11 @@ export async function POST(req: NextRequest) {
       if (!schedule) return NextResponse.json({ error: "Horario no válido" }, { status: 400 });
     }
 
-    // ── Duplicate check: solo una marcación de este tipo por día (hora Panamá) ─
-    const { start: dayStart, end: dayEnd } = getPanamaDayBoundsUtc();
+    // ── Duplicate check: solo una marcación de este tipo por día (hora local del dojo) ─
+    const dojoTz = await resolveDojoTimezone(dojoId);
+    const { start: dayStart, end: dayEnd } = getDayBoundsUtc(new Date(), dojoTz);
     const existingToday = await prisma.attendance.findFirst({
-      where: { studentId: student.id, type, markedAt: { gte: dayStart, lt: dayEnd } },
+      where: { studentId: student.id, type, markedAt: { gte: dayStart, lte: dayEnd } },
       select: { id: true },
     });
 

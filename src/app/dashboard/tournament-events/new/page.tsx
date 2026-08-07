@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Search, Check, Trophy, Calendar, MapPin, Users } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 import { calcAge } from "@/lib/tournament-events";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
+import { dateTimeLocalToUtc } from "@/lib/timezone";
 
 interface Student {
   id: string; fullName: string; birthDate: string; photo: string | null;
@@ -14,6 +16,7 @@ interface Student {
 type Step = "details" | "students";
 
 export default function NewTournamentEventPage() {
+  const tz = useDojoTimeZone();
   const router = useRouter();
   const [step,    setStep]    = useState<Step>("details");
   const [saving,  setSaving]  = useState(false);
@@ -81,7 +84,7 @@ export default function NewTournamentEventPage() {
       const res = await fetch("/api/tournament-events", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ ...form, studentIds: [...selected] }),
+        body:    JSON.stringify({ ...form, date: dateTimeLocalToUtc(form.date, tz).toISOString(), studentIds: [...selected] }),
       });
 
       // Si el servidor devuelve HTML (ej: error 500 por caché de Prisma), lo detectamos
@@ -182,7 +185,7 @@ export default function NewTournamentEventPage() {
             </p>
             <p className="text-dojo-muted text-xs flex items-center gap-1.5">
               <Calendar size={11} />
-              {new Date(form.date).toLocaleDateString("es-PA", { timeZone: "America/Panama", weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              {dateTimeLocalToUtc(form.date, tz).toLocaleDateString("es-PA", { timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </p>
             <p className="text-dojo-muted text-xs flex items-center gap-1.5">
               <MapPin size={11} /> {form.location}

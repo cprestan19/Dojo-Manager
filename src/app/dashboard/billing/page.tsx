@@ -7,6 +7,7 @@ import { SubscriptionStatus } from "@prisma/client";
 import { CheckCircle2, AlertTriangle, Clock, CreditCard, RefreshCw } from "lucide-react";
 import { PlanSelector } from "@/components/billing/PlanSelector";
 import { InvoiceHistory } from "@/components/billing/InvoiceHistory";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -71,6 +72,8 @@ export default async function BillingPage() {
       </div>
     );
   }
+
+  const tz = await resolveDojoTimezone(dojoId);
 
   const sub      = await getDojoSubscription(dojoId);
   const readOnly = sub ? await isDojoReadOnly(dojoId) : false;
@@ -139,7 +142,7 @@ export default async function BillingPage() {
               <div>
                 <p className="text-xs text-dojo-muted">Próxima renovación</p>
                 <p className="text-dojo-white font-semibold">
-                  {sub.currentPeriodEnd.toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "2-digit", year: "numeric" })}
+                  {sub.currentPeriodEnd.toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric" })}
                 </p>
               </div>
             )}

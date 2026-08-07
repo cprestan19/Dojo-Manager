@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { ChevronDown, ChevronUp, UserCheck, UserX, User, Filter, Trash2, ShieldCheck, Users, AlertTriangle } from "lucide-react";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 interface PendingStudent {
   id: string; status: string; submittedAt: string;
@@ -39,6 +40,7 @@ function StudentCard({
   onReject:  (id: string, note: string, notify: boolean) => Promise<void>;
   onDelete:  (id: string, notify: boolean) => Promise<void>;
 }) {
+  const tz = useDojoTimeZone();
   const [expanded,       setExpanded]       = useState(false);
   const [loading,        setLoading]        = useState(false);
   const [showReject,     setShowReject]     = useState(false);
@@ -125,7 +127,7 @@ function StudentCard({
               <span className="ml-2">Link: {student.registrationLink.label}</span>
             </p>
             <p className="text-xs text-dojo-muted">
-              Enviado: {new Date(student.submittedAt).toLocaleString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
+              Enviado: {new Date(student.submittedAt).toLocaleString("es-PA", { timeZone: tz, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
             </p>
           </div>
         </div>

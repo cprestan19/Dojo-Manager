@@ -22,6 +22,11 @@ export async function GET(req: NextRequest) {
   });
   if (!me) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
 
+  const dojo = await prisma.dojo.findUnique({
+    where:  { id: me.dojoId },
+    select: { lateToleranceMinutes: true },
+  });
+
   // Resolve which student IDs to query
   let studentIds: string[];
 
@@ -50,24 +55,33 @@ export async function GET(req: NextRequest) {
     studentIds = [requestedId];
   }
 
-  const rows = await prisma.attendance.findMany({
-    where: {
-      studentId: { in: studentIds },
-      ...((dateFrom || dateTo) ? {
-        markedAt: {
-          ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-          ...(dateTo   ? { lte: new Date(dateTo)   } : {}),
-        },
-      } : {}),
-    },
-    select: {
-      id: true, type: true, markedAt: true, corrected: true,
-      student:  { select: { id: true, fullName: true } },
-      schedule: { select: { id: true, name: true } },
-    },
-    orderBy: { markedAt: "desc" },
-    take: 500,
-  });
+  const [rows, studentSchedules] = await Promise.all([
+    prisma.attendance.findMany({
+      where: {
+        studentId: { in: studentIds },
+        ...((dateFrom || dateTo) ? {
+          markedAt: {
+            ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+            ...(dateTo   ? { lte: new Date(dateTo)   } : {}),
+          },
+        } : {}),
+      },
+      select: {
+        id: true, type: true, markedAt: true, corrected: true,
+        student:  { select: { id: true, fullName: true } },
+        schedule: { select: { id: true, name: true, startTime: true } },
+      },
+      orderBy: { markedAt: "desc" },
+      take: 500,
+    }),
+    prisma.studentSchedule.findMany({
+      where: { studentId: { in: studentIds } },
+      select: {
+        studentId: true, assignedAt: true, removedAt: true,
+        schedule: { select: { days: true } },
+      },
+    }),
+  ]);
 
-  return NextResponse.json(rows);
+  return NextResponse.json({ rows, studentSchedules, lateToleranceMinutes: dojo?.lateToleranceMinutes ?? 10 });
 }

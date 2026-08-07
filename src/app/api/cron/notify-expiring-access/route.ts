@@ -2,23 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { SubscriptionStatus } from "@prisma/client";
 import { sendEmail } from "@/lib/email";
+import { ymdInTz, ymdToUtc, DEFAULT_TIMEZONE } from "@/lib/timezone";
 
-const PANAMA_TZ = "America/Panama";
-
-function panamaDay(d: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: PANAMA_TZ, year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(d);
-}
-
-function formatDate(d: Date): string {
+function formatDate(d: Date, tz: string): string {
   return new Intl.DateTimeFormat("es-PA", {
-    timeZone: PANAMA_TZ, day: "2-digit", month: "long", year: "numeric",
+    timeZone: tz, day: "2-digit", month: "long", year: "numeric",
   }).format(d);
 }
 
-function buildEmailHtml(dojoName: string, daysLeft: number, endsAt: Date): string {
-  const expiryStr = formatDate(endsAt);
+function buildEmailHtml(dojoName: string, daysLeft: number, endsAt: Date, tz: string): string {
+  const expiryStr = formatDate(endsAt, tz);
   const urgency   = daysLeft === 0 ? "hoy" : daysLeft === 1 ? "mañana" : `en ${daysLeft} días`;
   const color     = daysLeft === 0 ? "#CC0000" : daysLeft === 1 ? "#e67e22" : "#f39c12";
 
@@ -86,30 +79,32 @@ export async function GET(req: NextRequest) {
           select: {
             id:    true,
             name:  true,
+            timezone: true,
             users: { where: { role: "admin" }, select: { email: true } },
           },
         },
       },
     });
 
-    const todayPA = panamaDay(now);
     let sent = 0, skipped = 0;
 
     for (const sub of subs) {
       const dojo     = sub.dojo;
+      const dojoTz   = dojo.timezone ?? DEFAULT_TIMEZONE;
       const daysLeft = Math.max(0, Math.ceil((sub.trialEndsAt.getTime() - now.getTime()) / 86_400_000));
       const emails   = dojo.users.map(u => u.email).filter(Boolean);
 
       if (emails.length === 0) { skipped++; continue; }
 
-      // Un solo correo por dojo por día (hora Panamá)
+      // Un solo correo por dojo por día (hora local del dojo)
+      const todayYMD = ymdInTz(now, dojoTz);
       const alreadySentToday = await prisma.specialAccessEmailLog.findFirst({
         where: {
           dojoId: dojo.id,
           status: "sent",
           sentAt: {
-            gte: new Date(`${todayPA}T00:00:00-05:00`),
-            lt:  new Date(`${todayPA}T23:59:59-05:00`),
+            gte: ymdToUtc(todayYMD, dojoTz),
+            lte: ymdToUtc(todayYMD, dojoTz, 23, 59, 59),
           },
         },
       });
@@ -119,7 +114,7 @@ export async function GET(req: NextRequest) {
       const subject = `⚠️ Tu acceso especial vence ${
         daysLeft === 0 ? "hoy" : daysLeft === 1 ? "mañana" : `en ${daysLeft} días`
       } — ${dojo.name}`;
-      const html = buildEmailHtml(dojo.name, daysLeft, sub.trialEndsAt);
+      const html = buildEmailHtml(dojo.name, daysLeft, sub.trialEndsAt, dojoTz);
 
       let emailError: string | undefined;
       for (const email of emails) {

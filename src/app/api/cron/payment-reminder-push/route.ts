@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendPushToSubscriptions, logPushSent } from "@/lib/push";
+import { ymdInTz, addDaysYMD, DEFAULT_TIMEZONE } from "@/lib/timezone";
 
 export const dynamic     = "force-dynamic";
 export const maxDuration = 60;
 
-const PANAMA_TZ    = "America/Panama";
 const REMINDER_DAYS = 3; // recordatorio 3 días antes del vencimiento
 
-function panamaDay(d: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: PANAMA_TZ, year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(d);
-}
-
-// GET /api/cron/payment-reminder-push — push a alumnos con mensualidad venciendo en 3 días (hora Panamá)
+// GET /api/cron/payment-reminder-push — push a alumnos con mensualidad venciendo en 3 días
+// (calculado en la zona horaria de CADA dojo, no una sola zona global)
 // Protegido por Authorization: Bearer CRON_SECRET
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
@@ -24,15 +19,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const targetDate = new Date(Date.now() + REMINDER_DAYS * 86_400_000);
-    const targetDay   = panamaDay(targetDate);
-    const rangeStart   = new Date(`${targetDay}T00:00:00-05:00`);
-    const rangeEnd     = new Date(`${targetDay}T23:59:59-05:00`);
+    const now = new Date();
+    // dueDate es una fecha pura (sin hora) — se busca en una ventana amplia (REMINDER_DAYS ± 1)
+    // para cubrir cualquier zona horaria, y se filtra el día exacto por dojo más abajo.
+    const windowStart = new Date(now.getTime() + (REMINDER_DAYS - 1) * 86_400_000);
+    const windowEnd   = new Date(now.getTime() + (REMINDER_DAYS + 1) * 86_400_000);
 
     const payments = await prisma.payment.findMany({
       where: {
         status:  "pending",
-        dueDate: { gte: rangeStart, lte: rangeEnd },
+        dueDate: { gte: windowStart, lte: windowEnd },
         student: {
           active: true,
           dojo:   { pushSettings: { enabled: true, notifyPaymentReminder: true } },
@@ -40,13 +36,18 @@ export async function GET(req: NextRequest) {
       },
       select: {
         id: true, amount: true, dueDate: true,
-        student: { select: { id: true, dojoId: true, fullName: true } },
+        student: { select: { id: true, dojoId: true, fullName: true, dojo: { select: { timezone: true } } } },
       },
     });
 
     let sent = 0, skipped = 0;
 
     for (const payment of payments) {
+      const dojoTz    = payment.student.dojo.timezone ?? DEFAULT_TIMEZONE;
+      const targetYMD = addDaysYMD(ymdInTz(now, dojoTz), REMINDER_DAYS);
+      const dueYMD    = payment.dueDate.toISOString().slice(0, 10); // fecha pura, sin desplazar
+      if (dueYMD !== targetYMD) continue; // no es el día exacto (3 días antes) para este dojo
+
       const subs = await prisma.pushSubscription.findMany({
         where:  { studentId: payment.student.id, active: true },
         select: { endpoint: true, p256dh: true, auth: true },
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
       if (subs.length === 0) { skipped++; continue; }
 
       const dueDateStr = payment.dueDate.toLocaleDateString("es-PA", {
-        timeZone: PANAMA_TZ, day: "numeric", month: "long",
+        timeZone: "UTC", day: "numeric", month: "long", // fecha pura: sin conversión de zona
       });
 
       const result = await sendPushToSubscriptions(subs, {

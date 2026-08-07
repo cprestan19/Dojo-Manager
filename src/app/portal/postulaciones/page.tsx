@@ -1,7 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 import { formatDate, getBeltInfo } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
 import { Loader2, FileText } from "lucide-react";
+import { usePortalTimeZone } from "@/lib/context/PortalTimeZoneContext";
+import { usePortalCurrency } from "@/lib/context/PortalCurrencyContext";
+import { ymdInTz } from "@/lib/timezone";
 
 interface ApplicationInfo {
   id:          string;
@@ -125,15 +129,15 @@ function ExamCard({
   const [error,   setError]   = useState("");
   const [editing, setEditing] = useState(false);
 
+  const tz       = usePortalTimeZone();
+  const currency = usePortalCurrency();
   const app      = item.application;
   const beltInfo = getBeltInfo(item.beltToPresent);
-  const now      = new Date();
   const deadline = app.deadline ? new Date(app.deadline) : null;
-  // Comparar sólo la parte de fecha en Panama (UTC-5).
-  // El deadline "2026-07-01" guardado como medianoche UTC = 19:00 Panama del 30/jun,
-  // lo cual expiría 7h antes del día real. Con en-CA obtenemos YYYY-MM-DD comparable.
-  const toYMD    = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Panama" });
-  const expired  = deadline ? toYMD(now) > toYMD(deadline) : false;
+  // Comparar sólo la parte de fecha en la zona horaria del dojo.
+  // El deadline "2026-07-01" guardado como medianoche UTC puede caer horas antes en la
+  // zona local del dojo, lo cual expiraría el plazo antes del día real.
+  const expired  = deadline ? ymdInTz(new Date(), tz) > ymdInTz(deadline, tz) : false;
   const canRespond = (item.response === "PENDING" || editing) && !expired && app.status === "PUBLISHED";
 
   async function handleSubmit() {
@@ -178,7 +182,7 @@ function ExamCard({
       </div>
 
       {app.amount > 0 && (
-        <p className="text-sm text-dojo-gold font-semibold">Valor: ${app.amount.toFixed(2)}</p>
+        <p className="text-sm text-dojo-gold font-semibold">Valor: {formatCurrency(app.amount, currency)}</p>
       )}
       {deadline && (
         <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg w-fit ${

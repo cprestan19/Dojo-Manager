@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { NAV_KEYS } from "@/lib/permissions";
+import { useDojoTimeZone, useDojoCurrency } from "@/lib/hooks/useDojo";
+import { formatCurrency } from "@/lib/currency";
 
 interface StudentOption {
   id:          string;
@@ -73,6 +75,8 @@ export default function PostulacionDetallePage() {
   const { id }  = useParams<{ id: string }>();
   const router  = useRouter();
   const perms   = usePermissions();
+  const tz      = useDojoTimeZone();
+  const currency = useDojoCurrency();
 
   const [app,       setApp]       = useState<Application | null>(null);
   const [loading,   setLoading]   = useState(true);
@@ -321,7 +325,7 @@ export default function PostulacionDetallePage() {
       {lastRefresh && (
         <div className="flex items-center gap-1.5 text-[11px] text-dojo-muted">
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
-          Actualización en tiempo real · última vez {lastRefresh.toLocaleTimeString("es-PA", { timeZone: "America/Panama", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+          Actualización en tiempo real · última vez {lastRefresh.toLocaleTimeString("es-PA", { timeZone: tz, hour: "2-digit", minute: "2-digit", second: "2-digit" })}
         </div>
       )}
       {/* Header */}
@@ -338,7 +342,7 @@ export default function PostulacionDetallePage() {
           </div>
           <p className="text-sm text-dojo-muted">
             📍 {app.location} · 📅 {formatDate(app.examDate)} {app.examTime}
-            {app.amount > 0 && ` · $${app.amount.toFixed(2)}`}
+            {app.amount > 0 && ` · ${formatCurrency(app.amount, currency)}`}
           </p>
         </div>
         {/* Acciones */}

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ymdInTz, DEFAULT_TIMEZONE } from "@/lib/timezone";
 
 const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -10,9 +11,9 @@ const MONTHS = [
 ];
 const WEEKDAYS = ["L", "M", "M", "J", "V", "S", "D"];
 
-/** Fecha de hoy en Panamá (UTC-5) como YYYY-MM-DD. */
-export function panamaTodayISO(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Panama" });
+/** Fecha de hoy en la zona horaria indicada (por defecto la del dojo/Panamá) como YYYY-MM-DD. */
+export function todayISOInTz(tz: string = DEFAULT_TIMEZONE): string {
+  return ymdInTz(new Date(), tz);
 }
 
 function parseISO(value: string): { y: number; m: number; d: number } | null {
@@ -37,16 +38,18 @@ interface DatePickerProps {
   onChange: (value: string) => void;
   className?: string;
   placeholder?: string;
+  /** Zona horaria para resaltar "hoy" y el botón "Hoy" — por defecto la del dojo/Panamá */
+  tz?: string;
 }
 
-export function DatePicker({ value, onChange, className, placeholder = "dd/mm/aaaa" }: DatePickerProps) {
+export function DatePicker({ value, onChange, className, placeholder = "dd/mm/aaaa", tz = DEFAULT_TIMEZONE }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const selected = parseISO(value);
-  const today = parseISO(panamaTodayISO())!;
+  const today = parseISO(todayISOInTz(tz))!;
   const [viewY, setViewY] = useState(selected?.y ?? today.y);
   const [viewM, setViewM] = useState(selected?.m ?? today.m);
 
@@ -179,7 +182,7 @@ export function DatePicker({ value, onChange, className, placeholder = "dd/mm/aa
           </div>
           <button
             type="button"
-            onClick={() => { onChange(panamaTodayISO()); setOpen(false); }}
+            onClick={() => { onChange(todayISOInTz(tz)); setOpen(false); }}
             className="w-full mt-2 text-xs text-dojo-muted hover:text-dojo-white text-center py-1.5 rounded-lg hover:bg-dojo-border transition-colors"
           >
             Hoy

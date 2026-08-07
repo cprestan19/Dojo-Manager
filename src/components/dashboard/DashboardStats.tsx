@@ -6,7 +6,9 @@ import {
   Mail, X, Clock, CalendarClock, TrendingUp, ChevronRight,
   UserX, Loader2, TriangleAlert,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
+import { useDojoCurrency } from "@/lib/hooks/useDojo";
 
 /* ─── Types ────────────────────────────────────────────────── */
 interface LateStudent {
@@ -171,6 +173,7 @@ export function DashboardStats({
   pendingCount, pendingAmount, lateCount, alertCount,
   lateStudents, absentStudents, upcomingPayments,
 }: Props) {
+  const currency = useDojoCurrency();
   const [panel,    setPanel]    = useState<Panel>(null);
   const [alertTab, setAlertTab] = useState<AlertTab>("late");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -213,7 +216,7 @@ export function DashboardStats({
     },
     {
       label:   "Cobrado",
-      value:   formatCurrency(paidThisMonth),
+      value:   formatCurrency(paidThisMonth, currency),
       sub:     "este mes",
       icon:    CheckCircle,
       accent:  "#27AE60",   // dojo-success
@@ -221,7 +224,7 @@ export function DashboardStats({
     {
       label:   "Atrasados",
       value:   lateCount,
-      sub:     pendingCount > lateCount ? `${pendingCount} pendientes · ${formatCurrency(pendingAmount)}` : formatCurrency(pendingAmount),
+      sub:     pendingCount > lateCount ? `${pendingCount} pendientes · ${formatCurrency(pendingAmount, currency)}` : formatCurrency(pendingAmount, currency),
       icon:    CreditCard,
       accent:  "#C0392B",   // dojo-red
       pulse:   lateCount > 0,
@@ -288,7 +291,7 @@ export function DashboardStats({
                         {p.student.fullName}
                       </Link>
                       <p className="text-xs mt-0.5" style={{ color: "#7A97B0" }}>
-                        {formatCurrency(p.amount)} · vence {formatDate(p.dueDate)}
+                        {formatCurrency(p.amount, currency)} · vence {formatDate(p.dueDate)}
                         {days > 0 && <span style={{ color: "#EF4444" }} className="ml-1.5 font-semibold">+{days}d</span>}
                       </p>
                     </div>
@@ -369,7 +372,7 @@ export function DashboardStats({
                           {p.student.fullName}
                         </Link>
                         <p className="text-xs mt-0.5" style={{ color: "#7A97B0" }}>
-                          {formatCurrency(p.amount)} · venció {formatDate(p.dueDate)}
+                          {formatCurrency(p.amount, currency)} · venció {formatDate(p.dueDate)}
                         </p>
                       </div>
                       <span className="text-xs font-bold shrink-0" style={{ color: "#EF4444" }}>+{days}d</span>
@@ -434,7 +437,7 @@ export function DashboardStats({
                             {p.student.fullName}
                           </Link>
                           <p className="text-xs mt-0.5" style={{ color: "#7A97B0" }}>
-                            {formatCurrency(p.amount)} · vence {formatDate(p.dueDate)}
+                            {formatCurrency(p.amount, currency)} · vence {formatDate(p.dueDate)}
                           </p>
                         </div>
                         <span className="text-xs font-bold shrink-0 px-2 py-0.5 rounded-full"

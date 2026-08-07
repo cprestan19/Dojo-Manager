@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { CheckCircle, XCircle, Clock, Users, DollarSign, ChevronDown, ChevronUp, Mail, RefreshCw, Wand2 } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
+import { useDojoCurrency } from "@/lib/hooks/useDojo";
 
 interface AthleteCategory {
   id: string; categoryLabel: string; status: string;
@@ -50,6 +52,7 @@ interface Props {
 }
 
 export function InscripcionesTab({ tournamentId }: Props) {
+  const currency = useDojoCurrency();
   const [clubs, setClubs]         = useState<Club[]>([]);
   const [loading, setLoading]     = useState(true);
   const [expandedId, setExpanded] = useState<string | null>(null);
@@ -144,7 +147,7 @@ export function InscripcionesTab({ tournamentId }: Props) {
           { label: "Clubs", value: totals.clubs, icon: Users },
           { label: "Atletas", value: totals.athletes, icon: Users },
           { label: "Aprobados", value: totals.approved, icon: CheckCircle },
-          { label: "Cuota total", value: `$${totals.fee.toFixed(2)}`, icon: DollarSign },
+          { label: "Cuota total", value: formatCurrency(totals.fee, currency), icon: DollarSign },
         ].map(({ label, value, icon: Icon }) => (
           <div key={label} className="card flex items-center gap-3 py-3">
             <Icon size={18} className="text-dojo-muted shrink-0" />

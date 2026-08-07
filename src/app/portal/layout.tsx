@@ -9,6 +9,10 @@ import ActivityPing from "@/components/ui/ActivityPing";
 import { PageTransition } from "@/components/portal/PageTransition";
 import { hasFeature, hasTournamentsAccess } from "@/lib/billing/featureGate";
 import { NAV_KEYS } from "@/lib/permissions";
+import { PortalTimeZoneProvider } from "@/lib/context/PortalTimeZoneContext";
+import { DEFAULT_TIMEZONE } from "@/lib/timezone";
+import { PortalCurrencyProvider } from "@/lib/context/PortalCurrencyContext";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -23,7 +27,7 @@ export default async function PortalLayout({ children }: { children: React.React
     select: {
       id: true, fullName: true, photo: true,
       dojoId: true,
-      dojo: { select: { name: true, logo: true } },
+      dojo: { select: { name: true, logo: true, timezone: true, currency: true } },
       beltHistory: { orderBy: { changeDate: "desc" }, take: 1, select: { beltColor: true } },
     },
   });
@@ -88,16 +92,20 @@ export default async function PortalLayout({ children }: { children: React.React
   }
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col bg-dojo-darker">
-      <PortalNav student={student} hasStore={hasStore} canHaveLiveTatami={canHaveLiveTatami} />
-      <SystemNewsModal />
-      <ActivityPing />
-      <main className="flex-1 overflow-x-hidden overflow-y-auto min-w-0">
-        {/* pb-24 = espacio para la barra de navegación inferior fija (64px) + margen */}
-        <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
-          <PageTransition>{children}</PageTransition>
+    <PortalTimeZoneProvider timezone={student.dojo.timezone ?? DEFAULT_TIMEZONE}>
+      <PortalCurrencyProvider currency={student.dojo.currency ?? DEFAULT_CURRENCY}>
+        <div className="min-h-[100dvh] w-full flex flex-col bg-dojo-darker">
+          <PortalNav student={student} hasStore={hasStore} canHaveLiveTatami={canHaveLiveTatami} />
+          <SystemNewsModal />
+          <ActivityPing />
+          <main className="flex-1 overflow-x-hidden overflow-y-auto min-w-0">
+            {/* pb-24 = espacio para la barra de navegación inferior fija (64px) + margen */}
+            <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
+              <PageTransition>{children}</PageTransition>
+            </div>
+          </main>
         </div>
-      </main>
-    </div>
+      </PortalCurrencyProvider>
+    </PortalTimeZoneProvider>
   );
 }

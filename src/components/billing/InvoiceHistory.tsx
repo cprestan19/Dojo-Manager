@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Receipt } from "lucide-react";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 interface Invoice {
   id:              string;
@@ -24,6 +25,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function InvoiceHistory() {
+  const tz = useDojoTimeZone();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [total,    setTotal]    = useState(0);
   const [page,     setPage]     = useState(1);
@@ -72,7 +74,7 @@ export function InvoiceHistory() {
             ) : invoices.map(inv => (
               <tr key={inv.id} className="border-b border-dojo-border/50 hover:bg-dojo-border/10">
                 <td className="px-4 py-3 text-dojo-muted">
-                  {new Date(inv.paidAt ?? inv.createdAt).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "2-digit", year: "numeric" })}
+                  {new Date(inv.paidAt ?? inv.createdAt).toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric" })}
                 </td>
                 <td className="px-4 py-3 font-semibold text-dojo-white">
                   ${inv.amount.toFixed(2)} {inv.currency}

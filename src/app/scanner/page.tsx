@@ -9,6 +9,7 @@ import { getBeltInfo } from "@/lib/utils";
 import Image from "next/image";
 import type { Html5Qrcode as Html5QrcodeType } from "html5-qrcode";
 import { DisciplineBarScanner } from "@/components/discipline/DisciplineBar";
+import { DEFAULT_TIMEZONE } from "@/lib/timezone";
 
 interface Schedule {
   id: string; name: string; days: string;
@@ -41,8 +42,8 @@ function fmtTime(time: string) {
   return `${hour12}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
-function nowTime() {
-  return new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true });
+function nowTime(tz: string) {
+  return new Date().toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
 }
 
 export default function ScannerPage() {
@@ -59,7 +60,7 @@ export default function ScannerPage() {
   const [manualInput,      setManualInput]      = useState("");
   const [manualError,      setManualError]      = useState("");
   const [manualLoading,    setManualLoading]    = useState(false);
-  const [dojoInfo,         setDojoInfo]         = useState<{ name: string; logo: string | null } | null>(null);
+  const [dojoInfo,         setDojoInfo]         = useState<{ name: string; logo: string | null; timezone: string } | null>(null);
   const [cameraError,      setCameraError]      = useState("");
   const [cameraErrorType,  setCameraErrorType]  = useState<"permission" | "busy" | "generic">("generic");
   const [facingMode,       setFacingMode]       = useState<"environment" | "user">("environment");
@@ -95,11 +96,11 @@ export default function ScannerPage() {
     if (status !== "authenticated") return;
     fetch("/api/dojo?logo=1")
       .then(r => r.ok ? r.json() : null)
-      .then((d: { name?: string; logo?: string | null } | null) => {
+      .then((d: { name?: string; logo?: string | null; timezone?: string } | null) => {
         if (!d?.name) return;
         // Validate logo is an absolute https URL before rendering (XSS guard)
         const safeLogo = d.logo && /^https:\/\//i.test(d.logo) ? d.logo : null;
-        setDojoInfo({ name: d.name, logo: safeLogo });
+        setDojoInfo({ name: d.name, logo: safeLogo, timezone: d.timezone ?? DEFAULT_TIMEZONE });
       })
       .catch(() => {});
   }, [status]);
@@ -513,7 +514,7 @@ export default function ScannerPage() {
         </span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className="text-xs text-dojo-muted font-mono">{nowTime()}</span>
+        <span className="text-xs text-dojo-muted font-mono">{nowTime(dojoInfo?.timezone ?? DEFAULT_TIMEZONE)}</span>
         {/* Back to dashboard — no re-login needed */}
         <a
           href="/dashboard"

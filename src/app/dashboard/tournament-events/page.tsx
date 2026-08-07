@@ -6,6 +6,7 @@ import {
   Medal, Trash2, AlertTriangle, BarChart3, X, Printer,
 } from "lucide-react";
 import type { TEventSummary, TEventStats, TEventMedalStudent } from "@/lib/tournament-events";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 /* ── helpers ──────────────────────────────────────────────────────── */
 
@@ -91,8 +92,8 @@ function MedalGroup({ emoji, label, color, bg, students, medalKey }: MedalGroupP
 
 /* ── función de impresión ─────────────────────────────────────────── */
 
-function printMedalStats(stats: TEventStats, events: TEventSummary[]) {
-  const today = new Date().toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "long", year: "numeric" });
+function printMedalStats(stats: TEventStats, events: TEventSummary[], tz: string) {
+  const today = new Date().toLocaleDateString("es-PA", { timeZone: tz, day: "numeric", month: "long", year: "numeric" });
 
   const goldList   = stats.students.filter(s => s.gold > 0)
     .sort((a, b) => b.gold - a.gold || b.silver - a.silver || b.bronze - a.bronze);
@@ -135,7 +136,7 @@ function printMedalStats(stats: TEventStats, events: TEventSummary[]) {
   const tournamentLines = events
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .map(e => {
-      const d = new Date(e.date).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "short", year: "numeric" });
+      const d = new Date(e.date).toLocaleDateString("es-PA", { timeZone: tz, day: "numeric", month: "short", year: "numeric" });
       return `<li style="margin-bottom:2px">${e.name} <span style="color:#aaa;font-size:11px">(${d})</span></li>`;
     }).join("");
 
@@ -209,6 +210,7 @@ function printMedalStats(stats: TEventStats, events: TEventSummary[]) {
 /* ── componente principal ─────────────────────────────────────────── */
 
 export default function TournamentEventsPage() {
+  const tz = useDojoTimeZone();
   const [events,       setEvents]       = useState<TEventSummary[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [deleting,     setDeleting]     = useState<string | null>(null);
@@ -316,7 +318,7 @@ export default function TournamentEventsPage() {
             <div className="flex items-center gap-2">
               {stats && !loadingStats && (
                 <button
-                  onClick={() => printMedalStats(stats, events)}
+                  onClick={() => printMedalStats(stats, events, tz)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-dojo-darker border border-dojo-border text-dojo-muted hover:text-dojo-white transition-colors"
                   title="Imprimir PDF"
                 >
@@ -414,7 +416,7 @@ export default function TournamentEventsPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {events.map(ev => {
           const date    = new Date(ev.date);
-          const dateStr = date.toLocaleDateString("es-PA", { timeZone: "America/Panama", weekday:"short", day:"numeric", month:"long", year:"numeric" });
+          const dateStr = date.toLocaleDateString("es-PA", { timeZone: tz, weekday:"short", day:"numeric", month:"long", year:"numeric" });
           const confirmed  = ev.confirmedCount ?? 0;
           const optedOut   = ev.optedOutCount  ?? 0;
           const pending    = ev.totalStudents - confirmed - optedOut;

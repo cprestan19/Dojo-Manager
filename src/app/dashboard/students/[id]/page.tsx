@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -15,8 +15,11 @@ import { FamilyManager } from "@/components/students/FamilyManager";
 import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { Modal } from "@/components/ui/Modal";
-import { DatePicker, panamaTodayISO } from "@/components/ui/DatePicker";
-import { calculateAge, formatDate, formatCurrency, BELT_COLORS, PAYMENT_STATUS_LABELS, MULTI_KATA_BELTS, getPaymentTypeLabel } from "@/lib/utils";
+import { DatePicker, todayISOInTz } from "@/components/ui/DatePicker";
+import { calculateAge, formatDate, BELT_COLORS, PAYMENT_STATUS_LABELS, MULTI_KATA_BELTS, getPaymentTypeLabel, formatLateTotal } from "@/lib/utils";
+import { formatCurrency, getCurrencySymbol, currencyInputPadding } from "@/lib/currency";
+import { getLateMinutes, ymdInTz, ymdToUtc, computeAttendanceEffectiveness } from "@/lib/timezone";
+import { useDojoTimeZone, useDojoCurrency } from "@/lib/hooks/useDojo";
 import Image from "next/image";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useAppContext } from "@/lib/context/AppContext";
@@ -59,7 +62,7 @@ interface Student {
   portalAccessBlockedBy: string | null;
   portalAccessBlockReason: "family_principal" | "email_conflict" | null;
   familyPrincipal: { id: string; fullName: string; email: string | null } | null;
-  dojo: { name: string; phone: string | null; slug: string } | null;
+  dojo: { name: string; phone: string | null; slug: string; lateToleranceMinutes: number } | null;
   inscription: {
     inscriptionDate: string; annualPaymentDate: string | null;
     annualAmount: number; monthlyAmount: number;
@@ -69,6 +72,13 @@ interface Student {
   kataCompetitions:        KataComp[];
   kataRankingAssignments:  KataRankingEntry[];
   payments:                Payment[];
+  studentSchedules:        StudentScheduleEntry[];
+}
+
+interface StudentScheduleEntry {
+  assignedAt: string;
+  removedAt: string | null;
+  schedule: { id: string; name: string; days: string };
 }
 
 // ── Belt History Modal ────────────────────────────────────
@@ -446,10 +456,13 @@ function EditKataCompModal({ entry, onClose, onSaved }: { entry: KataComp; onClo
 function AddPaymentModal({ studentId, monthlyAmount, onClose, onSaved }: {
   studentId: string; monthlyAmount: number; onClose: () => void; onSaved: () => void;
 }) {
+  const tz = useDojoTimeZone();
+  const currency = useDojoCurrency();
+  const currencySymbol = getCurrencySymbol(currency);
   const [type,     setType]    = useState("monthly");
   const [amount,   setAmount]  = useState(String(monthlyAmount ?? 0));
-  const [dueDate,  setDue]     = useState(panamaTodayISO());
-  const [paidDate, setPaid]    = useState(panamaTodayISO());
+  const [dueDate,  setDue]     = useState(() => todayISOInTz(tz));
+  const [paidDate, setPaid]    = useState(() => todayISOInTz(tz));
   const [status,   setStatus]  = useState("paid");
   const [note,     setNote]    = useState("");
   const [loading,  setLoading] = useState(false);
@@ -479,11 +492,11 @@ function AddPaymentModal({ studentId, monthlyAmount, onClose, onSaved }: {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="form-label">Monto (USD)</label>
+          <label className="form-label">Monto ({currency})</label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm whitespace-nowrap">{currencySymbol}</span>
             <input type="number" step="0.01" min="0" value={amount} onChange={e => setAmount(e.target.value)}
-              className="form-input pl-7" placeholder="0.00" />
+              className="form-input" style={{ paddingLeft: currencyInputPadding(currencySymbol) }} placeholder="0.00" />
           </div>
         </div>
         <div>
@@ -498,12 +511,12 @@ function AddPaymentModal({ studentId, monthlyAmount, onClose, onSaved }: {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="form-label">Fecha de Vencimiento</label>
-          <DatePicker value={dueDate} onChange={setDue} />
+          <DatePicker value={dueDate} onChange={setDue} tz={tz} />
         </div>
         {status === "paid" && (
           <div>
             <label className="form-label">Fecha de Pago</label>
-            <DatePicker value={paidDate} onChange={setPaid} />
+            <DatePicker value={paidDate} onChange={setPaid} tz={tz} />
           </div>
         )}
       </div>
@@ -599,11 +612,12 @@ interface TournamentEvent {
 
 // ── Event Card ───────────────────────────────────────────────────────────────
 function EventCard({ ev }: { ev: TournamentEvent }) {
+  const tz = useDojoTimeZone();
   const [expanded, setExpanded] = useState(false);
   const isPast    = ev.status === "completed";
   const isActive  = ev.status === "active";
   const dateLabel = new Date(ev.date).toLocaleDateString("es-PA", {
-    timeZone: "America/Panama", weekday: "long", year: "numeric", month: "long", day: "numeric",
+    timeZone: tz, weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
 
   return (
@@ -748,6 +762,8 @@ export default function StudentDetailPage() {
   const canEdit  = role === "admin" || role === "sysadmin";
   const perms    = usePermissions();
   const { hasPortalAccess } = useAppContext();
+  const tz = useDojoTimeZone();
+  const currency = useDojoCurrency();
 
   const [student,      setStudent]    = useState<Student | null>(null);
   const [loading,      setLoading]    = useState(true);
@@ -771,13 +787,12 @@ export default function StudentDetailPage() {
   const [accessLoading,   setAccessLoading]   = useState(false);
   const [accessResult,    setAccessResult]    = useState<{ email: string; tempPassword: string; emailSent: boolean; emailError: string | null } | null>(null);
 
-  const _pad = (n: number) => String(n).padStart(2, "0");
-  const _ld  = (d: Date) => `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`;
-  const defaultFrom = _ld(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const defaultTo   = _ld(new Date());
+  const todayYMD    = ymdInTz(new Date(), tz);
+  const defaultFrom = todayYMD.slice(0, 7) + "-01"; // primer día del mes en curso, según el dojo
+  const defaultTo   = todayYMD;
   const [attFrom,     setAttFrom]   = useState(defaultFrom);
   const [attTo,       setAttTo]     = useState(defaultTo);
-  const [attList,     setAttList]   = useState<{ id: string; type: string; markedAt: string; schedule: { name: string } | null; corrected: boolean }[]>([]);
+  const [attList,     setAttList]   = useState<{ id: string; type: string; markedAt: string; schedule: { name: string; startTime: string } | null; corrected: boolean }[]>([]);
   const [attLoading,  setAttLoading] = useState(false);
   const [attLoaded,   setAttLoaded]  = useState(false);
   const [termsStatus, setTermsStatus] = useState<{
@@ -785,9 +800,43 @@ export default function StudentDetailPage() {
     accepted: boolean; acceptedAt: string | null; acceptedVersion: number | null;
   } | null>(null);
 
+  const attendanceEffectiveness = useMemo(() => {
+    if (!student?.studentSchedules) return null;
+    const attendedYMDs = new Set(
+      attList.filter(a => a.type === "entry").map(a => ymdInTz(a.markedAt, tz))
+    );
+    return computeAttendanceEffectiveness(student.studentSchedules, attFrom, attTo, attendedYMDs, tz);
+  }, [student?.studentSchedules, attList, attFrom, attTo, tz]);
+
+  const lateToleranceMinutes = student?.dojo?.lateToleranceMinutes ?? 10;
+  const lateTotalMinutes = useMemo(() => {
+    return attList
+      .filter(a => a.type === "entry")
+      .reduce((sum, a) => sum + getLateMinutes(a.markedAt, a.schedule?.startTime ?? null, lateToleranceMinutes, tz), 0);
+  }, [attList, lateToleranceMinutes, tz]);
+
+  // Agrupa entrada + salida del mismo día en una sola fila para que la lista no sea tan larga
+  const attByDay = useMemo(() => {
+    const map = new Map<string, { ymd: string; entry?: typeof attList[number]; exit?: typeof attList[number] }>();
+    for (const a of attList) {
+      const ymd = ymdInTz(a.markedAt, tz);
+      if (!map.has(ymd)) map.set(ymd, { ymd });
+      const group = map.get(ymd)!;
+      if (a.type === "entry") group.entry = a; else group.exit = a;
+    }
+    return Array.from(map.values()).sort((a, b) => b.ymd.localeCompare(a.ymd));
+  }, [attList, tz]);
+
   async function loadAttendance() {
     setAttLoading(true);
-    const params = new URLSearchParams({ studentId: id, dateFrom: attFrom, dateTo: attTo + "T23:59:59" });
+    // dateFrom/dateTo deben ir como instante UTC ya resuelto en la zona horaria del dojo —
+    // un string de solo fecha ("YYYY-MM-DD") se interpreta como medianoche UTC, no medianoche
+    // local, y desplazaba el rango varias horas (colaba/perdía marcaciones en el borde del filtro).
+    const params = new URLSearchParams({
+      studentId: id,
+      dateFrom: ymdToUtc(attFrom, tz).toISOString(),
+      dateTo:   ymdToUtc(attTo, tz, 23, 59, 59).toISOString(),
+    });
     const r = await fetch(`/api/attendance?${params}`);
     if (r.ok) setAttList(await r.json());
     setAttLoading(false);
@@ -829,7 +878,7 @@ export default function StudentDetailPage() {
 
   async function deletePayment(paymentId: string, amount: number, type: string) {
     const label = getPaymentTypeLabel(type).toLowerCase();
-    if (!confirm(`¿Eliminar esta ${label} de ${formatCurrency(amount)}? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(`¿Eliminar esta ${label} de ${formatCurrency(amount, currency)}? Esta acción no se puede deshacer.`)) return;
     setDeletingPay(paymentId);
     const res = await fetch("/api/payments", {
       method: "DELETE",
@@ -1261,11 +1310,11 @@ export default function StudentDetailPage() {
                 )}
                 <div className="flex justify-between">
                   <dt className="text-dojo-muted">Monto anual</dt>
-                  <dd className="text-dojo-gold">{formatCurrency(student.inscription.annualAmount)}</dd>
+                  <dd className="text-dojo-gold">{formatCurrency(student.inscription.annualAmount, currency)}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-dojo-muted">Mensualidad base</dt>
-                  <dd>{formatCurrency(student.inscription.monthlyAmount)}</dd>
+                  <dd>{formatCurrency(student.inscription.monthlyAmount, currency)}</dd>
                 </div>
                 {student.inscription.discountAmount !== 0 && (
                   <div className="flex justify-between">
@@ -1273,13 +1322,13 @@ export default function StudentDetailPage() {
                       {student.inscription.discountAmount < 0 ? "Descuento" : "Aumento"}
                     </dt>
                     <dd className={student.inscription.discountAmount < 0 ? "text-green-400" : "text-yellow-400"}>
-                      {student.inscription.discountAmount < 0 ? "-" : "+"}{formatCurrency(Math.abs(student.inscription.discountAmount))}
+                      {student.inscription.discountAmount < 0 ? "-" : "+"}{formatCurrency(Math.abs(student.inscription.discountAmount), currency)}
                     </dd>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-dojo-border pt-2 mt-2">
                   <dt className="font-bold text-dojo-white">Total mensual</dt>
-                  <dd className="font-bold text-dojo-white">{formatCurrency(effectiveMonthly)}</dd>
+                  <dd className="font-bold text-dojo-white">{formatCurrency(effectiveMonthly, currency)}</dd>
                 </div>
               </dl>
             </div>
@@ -1460,7 +1509,7 @@ export default function StudentDetailPage() {
                           <td className="px-2 py-2 capitalize text-dojo-white">
                             {getPaymentTypeLabel(p.type)}
                           </td>
-                          <td className="px-2 py-2 text-dojo-gold font-semibold">{formatCurrency(p.amount)}</td>
+                          <td className="px-2 py-2 text-dojo-gold font-semibold">{formatCurrency(p.amount, currency)}</td>
                           <td className="px-2 py-2 text-dojo-muted">{formatDate(p.dueDate)}</td>
                           <td className="px-2 py-2 text-dojo-muted">{p.paidDate ? formatDate(p.paidDate) : "—"}</td>
                           <td className="px-2 py-2"><span className={st.className}>{st.label}</span></td>
@@ -1542,9 +1591,17 @@ export default function StudentDetailPage() {
             </div>
             {attLoaded && (
               <>
-                <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+                  <div
+                    className="bg-dojo-dark border border-dojo-border rounded-lg p-3 text-center"
+                    title={attendanceEffectiveness ? "Clases esperadas según horario asignado en este período" : "Sin horario asignado en este período"}
+                  >
+                    <p className={`text-xl font-bold ${attendanceEffectiveness ? "text-dojo-white" : "text-dojo-muted"}`}>
+                      {attendanceEffectiveness ? attendanceEffectiveness.expected : "N/D"}
+                    </p>
+                    <p className="text-xs text-dojo-muted">Total</p>
+                  </div>
                   {([
-                    { label: "Total",    value: attList.length,                                  color: "text-dojo-white" },
                     { label: "Entradas", value: attList.filter(a => a.type === "entry").length,  color: "text-green-400"  },
                     { label: "Salidas",  value: attList.filter(a => a.type === "exit").length,   color: "text-red-400"    },
                   ] as const).map(s => (
@@ -1553,37 +1610,71 @@ export default function StudentDetailPage() {
                       <p className="text-xs text-dojo-muted">{s.label}</p>
                     </div>
                   ))}
+                  <div
+                    className="bg-dojo-dark border border-dojo-border rounded-lg p-3 text-center"
+                    title={attendanceEffectiveness ? `${attendanceEffectiveness.attended} de ${attendanceEffectiveness.expected} clases esperadas según horario asignado` : "Sin horario asignado en este período"}
+                  >
+                    <p className={`text-xl font-bold ${
+                      !attendanceEffectiveness ? "text-dojo-muted" :
+                      attendanceEffectiveness.pct >= 80 ? "text-green-400" :
+                      attendanceEffectiveness.pct >= 60 ? "text-yellow-400" : "text-red-400"
+                    }`}>
+                      {attendanceEffectiveness ? `${attendanceEffectiveness.pct}%` : "N/D"}
+                    </p>
+                    <p className="text-xs text-dojo-muted">Efectividad</p>
+                  </div>
+                  <div
+                    className="bg-dojo-dark border border-dojo-border rounded-lg p-3 text-center"
+                    title={`Tolerancia configurada: ${lateToleranceMinutes} min`}
+                  >
+                    <p className={`text-xl font-bold ${lateTotalMinutes > 0 ? "text-yellow-400" : "text-dojo-white"}`}>
+                      {formatLateTotal(lateTotalMinutes)}
+                    </p>
+                    <p className="text-xs text-dojo-muted">Tiempo en tardanzas</p>
+                  </div>
                 </div>
-                {attList.length === 0 ? (
+                {attByDay.length === 0 ? (
                   <p className="text-center text-dojo-muted text-sm py-4">Sin marcaciones en este período.</p>
                 ) : (
-                  <div className="space-y-2">
-                    {attList.map(a => (
-                      <div key={a.id} className="flex items-center gap-3 p-2 rounded-lg bg-dojo-dark border border-dojo-border">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                          a.type === "entry" ? "bg-green-900/40" : "bg-red-900/40"
-                        }`}>
-                          {a.type === "entry"
-                            ? <LogIn size={13} className="text-green-400"/>
-                            : <LogOut size={13} className="text-red-400"/>
-                          }
+                  <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                    {attByDay.map(g => {
+                      const lateMin = g.entry ? getLateMinutes(g.entry.markedAt, g.entry.schedule?.startTime ?? null, lateToleranceMinutes, tz) : 0;
+                      const scheduleName = g.entry?.schedule?.name ?? g.exit?.schedule?.name;
+                      const [y, m, d] = g.ymd.split("-");
+                      return (
+                      <div key={g.ymd} className="p-2 rounded-lg bg-dojo-dark border border-dojo-border">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <p className="text-xs text-dojo-white font-medium">{d}/{m}/{y}</p>
+                          {scheduleName && <p className="text-xs text-dojo-muted truncate">{scheduleName}</p>}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-dojo-white">
-                            {new Date(a.markedAt).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "2-digit", year: "numeric" })}
-                            {" — "}
-                            {new Date(a.markedAt).toLocaleTimeString("es-PA", { timeZone: "America/Panama", hour: "2-digit", minute: "2-digit", hour12: true })}
-                          </p>
-                          {a.schedule && <p className="text-xs text-dojo-muted truncate">{a.schedule.name}</p>}
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-green-900/40">
+                              <LogIn size={12} className="text-green-400"/>
+                            </div>
+                            <span className="text-xs text-dojo-white">
+                              {g.entry
+                                ? new Date(g.entry.markedAt).toLocaleTimeString("es-PA", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: true })
+                                : "—"}
+                            </span>
+                            {lateMin > 0 && <span className="badge-gold text-xs">Tardanza +{lateMin} min</span>}
+                            {g.entry?.corrected && <span className="badge-yellow text-xs">Corregida</span>}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-red-900/40">
+                              <LogOut size={12} className="text-red-400"/>
+                            </div>
+                            <span className="text-xs text-dojo-white">
+                              {g.exit
+                                ? new Date(g.exit.markedAt).toLocaleTimeString("es-PA", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: true })
+                                : "—"}
+                            </span>
+                            {g.exit?.corrected && <span className="badge-yellow text-xs">Corregida</span>}
+                          </div>
                         </div>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                          a.type === "entry" ? "text-green-400 bg-green-900/30" : "text-red-400 bg-red-900/30"
-                        }`}>
-                          {a.type === "entry" ? "Entrada" : "Salida"}
-                        </span>
-                        {a.corrected && <span className="badge-yellow text-xs">Corregida</span>}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </>

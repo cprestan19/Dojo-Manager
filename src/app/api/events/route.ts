@@ -7,6 +7,7 @@ import { sendPushToDojoStudentsAsync } from "@/lib/push";
 import { computeSyncDiff } from "@/lib/tournament-event-sync";
 import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
 import { NAV_KEYS } from "@/lib/permissions";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -116,7 +117,8 @@ async function _POST(req: NextRequest) {
     // Push a los alumnos del dojo — fire-and-forget
     const pushSettings = await prisma.pushSettings.findUnique({ where: { dojoId }, select: { enabled: true, notifyNewEvent: true } }).catch(() => null);
     if (pushSettings?.enabled && pushSettings.notifyNewEvent) {
-      const startStr = event.startDate.toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "long" });
+      const dojoTz = await resolveDojoTimezone(dojoId);
+      const startStr = event.startDate.toLocaleDateString("es-PA", { timeZone: dojoTz, day: "numeric", month: "long" });
       sendPushToDojoStudentsAsync(dojoId, {
         title: "📅 Nuevo evento en el dojo",
         body:  `"${event.title}" — ${startStr}${event.location ? ` en ${event.location}` : ""}.`,

@@ -3,6 +3,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FileText, Plus, Users, CheckCircle, XCircle, Clock, Archive, Pencil, Trash2, History } from "lucide-react";
+import { useDojoTimeZone, useDojoCurrency } from "@/lib/hooks/useDojo";
+import { formatCurrency } from "@/lib/currency";
+import { ymdInTz } from "@/lib/timezone";
 
 interface PostulacionItem {
   id:            string;
@@ -35,21 +38,31 @@ const STATUS_BADGE: Record<string, string> = {
   FINALIZED: "bg-blue-900/40 text-blue-400 border border-blue-800/50",
 };
 
-const TZ = "America/Panama";
-
+// examDate/deadline son fechas puras (sin hora — vienen de <input type="date">, guardadas
+// como medianoche UTC). Se formatean con los componentes UTC directos, SIN convertir a
+// ninguna zona horaria: aplicar una zona con offset negativo (todo el continente americano)
+// mostraría el día anterior al que realmente se guardó.
 function fmtDate(val: Date | string | null): string {
   if (!val) return "—";
-  return new Date(val).toLocaleDateString("es-PA", {
-    timeZone: TZ, day: "2-digit", month: "short", year: "numeric",
-  });
+  const d = new Date(val);
+  const day   = String(d.getUTCDate()).padStart(2, "0");
+  const month = d.toLocaleDateString("es-PA", { month: "short", timeZone: "UTC" });
+  const year  = d.getUTCFullYear();
+  return `${day} ${month} ${year}`;
 }
 
-function isHistory(item: PostulacionItem): boolean {
-  const now = new Date();
-  return !!item.archivedAt || new Date(item.examDate) < now;
+// examDate es una fecha pura (UTC medianoche) — comparar por día calendario del dojo,
+// no por instante, para no marcar "historial" varias horas antes de que termine el día.
+function isHistory(item: PostulacionItem, todayYMD: string): boolean {
+  if (item.archivedAt) return true;
+  const examYMD = new Date(item.examDate).toISOString().slice(0, 10);
+  return examYMD < todayYMD;
 }
 
 export default function PostulacionesClient({ initialData }: { initialData: PostulacionItem[] }) {
+  const tz                          = useDojoTimeZone();
+  const currency                    = useDojoCurrency();
+  const todayYMD                    = ymdInTz(new Date(), tz);
   const router                      = useRouter();
   const [items, setItems]           = useState<PostulacionItem[]>(initialData);
   const [tab, setTab]               = useState<"active" | "history">("active");
@@ -65,7 +78,7 @@ export default function PostulacionesClient({ initialData }: { initialData: Post
   }
 
   const listed = items
-    .filter(i => (tab === "active" ? !isHistory(i) : isHistory(i)))
+    .filter(i => (tab === "active" ? !isHistory(i, todayYMD) : isHistory(i, todayYMD)))
     .filter(i => {
       if (!search) return true;
       return (
@@ -141,7 +154,7 @@ export default function PostulacionesClient({ initialData }: { initialData: Post
         >
           Activas
           <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-dojo-border text-dojo-muted">
-            {items.filter(i => !isHistory(i)).length}
+            {items.filter(i => !isHistory(i, todayYMD)).length}
           </span>
         </button>
         <button
@@ -154,7 +167,7 @@ export default function PostulacionesClient({ initialData }: { initialData: Post
         >
           <History size={14} /> Historial
           <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-dojo-border text-dojo-muted">
-            {items.filter(i => isHistory(i)).length}
+            {items.filter(i => isHistory(i, todayYMD)).length}
           </span>
         </button>
       </div>
@@ -190,7 +203,7 @@ export default function PostulacionesClient({ initialData }: { initialData: Post
       ) : (
         <div className="space-y-3">
           {listed.map(item => {
-            const inHistory = isHistory(item);
+            const inHistory = isHistory(item, todayYMD);
             return (
               <div key={item.id} className={`card transition-colors ${
                 inHistory ? "opacity-80" : "hover:border-dojo-gold/30"
@@ -212,7 +225,7 @@ export default function PostulacionesClient({ initialData }: { initialData: Post
                     <p className="text-sm text-dojo-muted">
                       📍 {item.location} &nbsp;·&nbsp;
                       📅 {fmtDate(item.examDate)} a las {item.examTime}
-                      {item.amount > 0 && ` · $${item.amount.toFixed(2)}`}
+                      {item.amount > 0 && ` · ${formatCurrency(item.amount, currency)}`}
                     </p>
                     {item.deadline && (
                       <p className="text-xs text-dojo-muted">

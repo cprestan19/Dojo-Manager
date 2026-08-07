@@ -1,5 +1,7 @@
 "use client";
 import { useAppContext } from "@/lib/context/AppContext";
+import { DEFAULT_TIMEZONE } from "@/lib/timezone";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
 
 export interface DojoInfo {
   id:        string;
@@ -11,6 +13,8 @@ export interface DojoInfo {
   slogan:    string | null;
   active:         boolean;
   locale:         string;    // "es" | "en"
+  timezone:       string;    // IANA, ej. "America/Panama"
+  currency:       string;    // ISO 4217, ej. "USD" — moneda en la que paga el alumno
   tournamentPro:  boolean;   // Módulo Torneo Pro activado
 }
 
@@ -22,4 +26,14 @@ export interface DojoInfo {
  */
 export function useDojo(_overrideId?: string | null): DojoInfo | null {
   return useAppContext().dojo;
+}
+
+/** Zona horaria del dojo activo (dashboard) — DEFAULT_TIMEZONE si aún no cargó o no hay dojo (sysadmin sin contexto) */
+export function useDojoTimeZone(): string {
+  return useAppContext().dojo?.timezone ?? DEFAULT_TIMEZONE;
+}
+
+/** Moneda del dojo activo (dashboard) — DEFAULT_CURRENCY si aún no cargó o no hay dojo (sysadmin sin contexto) */
+export function useDojoCurrency(): string {
+  return useAppContext().dojo?.currency ?? DEFAULT_CURRENCY;
 }

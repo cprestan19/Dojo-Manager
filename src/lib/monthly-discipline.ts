@@ -1,4 +1,6 @@
 import prisma from "@/lib/prisma";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
+import { ymdInTz, civilToUtc } from "@/lib/timezone";
 
 export type DisciplineStatus =
   | "exemplary"        // >= 90%
@@ -19,20 +21,17 @@ export interface DisciplineData {
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-const TZ = "America/Panama";
-
 const DAY_NAME_TO_NUM: Record<string, number> = {
   domingo: 0, lunes: 1, martes: 2, miercoles: 3,
   jueves: 4,  viernes: 5, sabado: 6,
 };
 
-function todayYMD(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+function todayYMD(tz: string): string {
+  return ymdInTz(new Date(), tz);
 }
 
-function monthStartYMD(): string {
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
-  return today.slice(0, 7) + "-01";
+function monthStartYMD(tz: string): string {
+  return todayYMD(tz).slice(0, 7) + "-01";
 }
 
 // noon UTC → stable getUTCDay() regardless of server/client timezone
@@ -59,15 +58,15 @@ function minYMD(a: string, b: string): string {
   return a < b ? a : b;
 }
 
-function monthEndYMD(): string {
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+function monthEndYMD(tz: string): string {
+  const today = todayYMD(tz);
   const [y, m] = today.split("-").map(Number);
   // Date.UTC con mes 0-indexado: m! como "siguiente mes" → día 0 = último día del mes actual
   return new Date(Date.UTC(y!, m!, 0, 12)).toISOString().slice(0, 10);
 }
 
-function dateToYMD(d: Date): string {
-  return d.toLocaleDateString("en-CA", { timeZone: TZ });
+function dateToYMD(d: Date, tz: string): string {
+  return ymdInTz(d, tz);
 }
 
 function parseDayNums(raw: string): Set<number> {
@@ -112,11 +111,22 @@ function getDisciplineMessage(status: DisciplineStatus): string {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export async function calcMonthlyDiscipline(studentId: string): Promise<DisciplineData> {
-  const today      = todayYMD();
-  const monthStart = monthStartYMD();
-  const monthEnd   = monthEndYMD();
-  const msFrom     = new Date(monthStart + "T00:00:00-05:00");
-  const msTo       = new Date(today      + "T23:59:59-05:00");
+  const studentDojo = await prisma.student.findUnique({ where: { id: studentId }, select: { dojoId: true } });
+  if (!studentDojo) {
+    return {
+      studentId, fullName: "", expectedCount: 0, attendedCount: 0,
+      percentage: null, message: getDisciplineMessage("no_data"), status: "no_data",
+    };
+  }
+  const tz = await resolveDojoTimezone(studentDojo.dojoId);
+
+  const today      = todayYMD(tz);
+  const monthStart = monthStartYMD(tz);
+  const monthEnd   = monthEndYMD(tz);
+  const [msFromY, msFromM, msFromD] = monthStart.split("-").map(Number);
+  const [msToY, msToM, msToD]       = today.split("-").map(Number);
+  const msFrom = civilToUtc(msFromY, msFromM, msFromD, 0, 0, 0, tz);
+  const msTo   = civilToUtc(msToY, msToM, msToD, 23, 59, 59, tz);
 
   const student = await prisma.student.findUnique({
     where:  { id: studentId },
@@ -158,7 +168,7 @@ export async function calcMonthlyDiscipline(studentId: string): Promise<Discipli
 
   // Inscription date as the earliest possible start (student didn't exist before it)
   const inscYMD = student.inscription?.inscriptionDate
-    ? dateToYMD(student.inscription.inscriptionDate)
+    ? dateToYMD(student.inscription.inscriptionDate, tz)
     : monthStart;
 
   let expectedCount = 0;
@@ -166,8 +176,8 @@ export async function calcMonthlyDiscipline(studentId: string): Promise<Discipli
   for (const ss of student.studentSchedules) {
     if (!ss.schedule.active) continue;
 
-    const assignedYMD = dateToYMD(ss.assignedAt);
-    const removedYMD  = ss.removedAt ? dateToYMD(ss.removedAt) : null;
+    const assignedYMD = dateToYMD(ss.assignedAt, tz);
+    const removedYMD  = ss.removedAt ? dateToYMD(ss.removedAt, tz) : null;
 
     // Start = latest of (month-start, inscription-date, assignment-date)
     const effectiveFrom = maxYMD(monthStart, inscYMD, assignedYMD);
@@ -184,7 +194,7 @@ export async function calcMonthlyDiscipline(studentId: string): Promise<Discipli
   }
 
   // Distinct calendar days with an entry attendance this month
-  const attendedDays  = new Set(student.attendances.map(a => dateToYMD(a.markedAt)));
+  const attendedDays  = new Set(student.attendances.map(a => dateToYMD(a.markedAt, tz)));
   // Cap to expectedCount so the UI never shows "5 de 3 entrenamientos"
   const attendedCount = expectedCount > 0 ? Math.min(attendedDays.size, expectedCount) : attendedDays.size;
 

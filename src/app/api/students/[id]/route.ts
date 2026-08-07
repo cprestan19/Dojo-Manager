@@ -50,13 +50,19 @@ export async function GET( req: NextRequest, { params }: Params) {
           orderBy: { createdAt: "desc" },
           select: { id: true, kata: { select: { id: true, name: true } } },
         },
-        dojo: { select: { name: true, slug: true } },
+        dojo: { select: { name: true, slug: true, lateToleranceMinutes: true } },
         payments: {
           orderBy: { dueDate: "desc" },
           take: 24,
           select: {
             id: true, type: true, status: true,
             dueDate: true, paidDate: true, reminderSent: true, createdAt: true,
+          },
+        },
+        studentSchedules: {
+          select: {
+            assignedAt: true, removedAt: true,
+            schedule: { select: { id: true, name: true, days: true } },
           },
         },
       },
@@ -82,6 +88,7 @@ export async function GET( req: NextRequest, { params }: Params) {
       kataRankingAssignments: student.kataRankingAssignments,
       dojo:                   student.dojo,
       payments:               student.payments,
+      studentSchedules:       student.studentSchedules,
     });
   }
 
@@ -113,7 +120,13 @@ export async function GET( req: NextRequest, { params }: Params) {
         orderBy: { createdAt: "desc" },
         select: { id: true, kata: { select: { id: true, name: true } } },
       },
-      dojo: { select: { name: true, phone: true, slug: true } },
+      dojo: { select: { name: true, phone: true, slug: true, lateToleranceMinutes: true } },
+      studentSchedules: {
+        select: {
+          assignedAt: true, removedAt: true,
+          schedule: { select: { id: true, name: true, days: true } },
+        },
+      },
     },
   });
 

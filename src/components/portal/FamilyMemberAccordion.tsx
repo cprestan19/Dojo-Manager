@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { StudentQR } from "@/components/students/StudentQR";
 import { formatTimeStr } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
+import { usePortalCurrency } from "@/lib/context/PortalCurrencyContext";
 import CardClient from "@/app/id/[code]/CardClient";
 import { PrintCardButton } from "@/components/portal/PrintCardButton";
 
@@ -96,6 +98,7 @@ function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: s
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function FamilyMemberAccordion({ members, dojoCard }: { members: FamilyMember[]; dojoCard: DojoCardData | null }) {
+  const currency = usePortalCurrency();
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
 
   function toggle(id: string) {
@@ -195,7 +198,7 @@ export function FamilyMemberAccordion({ members, dojoCard }: { members: FamilyMe
                         <div key={p.id} className="flex justify-between text-xs">
                           <span className="text-dojo-muted">{p.dueDate}</span>
                           <span className={p.status === "late" ? "text-red-400 font-semibold" : "text-yellow-400"}>
-                            ${p.amount.toFixed(2)} · {p.status === "late" ? "Atrasado" : "Pendiente"}
+                            {formatCurrency(p.amount, currency)} · {p.status === "late" ? "Atrasado" : "Pendiente"}
                           </span>
                         </div>
                       ))}
@@ -425,7 +428,7 @@ export function FamilyMemberAccordion({ members, dojoCard }: { members: FamilyMe
                       {m.inscription.monthlyAmt > 0 && (
                         <div>
                           <dt className="text-dojo-muted">Monto por {m.inscription.periodLabel}</dt>
-                          <dd className="text-dojo-gold font-semibold">${m.inscription.monthlyAmt.toFixed(2)}</dd>
+                          <dd className="text-dojo-gold font-semibold">{formatCurrency(m.inscription.monthlyAmt, currency)}</dd>
                         </div>
                       )}
                     </dl>

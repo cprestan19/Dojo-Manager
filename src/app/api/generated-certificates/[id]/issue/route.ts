@@ -57,8 +57,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       );
     }
 
+    // issuedDate es una fecha pura (sin hora, de <input type="date">) — se formatea con los
+    // componentes UTC directos, sin convertir a ninguna zona horaria (evita mostrar el día
+    // anterior al elegido, que ocurriría con cualquier zona de offset negativo).
     const issuedDate = cert.issuedDate.toLocaleDateString("es-PA", {
-      timeZone: "America/Panama",
+      timeZone: "UTC",
       day:      "2-digit",
       month:    "long",
       year:     "numeric",

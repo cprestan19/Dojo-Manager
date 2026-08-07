@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 import { useAppContext } from "@/lib/context/AppContext";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ type FilterType = "all" | "logged" | "never" | "no-access";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, tz: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins  = Math.floor(diff / 60000);
   const hours = Math.floor(mins / 60);
@@ -61,13 +62,14 @@ function timeAgo(iso: string): string {
   if (mins < 60)  return `hace ${mins} min`;
   if (hours < 24) return `hace ${hours} h`;
   if (days < 7)   return `hace ${days} día${days !== 1 ? "s" : ""}`;
-  return new Date(iso).toLocaleDateString("es-PA", { timeZone: "America/Panama", day:"numeric", month:"short", year:"numeric" });
+  return new Date(iso).toLocaleDateString("es-PA", { timeZone: tz, day:"numeric", month:"short", year:"numeric" });
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function PortalActivityPage() {
   const { hasPortalAccess: canGrantPortalAccess } = useAppContext();
+  const tz = useDojoTimeZone();
   const [data,       setData]       = useState<Summary | null>(null);
   const [students,   setStudents]   = useState<PortalStudent[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -412,7 +414,7 @@ export default function PortalActivityPage() {
                         </p>
                         {s.lastLogin && (
                           <p className="text-xs text-dojo-muted flex items-center gap-1 justify-end">
-                            <Clock size={11} /> {timeAgo(s.lastLogin)}
+                            <Clock size={11} /> {timeAgo(s.lastLogin, tz)}
                           </p>
                         )}
                         {(s.lastCountry || s.lastCity) && (

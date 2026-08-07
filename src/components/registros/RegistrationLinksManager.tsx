@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Copy, Check, Trash2, ToggleLeft, ToggleRight, ExternalLink, Pencil } from "lucide-react";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
+import { toDateTimeLocalInTz, dateTimeLocalToUtc } from "@/lib/timezone";
 
 interface RegistrationLink {
   id: string; label: string; token: string; isActive: boolean;
@@ -44,48 +46,35 @@ function CopyButton({ url }: { url: string }) {
   );
 }
 
-const PA_TZ = "America/Panama"; // UTC-5, sin horario de verano
-
-function formatDate(d: string | null) {
+function formatDate(d: string | null, tz: string) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("es-PA", { timeZone: PA_TZ, day: "2-digit", month: "short", year: "numeric" });
+  return new Date(d).toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "short", year: "numeric" });
 }
 
-function formatDateTime(d: string | null) {
+function formatDateTime(d: string | null, tz: string) {
   if (!d) return "—";
   return new Date(d).toLocaleString("es-PA", {
-    timeZone: PA_TZ,
+    timeZone: tz,
     day: "2-digit", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit", hour12: true,
   });
 }
 
-/**
- * Convierte un ISO UTC a string YYYY-MM-DDTHH:MM en hora panameña,
- * listo para usarse en un input datetime-local.
- */
-function toDateTimeLocal(iso: string | null): string {
-  if (!iso) return "";
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: PA_TZ,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  }).formatToParts(new Date(iso));
-  const v = (t: string) => parts.find(p => p.type === t)?.value ?? "00";
-  const h = v("hour") === "24" ? "00" : v("hour"); // medianoche puede dar "24"
-  return `${v("year")}-${v("month")}-${v("day")}T${h}:${v("minute")}`;
+/** Convierte un ISO UTC a string YYYY-MM-DDTHH:MM en la zona del dojo, para un input datetime-local. */
+function toDateTimeLocal(iso: string | null, tz: string): string {
+  return iso ? toDateTimeLocalInTz(iso, tz) : "";
 }
 
-/** Interpreta un valor datetime-local como hora panameña y devuelve ISO UTC. */
-function panamaInputToISO(localStr: string): string {
-  // Panama es siempre UTC-5, sin cambio de horario de verano
-  return new Date(`${localStr}:00-05:00`).toISOString();
+/** Interpreta un valor datetime-local como hora local del dojo y devuelve ISO UTC. */
+function dojoInputToISO(localStr: string, tz: string): string {
+  return dateTimeLocalToUtc(localStr, tz).toISOString();
 }
 
 type FormState = { label: string; activatesAt: string; expiresAt: string; maxUses: string };
 const FORM_INIT: FormState = { label: "", activatesAt: "", expiresAt: "", maxUses: "" };
 
 export default function RegistrationLinksManager() {
+  const tz = useDojoTimeZone();
   const [links, setLinks]       = useState<RegistrationLink[]>([]);
   const [loading, setLoading]   = useState(true);
   const [saving, setSaving]     = useState(false);
@@ -118,8 +107,8 @@ export default function RegistrationLinksManager() {
     setEditingId(link.id);
     setForm({
       label:       link.label,
-      activatesAt: toDateTimeLocal(link.activatesAt),
-      expiresAt:   toDateTimeLocal(link.expiresAt),
+      activatesAt: toDateTimeLocal(link.activatesAt, tz),
+      expiresAt:   toDateTimeLocal(link.expiresAt, tz),
       maxUses:     link.maxUses != null ? String(link.maxUses) : "",
     });
     setShowModal(true);
@@ -135,11 +124,11 @@ export default function RegistrationLinksManager() {
     if (!form.label.trim()) return;
     setSaving(true);
     try {
-      // Convertir datetime-local (hora panameña) a ISO UTC antes de enviar
+      // Convertir datetime-local (hora local del dojo) a ISO UTC antes de enviar
       const payload = {
         label:       form.label.trim(),
-        activatesAt: form.activatesAt ? panamaInputToISO(form.activatesAt) : null,
-        expiresAt:   form.expiresAt   ? panamaInputToISO(form.expiresAt)   : null,
+        activatesAt: form.activatesAt ? dojoInputToISO(form.activatesAt, tz) : null,
+        expiresAt:   form.expiresAt   ? dojoInputToISO(form.expiresAt, tz)   : null,
         maxUses:     form.maxUses     ? Number(form.maxUses)                : null,
       };
 
@@ -245,9 +234,9 @@ export default function RegistrationLinksManager() {
               </div>
               <div className="flex flex-wrap gap-4 text-xs text-dojo-muted border-t border-dojo-border pt-2">
                 <span>Usos: <strong className="text-dojo-white">{link.useCount}</strong>{link.maxUses ? ` / ${link.maxUses}` : ""}</span>
-                <span>Activa desde: <strong className="text-dojo-white">{formatDateTime(link.activatesAt)}</strong></span>
-                <span>Vence: <strong className="text-dojo-white">{formatDateTime(link.expiresAt)}</strong></span>
-                <span>Creado: <strong className="text-dojo-white">{formatDate(link.createdAt)}</strong></span>
+                <span>Activa desde: <strong className="text-dojo-white">{formatDateTime(link.activatesAt, tz)}</strong></span>
+                <span>Vence: <strong className="text-dojo-white">{formatDateTime(link.expiresAt, tz)}</strong></span>
+                <span>Creado: <strong className="text-dojo-white">{formatDate(link.createdAt, tz)}</strong></span>
               </div>
             </div>
           );

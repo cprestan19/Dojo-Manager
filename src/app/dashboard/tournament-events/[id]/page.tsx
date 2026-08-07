@@ -4,12 +4,13 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, QrCode, Search, Check, X, ChevronRight, Pencil, Printer, UserPlus, ChevronDown } from "lucide-react";
 import { KATA_OPTIONS, RESULT_OPTIONS, type TEventDetail, type TEventParticipant } from "@/lib/tournament-events";
 import { getBeltInfo } from "@/lib/utils";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
-function printParticipantList(data: TEventDetail) {
+function printParticipantList(data: TEventDetail, tz: string) {
   const dateStr = new Date(data.date).toLocaleDateString("es-PA", {
-    timeZone: "America/Panama", weekday: "long", day: "numeric", month: "long", year: "numeric",
+    timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
-  const today = new Date().toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString("es-PA", { timeZone: tz, day: "numeric", month: "long", year: "numeric" });
 
   const rows = data.participants.map((p, i) => {
     const status = p.optedOut
@@ -95,11 +96,11 @@ function parseMedal(result: string | null): "gold" | "silver" | "bronze" | null 
   return null;
 }
 
-function printEventStats(data: TEventDetail) {
+function printEventStats(data: TEventDetail, tz: string) {
   const dateStr = new Date(data.date).toLocaleDateString("es-PA", {
-    timeZone: "America/Panama", weekday: "long", day: "numeric", month: "long", year: "numeric",
+    timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
-  const today = new Date().toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString("es-PA", { timeZone: tz, day: "numeric", month: "long", year: "numeric" });
 
   type MedalEntry = { fullName: string; studentCode: number | null; belt: string; age: number; categories: string[]; gold: number; silver: number; bronze: number };
   const map = new Map<string, MedalEntry>();
@@ -316,6 +317,7 @@ function SectionHeader({
 }
 
 export default function TournamentEventDetailPage() {
+  const tz = useDojoTimeZone();
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
   const [data,    setData]    = useState<TEventDetail | null>(null);
@@ -510,7 +512,7 @@ export default function TournamentEventDetailPage() {
   );
 
   const dateStr = new Date(data.date).toLocaleDateString("es-PA", {
-    timeZone: "America/Panama", weekday:"long", day:"numeric", month:"long", year:"numeric",
+    timeZone: tz, weekday:"long", day:"numeric", month:"long", year:"numeric",
   });
 
   // Filtrar por búsqueda
@@ -546,7 +548,7 @@ export default function TournamentEventDetailPage() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => data && printParticipantList(data)}
+            onClick={() => data && printParticipantList(data, tz)}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-dojo-card border border-dojo-border text-dojo-muted hover:text-dojo-white transition-colors"
             title="Imprimir lista"
           >
@@ -554,7 +556,7 @@ export default function TournamentEventDetailPage() {
             <span className="hidden sm:inline">Lista</span>
           </button>
           <button
-            onClick={() => data && printEventStats(data)}
+            onClick={() => data && printEventStats(data, tz)}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-dojo-gold/10 border border-dojo-gold/30 text-dojo-gold hover:bg-dojo-gold/20 transition-colors"
             title="Estadísticas de medallas"
           >

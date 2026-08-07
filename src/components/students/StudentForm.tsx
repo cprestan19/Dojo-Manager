@@ -8,6 +8,8 @@ import {
   Users, Link2, X,
 } from "lucide-react";
 import { cn, calculateAge, BELT_COLORS, GENDERS, NATIONALITIES } from "@/lib/utils";
+import { formatCurrency, getCurrencySymbol, currencyInputPadding } from "@/lib/currency";
+import { useDojoCurrency } from "@/lib/hooks/useDojo";
 import PhotoCropper from "@/components/ui/PhotoCropper";
 
 interface InscriptionData {
@@ -77,6 +79,8 @@ function Section({ title, icon: Icon, children, defaultOpen = true }: {
 
 export default function StudentForm({ defaultValues, isEdit = false }: StudentFormProps) {
   const router = useRouter();
+  const currency = useDojoCurrency();
+  const currencySymbol = getCurrencySymbol(currency);
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     defaultValues: {
       fullName:   defaultValues?.fullName   ?? "",
@@ -643,11 +647,11 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
             <input type="date" {...register("inscription.annualPaymentDate")} className="form-input" />
           </div>
           <div>
-            <label className="form-label">Monto de Inscripción / Anualidad (USD)</label>
+            <label className="form-label">Monto de Inscripción / Anualidad ({currency})</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm whitespace-nowrap">{currencySymbol}</span>
               <input type="number" step="0.01" {...register("inscription.annualAmount")}
-                className="form-input pl-7" placeholder="0.00"
+                className="form-input" style={{ paddingLeft: currencyInputPadding(currencySymbol) }} placeholder="0.00"
                 onWheel={(e) => (e.target as HTMLInputElement).blur()} />
             </div>
           </div>
@@ -687,21 +691,21 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
           {/* ── Monto según período ── */}
           {!isBiweekly ? (
             <div>
-              <label className="form-label">Mensualidad Base (USD)</label>
+              <label className="form-label">Mensualidad Base ({currency})</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm whitespace-nowrap">{currencySymbol}</span>
                 <input type="number" step="0.01" {...register("inscription.monthlyAmount")}
-                  className="form-input pl-7" placeholder="0.00"
+                  className="form-input" style={{ paddingLeft: currencyInputPadding(currencySymbol) }} placeholder="0.00"
                   onWheel={(e) => (e.target as HTMLInputElement).blur()} />
               </div>
             </div>
           ) : (
             <div>
-              <label className="form-label">Quincena Base (USD)</label>
+              <label className="form-label">Quincena Base ({currency})</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm whitespace-nowrap">{currencySymbol}</span>
                 <input type="number" step="0.01" {...register("inscription.biweeklyAmount")}
-                  className="form-input pl-7" placeholder="0.00"
+                  className="form-input" style={{ paddingLeft: currencyInputPadding(currencySymbol) }} placeholder="0.00"
                   onWheel={(e) => (e.target as HTMLInputElement).blur()} />
               </div>
               <p className="text-xs text-dojo-muted mt-1">
@@ -723,14 +727,15 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label">Monto Ajuste (USD)</label>
+                  <label className="form-label">Monto Ajuste ({currency})</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm whitespace-nowrap">{currencySymbol}</span>
                     <input type="number" step="0.01" {...register("inscription.discountAmount")}
-                      className={cn("form-input pl-7",
+                      className={cn("form-input",
                         hasDiscount && Number(discountAmount) < 0 && "border-green-700",
                         hasDiscount && Number(discountAmount) > 0 && "border-yellow-700",
                       )}
+                      style={{ paddingLeft: currencyInputPadding(currencySymbol) }}
                       placeholder="Ej. -10.00 o +5.00"
                       onWheel={(e) => (e.target as HTMLInputElement).blur()} />
                   </div>
@@ -739,8 +744,8 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
                       Number(discountAmount) < 0 ? "text-green-400" : "text-yellow-400",
                     )}>
                       {Number(discountAmount) < 0
-                        ? `▼ Descuento de $${Math.abs(Number(discountAmount)).toFixed(2)}`
-                        : `▲ Aumento de $${Number(discountAmount).toFixed(2)}`}
+                        ? `▼ Descuento de ${formatCurrency(Math.abs(Number(discountAmount)), currency)}`
+                        : `▲ Aumento de ${formatCurrency(Number(discountAmount), currency)}`}
                     </p>
                   )}
                 </div>

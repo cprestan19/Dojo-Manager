@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
 import ExcelJS from "exceljs";
 
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest) {
   headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFC0392B" } };
   headerRow.alignment = { horizontal: "center" };
 
-  const TZ = "America/Panama";
+  const TZ = await resolveDojoTimezone(dojoId);
   for (const a of attendances) {
     const dt = new Date(a.markedAt);
     const belt = a.student.beltHistory[0]?.beltColor ?? "";

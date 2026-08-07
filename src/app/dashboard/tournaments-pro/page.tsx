@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Crown, Plus, Trophy, MapPin, Calendar, Users, ChevronRight, Archive } from "lucide-react";
 import { TournamentOnboardingVideo, OnboardingReopenButton } from "@/components/tournaments/TournamentOnboardingVideo";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 interface Tournament {
   id: string; name: string; date: string; location: string;
@@ -19,6 +20,7 @@ const STATUS_CFG: Record<string, { label: string; cls: string }> = {
 };
 
 export default function TournamentsProPage() {
+  const tz = useDojoTimeZone();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [showHistory, setShowHistory] = useState(false);
@@ -114,7 +116,7 @@ export default function TournamentsProPage() {
                     <span className={st.cls}>{st.label}</span>
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs text-dojo-muted flex-wrap">
-                    <span className="flex items-center gap-1"><Calendar size={10}/>{new Date(t.date).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "2-digit", year: "numeric" })}</span>
+                    <span className="flex items-center gap-1"><Calendar size={10}/>{new Date(t.date).toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric" })}</span>
                     {t.location && <span className="flex items-center gap-1"><MapPin size={10}/>{t.location}</span>}
                     <span className="flex items-center gap-1"><Users size={10}/>{t._count.participants} atletas</span>
                   </div>

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Loader2, Plus, Trash2, Save, Upload, Eye, X } from "lucide-react";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 // ── Fuentes disponibles para diplomas ────────────────────────────────────────
 const CERT_FONTS = [
@@ -63,17 +64,19 @@ const ELEMENT_TYPES = [
 ] as const;
 
 // Datos de ejemplo para la vista previa
-const PREVIEW_VALUES: Record<string, string> = {
-  studentName: "Juan García López",
-  belt:        "Cinta Negra",
-  date:        new Date().toLocaleDateString("es-PA", {
-    timeZone: "America/Panama",
-    day:      "2-digit",
-    month:    "long",
-    year:     "numeric",
-  }),
-  instructor: "Sensei Ejemplo",
-};
+function getPreviewValues(tz: string): Record<string, string> {
+  return {
+    studentName: "Juan García López",
+    belt:        "Cinta Negra",
+    date:        new Date().toLocaleDateString("es-PA", {
+      timeZone: tz,
+      day:      "2-digit",
+      month:    "long",
+      year:     "numeric",
+    }),
+    instructor: "Sensei Ejemplo",
+  };
+}
 
 function genId() { return Math.random().toString(36).slice(2); }
 
@@ -115,6 +118,7 @@ function normalizeElement(e: Partial<CertElement>): CertElement {
 }
 
 export default function CertificadosSettingsPage() {
+  const tz = useDojoTimeZone();
   const [templates,   setTemplates]   = useState<Template[]>([]);
   const [selected,    setSelected]    = useState<Template | null>(null);
   const [saving,      setSaving]      = useState(false);
@@ -266,7 +270,7 @@ export default function CertificadosSettingsPage() {
 
   function elText(el: CertElement, preview: boolean): string {
     if (el.type === "customText") return el.label;
-    if (preview) return PREVIEW_VALUES[el.type] ?? `[${el.type}]`;
+    if (preview) return getPreviewValues(tz)[el.type] ?? `[${el.type}]`;
     return `[${ELEMENT_TYPES.find(t => t.value === el.type)?.label ?? el.type}]`;
   }
 

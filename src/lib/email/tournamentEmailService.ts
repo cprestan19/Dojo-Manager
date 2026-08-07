@@ -2,13 +2,12 @@ import nodemailer from "nodemailer";
 import prisma from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { escHtml } from "@/lib/email";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
 
-const PANAMA_TZ = "America/Panama";
-
-function formatPanamaDate(date: Date | null | undefined): string {
+function formatDojoDate(date: Date | null | undefined, tz: string): string {
   if (!date) return "Por confirmar";
   return new Intl.DateTimeFormat("es-PA", {
-    timeZone: PANAMA_TZ,
+    timeZone: tz,
     day:      "2-digit",
     month:    "2-digit",
     year:     "numeric",
@@ -53,8 +52,9 @@ function buildEmailHtml(params: {
   date:           Date;
   location:       string;
   brackets: Array<{ name: string; tatami: number | null; scheduledAt: Date | null }>;
+  tz: string;
 }): string {
-  const { tournamentName, dojoName, date, location, brackets } = params;
+  const { tournamentName, dojoName, date, location, brackets, tz } = params;
 
   const bracketRows = brackets.map(b => `
     <tr>
@@ -63,7 +63,7 @@ function buildEmailHtml(params: {
         ${b.tatami ? `Tatami ${b.tatami}` : "—"}
       </td>
       <td style="padding:8px 12px;border-bottom:1px solid #333;color:#ddd;font-size:13px;">
-        ${formatPanamaDate(b.scheduledAt)}
+        ${formatDojoDate(b.scheduledAt, tz)}
       </td>
     </tr>`).join("");
 
@@ -87,7 +87,7 @@ function buildEmailHtml(params: {
       <tr>
         <td style="padding:4px 0;">
           <span style="color:#aaa;font-size:11px;text-transform:uppercase;">Fecha</span><br>
-          <span style="color:#fff;font-size:15px;">${formatPanamaDate(date)}</span>
+          <span style="color:#fff;font-size:15px;">${formatDojoDate(date, tz)}</span>
         </td>
         <td style="padding:4px 0;">
           <span style="color:#aaa;font-size:11px;text-transform:uppercase;">Lugar</span><br>
@@ -179,6 +179,7 @@ export async function sendTournamentConfirmationEmails(tournamentId: string): Pr
 
     if (emailSet.size === 0) return;
 
+    const tz = await resolveDojoTimezone(tournament.dojoId);
     const { transporter, from } = await makeTransporter();
     const subject = `🥋 ${tournament.name.replace(/[\r\n]/g, "")} — Programa Oficial Confirmado`;
     const html    = buildEmailHtml({
@@ -191,6 +192,7 @@ export async function sendTournamentConfirmationEmails(tournamentId: string): Pr
         tatami:      null as number | null,
         scheduledAt: null as Date | null,
       })),
+      tz,
     });
 
     for (const email of emailSet) {

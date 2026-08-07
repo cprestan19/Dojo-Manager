@@ -1,6 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { X, Sparkles } from "lucide-react";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
+import { usePortalTimeZone } from "@/lib/context/PortalTimeZoneContext";
+import { DEFAULT_TIMEZONE } from "@/lib/timezone";
 
 interface NewsItem {
   text:     string;
@@ -23,12 +26,12 @@ const CATEGORY_EMOJI: Record<NewsItem["category"], string> = {
   security:    "🔒",
 };
 
-function formatDate(iso: string) {
+function formatDate(iso: string, tz: string) {
   return new Date(iso).toLocaleDateString("es-PA", {
     day:   "numeric",
     month: "long",
     year:  "numeric",
-    timeZone: "America/Panama",
+    timeZone: tz,
   });
 }
 
@@ -50,6 +53,11 @@ function markSeen(ids: string[]) {
 }
 
 export default function SystemNewsModal() {
+  // Este componente se usa tanto en el dashboard como en el portal — solo uno de los
+  // dos providers está activo según dónde se renderice; el inactivo cae en el default.
+  const dashboardTz = useDojoTimeZone();
+  const portalTz    = usePortalTimeZone();
+  const tz = dashboardTz !== DEFAULT_TIMEZONE ? dashboardTz : portalTz;
   const [newsList, setNewsList] = useState<SystemNews[]>([]);
   const [visible,  setVisible]  = useState(false);
   const [closing,  setClosing]  = useState(false);
@@ -123,7 +131,7 @@ export default function SystemNewsModal() {
                   {news.title}
                 </p>
                 <p className="text-[11px] text-dojo-muted mt-0.5">
-                  {formatDate(news.publishedAt)}
+                  {formatDate(news.publishedAt, tz)}
                 </p>
               </div>
             </div>

@@ -47,7 +47,7 @@ describe("UpdatePaymentSchema", () => {
   });
 
   it("rejects amounts above the max", () => {
-    const result = UpdatePaymentSchema.safeParse({ id: "ckxxxxxxxxxxxxxxxxxxxxxxx", amount: 100_000 });
+    const result = UpdatePaymentSchema.safeParse({ id: "ckxxxxxxxxxxxxxxxxxxxxxxx", amount: 10_000_000_000 });
     expect(result.success).toBe(false);
   });
 });

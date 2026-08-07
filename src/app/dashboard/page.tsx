@@ -3,7 +3,6 @@ import { authOptions } from "@/lib/auth";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import { Users, Award, Building2, UserCheck } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import { DashboardOnboardingReopenButton } from "@/components/dashboard/DashboardOnboardingTour";

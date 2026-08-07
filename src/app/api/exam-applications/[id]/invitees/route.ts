@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
+import { ymdInTz } from "@/lib/timezone";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -30,10 +32,10 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Solo se pueden agregar invitados en DRAFT o PUBLISHED" }, { status: 400 });
     }
 
-    // Bloquear si el plazo de respuesta ya venció (comparar por fecha en Panama, no timestamp)
+    // Bloquear si el plazo de respuesta ya venció (comparar por fecha en la zona del dojo, no timestamp)
     if (application.deadline) {
-      const toYMD = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Panama" });
-      if (toYMD(new Date()) > toYMD(application.deadline)) {
+      const dojoTz = await resolveDojoTimezone(dojoId);
+      if (ymdInTz(new Date(), dojoTz) > ymdInTz(application.deadline, dojoTz)) {
         return NextResponse.json({ error: "El plazo de respuesta ha vencido — no se pueden agregar más invitados" }, { status: 400 });
       }
     }

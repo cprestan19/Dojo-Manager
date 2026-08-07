@@ -13,6 +13,7 @@ import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
 import { useLocale } from "@/lib/hooks/useLocale";
 import type { Translations } from "@/lib/i18n";
 import { useAppContext } from "@/lib/context/AppContext";
+import { useDojoTimeZone, useDojoCurrency } from "@/lib/hooks/useDojo";
 
 function buildRouteLabels(tb: Translations["topbar"]): Record<string, string> {
   return {
@@ -66,13 +67,14 @@ function getPageInfo(pathname: string, tb: Translations["topbar"]): { title: str
 }
 
 function TodayDate() {
+  const tz = useDojoTimeZone();
   const [date, setDate] = useState("");
   useEffect(() => {
     const fmt = new Intl.DateTimeFormat("es-PA", {
-      timeZone: "America/Panama", weekday: "long", day: "numeric", month: "long", year: "numeric",
+      timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric",
     });
     setDate(fmt.format(new Date()));
-  }, []);
+  }, [tz]);
   if (!date) return null;
   // Capitalizar primera letra
   const display = date.charAt(0).toUpperCase() + date.slice(1);
@@ -102,12 +104,14 @@ interface Notifications {
   storeRequests?: { count: number; items: StoreRequestItem[] };
 }
 
-function fmtCurrency(n: number) {
-  return new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(n);
+function fmtCurrency(n: number, currency: string) {
+  return new Intl.NumberFormat("es-PA", { style: "currency", currency, minimumFractionDigits: 2 }).format(n);
 }
 
 /* ─── Notification Panel ─────────────────────────────────── */
 function NotificationPanel({ data, onClose }: { data: Notifications; onClose: () => void }) {
+  const tz = useDojoTimeZone();
+  const currency = useDojoCurrency();
   const hasSecurity = (data.securityAlerts?.count ?? 0) > 0;
   const hasLate    = data.latePayments.count > 0;
   const hasAlert   = data.attendance.alert.count > 0;
@@ -151,7 +155,7 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
                     {a.userEmail ?? "Email desconocido"}
                   </p>
                   <p className="text-[10px] text-dojo-sidebar-muted truncate">{a.details}</p>
-                  <p className="text-[9px] text-dojo-sidebar-muted/60 mt-0.5">IP: {a.ip} · {a.createdAt ? new Date(a.createdAt).toLocaleString("es-PA", { timeZone: "America/Panama", dateStyle:"short", timeStyle:"short" }) : ""}</p>
+                  <p className="text-[9px] text-dojo-sidebar-muted/60 mt-0.5">IP: {a.ip} · {a.createdAt ? new Date(a.createdAt).toLocaleString("es-PA", { timeZone: tz, dateStyle:"short", timeStyle:"short" }) : ""}</p>
                 </div>
               </div>
             ))}
@@ -205,7 +209,7 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
                 Pagos atrasados ({data.latePayments.count})
               </p>
               <span className="ml-auto text-xs text-red-300 font-semibold">
-                {fmtCurrency(data.latePayments.amount)}
+                {fmtCurrency(data.latePayments.amount, currency)}
               </span>
             </div>
             {data.latePayments.items.map(p => (
@@ -217,7 +221,7 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-dojo-sidebar-text truncate">{p.studentName}</p>
-                  <p className="text-[10px] text-dojo-sidebar-muted">{fmtCurrency(p.amount)} · +{p.daysLate}d atraso</p>
+                  <p className="text-[10px] text-dojo-sidebar-muted">{fmtCurrency(p.amount, currency)} · +{p.daysLate}d atraso</p>
                 </div>
               </Link>
             ))}
@@ -251,7 +255,7 @@ function NotificationPanel({ data, onClose }: { data: Notifications; onClose: ()
                   <p className="text-[10px] text-dojo-sidebar-muted truncate">✓ {r.eventTitle}</p>
                 </div>
                 <span className="text-[10px] text-dojo-muted shrink-0">
-                  {new Date(r.confirmedAt).toLocaleDateString("es-PA", { timeZone: "America/Panama", day:"2-digit", month:"short", year:"numeric" })}
+                  {new Date(r.confirmedAt).toLocaleDateString("es-PA", { timeZone: tz, day:"2-digit", month:"short", year:"numeric" })}
                 </span>
               </Link>
             ))}

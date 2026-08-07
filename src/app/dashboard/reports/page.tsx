@@ -7,7 +7,9 @@ import { useState, useEffect, useCallback } from "react";
 import { BarChart2, Award, Users, CreditCard, Trophy, Phone, User } from "lucide-react";
 import Image from "next/image";
 import { BeltBadge } from "@/components/ui/BeltBadge";
-import { calculateAge, formatDate, formatCurrency } from "@/lib/utils";
+import { calculateAge, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
+import { useDojoCurrency } from "@/lib/hooks/useDojo";
 import { useDojo } from "@/lib/hooks/useDojo";
 
 type Tab = "belt" | "age" | "payments" | "ranking";
@@ -43,6 +45,7 @@ export default function ReportsPage() {
   const [data,    setData]    = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
   const dojo = useDojo();
+  const currency = useDojoCurrency();
 
   const fetch_ = useCallback(async () => {
     setLoading(true); setData(null);
@@ -203,11 +206,11 @@ export default function ReportsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="card">
                 <p className="text-xs text-dojo-muted uppercase tracking-wider mb-2">Total Cobrado</p>
-                <p className="text-3xl font-bold text-green-400">{formatCurrency(d.totalCollected)}</p>
+                <p className="text-3xl font-bold text-green-400">{formatCurrency(d.totalCollected, currency)}</p>
               </div>
               <div className="card">
                 <p className="text-xs text-dojo-muted uppercase tracking-wider mb-2">Total Pendiente</p>
-                <p className="text-3xl font-bold text-yellow-400">{formatCurrency(d.totalPending)}</p>
+                <p className="text-3xl font-bold text-yellow-400">{formatCurrency(d.totalPending, currency)}</p>
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { sendEmail, escHtml } from "@/lib/email";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
 
 async function getDojoAdminEmails(dojoId: string): Promise<string[]> {
   const admins = await prisma.user.findMany({
@@ -9,8 +10,8 @@ async function getDojoAdminEmails(dojoId: string): Promise<string[]> {
   return admins.map(a => a.email);
 }
 
-function fmtDate(d: Date): string {
-  return d.toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "long", year: "numeric" });
+function fmtDate(d: Date, tz: string): string {
+  return d.toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "long", year: "numeric" });
 }
 
 /** Enviado una sola vez, al activar un dojo nuevo — nunca menciona "gratis" ni "trial". */
@@ -19,11 +20,12 @@ export async function sendPagueloFacilWelcomeEmail(
 ): Promise<void> {
   const emails = await getDojoAdminEmails(dojoId);
   if (emails.length === 0) return;
+  const tz = await resolveDojoTimezone(dojoId);
 
   const html = `
     <p>Hola,</p>
     <p>Tu cuenta de DojoMasterOnline (plan <strong>${escHtml(planName)}</strong>) ya está activa.</p>
-    <p>A partir del <strong>${fmtDate(firstChargeDate)}</strong> se generará el cobro de tu suscripción por
+    <p>A partir del <strong>${fmtDate(firstChargeDate, tz)}</strong> se generará el cobro de tu suscripción por
     <strong>US$ ${amount.toFixed(2)}</strong>, y te enviaremos a este correo el enlace para completarlo.</p>
   `;
 

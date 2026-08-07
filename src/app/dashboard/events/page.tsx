@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useToast, ToastContainer } from "@/components/ui/Toast";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
+import { toDateTimeLocalInTz, dateTimeLocalToUtc } from "@/lib/timezone";
 
 interface DojoEvent {
   id:                string;
@@ -49,36 +51,36 @@ interface RsvpData {
 type Tab = "active" | "past";
 
 /* ── Helpers ─────────────────────────────────────────────────── */
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short", year: "numeric" });
+function formatDate(iso: string, tz: string) {
+  return new Date(iso).toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "short", year: "numeric" });
 }
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-PA", { timeZone: "America/Panama", hour: "2-digit", minute: "2-digit", hour12: true });
+function formatTime(iso: string, tz: string) {
+  return new Date(iso).toLocaleTimeString("es-PA", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: true });
 }
-function formatDateRange(start: string, end: string) {
+function formatDateRange(start: string, end: string, tz: string) {
   const s = new Date(start);
   const e = new Date(end);
-  const tz = "America/Panama";
   if (s.toLocaleDateString("es-PA", { timeZone: tz }) === e.toLocaleDateString("es-PA", { timeZone: tz }))
     return s.toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "long", year: "numeric" });
   return `${s.toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "short", year: "numeric" })} — ${e.toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "long", year: "numeric" })}`;
 }
-function toIso(val: string): string {
+// Acepta tanto un instante ISO absoluto (ev.startDate, con "Z"/offset) como un valor crudo
+// de <input type="datetime-local"> (sin timezone) — este último se interpreta en la zona del dojo.
+function toIso(val: string, tz: string): string {
   if (!val) return new Date().toISOString();
-  return isNaN(Date.parse(val)) ? new Date().toISOString() : new Date(val).toISOString();
-}
-function toDateTimeLocal(iso: string) {
-  const d   = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (/Z$|[+-]\d{2}:\d{2}$/.test(val)) {
+    return isNaN(Date.parse(val)) ? new Date().toISOString() : new Date(val).toISOString();
+  }
+  return dateTimeLocalToUtc(val, tz).toISOString();
 }
 
 const EMPTY_FORM = { title: "", description: "", location: "", imageUrl: "", startDate: "", endDate: "" };
 
 /* ── Vista previa (portal view) ──────────────────────────────── */
 function EventPreviewCard({ data }: { data: PreviewData }) {
-  const start = toIso(data.startDate);
-  const end   = toIso(data.endDate);
+  const tz    = useDojoTimeZone();
+  const start = toIso(data.startDate, tz);
+  const end   = toIso(data.endDate, tz);
   return (
     <div className="rounded-xl overflow-hidden bg-dojo-card border border-dojo-border">
       {data.imageUrl && (
@@ -92,9 +94,9 @@ function EventPreviewCard({ data }: { data: PreviewData }) {
         <div className="flex flex-wrap gap-2 text-[11px]">
           <span className="flex items-center gap-1 text-dojo-muted">
             <Clock size={11} className="text-dojo-red" />
-            {formatDateRange(start, end)}
+            {formatDateRange(start, end, tz)}
           </span>
-          <span className="text-dojo-muted">{formatTime(start)} — {formatTime(end)}</span>
+          <span className="text-dojo-muted">{formatTime(start, tz)} — {formatTime(end, tz)}</span>
         </div>
         {data.location && (
           <div className="flex items-center gap-1 text-[11px] text-dojo-muted">
@@ -194,6 +196,7 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting, syncing,
   syncing:   boolean;
   onSyncList: () => void;
 }) {
+  const tz = useDojoTimeZone();
   const [activeTab,   setActiveTab]   = useState<"info" | "attendees">("info");
   const [rsvpData,    setRsvpData]    = useState<RsvpData | null>(null);
   const [rsvpLoading, setRsvpLoading] = useState(false);
@@ -333,7 +336,7 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting, syncing,
                     <div className="flex flex-wrap gap-3 text-xs text-dojo-muted">
                       <span className="flex items-center gap-1">
                         <Clock size={12} className="text-dojo-red shrink-0" />
-                        {formatDate(ev.startDate)} — {formatDate(ev.endDate)}
+                        {formatDate(ev.startDate, tz)} — {formatDate(ev.endDate, tz)}
                       </span>
                       {ev.location && (
                         <span className="flex items-center gap-1">
@@ -388,7 +391,7 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting, syncing,
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 text-[10px] text-dojo-muted">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                      Actualiza automáticamente · última vez {lastRefresh.toLocaleTimeString("es-PA", { timeZone: "America/Panama", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                      Actualiza automáticamente · última vez {lastRefresh.toLocaleTimeString("es-PA", { timeZone: tz, hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                     </div>
                     <button
                       onClick={handleDownload}
@@ -437,7 +440,7 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting, syncing,
                             )}
                             <p className="text-dojo-white text-sm font-medium truncate flex-1">{a.fullName}</p>
                             <span className="text-[10px] text-dojo-muted shrink-0">
-                              {new Date(a.createdAt).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short" })}
+                              {new Date(a.createdAt).toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "short" })}
                             </span>
                           </div>
                         ))
@@ -464,7 +467,7 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting, syncing,
                             </div>
                             <p className="text-dojo-white text-sm font-medium truncate flex-1">{a.fullName}</p>
                             <span className="text-[10px] text-dojo-muted shrink-0">
-                              {new Date(a.createdAt).toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "2-digit", month: "short" })}
+                              {new Date(a.createdAt).toLocaleDateString("es-PA", { timeZone: tz, day: "2-digit", month: "short" })}
                             </span>
                           </div>
                         ))
@@ -512,6 +515,7 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting, syncing,
 
 /* ── Página principal ────────────────────────────────────────── */
 export default function EventsPage() {
+  const tz = useDojoTimeZone();
   const [tab,       setTab]      = useState<Tab>("active");
   const [events,    setEvents]   = useState<DojoEvent[]>([]);
   const [loading,   setLoading]  = useState(true);
@@ -550,8 +554,8 @@ export default function EventsPage() {
       description: ev.description ?? "",
       location:    ev.location    ?? "",
       imageUrl:    ev.imageUrl    ?? "",
-      startDate:   toDateTimeLocal(ev.startDate),
-      endDate:     toDateTimeLocal(ev.endDate),
+      startDate:   toDateTimeLocalInTz(ev.startDate, tz),
+      endDate:     toDateTimeLocalInTz(ev.endDate, tz),
     });
     setError("");
     setModal(true);
@@ -612,8 +616,8 @@ export default function EventsPage() {
         description: form.description.trim() || null,
         location:    form.location.trim()    || null,
         imageUrl:    form.imageUrl           || null,
-        startDate:   new Date(form.startDate).toISOString(),
-        endDate:     new Date(form.endDate).toISOString(),
+        startDate:   dateTimeLocalToUtc(form.startDate, tz).toISOString(),
+        endDate:     dateTimeLocalToUtc(form.endDate, tz).toISOString(),
       };
       const url    = editing ? `/api/events/${editing.id}` : "/api/events";
       const method = editing ? "PUT" : "POST";

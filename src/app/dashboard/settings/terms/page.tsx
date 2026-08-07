@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Save, RefreshCw, ScrollText, Users, Info } from "lucide-react";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 interface Policy {
   id:        string;
@@ -17,6 +18,7 @@ interface TermsData {
 }
 
 export default function TermsSettingsPage() {
+  const tz = useDojoTimeZone();
   const [data,     setData]     = useState<TermsData | null>(null);
   const [content,  setContent]  = useState("");
   const [enabled,  setEnabled]  = useState(false);
@@ -179,7 +181,7 @@ export default function TermsSettingsPage() {
       {data?.policy && (
         <p className="text-xs text-dojo-muted text-right">
           Última actualización: {new Date(data.policy.updatedAt).toLocaleDateString("es-PA", {
-            timeZone: "America/Panama",
+            timeZone: tz,
             day: "2-digit", month: "long", year: "numeric",
             hour: "2-digit", minute: "2-digit",
           })}

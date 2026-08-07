@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { calculateAge, formatCurrency, getBeltInfo, BELT_COLORS, cn } from "@/lib/utils";
+import { calculateAge, getBeltInfo, BELT_COLORS, cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
 
 describe("cn", () => {
   it("merges class names and resolves tailwind conflicts", () => {

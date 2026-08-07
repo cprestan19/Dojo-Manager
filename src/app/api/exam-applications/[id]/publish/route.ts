@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { sendPushToSubscriptions, logPushSent } from "@/lib/push";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -54,7 +55,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     // Push a los alumnos invitados — fire-and-forget
     const pushSettings = await prisma.pushSettings.findUnique({ where: { dojoId }, select: { enabled: true, notifyExamPublished: true } }).catch(() => null);
     if (pushSettings?.enabled && pushSettings.notifyExamPublished) {
-      const examDate = existing.examDate.toLocaleDateString("es-PA", { timeZone: "America/Panama", day: "numeric", month: "long" });
+      const dojoTz = await resolveDojoTimezone(dojoId);
+      const examDate = existing.examDate.toLocaleDateString("es-PA", { timeZone: dojoTz, day: "numeric", month: "long" });
       const inviteeStudentIds = await prisma.examApplicationInvitee.findMany({
         where:  { applicationId: id },
         select: { studentId: true },

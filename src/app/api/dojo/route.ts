@@ -38,10 +38,10 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, name: true, slug: true, ownerName: true,
       email: true, phone: true, slogan: true, active: true,
-      locale: true, tournamentPro: true,
+      locale: true, tournamentPro: true, timezone: true, currency: true,
       createdAt: true, updatedAt: true,
       reminderToleranceDays: true, lateInterestPct: true,
-      autoRemindersEnabled: true,
+      autoRemindersEnabled: true, lateToleranceMinutes: true,
       cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true,
       logo:             true,              // siempre — es URL corta de Cloudinary
       loginBgImage:     includeLoginBg,     // solo cuando Settings lo pide
@@ -110,6 +110,19 @@ export async function PUT(req: NextRequest) {
     if (isNaN(v) || v < 0 || v > 100)
       return NextResponse.json({ error: "lateInterestPct debe estar entre 0 y 100" }, { status: 400 });
   }
+  if (body.lateToleranceMinutes != null) {
+    const v = Number(body.lateToleranceMinutes);
+    if (!Number.isInteger(v) || v < 0 || v > 120)
+      return NextResponse.json({ error: "lateToleranceMinutes debe ser un entero entre 0 y 120" }, { status: 400 });
+  }
+  if (body.timezone != null) {
+    try { new Intl.DateTimeFormat("en-US", { timeZone: String(body.timezone) }); }
+    catch { return NextResponse.json({ error: "timezone no es un identificador IANA válido" }, { status: 400 }); }
+  }
+  if (body.currency != null) {
+    try { new Intl.NumberFormat("en-US", { style: "currency", currency: String(body.currency) }); }
+    catch { return NextResponse.json({ error: "currency no es un código ISO 4217 válido" }, { status: 400 }); }
+  }
 
   // Borrar imágenes antiguas de Cloudinary cuando se reemplazan o eliminan
   const IMAGE_FIELDS = ["logo", "loginBgImage", "cardTemplateImage", "cardTemplateImage2", "cardTemplateImage3"] as const;
@@ -147,6 +160,9 @@ export async function PUT(req: NextRequest) {
       reminderToleranceDays: body.reminderToleranceDays != null ? Number(body.reminderToleranceDays) : undefined,
       lateInterestPct:       body.lateInterestPct       != null ? Number(body.lateInterestPct)       : undefined,
       autoRemindersEnabled:  body.autoRemindersEnabled  != null ? Boolean(body.autoRemindersEnabled)  : undefined,
+      lateToleranceMinutes:  body.lateToleranceMinutes  != null ? Number(body.lateToleranceMinutes)   : undefined,
+      timezone:              body.timezone != null ? String(body.timezone) : undefined,
+      currency:              body.currency != null ? String(body.currency) : undefined,
       locale:                body.locale === "en" ? "en" : body.locale === "es" ? "es" : undefined,
       cardPrimaryColor:   "cardPrimaryColor"   in body ? (body.cardPrimaryColor   ?? null) : undefined,
       cardSecondaryColor: "cardSecondaryColor" in body ? (body.cardSecondaryColor ?? null) : undefined,
@@ -162,9 +178,9 @@ export async function PUT(req: NextRequest) {
     select: {
       id: true, name: true, slug: true, ownerName: true,
       email: true, phone: true, slogan: true, active: true,
-      locale: true, tournamentPro: true,
+      locale: true, tournamentPro: true, timezone: true, currency: true,
       reminderToleranceDays: true, lateInterestPct: true,
-      autoRemindersEnabled: true, logo: true,
+      autoRemindersEnabled: true, lateToleranceMinutes: true, logo: true,
       cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true,
     },
   });

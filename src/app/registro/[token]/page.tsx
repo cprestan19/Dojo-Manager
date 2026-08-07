@@ -21,7 +21,7 @@ export default async function RegistroPage({ params, searchParams }: Props) {
       id: true, dojoId: true, isActive: true, activatesAt: true, expiresAt: true, maxUses: true, useCount: true,
       dojo: {
         select: {
-          name: true, logo: true, contractPolicy: true,
+          name: true, logo: true, contractPolicy: true, timezone: true,
           termsPolicy: { select: { content: true, version: true, enabled: true } },
         },
       },
@@ -51,9 +51,10 @@ export default async function RegistroPage({ params, searchParams }: Props) {
     );
   }
 
-  const dojoName  = link.dojo.name;
-  const dojoLogo  = link.dojo.logo?.startsWith("http") ? link.dojo.logo : null;
-  const expiresAt = link.expiresAt?.toISOString() ?? null;
+  const dojoName     = link.dojo.name;
+  const dojoLogo     = link.dojo.logo?.startsWith("http") ? link.dojo.logo : null;
+  const dojoTimezone = link.dojo.timezone;
+  const expiresAt    = link.expiresAt?.toISOString() ?? null;
 
   // Prioridad: DojoTermsPolicy (nuevo sistema, con versiones) → contractPolicy (legado)
   const activeTerms  = link.dojo.termsPolicy?.enabled ? link.dojo.termsPolicy : null;
@@ -87,6 +88,7 @@ export default async function RegistroPage({ params, searchParams }: Props) {
             token={token}
             dojoName={dojoName}
             dojoLogo={dojoLogo}
+            dojoTimezone={dojoTimezone}
             expiresAt={expiresAt}
             reset={reset === "1"}
             termsContent={termsContent}

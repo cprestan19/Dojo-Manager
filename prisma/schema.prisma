@@ -29,6 +29,21 @@ model Dojo {
   reminderToleranceDays Int     @default(5)
   lateInterestPct       Float   @default(10.0)
   autoRemindersEnabled  Boolean @default(false)
+
+  // Tolerancia de tardanzas en asistencia (minutos después del inicio de clase)
+  lateToleranceMinutes Int @default(10) @map("late_tolerance_minutes")
+
+  // Zona horaria IANA del dojo (ej. "America/Panama", "America/Caracas") — determina
+  // cómo se muestran e interpretan todas las fechas/horas del dojo (asistencia,
+  // eventos, exámenes, postulaciones, recordatorios, etc.)
+  timezone String @default("America/Panama") @map("timezone")
+
+  // Moneda ISO 4217 en la que el alumno paga (mensualidades, tienda, exámenes,
+  // inscripciones a torneo). El símbolo se deriva automáticamente del código —
+  // nunca se guarda aparte. No afecta la facturación del dojo hacia DojoManager
+  // (Plan/Subscription/Invoice), que siempre es en USD.
+  currency String @default("USD") @map("currency")
+
   loginBgImage          String? @map("login_bg_image") @db.Text
   contractPolicy        String? @map("contract_policy") @db.Text // texto de políticas/contrato mostrado en el auto-registro
   instagramUrl          String? @map("instagram_url")

@@ -5,6 +5,7 @@ import {
   Image as ImageIcon, Tag, Eye, EyeOff, Check, ClipboardList, Phone,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 interface Product {
   id:          string;
@@ -41,8 +42,8 @@ function fmtPrice(price: number, currency: string) {
   return new Intl.NumberFormat("es-PA", { style:"currency", currency, minimumFractionDigits:2 }).format(price);
 }
 
-function fmtRequestDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Panama" });
+function fmtRequestDate(iso: string, tz: string) {
+  return new Date(iso).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric", timeZone: tz });
 }
 
 export default function StorePage() {
@@ -446,6 +447,7 @@ function RequestsPanel({
   updatingId: string | null;
   onUpdateStatus: (id: string, status: string) => void;
 }) {
+  const tz = useDojoTimeZone();
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -494,7 +496,7 @@ function RequestsPanel({
                 </p>
               )}
               {r.notes && <p className="text-xs text-dojo-muted italic mt-1">&quot;{r.notes}&quot;</p>}
-              <p className="text-[10px] text-dojo-muted mt-1">{fmtRequestDate(r.createdAt)}</p>
+              <p className="text-[10px] text-dojo-muted mt-1">{fmtRequestDate(r.createdAt, tz)}</p>
 
               {r.status === "PENDING" && (
                 <div className="flex gap-2 mt-2">

@@ -6,6 +6,7 @@ import QRCode from "qrcode";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { formatDate, getBeltInfo } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
 import { hasFeature } from "@/lib/billing/featureGate";
 import { NAV_KEYS } from "@/lib/permissions";
 import {
@@ -52,7 +53,7 @@ export default async function PortalProfilePage() {
       familyId: true, dojoId: true,
       dojo: {
         select: {
-          id: true, slug: true, name: true, phone: true, logo: true, slogan: true,
+          id: true, slug: true, name: true, phone: true, logo: true, slogan: true, timezone: true, currency: true,
           cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true,
           cardTemplateImage: true, cardLayout: true,
           cardLayout2: true, cardTemplateImage2: true,
@@ -205,8 +206,10 @@ export default async function PortalProfilePage() {
     try { return JSON.parse(raw) as string[]; } catch { return []; }
   }
 
+  const dojoTz = student.dojo.timezone;
+  const dojoCurrency = student.dojo.currency;
   function fmtAttendance(d: Date): string {
-    return `${d.toLocaleDateString("es-PA", { timeZone: "America/Panama" })} · ${d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Panama" })}`;
+    return `${d.toLocaleDateString("es-PA", { timeZone: dojoTz })} · ${d.toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: dojoTz })}`;
   }
 
   type StudentLike = {
@@ -386,7 +389,7 @@ export default async function PortalProfilePage() {
                     {hasLate ? "Tienes pagos atrasados" : "Pagos pendientes"}
                   </p>
                   <p className="text-xs text-dojo-muted mt-0.5">
-                    {student.payments.map(p => `$${p.amount.toFixed(2)}`).join(" · ")}
+                    {student.payments.map(p => formatCurrency(p.amount, dojoCurrency)).join(" · ")}
                   </p>
                 </div>
               </div>
@@ -726,7 +729,7 @@ export default async function PortalProfilePage() {
                   {monthlyAmt > 0 && (
                     <div>
                       <dt className="text-[10px] text-dojo-muted uppercase tracking-wide">Monto por {payPeriodLabel}</dt>
-                      <dd className="text-dojo-gold text-xs font-bold mt-0.5">${monthlyAmt.toFixed(2)}</dd>
+                      <dd className="text-dojo-gold text-xs font-bold mt-0.5">{formatCurrency(monthlyAmt, dojoCurrency)}</dd>
                     </div>
                   )}
                 </dl>

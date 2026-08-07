@@ -20,16 +20,6 @@ export function formatDate(date: Date | string): string {
   return `${day}/${month}/${year}`;
 }
 
-// Timestamps (createdAt, submittedAt, markedAt…) se muestran en hora panameña.
-export function formatDateTimePanama(date: Date | string): string {
-  return new Intl.DateTimeFormat("es-PA", {
-    timeZone: "America/Panama",
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-    hour12: true,
-  }).format(new Date(date));
-}
-
 const NAME_LOWERCASE_PARTICLES = new Set(["de", "del", "la", "las", "los", "el", "y", "e"]);
 
 export function toTitleCase(str: string): string {
@@ -61,12 +51,12 @@ export function formatTimeStr(hhmm: string): string {
   return `${hour12}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-PA", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-  }).format(amount);
+// Formatea minutos totales como "45 min" o "1h 5min"
+export function formatLateTotal(minutes: number): string {
+  if (minutes <= 0) return "0 min";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${m}min` : `${m} min`;
 }
 
 export const BELT_COLORS = [

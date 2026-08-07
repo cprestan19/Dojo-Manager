@@ -42,9 +42,9 @@ export const CreateStudentSchema = z.object({
   inscription: z.object({
     inscriptionDate:   z.string(),
     annualPaymentDate: z.string().optional().nullable(),
-    annualAmount:      z.coerce.number().min(0).max(99_999),
-    monthlyAmount:     z.coerce.number().min(0).max(99_999),
-    discountAmount:    z.coerce.number().min(0).max(99_999).default(0),
+    annualAmount:      z.coerce.number().min(0).max(9_999_999_999),
+    monthlyAmount:     z.coerce.number().min(0).max(9_999_999_999),
+    discountAmount:    z.coerce.number().min(0).max(9_999_999_999).default(0),
     discountNote:      z.string().max(500).optional().nullable(),
   }).optional(),
 });
@@ -53,7 +53,7 @@ export const CreateStudentSchema = z.object({
 export const CreatePaymentSchema = z.object({
   studentId: cuid,
   type:      z.enum(["monthly", "annual", "affiliation", "other"]),
-  amount:    z.number().min(0, "El monto no puede ser negativo").max(99_999, "Monto fuera de rango"),
+  amount:    z.number().min(0, "El monto no puede ser negativo").max(9_999_999_999, "Monto fuera de rango"),
   dueDate:   z.string().refine(v => !isNaN(new Date(v).getTime()), "Fecha de vencimiento inválida"),
   paidDate:  z.string().optional().nullable(),
   status:    z.enum(["pending", "paid", "late"]).default("pending"),
@@ -65,7 +65,7 @@ export const UpdatePaymentSchema = z.object({
   status:   z.enum(["pending", "paid", "late"]).optional(),
   paidDate: z.string().optional().nullable(),
   dueDate:  z.string().optional(),
-  amount:   z.number().min(0).max(99_999).optional(),
+  amount:   z.number().min(0).max(9_999_999_999).optional(),
   note:     z.string().max(500).optional().nullable(),
 });
 

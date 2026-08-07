@@ -1,22 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendPushToSubscriptions, logPushSent } from "@/lib/push";
+import { ymdInTz, DEFAULT_TIMEZONE } from "@/lib/timezone";
 
 export const dynamic     = "force-dynamic";
 export const maxDuration = 60;
 
-const PANAMA_TZ = "America/Panama";
-
-function panamaMonthDay(d: Date): { month: number; day: number } {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: PANAMA_TZ, month: "2-digit", day: "2-digit",
-  }).formatToParts(d);
-  const month = Number(parts.find(p => p.type === "month")?.value);
-  const day   = Number(parts.find(p => p.type === "day")?.value);
-  return { month, day };
-}
-
-// GET /api/cron/birthday-push — envía push de cumpleaños a los alumnos que cumplen años hoy (hora Panamá)
+// GET /api/cron/birthday-push — envía push de cumpleaños a los alumnos que cumplen años hoy
+// (calculado en la zona horaria de CADA dojo, no una sola zona global)
 // Protegido por Authorization: Bearer CRON_SECRET
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
@@ -26,19 +17,20 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { month: todayMonth, day: todayDay } = panamaMonthDay(new Date());
+    const now = new Date();
 
     const candidates = await prisma.student.findMany({
       where: {
         active: true,
         dojo:   { pushSettings: { enabled: true, notifyBirthday: true } },
       },
-      select: { id: true, fullName: true, birthDate: true, dojoId: true },
+      select: { id: true, fullName: true, birthDate: true, dojoId: true, dojo: { select: { timezone: true } } },
     });
 
-    const birthdayStudents = candidates.filter(s =>
-      s.birthDate.getUTCMonth() + 1 === todayMonth && s.birthDate.getUTCDate() === todayDay
-    );
+    const birthdayStudents = candidates.filter(s => {
+      const [, todayMonth, todayDay] = ymdInTz(now, s.dojo.timezone ?? DEFAULT_TIMEZONE).split("-").map(Number);
+      return s.birthDate.getUTCMonth() + 1 === todayMonth && s.birthDate.getUTCDate() === todayDay;
+    });
 
     let sent = 0, skipped = 0;
 

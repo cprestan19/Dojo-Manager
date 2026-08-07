@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { Calendar, MapPin, Clock, CalendarCheck, History, CheckCircle2, X, Users, Loader2 } from "lucide-react";
+import { usePortalTimeZone } from "@/lib/context/PortalTimeZoneContext";
 
 interface FamilyMemberRsvp {
   studentId: string;
@@ -23,18 +24,17 @@ interface DojoEvent {
 
 type Tab = "active" | "past";
 
-function formatDateRange(start: string, end: string) {
+function formatDateRange(start: string, end: string, tz: string) {
   const s = new Date(start);
   const e = new Date(end);
-  const TZ = "America/Panama";
-  const opts: Intl.DateTimeFormatOptions = { day: "2-digit", month: "long", year: "numeric", timeZone: TZ };
-  if (s.toLocaleDateString("es-PA", { timeZone: TZ }) === e.toLocaleDateString("es-PA", { timeZone: TZ }))
+  const opts: Intl.DateTimeFormatOptions = { day: "2-digit", month: "long", year: "numeric", timeZone: tz };
+  if (s.toLocaleDateString("es-PA", { timeZone: tz }) === e.toLocaleDateString("es-PA", { timeZone: tz }))
     return new Date(s).toLocaleDateString("es-PA", opts);
-  return `${s.toLocaleDateString("es-PA", { day: "2-digit", month: "short", timeZone: TZ })} — ${e.toLocaleDateString("es-PA", opts)}`;
+  return `${s.toLocaleDateString("es-PA", { day: "2-digit", month: "short", timeZone: tz })} — ${e.toLocaleDateString("es-PA", opts)}`;
 }
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "America/Panama" });
+function formatTime(iso: string, tz: string) {
+  return new Date(iso).toLocaleTimeString("es-PA", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
 }
 
 // ── Fila de RSVP por miembro de familia ──────────────────────────────────────
@@ -260,6 +260,7 @@ function RsvpBanner({ event, onUpdate }: {
 // ── Página principal ─────────────────────────────────────────────────────────
 
 export default function PortalEventsPage() {
+  const tz = usePortalTimeZone();
   const [tab,     setTab]    = useState<Tab>("active");
   const [events,  setEvents] = useState<DojoEvent[]>([]);
   const [loading, setLoading]= useState(true);
@@ -355,10 +356,10 @@ export default function PortalEventsPage() {
                 <div className="flex flex-wrap gap-3 text-sm">
                   <span className="flex items-center gap-1.5 text-dojo-muted">
                     <Clock size={14} className="text-dojo-red shrink-0" />
-                    {formatDateRange(ev.startDate, ev.endDate)}
+                    {formatDateRange(ev.startDate, ev.endDate, tz)}
                   </span>
                   <span className="flex items-center gap-1 text-dojo-muted text-xs">
-                    {formatTime(ev.startDate)} — {formatTime(ev.endDate)}
+                    {formatTime(ev.startDate, tz)} — {formatTime(ev.endDate, tz)}
                   </span>
                 </div>
 

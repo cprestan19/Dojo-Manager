@@ -3,15 +3,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
+import { ymdInTz, civilToUtc, addDaysYMD } from "@/lib/timezone";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
 const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-const DOJO_TZ    = "America/Panama";
 
-function toLocalDate(utc: Date): Date {
-  const local = new Date(utc.toLocaleString("en-US", { timeZone: DOJO_TZ }));
-  return local;
+/** Día de la semana (0=domingo) de una fecha "YYYY-MM-DD", sin depender de la TZ del proceso */
+function dowOfYMD(ymd: string): number {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
 export async function GET(req: NextRequest) {
@@ -22,17 +24,18 @@ export async function GET(req: NextRequest) {
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
+  const tz = await resolveDojoTimezone(dojoId);
   const weekOffset = Number(new URL(req.url).searchParams.get("weekOffset") ?? "0");
 
-  const nowLocal  = toLocalDate(new Date());
-  const dayOfWeek = nowLocal.getDay();
-  const monday    = new Date(nowLocal);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(nowLocal.getDate() - ((dayOfWeek + 6) % 7) + weekOffset * 7);
+  const todayYMD  = ymdInTz(new Date(), tz);
+  const dayOfWeek = dowOfYMD(todayYMD);
+  const mondayYMD = addDaysYMD(todayYMD, -((dayOfWeek + 6) % 7) + weekOffset * 7);
+  const sundayYMD = addDaysYMD(mondayYMD, 6);
 
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
+  const [my, mm, md] = mondayYMD.split("-").map(Number);
+  const [sy, sm, sd] = sundayYMD.split("-").map(Number);
+  const monday = civilToUtc(my, mm, md, 0, 0, 0, tz);
+  const sunday = civilToUtc(sy, sm, sd, 23, 59, 59, tz);
 
   const totalActive = await prisma.student.count({
     where: { dojoId, active: true },
@@ -40,10 +43,10 @@ export async function GET(req: NextRequest) {
 
   if (totalActive === 0) {
     const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday); d.setDate(monday.getDate() + i);
-      return { day: DAY_LABELS[d.getDay()], pct: 0, count: 0, entries: 0, exits: 0, date: d.toISOString().split("T")[0], schedules: [] };
+      const dateKey = addDaysYMD(mondayYMD, i);
+      return { day: DAY_LABELS[dowOfYMD(dateKey)], pct: 0, count: 0, entries: 0, exits: 0, date: dateKey, schedules: [] };
     });
-    return NextResponse.json({ days, weekLabel: buildWeekLabel(monday, sunday), totalActive: 0 });
+    return NextResponse.json({ days, weekLabel: buildWeekLabel(mondayYMD, sundayYMD, todayYMD), totalActive: 0 });
   }
 
   const [rawEntries, rawExits] = await Promise.all([
@@ -72,46 +75,43 @@ export async function GET(req: NextRequest) {
   const byDaySchedule: Record<string, Map<string, number>> = {};
 
   for (const a of rawEntries) {
-    const localDate = toLocalDate(a.markedAt).toISOString().split("T")[0];
-    if (!byDayEntry[localDate]) byDayEntry[localDate] = new Set();
-    byDayEntry[localDate].add(a.studentId);
+    const dateKey = ymdInTz(a.markedAt, tz);
+    if (!byDayEntry[dateKey]) byDayEntry[dateKey] = new Set();
+    byDayEntry[dateKey].add(a.studentId);
     if (a.scheduleId) {
-      if (!byDaySchedule[localDate]) byDaySchedule[localDate] = new Map();
+      if (!byDaySchedule[dateKey]) byDaySchedule[dateKey] = new Map();
       const name = scheduleMap.get(a.scheduleId) ?? "Sin horario";
-      byDaySchedule[localDate].set(name, (byDaySchedule[localDate].get(name) ?? 0) + 1);
+      byDaySchedule[dateKey].set(name, (byDaySchedule[dateKey].get(name) ?? 0) + 1);
     }
   }
   for (const a of rawExits) {
-    const localDate = toLocalDate(a.markedAt).toISOString().split("T")[0];
-    if (!byDayExit[localDate]) byDayExit[localDate] = new Set();
-    byDayExit[localDate].add(a.studentId);
+    const dateKey = ymdInTz(a.markedAt, tz);
+    if (!byDayExit[dateKey]) byDayExit[dateKey] = new Set();
+    byDayExit[dateKey].add(a.studentId);
   }
 
   const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday); d.setDate(monday.getDate() + i);
-    const dateKey  = d.toISOString().split("T")[0];
-    const dow      = d.getDay();
+    const dateKey  = addDaysYMD(mondayYMD, i);
     const entries  = byDayEntry[dateKey]?.size ?? 0;
     const exits    = byDayExit[dateKey]?.size ?? 0;
     const pct      = Math.round((entries / totalActive) * 100);
     const schedules = byDaySchedule[dateKey]
       ? [...byDaySchedule[dateKey].entries()].map(([name, count]) => ({ name, count }))
       : [];
-    return { day: DAY_LABELS[dow], pct, count: entries, entries, exits, date: dateKey, schedules };
+    return { day: DAY_LABELS[dowOfYMD(dateKey)], pct, count: entries, entries, exits, date: dateKey, schedules };
   });
 
-  return NextResponse.json({ days, weekLabel: buildWeekLabel(monday, sunday), totalActive });
+  return NextResponse.json({ days, weekLabel: buildWeekLabel(mondayYMD, sundayYMD, todayYMD), totalActive });
 }
 
-function buildWeekLabel(monday: Date, sunday: Date): string {
-  const fmt = (d: Date) => d.toLocaleDateString("es-PA", { day: "2-digit", month: "short" });
-  const now  = new Date();
-  const thisMon = new Date(now);
-  const dow = now.getDay();
-  thisMon.setHours(0,0,0,0);
-  thisMon.setDate(now.getDate() - ((dow + 6) % 7));
-  if (monday.toDateString() === thisMon.toDateString()) return "Esta semana";
-  const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
-  if (monday.toDateString() === lastMon.toDateString()) return "Semana pasada";
-  return `${fmt(monday)} – ${fmt(sunday)}`;
+function buildWeekLabel(mondayYMD: string, sundayYMD: string, todayYMD: string): string {
+  const fmt = (ymd: string) => {
+    const [y, m, d] = ymd.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("es-PA", { day: "2-digit", month: "short", timeZone: "UTC" });
+  };
+  const thisMonYMD = addDaysYMD(todayYMD, -((dowOfYMD(todayYMD) + 6) % 7));
+  if (mondayYMD === thisMonYMD) return "Esta semana";
+  const lastMonYMD = addDaysYMD(thisMonYMD, -7);
+  if (mondayYMD === lastMonYMD) return "Semana pasada";
+  return `${fmt(mondayYMD)} – ${fmt(sundayYMD)}`;
 }

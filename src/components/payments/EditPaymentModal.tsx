@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { getPaymentTypeLabel } from "@/lib/utils";
+import { getCurrencySymbol, currencyInputPadding } from "@/lib/currency";
+import { useDojoCurrency } from "@/lib/hooks/useDojo";
 
 export interface PaymentForEdit {
   id:       string;
@@ -21,6 +23,8 @@ interface Props {
 }
 
 export function EditPaymentModal({ payment, onClose, onSaved }: Props) {
+  const currency = useDojoCurrency();
+  const currencySymbol = getCurrencySymbol(currency);
   const [amount,   setAmount]  = useState(String(payment.amount));
   const [dueDate,  setDueDate] = useState(payment.dueDate.slice(0, 10));
   const [status,   setStatus]  = useState(payment.status);
@@ -88,14 +92,15 @@ export function EditPaymentModal({ payment, onClose, onSaved }: Props) {
       {/* Monto y vencimiento */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="form-label">Monto (USD)</label>
+          <label className="form-label">Monto ({currency})</label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm whitespace-nowrap">{currencySymbol}</span>
             <input
               type="number" step="0.01" min="0"
               value={amount}
               onChange={e => setAmount(e.target.value)}
-              className="form-input pl-7"
+              className="form-input"
+              style={{ paddingLeft: currencyInputPadding(currencySymbol) }}
               placeholder="0.00"
             />
           </div>

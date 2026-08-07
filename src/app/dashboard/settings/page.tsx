@@ -4,12 +4,14 @@
  */
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2, ScrollText, ExternalLink } from "lucide-react";
+import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2, ScrollText, ExternalLink, Timer, DollarSign } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { DojoInfo } from "@/lib/hooks/useDojo";
 import { useAppContext } from "@/lib/context/AppContext";
+import { TIMEZONE_OPTIONS, DEFAULT_TIMEZONE } from "@/lib/timezone";
+import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from "@/lib/currency";
 
 interface DojoOption { id: string; name: string; slug: string }
 
@@ -41,6 +43,9 @@ export default function SettingsPage() {
   const [toleranceDays,        setToleranceDays]        = useState(5);
   const [interestPct,          setInterestPct]          = useState(10);
   const [autoRemindersEnabled, setAutoRemindersEnabled] = useState(false);
+  const [lateToleranceMinutes, setLateToleranceMinutes] = useState(10);
+  const [timezone,             setTimezone]             = useState(DEFAULT_TIMEZONE);
+  const [currency,             setCurrency]             = useState(DEFAULT_CURRENCY);
   const [locale,               setLocale]               = useState("es");
   const [loginBgImage,    setLoginBgImage]    = useState<string | null>(null);
   const [bgUploading,     setBgUploading]     = useState(false);
@@ -88,6 +93,9 @@ export default function SettingsPage() {
           setToleranceDays(data.reminderToleranceDays ?? 5);
           setInterestPct(data.lateInterestPct ?? 10);
           setAutoRemindersEnabled(data.autoRemindersEnabled ?? false);
+          setLateToleranceMinutes(data.lateToleranceMinutes ?? 10);
+          setTimezone(data.timezone ?? DEFAULT_TIMEZONE);
+          setCurrency(data.currency ?? DEFAULT_CURRENCY);
           setLoginBgImage(data.loginBgImage ?? null);
           setLocale(data.locale ?? "es");
         }
@@ -128,6 +136,9 @@ export default function SettingsPage() {
         reminderToleranceDays: toleranceDays,
         lateInterestPct:       interestPct,
         autoRemindersEnabled,
+        lateToleranceMinutes,
+        timezone,
+        currency,
         locale,
       }),
     });
@@ -357,6 +368,52 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* Parámetros de moneda */}
+          <div className="card space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign size={18} className="text-dojo-red" />
+              <div>
+                <p className="text-sm font-semibold text-dojo-white">Moneda del dojo</p>
+                <p className="text-xs text-dojo-muted">
+                  Moneda en la que los alumnos pagan sus mensualidades, la tienda, exámenes e inscripciones
+                  a torneo. El símbolo se muestra automáticamente según la moneda elegida.
+                </p>
+              </div>
+            </div>
+            <select
+              value={currency}
+              onChange={e => setCurrency(e.target.value)}
+              className="form-input"
+            >
+              {CURRENCY_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Zona horaria del dojo */}
+          <div className="card space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Clock size={18} className="text-dojo-red" />
+              <div>
+                <p className="text-sm font-semibold text-dojo-white">Zona horaria del dojo</p>
+                <p className="text-xs text-dojo-muted">
+                  Determina la hora que se muestra y con la que se calculan asistencia, tardanzas,
+                  eventos, exámenes y recordatorios de este dojo.
+                </p>
+              </div>
+            </div>
+            <select
+              value={timezone}
+              onChange={e => setTimezone(e.target.value)}
+              className="form-input"
+            >
+              {TIMEZONE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Parámetros de recordatorios */}
           <div className="card space-y-5">
             <h2 className="text-dojo-white font-semibold text-lg border-b border-dojo-border pb-3 flex items-center gap-2">
@@ -427,6 +484,31 @@ export default function SettingsPage() {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Parámetros de asistencia */}
+          <div className="card space-y-5">
+            <h2 className="text-dojo-white font-semibold text-lg border-b border-dojo-border pb-3 flex items-center gap-2">
+              <Timer size={18} className="text-dojo-red" /> Parámetros de Asistencia
+            </h2>
+
+            <div className="space-y-2">
+              <label className="form-label flex items-center gap-2">
+                <Timer size={13} className="text-dojo-muted" /> Tolerancia de Tardanzas
+              </label>
+              <div className="relative max-w-xs">
+                <input
+                  type="number" min={0} max={120} value={lateToleranceMinutes}
+                  onChange={e => setLateToleranceMinutes(Number(e.target.value))}
+                  className="form-input pr-16"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-dojo-muted text-sm">min</span>
+              </div>
+              <p className="text-xs text-dojo-muted">
+                Minutos después del inicio de clase a partir de los cuales una marcación de entrada se registra
+                como tardanza. No bloquea la marcación — solo queda reflejada junto a la asistencia del alumno.
+              </p>
+            </div>
           </div>
 
           {/* Imagen de fondo del login */}

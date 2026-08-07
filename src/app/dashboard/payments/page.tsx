@@ -2,7 +2,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { CreditCard, Search, Bell, CheckCircle, Filter, AlertTriangle, X, Send, Mail, CalendarPlus, FileText, Pencil } from "lucide-react";
-import { formatDate, formatCurrency, PAYMENT_STATUS_LABELS, getPaymentTypeLabel } from "@/lib/utils";
+import { formatDate, PAYMENT_STATUS_LABELS, getPaymentTypeLabel } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
+import { useDojoTimeZone, useDojoCurrency } from "@/lib/hooks/useDojo";
 import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -52,6 +54,7 @@ function ReminderConfirmModal({
   onConfirm: () => void;
   sending: boolean;
 }) {
+  const currency = useDojoCurrency();
   return (
     <div className="space-y-5">
       {/* Warning */}
@@ -71,7 +74,7 @@ function ReminderConfirmModal({
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-dojo-muted">Monto</span>
-          <span className="text-dojo-gold font-bold">{formatCurrency(target.amount)}</span>
+          <span className="text-dojo-gold font-bold">{formatCurrency(target.amount, currency)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-dojo-muted">Vencimiento</span>
@@ -161,6 +164,7 @@ function ReceiptConfirmModal({
   onConfirm: () => void;
   sending:   boolean;
 }) {
+  const currency = useDojoCurrency();
   return (
     <div className="space-y-5">
       <div className="flex items-start gap-3 p-3 bg-blue-900/20 border border-blue-700/50 rounded-lg">
@@ -182,7 +186,7 @@ function ReceiptConfirmModal({
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-dojo-muted">Monto</span>
-          <span className="text-green-400 font-bold">{formatCurrency(target.amount)}</span>
+          <span className="text-green-400 font-bold">{formatCurrency(target.amount, currency)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-dojo-muted">Fecha de pago</span>
@@ -236,8 +240,9 @@ function GenerateModal({
   generating: boolean;
   result:     { created: number; skipped: number } | null;
 }) {
+  const tz        = useDojoTimeZone();
   const now       = new Date();
-  const monthName = now.toLocaleDateString("es-PA", { timeZone: "America/Panama", month: "long", year: "numeric" });
+  const monthName = now.toLocaleDateString("es-PA", { timeZone: tz, month: "long", year: "numeric" });
 
   return (
     <div className="space-y-5">
@@ -290,6 +295,7 @@ export default function PaymentsPage() {
   const { data: session } = useSession();
   const role = (session?.user as { role?: string })?.role ?? "";
   const canEdit = role === "admin" || role === "sysadmin";
+  const currency = useDojoCurrency();
 
   const [payments,     setPayments]     = useState<Payment[]>([]);
   const [loading,      setLoading]      = useState(true);
@@ -439,7 +445,7 @@ export default function PaymentsPage() {
         ].map(s => (
           <div key={s.label} className={`card border ${s.bg}`}>
             <p className="text-xs text-dojo-muted uppercase tracking-wider">{s.label}</p>
-            <p className={`text-2xl font-bold mt-1 ${s.className}`}>{formatCurrency(s.amount)}</p>
+            <p className={`text-2xl font-bold mt-1 ${s.className}`}>{formatCurrency(s.amount, currency)}</p>
           </div>
         ))}
       </div>
@@ -508,7 +514,7 @@ export default function PaymentsPage() {
                 <span className={`${st.className} shrink-0`}>{st.label}</span>
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-xl font-bold text-dojo-gold">{formatCurrency(p.amount)}</p>
+                <p className="text-xl font-bold text-dojo-gold">{formatCurrency(p.amount, currency)}</p>
                 {p.paidDate && (
                   <p className="text-xs text-dojo-muted">Pagado {formatDate(p.paidDate)}</p>
                 )}
@@ -580,7 +586,7 @@ export default function PaymentsPage() {
                   <TableCell className="text-dojo-muted capitalize">
                     {getPaymentTypeLabel(p.type)}
                   </TableCell>
-                  <TableCell className="text-dojo-gold font-bold">{formatCurrency(p.amount)}</TableCell>
+                  <TableCell className="text-dojo-gold font-bold">{formatCurrency(p.amount, currency)}</TableCell>
                   <TableCell className="text-dojo-muted">{formatDate(p.dueDate)}</TableCell>
                   <TableCell className="text-dojo-muted">{p.paidDate ? formatDate(p.paidDate) : "—"}</TableCell>
                   <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>

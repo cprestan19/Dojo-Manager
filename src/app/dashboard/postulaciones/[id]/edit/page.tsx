@@ -2,10 +2,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ChevronLeft, Save, Loader2, ImagePlus, X } from "lucide-react";
+import { useDojoCurrency } from "@/lib/hooks/useDojo";
 
 export default function EditPostulacionPage() {
   const { id }  = useParams<{ id: string }>();
   const router  = useRouter();
+  const currency = useDojoCurrency();
 
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
@@ -147,7 +149,7 @@ export default function EditPostulacionPage() {
             <input type="date" className="form-input" value={deadline} onChange={e => setDeadline(e.target.value)} />
           </div>
           <div>
-            <label className="form-label">Valor a pagar ($)</label>
+            <label className="form-label">Valor a pagar ({currency})</label>
             <input
               type="number" min={0} step={0.01} className="form-input"
               value={amount}

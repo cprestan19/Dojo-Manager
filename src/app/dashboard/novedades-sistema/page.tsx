@@ -6,6 +6,7 @@ import {
   Sparkles, Plus, Trash2, Edit2, X, Check,
   ChevronDown, ChevronUp, Loader2, Eye, Globe, Mail,
 } from "lucide-react";
+import { useDojoTimeZone } from "@/lib/hooks/useDojo";
 
 interface NewsItem {
   text:     string;
@@ -54,10 +55,10 @@ function emptyForm() {
   };
 }
 
-function formatDate(iso: string) {
+function formatDate(iso: string, tz: string) {
   return new Date(iso).toLocaleDateString("es-PA", {
     day: "numeric", month: "short", year: "numeric",
-    timeZone: "America/Panama",
+    timeZone: tz,
   });
 }
 
@@ -65,6 +66,7 @@ export default function NovedadesSistemaPage() {
   const { data: session, status } = useSession();
   const role = (session?.user as { role?: string })?.role;
   const router = useRouter();
+  const tz = useDojoTimeZone();
 
   const [newsList,   setNewsList]   = useState<SystemNews[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -218,7 +220,7 @@ export default function NovedadesSistemaPage() {
                       </span>
                     </div>
                     <p className="text-base font-bold text-dojo-white mt-0.5 leading-snug">{preview.title}</p>
-                    <p className="text-[11px] text-dojo-muted mt-0.5">{formatDate(preview.publishedAt)}</p>
+                    <p className="text-[11px] text-dojo-muted mt-0.5">{formatDate(preview.publishedAt, tz)}</p>
                   </div>
                 </div>
                 <button
@@ -496,7 +498,7 @@ export default function NovedadesSistemaPage() {
                     }`}>
                       {n.audience === "all" ? "Todos" : n.audience === "admins" ? "Admins" : "Estudiantes"}
                     </span>
-                    <span className="text-[10px] text-dojo-muted">{formatDate(n.publishedAt)}</span>
+                    <span className="text-[10px] text-dojo-muted">{formatDate(n.publishedAt, tz)}</span>
                   </div>
                   <p className="text-sm font-semibold text-dojo-white truncate">{n.title}</p>
                   <div className="flex items-center gap-3 mt-0.5">
