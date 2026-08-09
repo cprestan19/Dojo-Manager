@@ -52,7 +52,6 @@ export async function POST(req: NextRequest) {
   const subfolder = purpose === "student-photo"   ? "students"
     : purpose === "belt-video"                    ? "belt-videos"
     : purpose === "dojo-logo"                     ? "logos"
-    : purpose === "login-bg"                      ? "login-backgrounds"
     : purpose === "card-template"                 ? "card-templates"
     : purpose === "event-image"                   ? "events"
     : purpose === "platform-logo"                 ? "platform"
