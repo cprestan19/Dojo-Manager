@@ -29,9 +29,8 @@ export async function GET(req: NextRequest) {
   if (!targetId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const qp = new URL(req.url).searchParams;
-  // ?logo=1 → incluye loginBgImage (base64, solo para Settings).
-  // Por defecto se incluye `logo` (URL corta de Cloudinary, seguro) pero NO loginBgImage.
-  const includeLoginBg = qp.get("logo") === "1";
+  // ?logo=1 → incluye campos extendidos (base64/URLs largos, solo para Settings).
+  const includeExtended = qp.get("logo") === "1";
 
   const dojo = await prisma.dojo.findUnique({
     where: { id: targetId },
@@ -44,15 +43,14 @@ export async function GET(req: NextRequest) {
       autoRemindersEnabled: true, lateToleranceMinutes: true,
       cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true,
       logo:             true,              // siempre — es URL corta de Cloudinary
-      loginBgImage:     includeLoginBg,     // solo cuando Settings lo pide
-      cardTemplateImage: includeLoginBg,    // solo cuando Settings lo pide
-      cardLayout:        includeLoginBg,    // solo cuando card-template editor lo pide
-      cardTemplateImage2: includeLoginBg,
-      cardLayout2:        includeLoginBg,
-      cardTemplateImage3: includeLoginBg,
-      cardLayout3:        includeLoginBg,
+      cardTemplateImage: includeExtended,    // solo cuando Settings lo pide
+      cardLayout:        includeExtended,    // solo cuando card-template editor lo pide
+      cardTemplateImage2: includeExtended,
+      cardLayout2:        includeExtended,
+      cardTemplateImage3: includeExtended,
+      cardLayout3:        includeExtended,
       activeCardSlot:     true,             // siempre incluir el slot activo
-      contractPolicy:   includeLoginBg,     // solo cuando Settings lo pide
+      contractPolicy:   includeExtended,     // solo cuando Settings lo pide
     },
   });
   if (!dojo) return NextResponse.json({ error: "Dojo no encontrado" }, { status: 404 });
@@ -62,7 +60,6 @@ export async function GET(req: NextRequest) {
     {
       ...dojo,
       logo:               dojo.logo               ? (dojo.logo.startsWith("http")               ? dojo.logo               : null) : null,
-      loginBgImage:       dojo.loginBgImage       ? (dojo.loginBgImage.startsWith("http")       ? dojo.loginBgImage       : null) : null,
       cardTemplateImage:  dojo.cardTemplateImage  ? (dojo.cardTemplateImage.startsWith("http")  ? dojo.cardTemplateImage  : null) : null,
       cardTemplateImage2: dojo.cardTemplateImage2 ? (dojo.cardTemplateImage2.startsWith("http") ? dojo.cardTemplateImage2 : null) : null,
       cardTemplateImage3: dojo.cardTemplateImage3 ? (dojo.cardTemplateImage3.startsWith("http") ? dojo.cardTemplateImage3 : null) : null,
@@ -125,12 +122,12 @@ export async function PUT(req: NextRequest) {
   }
 
   // Borrar imágenes antiguas de Cloudinary cuando se reemplazan o eliminan
-  const IMAGE_FIELDS = ["logo", "loginBgImage", "cardTemplateImage", "cardTemplateImage2", "cardTemplateImage3"] as const;
+  const IMAGE_FIELDS = ["logo", "cardTemplateImage", "cardTemplateImage2", "cardTemplateImage3"] as const;
   const hasImageChange = IMAGE_FIELDS.some(f => f in body);
   if (hasImageChange) {
     const current = await prisma.dojo.findUnique({
       where:  { id: targetId },
-      select: { logo: true, loginBgImage: true, cardTemplateImage: true, cardTemplateImage2: true, cardTemplateImage3: true },
+      select: { logo: true, cardTemplateImage: true, cardTemplateImage2: true, cardTemplateImage3: true },
     });
     if (current) {
       const toDelete: string[] = [];
@@ -155,7 +152,6 @@ export async function PUT(req: NextRequest) {
       phone:     body.phone    ?? null,
       slogan:    body.slogan   ?? null,
       logo:         body.logo         ?? null,
-      loginBgImage:      "loginBgImage"      in body ? (body.loginBgImage      ?? null) : undefined,
       cardTemplateImage: "cardTemplateImage" in body ? (body.cardTemplateImage ?? null) : undefined,
       reminderToleranceDays: body.reminderToleranceDays != null ? Number(body.reminderToleranceDays) : undefined,
       lateInterestPct:       body.lateInterestPct       != null ? Number(body.lateInterestPct)       : undefined,
@@ -196,7 +192,7 @@ export async function PUT(req: NextRequest) {
     resourceId:   targetId,
     statusCode:   200,
     details:      JSON.stringify({
-      changed: Object.keys(body).filter(k => k !== "logo" && k !== "loginBgImage"),
+      changed: Object.keys(body).filter(k => k !== "logo"),
     }),
   });
 

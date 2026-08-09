@@ -71,15 +71,17 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
     emoji:       "💳",
     description: "Gestión de pagos mensuales, mensualidades y cobros del dojo.",
     steps: [
-      "Los pagos 'Atrasados' aparecen resaltados en rojo.",
+      "Todo pago nuevo nace como 'Pendiente' — se queda así hasta que lo marques pagado o hasta que se cumplan los días de tolerancia.",
+      "Pasados los días de tolerancia configurados (por defecto 5), el sistema cambia el pago a 'Atrasado' automáticamente todos los días — no requiere ninguna acción del administrador.",
+      "'Generar Mensualidades' es manual: no se crean cobros solos, hay que presionar el botón cada mes. Es seguro repetirlo — a quien ya tiene un cobro registrado ese mes (pagado o no) no se le duplica.",
       "Haz clic en un alumno para ver su historial de pagos completo.",
       "Usa 'Registrar pago' para marcar una mensualidad como cobrada.",
       "El filtro de estado (Pendiente/Atrasado/Pagado) facilita la gestión diaria.",
-      "Los correos de recordatorio se envían automáticamente si está habilitado en Configuración.",
+      "El envío del correo de recordatorio al acudiente sigue siendo manual — usa el botón 'Recordatorio' en la fila del pago.",
     ],
     tips: [
       "Configura la tolerancia de días y el interés por mora en Configuración → General.",
-      "Activa los recordatorios automáticos en Configuración → Correo para ahorrar tiempo.",
+      "Si generas la mensualidad de un alumno tarde (ej. a fin de mes), el vencimiento igual queda el día 1 — puede aparecer 'Atrasado' casi de inmediato si ya pasó la tolerancia.",
     ],
   },
 
@@ -227,16 +229,14 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
     steps: [
       "LOGO: Sube la imagen del logo de tu dojo (PNG, JPG, SVG — máx. 2 MB). Aparece en el sidebar, login y correos. La vista previa se actualiza al instante.",
       "PLANTILLA DEL CARNET: Sube una imagen de fondo para el carnet digital de tus alumnos. El sistema coloca la foto, nombre, QR y cinta encima automáticamente. Tamaño ideal: 638 × 1009 px (formato CR80 vertical). Usa el botón 'Guardar plantilla' después de subir.",
-      "IMAGEN DE LOGIN MOBILE: Sube una foto de fondo para la pantalla de inicio de sesión en teléfonos (< 768 px). En tablets y PC siempre se usa el fondo oscuro estándar. Tamaño ideal: 800 × 1400 px. Usa 'Guardar imagen' para confirmar.",
       "DATOS DEL DOJO: Actualiza nombre, correo FROM para emails, propietario, teléfono y eslogan. El eslogan aparece en la página pública y en el login.",
-      "PAGOS — TOLERANCIA: Define cuántos días de gracia se dan antes de marcar un pago como 'Atrasado'. Por defecto: 5 días.",
+      "PAGOS — TOLERANCIA: Define cuántos días de gracia se dan antes de que el sistema marque un pago como 'Atrasado' automáticamente. Por defecto: 5 días.",
       "PAGOS — INTERÉS POR MORA: Porcentaje de recargo informativo que se menciona en los correos de recordatorio. No se cobra automáticamente.",
       "RECORDATORIOS AUTOMÁTICOS: Activa el toggle para que el sistema envíe recordatorios de pago sin intervención manual. Requiere configuración SMTP en Configuración → Correo.",
       "Al terminar, presiona 'Guardar cambios' — cada sección tiene su propio botón de guardado.",
     ],
     tips: [
       "La plantilla del carnet es opcional. Sin plantilla, el carnet usa fondo blanco limpio.",
-      "La imagen de login solo se ve en móviles (< 768 px). En tablets y PC el fondo siempre es oscuro.",
       "El logo sube a Cloudinary automáticamente — no necesitas otra URL. La vista previa del login en la sección de logo muestra exactamente cómo se verá en la pantalla de inicio de sesión.",
       "El correo FROM del dojo es la dirección que ven los padres al recibir recordatorios y recibos. Configura el servidor SMTP en Configuración → Correo para que los envíos funcionen.",
       "Los cambios en nombre y logo del sidebar se reflejan inmediatamente sin recargar la página.",

@@ -79,7 +79,7 @@ export function AppContextProvider({ children }: { children: ReactNode }) {
   const fetchDojo = useCallback(() => {
     if (!userId) return;
     if (role === "sysadmin" && !isPreview) return;
-    // Sin ?logo=1 — evita fetchar loginBgImage (base64, varios MB) innecesariamente.
+    // Sin ?logo=1 — evita fetchar campos extendidos (base64, varios MB) innecesariamente.
     // El logo de Cloudinary (URL corta) se incluye por defecto en el endpoint.
     fetch("/api/dojo")
       .then(r => r.ok ? r.json() : null)

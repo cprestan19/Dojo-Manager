@@ -18,7 +18,6 @@ function LoginForm() {
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState("");
   const [dojo,     setDojo]     = useState<DojoInfo | null>(null);
-  const [bgImage,  setBgImage]  = useState<string | null>(null);
   const [platformLogo, setPlatformLogo] = useState<string | null>(null);
 
   // Si hay una sesión activa de otro usuario, cerrarla al cargar el login
@@ -31,14 +30,6 @@ function LoginForm() {
     fetch(`/api/public/dojo/${dojoSlug}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setDojo(data); })
-      .catch(() => {});
-  }, [dojoSlug]);
-
-  useEffect(() => {
-    const slugParam = dojoSlug ? `?slug=${dojoSlug}` : "";
-    fetch(`/api/public/login-bg${slugParam}`)
-      .then(r => r.json())
-      .then(d => { if (d.loginBgImage) setBgImage(d.loginBgImage); })
       .catch(() => {});
   }, [dojoSlug]);
 
@@ -70,19 +61,6 @@ function LoginForm() {
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-dojo-darker relative overflow-hidden">
-
-      {/* ── Fondo de imagen: SOLO en mobile (< lg) ────────────────
-           Si bgImage es null (deshabilitado) este bloque no se renderiza.
-           En pantallas lg+ siempre se muestra el fondo estándar.         */}
-      {bgImage && (
-        <>
-          <div
-            className="absolute inset-0 z-0 block md:hidden"
-            style={{ backgroundImage: `url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
-          />
-          <div className="absolute inset-0 bg-black/55 z-0 block md:hidden" />
-        </>
-      )}
 
       {/* ── Fondo decorativo desktop (siempre en lg+) ─────────── */}
       <div className="absolute inset-0 opacity-5 z-0 hidden lg:block">

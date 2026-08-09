@@ -4,7 +4,7 @@
  */
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, ImageIcon, Mail, Loader2, ScrollText, ExternalLink, Timer, DollarSign } from "lucide-react";
+import { Settings, Upload, Save, Eye, Globe, Trash2, Building2, Phone, User, MessageSquare, Bell, Clock, Percent, Mail, Loader2, ScrollText, ExternalLink, Timer, DollarSign } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -47,13 +47,7 @@ export default function SettingsPage() {
   const [timezone,             setTimezone]             = useState(DEFAULT_TIMEZONE);
   const [currency,             setCurrency]             = useState(DEFAULT_CURRENCY);
   const [locale,               setLocale]               = useState("es");
-  const [loginBgImage,    setLoginBgImage]    = useState<string | null>(null);
-  const [bgUploading,     setBgUploading]     = useState(false);
-  const [bgError,         setBgError]         = useState("");
-  const [savingBg,        setSavingBg]        = useState(false);
-  const [bgSaved,         setBgSaved]         = useState(false);
   const fileRef    = useRef<HTMLInputElement>(null);
-  const bgFileRef  = useRef<HTMLInputElement>(null);
 
   // Cargar lista de dojos para sysadmin + pre-seleccionar el dojo del contexto activo
   useEffect(() => {
@@ -96,7 +90,6 @@ export default function SettingsPage() {
           setLateToleranceMinutes(data.lateToleranceMinutes ?? 10);
           setTimezone(data.timezone ?? DEFAULT_TIMEZONE);
           setCurrency(data.currency ?? DEFAULT_CURRENCY);
-          setLoginBgImage(data.loginBgImage ?? null);
           setLocale(data.locale ?? "es");
         }
         setLoading(false);
@@ -150,46 +143,6 @@ export default function SettingsPage() {
       router.refresh();
     }
     setSaving(false);
-  }
-
-  async function handleSaveBg() {
-    setSavingBg(true); setBgSaved(false);
-    const url = role === "sysadmin" && selectedId ? `/api/dojo?id=${selectedId}` : "/api/dojo";
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ loginBgImage }),
-    });
-    if (res.ok) {
-      setBgSaved(true);
-      setTimeout(() => setBgSaved(false), 3000);
-      // Refresh dojo data so login bg reflects new value immediately
-      refreshDojo();
-      router.refresh();
-    }
-    setSavingBg(false);
-  }
-
-  async function handleBgFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert("El archivo supera 5 MB"); return; }
-    setBgError(""); setBgUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file",    file);
-      fd.append("type",    "image");
-      fd.append("purpose", "login-bg");
-      const res  = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (res.ok) setLoginBgImage(data.url);
-      else        setBgError(data.error ?? "Error al subir la imagen");
-    } catch {
-      setBgError("Error de conexión al subir la imagen");
-    } finally {
-      setBgUploading(false);
-      if (bgFileRef.current) bgFileRef.current.value = "";
-    }
   }
 
   if (loading) {
@@ -508,110 +461,6 @@ export default function SettingsPage() {
                 Minutos después del inicio de clase a partir de los cuales una marcación de entrada se registra
                 como tardanza. No bloquea la marcación — solo queda reflejada junto a la asistencia del alumno.
               </p>
-            </div>
-          </div>
-
-          {/* Imagen de fondo del login */}
-          <div className="card space-y-5">
-            <h2 className="text-dojo-white font-semibold text-lg border-b border-dojo-border pb-3 flex items-center gap-2">
-              <ImageIcon size={18} className="text-dojo-red" /> Personalización del Login
-            </h2>
-            <div>
-              <label className="form-label">Imagen de fondo del Login</label>
-              <p className="text-dojo-muted text-xs mb-4">
-                Esta imagen se mostrará como fondo en la pantalla de inicio de sesión en dispositivos móviles.
-              </p>
-              <div className="flex gap-6 items-start">
-                {/* Preview móvil — simula login en teléfono */}
-                <div className="flex flex-col items-center gap-1.5 shrink-0">
-                  <div className="relative w-[116px] h-[206px] bg-[#1a1a1a] rounded-[22px] border-[3px] border-gray-600 shadow-xl overflow-hidden">
-                    {/* Notch superior */}
-                    <div className="absolute top-[6px] inset-x-0 z-20 flex justify-center">
-                      <div className="w-[20px] h-[4px] bg-gray-600 rounded-full" />
-                    </div>
-
-                    {/* Pantalla */}
-                    <div className="absolute inset-[14px_2px_6px_2px] rounded-[10px] overflow-hidden">
-                      {/* Fondo */}
-                      <div
-                        className="absolute inset-0"
-                        style={loginBgImage
-                          ? { backgroundImage: `url(${loginBgImage})`, backgroundSize: "cover", backgroundPosition: "center" }
-                          : { backgroundColor: "#0F0F1A" }
-                        }
-                      />
-                      {loginBgImage && <div className="absolute inset-0 bg-black/55" />}
-                      {!loginBgImage && (
-                        <div
-                          className="absolute inset-0 opacity-5"
-                          style={{ backgroundImage: "repeating-linear-gradient(45deg,#C0392B 0,#C0392B 1px,transparent 0,transparent 50%)", backgroundSize: "16px 16px" }}
-                        />
-                      )}
-
-                      {/* Contenido del login */}
-                      <div className="absolute inset-0 flex flex-col items-center justify-center px-2.5 gap-1.5">
-                        {/* Logo */}
-                        <div className="w-[22px] h-[22px] rounded-md bg-white flex items-center justify-center shadow overflow-hidden border border-dojo-border/60">
-                          {logo
-                            ? <img src={logo} alt="" className="w-full h-full object-contain" />
-                            : <span className="text-dojo-darker text-[8px] font-bold">{name?.[0] ?? "D"}</span>
-                          }
-                        </div>
-                        <p className="text-[5.5px] font-bold text-white tracking-wider text-center leading-tight">
-                          {name?.toUpperCase() || "DOJO MASTER"}
-                        </p>
-
-                        {/* Card formulario */}
-                        <div
-                          className="w-full rounded-[6px] p-1.5 space-y-1"
-                          style={{ background: "rgba(22,33,62,0.93)", border: "1px solid rgba(42,53,80,0.80)" }}
-                        >
-                          <div className="h-[7px] rounded bg-white/10 w-full" />
-                          <div className="h-[7px] rounded bg-white/10 w-full" />
-                          <div className="h-[8px] rounded w-full mt-0.5" style={{ background: "rgba(255,255,255,0.14)" }} />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Barra home */}
-                    <div className="absolute bottom-[2px] inset-x-0 flex justify-center">
-                      <div className="w-[28px] h-[2px] bg-gray-500/70 rounded-full" />
-                    </div>
-                  </div>
-                  <p className="text-[9px] text-dojo-muted">Vista previa móvil</p>
-                </div>
-                <div className="flex-1 space-y-2">
-                  <button
-                    onClick={() => !bgUploading && bgFileRef.current?.click()}
-                    disabled={bgUploading}
-                    className="btn-secondary flex items-center gap-2 w-full justify-center disabled:opacity-60"
-                  >
-                    {bgUploading
-                      ? <><Loader2 size={16} className="animate-spin" /> Subiendo a Cloudinary...</>
-                      : <><Upload size={16} /> Subir imagen (JPG, PNG, WEBP)</>
-                    }
-                  </button>
-                  {bgError && <p className="text-xs text-red-400">{bgError}</p>}
-                  {loginBgImage && !bgUploading && (
-                    <button
-                      onClick={() => setLoginBgImage(null)}
-                      className="btn-ghost text-red-400 hover:text-red-300 flex items-center gap-2 w-full justify-center text-sm"
-                    >
-                      <Trash2 size={14} /> Eliminar imagen
-                    </button>
-                  )}
-                  <input ref={bgFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleBgFileChange} />
-                  <p className="text-xs text-dojo-muted">Recomendado: 800×1400 px · Máximo 5 MB</p>
-                  <button
-                    onClick={handleSaveBg}
-                    disabled={savingBg || bgSaved}
-                    className="btn-primary flex items-center gap-2 w-full justify-center mt-2"
-                  >
-                    <Save size={15} /> {savingBg ? "Guardando..." : bgSaved ? "¡Guardado!" : "Guardar imagen"}
-                  </button>
-                  {bgSaved && <p className="text-green-400 text-xs text-center">¡Imagen guardada!</p>}
-                </div>
-              </div>
             </div>
           </div>
 
