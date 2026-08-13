@@ -8,8 +8,86 @@ import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-contex
 import { CreatePaymentSchema, UpdatePaymentSchema, validationError } from "@/lib/validation";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { withReadOnlyGuard } from "@/lib/billing/readOnlyGuard";
+import {
+  sendWhatsAppTemplate, buildOverdueVars, buildConfirmedVars, resolveGuardianContact,
+} from "@/lib/whatsapp/sendTemplate";
+import { generateAndUploadReceiptPdf } from "@/lib/whatsapp/receiptPdf";
 
 type SessionUser = { role?: string; dojoId?: string | null };
+
+/**
+ * Confirmación de pago por WhatsApp — compartida entre _POST (pago creado ya
+ * como "paid" desde el modal "Agregar Pago" del perfil del alumno, con
+ * status="paid" preseleccionado por defecto) y _PUT (transición real
+ * pending/late → paid). Antes solo vivía en _PUT, así que un pago creado
+ * directamente como pagado nunca disparaba el WhatsApp — nunca fallaba,
+ * simplemente no se llamaba. Síncrono pero nunca bloquea la respuesta al
+ * admin si algo falla.
+ */
+async function notifyPaymentConfirmedWhatsApp(
+  dojoId:  string,
+  payment: { id: string; studentId: string; amount: number; paidDate: Date | null; dueDate: Date },
+  ctx:     ReturnType<typeof buildAuditCtx>,
+) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: payment.studentId, dojoId },
+      select: {
+        id: true, fullName: true, firstName: true, lastName: true, studentCode: true,
+        motherName: true, motherPhone: true, fatherName: true, fatherPhone: true,
+        primaryGuardian: true, whatsappOptIn: true,
+      },
+    });
+    const guardianContact = student ? resolveGuardianContact(student) : { name: null, phone: null };
+    if (!student?.whatsappOptIn || !guardianContact.phone) return;
+
+    const dojo = await prisma.dojo.findUnique({ where: { id: dojoId }, select: { name: true, logo: true } });
+    if (!dojo) return;
+
+    const paidDate  = formatDate(payment.paidDate ?? new Date());
+    const receiptNo = payment.id.slice(-8).toUpperCase();
+    const { bodyParams } = buildConfirmedVars({
+      guardianName: guardianContact.name,
+      dojo,
+      amount: payment.amount,
+      paidDate,
+    });
+
+    // El header del template es un documento PDF obligatorio — si la
+    // generación/subida falla, no se envía el WhatsApp (Meta rechaza
+    // el template sin ese header). Ver sendTemplate.ts.
+    let headerDocument: { link: string; filename: string; publicId: string } | undefined;
+    try {
+      headerDocument = await generateAndUploadReceiptPdf({
+        dojoName:    dojo.name,
+        dojoLogoUrl: dojo.logo,
+        receiptNo,
+        studentName: student.fullName || `${student.firstName} ${student.lastName}`.trim(),
+        studentCode: student.studentCode,
+        concept:     `Mensualidad ${new Date(payment.dueDate).toLocaleDateString("es-PA", { month: "long", year: "numeric" })}`,
+        paidDate,
+        amount:      payment.amount,
+      });
+    } catch (pdfErr) {
+      console.error("Error generando/subiendo recibo PDF para WhatsApp:", pdfErr);
+    }
+
+    if (headerDocument) {
+      const result = await sendWhatsAppTemplate({
+        dojoId, studentId: student.id, paymentId: payment.id,
+        type: "PAYMENT_CONFIRMED", templateName: "confirmacion_pago_dojomaster",
+        headerDocument, bodyParams,
+      });
+      await logAudit({
+        ...ctx, action: "WHATSAPP_PAYMENT_CONFIRMED_SENT", module: AUDIT_MODULE.WHATSAPP,
+        resourceType: "Payment", resourceId: payment.id, targetId: student.id,
+        statusCode: 200, details: JSON.stringify(result),
+      });
+    }
+  } catch (err) {
+    console.error("Error sending WhatsApp payment confirmation:", err);
+  }
+}
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -100,6 +178,13 @@ async function _POST(req: NextRequest) {
     details:      JSON.stringify({ amount: body.amount, type: body.type, status: body.status, studentName: payment.student.fullName }),
   });
 
+  // Igual que en _PUT: si el pago nace ya "paid" (ej. modal "Agregar Pago"
+  // del perfil del alumno, que preselecciona status="paid"), también cuenta
+  // como confirmación de pago para WhatsApp.
+  if (payment.status === "paid") {
+    await notifyPaymentConfirmedWhatsApp(dojoId, payment, ctx);
+  }
+
   return NextResponse.json(payment, { status: 201 });
 }
 
@@ -154,6 +239,11 @@ async function _PUT(req: NextRequest) {
     }),
   });
 
+  // Confirmación de pago por WhatsApp — solo en la transición real a "paid".
+  if (action === "PAYMENT_MARKED_PAID") {
+    await notifyPaymentConfirmedWhatsApp(dojoId, payment, ctx);
+  }
+
   return NextResponse.json(payment);
 }
 
@@ -190,15 +280,17 @@ async function _PATCH(req: NextRequest) {
     include: {
       student: {
         select: {
-          fullName: true, firstName: true, lastName: true,
-          motherName: true, motherEmail: true,
-          fatherName: true, fatherEmail: true,
+          id: true, fullName: true, firstName: true, lastName: true,
+          motherName: true, motherEmail: true, motherPhone: true,
+          fatherName: true, fatherEmail: true, fatherPhone: true,
+          primaryGuardian: true, whatsappOptIn: true,
         },
       },
     },
   });
 
   let sent = 0;
+  let whatsappSent = 0;
   for (const p of latePayments) {
     const studentName = p.student.fullName || `${p.student.firstName} ${p.student.lastName}`.trim();
     const daysLate    = Math.floor((Date.now() - new Date(p.dueDate).getTime()) / 86400000);
@@ -218,6 +310,25 @@ async function _PATCH(req: NextRequest) {
         sent++;
       } catch { /* skip */ }
     }
+
+    // WhatsApp — canal adicional del botón masivo, nunca bloquea el correo.
+    const guardianContact = resolveGuardianContact(p.student);
+    if (p.student.whatsappOptIn && guardianContact.phone && dojoInfo && dojoId) {
+      try {
+        const { headerParams, bodyParams } = buildOverdueVars({
+          guardianName: guardianContact.name,
+          dojo: { name: dojoInfo.name, lateInterestPct: dojoInfo.lateInterestPct, phone: dojoInfo.phone },
+          student: { fullName: studentName },
+          amount: p.amount, daysLate,
+        });
+        const result = await sendWhatsAppTemplate({
+          dojoId, studentId: p.student.id, paymentId: p.id,
+          type: "PAYMENT_OVERDUE", templateName: "aviso_atraso_dojomaster",
+          headerParams, bodyParams,
+        });
+        if (result.sent) whatsappSent++;
+      } catch { /* skip */ }
+    }
   }
 
   // Todos los pagos procesados reciben el mismo cambio — un solo update
@@ -229,7 +340,16 @@ async function _PATCH(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ processed: latePayments.length, emailsSent: sent });
+  if (latePayments.length > 0) {
+    const ctx = buildAuditCtx(session, req, { dojoId });
+    await logAudit({
+      ...ctx, action: "WHATSAPP_OVERDUE_SENT_BULK", module: AUDIT_MODULE.WHATSAPP,
+      resourceType: "Payment", statusCode: 200,
+      details: JSON.stringify({ processed: latePayments.length, whatsappSent }),
+    });
+  }
+
+  return NextResponse.json({ processed: latePayments.length, emailsSent: sent, whatsappSent });
 }
 
 async function _DELETE(req: NextRequest) {

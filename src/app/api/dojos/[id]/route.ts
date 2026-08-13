@@ -6,6 +6,7 @@ import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/queries";
 import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
+import { isOwnMediaUrl } from "@/lib/upload-validation";
 
 type Params = { params: Promise<{ id: string }> };
 type SessionUser = { role?: string; id?: string; email?: string };
@@ -19,6 +20,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (role !== "sysadmin") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
   const body = await req.json();
+
+  // logo/featuredLogo se fetchean server-side después (recibo PDF de WhatsApp,
+  // vitrina de la landing) — deben venir de nuestro propio Cloudinary/ImageKit,
+  // nunca de una URL arbitraria del body. Ver src/lib/upload-validation.ts.
+  for (const field of ["logo", "featuredLogo"] as const) {
+    const value = body[field];
+    if (value != null && value !== "" && !isOwnMediaUrl(String(value))) {
+      return NextResponse.json({ error: `${field} debe ser una URL de Cloudinary o ImageKit` }, { status: 400 });
+    }
+  }
 
   // featuredLogo: imagen de la vitrina "confían en nosotros", independiente del
   // logo real del dojo (Dojo.logo). Si se reemplaza o elimina, borrar el

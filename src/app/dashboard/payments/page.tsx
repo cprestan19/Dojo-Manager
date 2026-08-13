@@ -1,5 +1,6 @@
 ﻿"use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { CreditCard, Search, Bell, CheckCircle, Filter, AlertTriangle, X, Send, Mail, CalendarPlus, FileText, Pencil } from "lucide-react";
 import { formatDate, PAYMENT_STATUS_LABELS, getPaymentTypeLabel } from "@/lib/utils";
@@ -13,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
 interface Payment {
-  id: string; type: string; amount: number;
+  id: string; studentId: string; type: string; amount: number;
   dueDate: string; paidDate: string | null; status: string; note: string | null;
   reminderSent: boolean;
   student: {
@@ -292,6 +293,7 @@ function GenerateModal({
 }
 
 export default function PaymentsPage() {
+  const router = useRouter();
   const { data: session } = useSession();
   const role = (session?.user as { role?: string })?.role ?? "";
   const canEdit = role === "admin" || role === "sysadmin";
@@ -579,7 +581,12 @@ export default function PaymentsPage() {
             {filtered.map(p => {
               const st = PAYMENT_STATUS_LABELS[p.status] ?? { label: p.status, className: "badge-blue", variant: "info" as const };
               return (
-                <TableRow key={p.id}>
+                <TableRow
+                  key={p.id}
+                  onDoubleClick={() => router.push(`/dashboard/students/${p.studentId}`)}
+                  className="cursor-pointer"
+                  title="Doble clic para ver el perfil del alumno"
+                >
                   <TableCell className="font-semibold">
                     {p.student.fullName}
                   </TableCell>
@@ -590,7 +597,7 @@ export default function PaymentsPage() {
                   <TableCell className="text-dojo-muted">{formatDate(p.dueDate)}</TableCell>
                   <TableCell className="text-dojo-muted">{p.paidDate ? formatDate(p.paidDate) : "—"}</TableCell>
                   <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
-                  <TableCell>
+                  <TableCell onDoubleClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-3">
                       {p.status !== "paid" && (
                         <button

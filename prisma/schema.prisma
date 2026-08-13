@@ -100,6 +100,8 @@ model Dojo {
   pushSubscriptions       PushSubscription[]
   pushLogs                PushNotificationLog[]
   pushSettings            PushSettings?
+  whatsAppNotifications   WhatsAppNotification[]
+  whatsAppInboundMessages WhatsAppInboundMessage[]
 
   @@map("dojos")
 }
@@ -271,6 +273,11 @@ model Student {
 
   primaryGuardian String? @map("primary_guardian") // "mother" | "father" — acudiente principal para acceso al portal
 
+  // Consentimiento explícito para notificaciones de WhatsApp (mensualidad atrasada,
+  // confirmación de pago). Se envía solo al acudiente principal (primaryGuardian).
+  whatsappOptIn     Boolean   @default(false) @map("whatsapp_opt_in")
+  whatsappOptInDate DateTime? @map("whatsapp_opt_in_date")
+
   address  String? @db.Text
   familyId String? @map("family_id")
 
@@ -300,6 +307,8 @@ model Student {
   termsAcceptances         TermsAcceptance[]
   pushSubscriptions        PushSubscription[]
   storePurchaseRequests    StorePurchaseRequest[]
+  whatsAppNotifications    WhatsAppNotification[]
+  whatsAppInboundMessages  WhatsAppInboundMessage[]
 
   @@index([dojoId, active])
   @@index([dojoId, lastName, firstName])
@@ -347,7 +356,13 @@ model Payment {
   note         String?
   reminderSent Boolean @default(false)
 
+  // Token público impredecible para /pagar/[token] (página informativa enlazada
+  // desde el botón del template de WhatsApp de atraso) — se genera on-demand.
+  payToken String? @unique @map("pay_token")
+
   createdAt DateTime @default(now())
+
+  whatsAppNotifications WhatsAppNotification[]
 
   @@unique([studentId, type, dueDate])
   @@index([studentId])
@@ -1433,6 +1448,10 @@ model PendingStudent {
   hasSiblingInDojo Boolean @default(false) @map("has_sibling_in_dojo")
   primaryGuardian  String? @map("primary_guardian") // "mother" | "father" — acudiente principal para acceso al portal
 
+  // Consentimiento de WhatsApp capturado en el registro público — se copia
+  // explícitamente a Student al aprobar (ver pending-students/[id]/approve).
+  whatsappOptIn Boolean @default(false) @map("whatsapp_opt_in")
+
   // ── Control de aprobación ───────────────────────────────────
   status        String    @default("pending") // pending | approved | rejected
   reviewedBy    String?   @map("reviewed_by")
@@ -1839,4 +1858,82 @@ model SystemNews {
   @@index([publishedAt])
   @@index([status, publishedAt])
   @@map("system_news")
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// WHATSAPP — Notificaciones vía Meta Cloud API (Business Platform)
+// ════════════════════════════════════════════════════════════════════════════
+
+enum WhatsAppNotificationType {
+  INVOICE // reservado — factura mensual con PDF adjunto, fase futura
+  PAYMENT_OVERDUE
+  PAYMENT_CONFIRMED
+  TOURNAMENT_QR // reservado — acreditación de torneo, fase futura
+}
+
+enum WhatsAppNotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model WhatsAppNotification {
+  id     String @id @default(cuid())
+  dojoId String @map("dojo_id")
+  dojo   Dojo   @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+
+  studentId String?  @map("student_id")
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  paymentId String?  @map("payment_id")
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  // Reservado para TOURNAMENT_QR (fase futura) — sin FK todavía, se agrega
+  // cuando se implemente esa etapa para no acoplar este modelo de antemano.
+  tournamentRegistrationId String? @map("tournament_registration_id")
+
+  recipientPhone String                    @map("recipient_phone") // E.164
+  type           WhatsAppNotificationType
+  templateName   String                    @map("template_name")
+  templateVars   Json                      @map("template_vars")
+  status         WhatsAppNotificationStatus @default(PENDING)
+  metaMessageId  String?                   @unique @map("meta_message_id")
+  errorDetail    String?                   @map("error_detail") @db.Text
+
+  // fileId del recibo PDF subido a ImageKit (folder "receipts") como header
+  // de confirmacion_pago_dojomaster. Se limpia (ImageKit + este campo a null)
+  // por /api/cron/whatsapp-receipt-cleanup pasados los días de retención.
+  receiptPublicId String? @map("receipt_public_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Idempotencia real: un solo aviso de atraso y una sola confirmación por pago.
+  @@unique([paymentId, type])
+  @@index([dojoId])
+  @@map("whatsapp_notifications")
+}
+
+model WhatsAppInboundMessage {
+  id            String @id @default(cuid())
+  fromPhone     String @map("from_phone")
+  metaMessageId String @unique @map("meta_message_id")
+  type          String
+  text          String? @db.Text
+  receivedAt    DateTime @map("received_at")
+
+  // Match best-effort por teléfono contra motherPhone/fatherPhone — null si no
+  // hubo match único (0 o varios alumnos con ese teléfono, posible entre dojos).
+  studentId String?  @map("student_id")
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  dojoId    String?  @map("dojo_id")
+  dojo      Dojo?    @relation(fields: [dojoId], references: [id], onDelete: SetNull)
+
+  handled   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([dojoId, handled])
+  @@map("whatsapp_inbound_messages")
 }

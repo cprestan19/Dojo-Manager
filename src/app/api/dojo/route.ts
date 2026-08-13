@@ -11,6 +11,7 @@ import { CACHE_TAGS } from "@/lib/queries";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { deleteResource, extractCloudinaryPublicId } from "@/lib/cloudinary";
+import { isOwnMediaUrl } from "@/lib/upload-validation";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -121,8 +122,20 @@ export async function PUT(req: NextRequest) {
     catch { return NextResponse.json({ error: "currency no es un código ISO 4217 válido" }, { status: 400 }); }
   }
 
-  // Borrar imágenes antiguas de Cloudinary cuando se reemplazan o eliminan
+  // Los campos de imagen se fetchean server-side después (logo del dojo en el
+  // recibo PDF de WhatsApp, template de carnet, etc.) — deben venir siempre
+  // de nuestro propio Cloudinary/ImageKit, nunca de una URL arbitraria del
+  // body, o un admin de dojo podría convertir el campo en un vector de SSRF
+  // hacia hosts internos. Ver src/lib/upload-validation.ts.
   const IMAGE_FIELDS = ["logo", "cardTemplateImage", "cardTemplateImage2", "cardTemplateImage3"] as const;
+  for (const field of IMAGE_FIELDS) {
+    const value = body[field];
+    if (value != null && value !== "" && !isOwnMediaUrl(String(value))) {
+      return NextResponse.json({ error: `${field} debe ser una URL de Cloudinary o ImageKit` }, { status: 400 });
+    }
+  }
+
+  // Borrar imágenes antiguas de Cloudinary cuando se reemplazan o eliminan
   const hasImageChange = IMAGE_FIELDS.some(f => f in body);
   if (hasImageChange) {
     const current = await prisma.dojo.findUnique({

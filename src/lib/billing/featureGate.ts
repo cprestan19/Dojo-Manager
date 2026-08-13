@@ -1,13 +1,13 @@
 import prisma from "@/lib/prisma";
-import { ALL_DOJO_KEYS, NAV_KEYS, type NavKey } from "@/lib/permissions";
+import { NAV_KEYS, PLAN_FEATURE_KEYS, type NavKey } from "@/lib/permissions";
 import { SubscriptionStatus } from "@prisma/client";
 
-// ALL_DOJO_KEYS es la lista de ítems de navegación del dashboard (rol) — no
-// incluye PORTAL_ACCESS porque no es un ítem de nav. Para los casos de "acceso
-// total" (COMPLIMENTARY, planes legado, sin suscripción) sí debe incluir
-// también el acceso al portal, para no romper el portal de alumnos de dojos
-// que nunca tuvieron esta restricción.
-const ALL_FEATURE_KEYS: NavKey[] = [...ALL_DOJO_KEYS, NAV_KEYS.PORTAL_ACCESS, NAV_KEYS.PORTAL_CARD_ACCESS];
+// PLAN_FEATURE_KEYS incluye los ítems de navegación del dashboard más los
+// feature-keys que no son nav (portal, carnet digital, WhatsApp). Para los
+// casos de "acceso total" (COMPLIMENTARY, planes legado, sin suscripción) se
+// usa tal cual — no debe romper el acceso de dojos que nunca tuvieron esta
+// restricción.
+const ALL_FEATURE_KEYS: NavKey[] = PLAN_FEATURE_KEYS;
 
 /**
  * Funciones efectivamente incluidas en el plan de un dojo.

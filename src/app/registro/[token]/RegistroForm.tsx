@@ -2,7 +2,9 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Camera, ShieldCheck, Clock, Users } from "lucide-react";
 import PhotoCropper from "@/components/ui/PhotoCropper";
+import PhoneInputField from "@/components/ui/PhoneInputField";
 import { NATIONALITIES } from "@/lib/utils";
+import { timezoneToCountry } from "@/lib/timezone";
 
 const BLOOD_TYPES         = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"] as const;
 const INSURANCE_COMPANIES = ["MAPFRE","PALIG","SURA","FEDPA","ANCON","ACERTA","IS","ASSA SEGUROS","ALIADO SEGUROS","BLUE CROSS"] as const;
@@ -44,6 +46,7 @@ type FormData = {
   address: string; photo: string;
   hasSiblingInDojo: boolean;
   primaryGuardian: "" | "mother" | "father";
+  whatsappOptIn: boolean;
   honeypot: string;
 };
 
@@ -59,6 +62,7 @@ const INIT: FormData = {
   address: "", photo: "",
   hasSiblingInDojo: false,
   primaryGuardian: "",
+  whatsappOptIn: false,
   honeypot: "",
 };
 
@@ -107,6 +111,7 @@ function formatExpiry(iso: string, tz: string): string {
 }
 
 export default function RegistroForm({ token, dojoName, dojoLogo, dojoTimezone, expiresAt, reset, termsContent, termsVersion, alreadySubmitted }: Props) {
+  const defaultPhoneCountry = timezoneToCountry(dojoTimezone);
   const [step,     setStep]     = useState<Step>(alreadySubmitted ? "already-submitted" : "splash");
   const [form,     setForm]     = useState<FormData>(INIT);
   const [errors,   setErrors]   = useState<FieldErrors>({});
@@ -662,8 +667,11 @@ export default function RegistroForm({ token, dojoName, dojoLogo, dojoTimezone, 
                 maxLength={200} />
             </Field>
             <Field label="Teléfono">
-              <input className="form-input" type="tel" value={form.motherPhone}
-                onChange={e => set("motherPhone", e.target.value)} maxLength={30} />
+              <PhoneInputField
+                value={form.motherPhone}
+                onChange={v => set("motherPhone", v)}
+                defaultCountry={defaultPhoneCountry}
+              />
             </Field>
           </div>
           <Field label="Email" error={errors.motherEmail}>
@@ -695,8 +703,11 @@ export default function RegistroForm({ token, dojoName, dojoLogo, dojoTimezone, 
                 maxLength={200} />
             </Field>
             <Field label="Teléfono">
-              <input className="form-input" type="tel" value={form.fatherPhone}
-                onChange={e => set("fatherPhone", e.target.value)} maxLength={30} />
+              <PhoneInputField
+                value={form.fatherPhone}
+                onChange={v => set("fatherPhone", v)}
+                defaultCountry={defaultPhoneCountry}
+              />
             </Field>
           </div>
           <Field label="Email" error={errors.fatherEmail}>
@@ -709,6 +720,14 @@ export default function RegistroForm({ token, dojoName, dojoLogo, dojoTimezone, 
             onChange={e => set("address", e.target.value)} maxLength={500}
             placeholder="Calle, ciudad, provincia..." />
         </Field>
+        <div className="flex items-center gap-3 p-3 bg-dojo-dark rounded-lg border border-dojo-border">
+          <input type="checkbox" id="whatsappOptIn" checked={form.whatsappOptIn}
+            onChange={e => set("whatsappOptIn", e.target.checked)}
+            className="w-4 h-4 accent-dojo-red" />
+          <label htmlFor="whatsappOptIn" className="text-sm text-dojo-white font-medium cursor-pointer">
+            Autorizo notificaciones de pago por WhatsApp (mensualidad atrasada, confirmación de pago)
+          </label>
+        </div>
       </Section>
 
       <div className="flex gap-3">

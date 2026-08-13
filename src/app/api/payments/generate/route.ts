@@ -27,6 +27,21 @@ export async function POST(req: NextRequest) {
   const monthEnd   = new Date(year, month + 1, 0, 23, 59, 59);
   const midMonth   = new Date(year, month, 15);  // 15th for biweekly second payment
 
+  // Si el vencimiento calculado ya superó la tolerancia del dojo al momento
+  // de generar (ej. generar hoy la mensualidad de un mes que ya venció hace
+  // más de "reminderToleranceDays" días), el pago nace directo en "late" en
+  // vez de "pending" — antes se creaba siempre "pending" y quedaba así hasta
+  // la próxima corrida del cron de las 6am o el botón masivo, mostrando un
+  // estado incorrecto mientras tanto. Mismo cálculo de tolerancia que ya usan
+  // cron/payment-late-status y el botón masivo (PATCH /api/payments).
+  const dojoForTolerance = await prisma.dojo.findUnique({
+    where:  { id: dojoId },
+    select: { reminderToleranceDays: true },
+  });
+  const toleranceCutoff = new Date();
+  toleranceCutoff.setDate(toleranceCutoff.getDate() - (dojoForTolerance?.reminderToleranceDays ?? 5));
+  const statusFor = (dueDate: Date): "pending" | "late" => (dueDate <= toleranceCutoff ? "late" : "pending");
+
   // Single query — fetch all active students with their inscription period + amounts
   const students = await prisma.student.findMany({
     where:  { dojoId, active: true },
@@ -71,7 +86,7 @@ export async function POST(req: NextRequest) {
       type:      "monthly",
       amount:    Math.max(0, s.inscription!.monthlyAmount + s.inscription!.discountAmount),
       dueDate:   monthStart,
-      status:    "pending" as const,
+      status:    statusFor(monthStart),
     }));
 
   // ── BIWEEKLY (new — generates TWO payments per month: 1st and 15th) ────────
@@ -111,14 +126,14 @@ export async function POST(req: NextRequest) {
       if (!existingSet.has(`${s.id}:1`)) {
         toCreateBiweekly.push({
           studentId: s.id, type: "biweekly",
-          amount, dueDate: monthStart, status: "pending",
+          amount, dueDate: monthStart, status: statusFor(monthStart),
         });
       }
       // 15th of month payment
       if (!existingSet.has(`${s.id}:15`)) {
         toCreateBiweekly.push({
           studentId: s.id, type: "biweekly",
-          amount, dueDate: midMonth, status: "pending",
+          amount, dueDate: midMonth, status: statusFor(midMonth),
         });
       }
     }

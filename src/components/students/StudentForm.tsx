@@ -9,8 +9,10 @@ import {
 } from "lucide-react";
 import { cn, calculateAge, BELT_COLORS, GENDERS, NATIONALITIES } from "@/lib/utils";
 import { formatCurrency, getCurrencySymbol, currencyInputPadding } from "@/lib/currency";
-import { useDojoCurrency } from "@/lib/hooks/useDojo";
+import { useDojoCurrency, useDojoTimeZone } from "@/lib/hooks/useDojo";
+import { timezoneToCountry } from "@/lib/timezone";
 import PhotoCropper from "@/components/ui/PhotoCropper";
+import PhoneInputField from "@/components/ui/PhoneInputField";
 
 interface InscriptionData {
   inscriptionDate:  string;
@@ -43,6 +45,7 @@ interface FormData {
   fatherPhone: string;
   fatherEmail: string;
   primaryGuardian: string;
+  whatsappOptIn: boolean;
   address: string;
   inscription: InscriptionData;
 }
@@ -81,6 +84,7 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
   const router = useRouter();
   const currency = useDojoCurrency();
   const currencySymbol = getCurrencySymbol(currency);
+  const defaultPhoneCountry = timezoneToCountry(useDojoTimeZone());
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     defaultValues: {
       fullName:   defaultValues?.fullName   ?? "",
@@ -104,6 +108,7 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
       fatherPhone: defaultValues?.fatherPhone ?? "",
       fatherEmail: defaultValues?.fatherEmail ?? "",
       primaryGuardian: defaultValues?.primaryGuardian ?? "",
+      whatsappOptIn: defaultValues?.whatsappOptIn ?? false,
       address: defaultValues?.address ?? "",
       inscription: {
         inscriptionDate:  defaultValues?.inscription?.inscriptionDate
@@ -574,7 +579,11 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
               </div>
               <div>
                 <label className="form-label">Celular</label>
-                <input {...register("motherPhone")} className="form-input" placeholder="+507 6000-0000" />
+                <PhoneInputField
+                  value={watch("motherPhone")}
+                  onChange={v => setValue("motherPhone", v)}
+                  defaultCountry={defaultPhoneCountry}
+                />
               </div>
               <div>
                 <label className="form-label">Correo electrónico</label>
@@ -595,7 +604,11 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
               </div>
               <div>
                 <label className="form-label">Celular</label>
-                <input {...register("fatherPhone")} className="form-input" placeholder="+507 6000-0000" />
+                <PhoneInputField
+                  value={watch("fatherPhone")}
+                  onChange={v => setValue("fatherPhone", v)}
+                  defaultCountry={defaultPhoneCountry}
+                />
               </div>
               <div>
                 <label className="form-label">Correo electrónico</label>
@@ -625,6 +638,22 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
             </div>
             <p className="text-xs text-dojo-muted mt-1">El correo del acudiente principal se usa para el acceso al portal del alumno.</p>
           </div>
+
+          {/* Consentimiento WhatsApp */}
+          <div className="flex items-center gap-3 p-3 bg-dojo-dark rounded-lg border border-dojo-border">
+            <input
+              type="checkbox"
+              id="whatsappOptIn"
+              {...register("whatsappOptIn")}
+              className="w-4 h-4 accent-dojo-red"
+            />
+            <label htmlFor="whatsappOptIn" className="text-sm text-dojo-white font-medium cursor-pointer">
+              Autoriza notificaciones de pago por WhatsApp
+            </label>
+          </div>
+          <p className="text-xs text-dojo-muted -mt-3">
+            Se envían solo al celular del acudiente principal (mensualidad atrasada, confirmación de pago).
+          </p>
 
           {/* Dirección */}
           <div>
@@ -669,7 +698,7 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
                   className={cn(
                     "flex items-start gap-3 flex-1 p-3 rounded-lg border cursor-pointer transition-colors",
                     paymentPeriod === opt.value
-                      ? "border-dojo-red bg-dojo-red/10"
+                      ? "border-green-600 bg-green-900/20"
                       : "border-dojo-border bg-dojo-dark hover:border-dojo-border/80",
                   )}
                 >
@@ -677,7 +706,7 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
                     type="radio"
                     value={opt.value}
                     {...register("inscription.paymentPeriod")}
-                    className="mt-0.5 accent-dojo-red"
+                    className="mt-0.5 accent-green-600"
                   />
                   <div>
                     <p className="text-sm font-semibold text-dojo-white">{opt.label}</p>

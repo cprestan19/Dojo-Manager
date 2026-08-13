@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   Building2, Plus, Users, GraduationCap, Globe, CheckCircle, XCircle,
   Copy, KeyRound, LogIn, Lock, Eye, EyeOff, Crown, Trash2, AlertTriangle,
-  Crown as CrownIcon, Star, RefreshCw, Loader2, Upload, ImageIcon,
+  Crown as CrownIcon, Star, RefreshCw, Loader2, Upload, ImageIcon, FileText,
 } from "lucide-react";
 // "Eye" ya importado arriba se reutiliza como ícono de Vista Previa (además del toggle de password)
 import { Modal } from "@/components/ui/Modal";
@@ -29,6 +29,7 @@ interface Dojo {
   } | null;
   lastActiveAt: string | null;
   _count: { users: number; students: number };
+  whatsappStats: { overdueSent: number; overdueRead: number; receiptSent: number; receiptRead: number };
 }
 
 interface PlanOption { id: string; name: string; maxStudents: number | null }
@@ -316,6 +317,7 @@ export default function DojosPage() {
                 <th className="text-left px-4 py-3 hidden lg:table-cell">Última entrada</th>
                 <th className="text-center px-4 py-3 hidden xl:table-cell">Pro</th>
                 <th className="text-center px-4 py-3 hidden xl:table-cell" title="Aparece en la barra de logos de la página principal">Destacado</th>
+                <th className="text-left px-4 py-3 hidden xl:table-cell">WhatsApp</th>
                 <th className="text-left px-4 py-3 hidden xl:table-cell">Creado</th>
                 <th className="text-right px-4 py-3">Acciones</th>
               </tr>
@@ -505,6 +507,24 @@ export default function DojosPage() {
                       >
                         <Star size={10} /> {dojo.featured && dojo.featuredLogo ? "SÍ" : dojo.featured ? "Sin logo" : "—"}
                       </button>
+                    </td>
+
+                    {/* WhatsApp — enviados/vistos, separado entre aviso de atraso y recibo */}
+                    <td className="px-4 py-3 hidden xl:table-cell">
+                      <div className="flex flex-col gap-1 text-xs whitespace-nowrap">
+                        <div className="flex items-center gap-1" title="Avisos de atraso: enviados / vistos">
+                          <AlertTriangle size={11} className="text-yellow-400 shrink-0" />
+                          <span className="text-dojo-white">{dojo.whatsappStats.overdueSent}</span>
+                          <Eye size={10} className="text-dojo-muted shrink-0 ml-1" />
+                          <span className="text-dojo-muted">{dojo.whatsappStats.overdueRead}</span>
+                        </div>
+                        <div className="flex items-center gap-1" title="Recibos de pago: enviados / vistos">
+                          <FileText size={11} className="text-green-400 shrink-0" />
+                          <span className="text-dojo-white">{dojo.whatsappStats.receiptSent}</span>
+                          <Eye size={10} className="text-dojo-muted shrink-0 ml-1" />
+                          <span className="text-dojo-muted">{dojo.whatsappStats.receiptRead}</span>
+                        </div>
+                      </div>
                     </td>
 
                     {/* Fecha creación */}

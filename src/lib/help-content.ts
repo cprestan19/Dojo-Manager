@@ -325,7 +325,7 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
   },
 
   "/dashboard/audit-log": {
-    title:       "Log de Auditoría",
+    title:       "Audit Log",
     emoji:       "📜",
     description: "Registro cronológico de acciones importantes realizadas en el sistema.",
     steps: [

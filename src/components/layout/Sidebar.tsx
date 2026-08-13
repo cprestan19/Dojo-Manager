@@ -114,7 +114,7 @@ const SYSTEM_DEFS: { href: string; icon: React.ElementType; label: string }[] = 
   { href: "/dashboard/superadmin/branding",   icon: ImageIcon,  label: "Logo de la Plataforma"  },
   { href: "/dashboard/novedades-sistema",     icon: Sparkles,   label: "Novedades"              },
   { href: "/dashboard/visitors",              icon: Globe,      label: "Visitantes"             },
-  { href: "/dashboard/superadmin/audit-logs", icon: Shield,     label: "Auditoría"              },
+  { href: "/dashboard/superadmin/audit-logs", icon: Shield,     label: "Audit Log"              },
   { href: "/dashboard/superadmin/billing",    icon: Receipt,    label: "Pagos SaaS"             },
   { href: "/dashboard/superadmin/plans",      icon: LayoutList, label: "Planes"                 },
   { href: "/dashboard/billing",               icon: Receipt,    label: "Facturación"            },

@@ -41,6 +41,7 @@ export default async function EditStudentPage({ params }: { params: Promise<{ id
     fatherPhone:     student.fatherPhone     ?? "",
     fatherEmail:     student.fatherEmail     ?? "",
     primaryGuardian: student.primaryGuardian ?? "",
+    whatsappOptIn:   student.whatsappOptIn,
     address:         student.address         ?? "",
     inscription: student.inscription ? {
       inscriptionDate:   student.inscription.inscriptionDate.toISOString(),

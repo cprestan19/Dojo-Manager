@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
 import { getOrCreateDefaultPlan, createFreeMonthSubscription } from "@/lib/billing/subscription";
 import { notifyAdmin, buildDojoCreatedEmail } from "@/lib/admin-notifications";
+import { isOwnMediaUrl } from "@/lib/upload-validation";
 
 type SessionUser = { role?: string; id?: string; email?: string };
 
@@ -17,7 +18,7 @@ export async function GET() {
   const { role } = session.user as SessionUser;
   if (role !== "sysadmin") return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
-  const [dojos, activity] = await Promise.all([
+  const [dojos, activity, waStats] = await Promise.all([
     prisma.dojo.findMany({
       select: {
         id: true, name: true, slug: true, email: true, phone: true, timezone: true,
@@ -49,12 +50,39 @@ export async function GET() {
       where:  { dojoId: { not: null } },
       _max:   { lastActiveAt: true },
     }),
+    // Mensajes de WhatsApp enviados/vistos por dojo, agrupado por tipo+status
+    // en una sola query — se reduce a { overdueSent, overdueRead, receiptSent,
+    // receiptRead } por dojo abajo, en vez de N+1 por fila de la tabla.
+    prisma.whatsAppNotification.groupBy({
+      by:    ["dojoId", "type", "status"],
+      _count: { _all: true },
+    }),
   ]);
 
   const lastActiveByDojo = new Map(activity.map(a => [a.dojoId, a._max.lastActiveAt]));
 
+  const emptyWaStats = { overdueSent: 0, overdueRead: 0, receiptSent: 0, receiptRead: 0 };
+  const waStatsByDojo = new Map<string, typeof emptyWaStats>();
+  for (const row of waStats) {
+    const entry = waStatsByDojo.get(row.dojoId) ?? { ...emptyWaStats };
+    const sentLike = row.status === "SENT" || row.status === "DELIVERED" || row.status === "READ";
+    const readLike = row.status === "READ";
+    if (row.type === "PAYMENT_OVERDUE") {
+      if (sentLike) entry.overdueSent += row._count._all;
+      if (readLike) entry.overdueRead += row._count._all;
+    } else if (row.type === "PAYMENT_CONFIRMED") {
+      if (sentLike) entry.receiptSent += row._count._all;
+      if (readLike) entry.receiptRead += row._count._all;
+    }
+    waStatsByDojo.set(row.dojoId, entry);
+  }
+
   return NextResponse.json(
-    dojos.map(d => ({ ...d, lastActiveAt: lastActiveByDojo.get(d.id) ?? null })),
+    dojos.map(d => ({
+      ...d,
+      lastActiveAt:  lastActiveByDojo.get(d.id) ?? null,
+      whatsappStats: waStatsByDojo.get(d.id) ?? emptyWaStats,
+    })),
   );
 }
 
@@ -71,6 +99,13 @@ export async function POST(req: NextRequest) {
 
   if (!adminPassword || adminPassword.length < 8)
     return NextResponse.json({ error: "La contraseña del admin debe tener al menos 8 caracteres." }, { status: 400 });
+
+  // logo se fetchea server-side después (recibo PDF de WhatsApp) — debe venir
+  // de nuestro propio Cloudinary/ImageKit, nunca de una URL arbitraria. Ver
+  // src/lib/upload-validation.ts.
+  if (body.logo != null && body.logo !== "" && !isOwnMediaUrl(String(body.logo))) {
+    return NextResponse.json({ error: "logo debe ser una URL de Cloudinary o ImageKit" }, { status: 400 });
+  }
 
   const existing = await prisma.dojo.findUnique({ where: { slug } });
   if (existing) return NextResponse.json({ error: "El slug ya existe" }, { status: 409 });

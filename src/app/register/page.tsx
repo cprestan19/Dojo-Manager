@@ -5,6 +5,7 @@ import {
   ArrowRight, Check, MessageCircle, Users, CreditCard,
   QrCode, Globe, Trophy, Video, ChevronRight, X,
 } from "lucide-react";
+import PhoneInputField from "@/components/ui/PhoneInputField";
 
 const PRIMARY = "#C0392B";
 const WA_SUPPORT = "https://wa.me/50766261768";
@@ -14,6 +15,17 @@ const COUNTRIES = [
   "República Dominicana","El Salvador","Bolivia","Guatemala",
   "Honduras","Nicaragua","Ecuador","Perú","Chile","Argentina","España","Otro",
 ];
+
+// ISO 3166-1 alpha-2 por país del selector — solo para precargar la
+// bandera/prefijo por defecto de PhoneInputField, igual que timezoneToCountry()
+// en src/lib/timezone.ts (mismo criterio, distinta llave: acá es el nombre del
+// país en español que ya elige el usuario, no una zona horaria de dojo).
+const COUNTRY_TO_ISO: Record<string, string> = {
+  "Panamá": "PA", "Costa Rica": "CR", "México": "MX", "Colombia": "CO",
+  "Venezuela": "VE", "República Dominicana": "DO", "El Salvador": "SV",
+  "Bolivia": "BO", "Guatemala": "GT", "Honduras": "HN", "Nicaragua": "NI",
+  "Ecuador": "EC", "Perú": "PE", "Chile": "CL", "Argentina": "AR", "España": "ES",
+};
 
 /* ── Guía WhatsApp pre-escrita ─────────────────────────────── */
 function buildWaGuide(senseiName: string, dojoName: string): string {
@@ -76,6 +88,10 @@ export default function RegisterPage() {
     }
     if (!form.yearsTeaching) {
       setError("Indica cuántos años llevas enseñando karate.");
+      return;
+    }
+    if (!/^\+[1-9]\d{1,14}$/.test(form.phone)) {
+      setError("Ingresa un número de WhatsApp válido, con código de país.");
       return;
     }
     setLoading(true); setError("");
@@ -239,12 +255,11 @@ export default function RegisterPage() {
 
                   <div>
                     <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-1.5">WhatsApp *</label>
-                    <input
-                      type="tel" value={form.phone} onChange={e => set("phone", e.target.value)}
-                      className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 border border-white/10 focus:outline-none focus:border-white/30 transition-colors"
-                      style={{ background: "#0D1117" }}
-                      placeholder="+507 6000-0000"
-                      required
+                    <PhoneInputField
+                      value={form.phone}
+                      onChange={v => set("phone", v)}
+                      defaultCountry={COUNTRY_TO_ISO[form.country] ?? "PA"}
+                      className="dojo-phone-input-dark"
                     />
                     <p className="text-xs text-white/30 mt-1">Te enviaremos la guía de configuración aquí</p>
                   </div>

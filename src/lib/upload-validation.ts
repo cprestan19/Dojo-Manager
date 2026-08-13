@@ -45,3 +45,31 @@ export function isOwnCloudinaryUrl(url: string): boolean {
     return false;
   }
 }
+
+/** Igual que isOwnCloudinaryUrl() pero para ImageKit (uploads nuevos, ver src/lib/imagekit.ts). */
+export function isOwnImageKitUrl(url: string): boolean {
+  const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT;
+  if (!urlEndpoint) return false;
+  try {
+    const parsed   = new URL(url);
+    const endpoint = new URL(urlEndpoint);
+    const basePath = endpoint.pathname === "/" ? "/" : `${endpoint.pathname}/`;
+    return parsed.protocol === "https:" &&
+      parsed.hostname === endpoint.hostname &&
+      parsed.pathname.startsWith(basePath);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Cloudinary (legado) o ImageKit (nuevo) — los únicos dos proveedores de
+ * medios propios de la app. Usar SIEMPRE que se acepte una URL de imagen con
+ * origen del cliente (en vez del resultado directo de /api/upload o del SDK
+ * de ImageKit) y que el servidor luego vaya a hacer fetch() sobre ella —
+ * evita que un campo tipo "logo" se use como vector de SSRF hacia hosts
+ * internos o el metadata service de la nube.
+ */
+export function isOwnMediaUrl(url: string): boolean {
+  return isOwnCloudinaryUrl(url) || isOwnImageKitUrl(url);
+}

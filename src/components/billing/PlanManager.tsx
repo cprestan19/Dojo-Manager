@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Edit2, PowerOff, Loader2, X, Check } from "lucide-react";
+import { PLAN_FEATURE_KEYS, NAV_KEY_LABELS, type NavKey } from "@/lib/permissions";
 
 interface Plan {
   id:           string;
@@ -10,6 +11,7 @@ interface Plan {
   annualPrice:  number;
   maxStudents:  number | null;
   features:     string;
+  featureKeys:  string | null;
   isActive:     boolean;
 }
 
@@ -20,17 +22,23 @@ interface FormState {
   annualPrice:  string;
   maxStudents:  string;
   features:     string;
+  unrestricted: boolean;    // true = featureKeys null → todas las funciones (comportamiento legado)
+  featureKeys:  Set<NavKey>;
   isActive:     boolean;
 }
 
 const EMPTY_FORM: FormState = {
   name: "", description: "", monthlyPrice: "", annualPrice: "",
-  maxStudents: "", features: "", isActive: true,
+  maxStudents: "", features: "", unrestricted: true, featureKeys: new Set(), isActive: true,
 };
 
 function planToForm(p: Plan): FormState {
   let features: string[] = [];
   try { features = JSON.parse(p.features) as string[]; } catch { /* ignore */ }
+  let featureKeys: NavKey[] = [];
+  if (p.featureKeys) {
+    try { featureKeys = JSON.parse(p.featureKeys) as NavKey[]; } catch { /* ignore */ }
+  }
   return {
     name:         p.name,
     description:  p.description ?? "",
@@ -38,6 +46,8 @@ function planToForm(p: Plan): FormState {
     annualPrice:  String(p.annualPrice),
     maxStudents:  p.maxStudents != null ? String(p.maxStudents) : "",
     features:     features.join("\n"),
+    unrestricted: p.featureKeys == null,
+    featureKeys:  new Set(featureKeys),
     isActive:     p.isActive,
   };
 }
@@ -118,6 +128,7 @@ export function PlanManager() {
       annualPrice:  parseFloat(form.annualPrice),
       maxStudents:  form.maxStudents.trim() ? parseInt(form.maxStudents, 10) : null,
       features:     featuresArr,
+      featureKeys:  form.unrestricted ? null : Array.from(form.featureKeys),
       isActive:     form.isActive,
     };
 
@@ -341,6 +352,43 @@ export function PlanManager() {
                   rows={5}
                   placeholder={"Alumnos ilimitados\nPortal de padres\nAsistencia QR\nReportes"}
                 />
+              </div>
+
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <input
+                    id="unrestricted"
+                    type="checkbox"
+                    checked={form.unrestricted}
+                    onChange={e => setForm(f => ({ ...f, unrestricted: e.target.checked }))}
+                    className="w-4 h-4 accent-dojo-red"
+                  />
+                  <label htmlFor="unrestricted" className="form-label mb-0 cursor-pointer">
+                    Sin restricción (todas las funciones — comportamiento legado)
+                  </label>
+                </div>
+                {!form.unrestricted && (
+                  <>
+                    <label className="form-label">Funciones incluidas en este plan</label>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 p-3 bg-dojo-dark rounded-lg border border-dojo-border max-h-56 overflow-y-auto">
+                      {PLAN_FEATURE_KEYS.map(key => (
+                        <label key={key} className="flex items-center gap-2 text-sm text-dojo-white cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={form.featureKeys.has(key)}
+                            onChange={e => setForm(f => {
+                              const next = new Set(f.featureKeys);
+                              if (e.target.checked) next.add(key); else next.delete(key);
+                              return { ...f, featureKeys: next };
+                            })}
+                            className="w-4 h-4 accent-dojo-red"
+                          />
+                          {NAV_KEY_LABELS[key]}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex items-center gap-3">

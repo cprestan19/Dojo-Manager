@@ -39,10 +39,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     if (!body) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
 
-    const { name, description, monthlyPrice, annualPrice, maxStudents, features, isActive } = body as {
+    const { name, description, monthlyPrice, annualPrice, maxStudents, features, featureKeys, isActive } = body as {
       name: string; description?: string;
       monthlyPrice: number; annualPrice: number;
-      maxStudents?: number; features: string[]; isActive: boolean;
+      maxStudents?: number; features: string[]; featureKeys?: string[] | null; isActive: boolean;
     };
 
     if (!name || monthlyPrice == null || annualPrice == null) {
@@ -60,6 +60,10 @@ export async function POST(req: NextRequest) {
         annualPrice,
         maxStudents:  maxStudents ?? null,
         features:     JSON.stringify(features ?? []),
+        // undefined = sin restricción (comportamiento legado, ver featureGate.ts).
+        // Un array vacío SÍ restringe todo — solo se guarda null si viene
+        // explícitamente null/undefined, nunca por accidente de un [] vacío mal leído.
+        featureKeys:  featureKeys != null ? JSON.stringify(featureKeys) : null,
         isActive:     isActive ?? true,
       },
     });
@@ -94,6 +98,11 @@ export async function PATCH(req: NextRequest) {
     if (body.annualPrice  != null) data.annualPrice  = Number(body.annualPrice);
     if ("maxStudents" in body)     data.maxStudents  = body.maxStudents != null ? Number(body.maxStudents) : null;
     if (Array.isArray(body.features)) data.features  = JSON.stringify(body.features as string[]);
+    // "featureKeys" in body distingue "no se tocó este campo" (no viene en el
+    // payload) de "se seteó explícitamente a null" (checkbox "sin restricción").
+    if ("featureKeys" in body) {
+      data.featureKeys = Array.isArray(body.featureKeys) ? JSON.stringify(body.featureKeys as string[]) : null;
+    }
     if (body.isActive     != null) data.isActive     = Boolean(body.isActive);
 
     if (Object.keys(data).length === 0) {

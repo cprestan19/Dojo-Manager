@@ -159,6 +159,8 @@ export async function POST(
           fatherPhone:         pending.fatherPhone || null,
           fatherEmail:         pending.fatherEmail || null,
           primaryGuardian:     pending.primaryGuardian || null,
+          whatsappOptIn:       pending.whatsappOptIn,
+          whatsappOptInDate:   pending.whatsappOptIn ? new Date() : null,
           address:             pending.address     || null,
           photo:               photoUrl,
         },

@@ -186,7 +186,13 @@ export async function POST(req: NextRequest) {
     if (!dojoName?.trim())   return NextResponse.json({ error: "El nombre del dojo es requerido" }, { status: 400 });
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if (!email?.trim() || !emailRegex.test(email.trim())) return NextResponse.json({ error: "Email inválido" }, { status: 400 });
-    if (!phone?.trim())      return NextResponse.json({ error: "El teléfono es requerido" }, { status: 400 });
+    // E.164 — el formulario ahora usa PhoneInputField (react-phone-number-input),
+    // que siempre entrega el valor en este formato. Antes solo se validaba que
+    // no viniera vacío, así que quedaban guardados números sin código de país
+    // (ej. "04123226082") — inservibles para WhatsApp o para dar seguimiento.
+    const E164_REGEX = /^\+[1-9]\d{1,14}$/;
+    if (!phone?.trim() || !E164_REGEX.test(phone.trim()))
+      return NextResponse.json({ error: "El teléfono debe ser un número de WhatsApp válido, con código de país" }, { status: 400 });
 
     const cleanEmail = email.trim().toLowerCase();
 
@@ -214,6 +220,8 @@ export async function POST(req: NextRequest) {
           name:   dojoName.trim(),
           slug,
           ownerName: senseiName.trim(),
+          email:  cleanEmail,
+          phone:  phone.trim(),
           active: true,
         },
       });

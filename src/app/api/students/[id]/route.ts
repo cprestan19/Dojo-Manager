@@ -196,9 +196,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
         fullName: true, active: true, cedula: true, fepakaId: true,
         photo: true,
         motherEmail: true, fatherEmail: true,
+        whatsappOptIn: true,
         portalUser: { select: { id: true, email: true } },
       },
     });
+
+    const newWhatsappOptIn = body.whatsappOptIn ?? false;
 
     // Si se reemplaza o elimina la foto, borrar la anterior de Cloudinary
     if ("photo" in body && before?.photo && body.photo !== before.photo) {
@@ -241,6 +244,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
         fatherPhone:         body.fatherPhone ?? null,
         fatherEmail:         body.fatherEmail ?? null,
         primaryGuardian:     body.primaryGuardian || null,
+        whatsappOptIn:       newWhatsappOptIn,
+        whatsappOptInDate:   newWhatsappOptIn
+          ? (before?.whatsappOptIn ? undefined : new Date()) // solo actualiza la fecha al pasar de false→true
+          : null,
         address:             body.address ?? null,
         active:              body.active ?? true,
       },

@@ -52,14 +52,15 @@ export default async function DashboardPage() {
         {/* Global stats */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {[
-            { label: "Dojos activos",  value: activeDojos,  sub: `${totalDojos} total`,          icon: Building2, color: "#3B82F6" },
+            { label: "Dojos activos",  value: activeDojos,  sub: `${totalDojos} total`,          icon: Building2, color: "#3B82F6", href: "/dashboard/dojos" },
             { label: "Usuarios",       value: totalUsers,   sub: "todos los dojos",               icon: UserCheck, color: "#10B981" },
-            { label: "Dojos inactivos",value: totalDojos - activeDojos, sub: "requieren atención",icon: Users,     color: "#F59E0B" },
+            { label: "Dojos inactivos",value: totalDojos - activeDojos, sub: "requieren atención",icon: Users,     color: "#F59E0B", href: "/dashboard/dojos" },
           ].map(card => {
             const Icon = card.icon;
-            return (
-              <div key={card.label} className="card p-5"
-                style={{ border: `1px solid ${card.color}30` }}>
+            const cardClassName = `card p-5 ${card.href ? "hover:brightness-110 transition-[filter] cursor-pointer" : ""}`;
+            const cardStyle = { border: `1px solid ${card.color}30` };
+            const cardBody = (
+              <>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: card.color + "18" }}>
                     <Icon size={16} style={{ color: card.color }} />
@@ -68,6 +69,15 @@ export default async function DashboardPage() {
                 </div>
                 <p className="text-3xl font-bold text-white">{card.value}</p>
                 <p className="text-xs mt-1" style={{ color: "#7A97B0" }}>{card.sub}</p>
+              </>
+            );
+            return card.href ? (
+              <Link key={card.label} href={card.href} className={cardClassName} style={cardStyle}>
+                {cardBody}
+              </Link>
+            ) : (
+              <div key={card.label} className={cardClassName} style={cardStyle}>
+                {cardBody}
               </div>
             );
           })}

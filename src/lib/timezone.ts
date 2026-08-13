@@ -29,6 +29,34 @@ export const TIMEZONE_OPTIONS: { value: string; label: string }[] = [
   { value: "Europe/Madrid",                  label: "España (UTC+1/+2)" },
 ];
 
+// Código ISO 3166-1 alpha-2 por zona horaria — mismo criterio que ya usa la
+// columna "País" de Gestión de Dojos ("el dojo no guarda un campo país propio,
+// se deriva de la zona horaria"). Se usa para precargar la bandera/prefijo por
+// defecto en los selectores de teléfono (motherPhone/fatherPhone) — el usuario
+// puede cambiarla si el acudiente vive en otro país.
+const TIMEZONE_TO_COUNTRY: Record<string, string> = {
+  "America/Panama":                 "PA",
+  "America/Bogota":                 "CO",
+  "America/Lima":                   "PE",
+  "America/Guayaquil":              "EC",
+  "America/Caracas":                "VE",
+  "America/La_Paz":                 "BO",
+  "America/Santo_Domingo":          "DO",
+  "America/Santiago":               "CL",
+  "America/Argentina/Buenos_Aires": "AR",
+  "America/Mexico_City":            "MX",
+  "America/Guatemala":              "GT",
+  "America/El_Salvador":            "SV",
+  "America/Costa_Rica":             "CR",
+  "America/New_York":               "US",
+  "Europe/Madrid":                  "ES",
+};
+
+/** País por defecto (ISO alpha-2) para el selector de teléfono, a partir de la zona horaria del dojo. */
+export function timezoneToCountry(tz: string | null | undefined): string {
+  return TIMEZONE_TO_COUNTRY[tz ?? ""] ?? "PA";
+}
+
 /** YYYY-MM-DD del instante dado, en la zona horaria indicada */
 export function ymdInTz(v: string | Date, tz: string = DEFAULT_TIMEZONE): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(v));

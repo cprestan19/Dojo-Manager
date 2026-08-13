@@ -33,13 +33,27 @@
       "Bash(grep -v \"^$\")",
       "PowerShell(Start-Process -NoNewWindow -FilePath \"npm\" -ArgumentList \"run\",\"dev\" -WorkingDirectory \"C:\\\\Proyectos\\\\dojo-manager\\\\dojo-manager\" -PassThru)",
       "Bash(grep -v \"EPERM\\\\|trace\\\\|^$\")",
-      "PowerShell(cd \"C:\\\\Proyectos\\\\dojo-manager\\\\dojo-manager\"; $env:NODE_ENV=\"development\"; npm run dev 2>&1 | Select-Object -First 5)"
+      "PowerShell(cd \"C:\\\\Proyectos\\\\dojo-manager\\\\dojo-manager\"; $env:NODE_ENV=\"development\"; npm run dev 2>&1 | Select-Object -First 5)",
+      "Bash(echo \"grep exit: $?\")",
+      "Bash(echo \"exit:$?\")",
+      "Bash(echo \"grep-exit:$?\")",
+      "Bash(echo \"grep exit:$?\")",
+      "Bash(rm -f \"src/app/public/tournament/[slug]/PublicRegistrationForm.tsx\")",
+      "Bash(rm -rf \"src/app/api/public/tournaments/[slug]/register\")",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(rm -rf .next)",
+      "Bash(cd \"c:/Proyectos/dojo-manager/dojo-manager\" && ls .next 2>&1 | head -5; echo \"---\"; rm -rf .next/* 2>&1 | head -20; rm -rf .next 2>&1 | head -20; ls -la . | grep \"\\\\.next\")",
+      "Bash(tee /tmp/build4.log)",
+      "Bash(grep -rn \"generated-certificates/\\\\${\" src -r)",
+      "Bash(tee /tmp/build5.log)"
     ],
     "additionalDirectories": [
       "c:\\Proyectos\\dojo-manager\\dojo-manager\\src\\app\\api\\schedules\\[id]",
       "c:\\Proyectos\\dojo-manager\\dojo-manager\\src\\app\\api\\belt-history",
       "c:\\Proyectos\\dojo-manager\\dojo-manager\\src\\app\\dashboard\\settings",
-      "c:\\Proyectos\\dojo-manager\\dojo-manager\\src\\app\\api\\kata-competitions"
+      "c:\\Proyectos\\dojo-manager\\dojo-manager\\src\\app\\api\\kata-competitions",
+      "C:\\Proyectos\\dojo-manager\\dojo-manager\\.next"
     ]
   }
 }

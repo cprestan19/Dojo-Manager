@@ -5,6 +5,8 @@ import prisma from "@/lib/prisma";
 import { sendPaymentReminder } from "@/lib/email";
 import { formatDate } from "@/lib/utils";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { sendWhatsAppTemplate, buildOverdueVars, resolveGuardianContact } from "@/lib/whatsapp/sendTemplate";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -23,9 +25,10 @@ export async function POST(req: NextRequest) {
     include: {
       student: {
         select: {
-          fullName: true, firstName: true, lastName: true,
-          motherName: true, motherEmail: true,
-          fatherName: true, fatherEmail: true,
+          id: true, fullName: true, firstName: true, lastName: true,
+          motherName: true, motherEmail: true, motherPhone: true,
+          fatherName: true, fatherEmail: true, fatherPhone: true,
+          primaryGuardian: true, whatsappOptIn: true,
         },
       },
     },
@@ -53,8 +56,11 @@ export async function POST(req: NextRequest) {
       : null,
   ].filter(Boolean) as { address: string; guardianName: string }[];
 
-  if (recipients.length === 0)
-    return NextResponse.json({ error: "El alumno no tiene correos registrados" }, { status: 400 });
+  const guardianContact = resolveGuardianContact(payment.student);
+  const hasWhatsappChannel = payment.student.whatsappOptIn && !!guardianContact.phone;
+
+  if (recipients.length === 0 && !hasWhatsappChannel)
+    return NextResponse.json({ error: "El alumno no tiene correos ni WhatsApp registrados" }, { status: 400 });
 
   let sent = 0;
   for (const r of recipients) {
@@ -76,6 +82,34 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // WhatsApp — canal adicional, nunca bloquea el correo ni la respuesta al admin.
+  let whatsappSent = false;
+  if (hasWhatsappChannel && dojo) {
+    try {
+      const { headerParams, bodyParams } = buildOverdueVars({
+        guardianName: guardianContact.name,
+        dojo: { name: dojo.name, lateInterestPct: dojo.lateInterestPct, phone: dojo.phone },
+        student: { fullName: studentName },
+        amount: payment.amount,
+        daysLate,
+      });
+      const result = await sendWhatsAppTemplate({
+        dojoId, studentId: payment.student.id, paymentId: payment.id,
+        type: "PAYMENT_OVERDUE", templateName: "aviso_atraso_dojomaster",
+        headerParams, bodyParams,
+      });
+      whatsappSent = result.sent;
+      const ctx = buildAuditCtx(session, req, { dojoId });
+      await logAudit({
+        ...ctx, action: "WHATSAPP_OVERDUE_SENT_MANUAL", module: AUDIT_MODULE.WHATSAPP,
+        resourceType: "Payment", resourceId: payment.id, targetId: payment.student.id,
+        statusCode: 200, details: JSON.stringify(result),
+      });
+    } catch (err) {
+      console.error("Error sending WhatsApp reminder:", err);
+    }
+  }
+
   await prisma.payment.update({ where: { id: paymentId }, data: { reminderSent: true } });
-  return NextResponse.json({ sent, emails: recipients.map(r => r.address) });
+  return NextResponse.json({ sent, emails: recipients.map(r => r.address), whatsappSent });
 }

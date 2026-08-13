@@ -7,17 +7,20 @@ vi.mock("@/lib/prisma", async () => {
   const mock = createPrismaMock();
   return { default: mock, prisma: mock };
 });
-vi.mock("@/lib/email", () => ({ sendEmail: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/email", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/email")>();
+  return { ...actual, sendEmail: vi.fn().mockResolvedValue(undefined) };
+});
 vi.mock("@/lib/billing/subscription", () => ({
   getOrCreateDefaultPlan: vi.fn().mockResolvedValue({ id: "plan-bronce" }),
-  createTrialSubscription: vi.fn().mockResolvedValue(undefined),
+  createFreeMonthSubscription: vi.fn().mockResolvedValue({ trialEndsAt: new Date("2026-01-01") }),
 }));
 
 const { default: prismaMock } = (await import("@/lib/prisma")) as unknown as { default: PrismaMock };
 const { sendEmail } = (await import("@/lib/email")) as unknown as { sendEmail: ReturnType<typeof vi.fn> };
-const { getOrCreateDefaultPlan, createTrialSubscription } = (await import("@/lib/billing/subscription")) as unknown as {
+const { getOrCreateDefaultPlan, createFreeMonthSubscription } = (await import("@/lib/billing/subscription")) as unknown as {
   getOrCreateDefaultPlan: ReturnType<typeof vi.fn>;
-  createTrialSubscription: ReturnType<typeof vi.fn>;
+  createFreeMonthSubscription: ReturnType<typeof vi.fn>;
 };
 const { POST } = await import("@/app/api/public/register/route");
 
@@ -26,7 +29,7 @@ const VALID_BODY = {
   dojoName: "Dojo Central",
   country: "Panamá",
   email: "Carlos@Example.com",
-  phone: "+507 6000-0000",
+  phone: "+50760000000",
   studentCount: "10-20",
   yearsTeaching: "5",
 };
@@ -104,7 +107,7 @@ describe("POST /api/public/register", () => {
     expect(userData.mustChangePassword).toBe(true);
 
     expect(getOrCreateDefaultPlan).toHaveBeenCalled();
-    expect(createTrialSubscription).toHaveBeenCalledWith("dojo-new", "plan-bronce");
+    expect(createFreeMonthSubscription).toHaveBeenCalledWith("dojo-new", "plan-bronce");
 
     expect(prismaMock.auditLog.create).toHaveBeenCalled();
     const auditData = prismaMock.auditLog.create.mock.calls[0][0].data;

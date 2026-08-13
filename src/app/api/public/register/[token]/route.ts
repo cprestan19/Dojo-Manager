@@ -48,6 +48,7 @@ const RegisterSchema = z.object({
   photo:            z.string().max(6_800_000).optional().nullable(), // ~5 MB como base64
   hasSiblingInDojo: z.boolean().optional().default(false),
   primaryGuardian:  z.enum(["mother", "father"]).optional().nullable(),
+  whatsappOptIn:    z.boolean().optional().default(false),
   // Campo trampa para detección de bots — debe llegar vacío. No exponer en errores.
   honeypot: z.string().optional().default(""),
   // Versión de los términos que aceptó (null si no hay términos o es el sistema legado)
@@ -259,6 +260,7 @@ export async function POST(
           address:             body.address         || null,
           photo:               body.photo           || null,
           hasSiblingInDojo:    body.hasSiblingInDojo ?? false,
+          whatsappOptIn:       body.whatsappOptIn ?? false,
           acceptedTermsVersion: body.acceptedTermsVersion ?? null,
         },
       });

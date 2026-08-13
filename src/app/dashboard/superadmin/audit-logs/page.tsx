@@ -619,7 +619,7 @@ export default function AuditLogsPage() {
   }, [activeTab, loadAudit]);
 
   const TABS: { id: MainTab; label: string; icon: React.ReactNode }[] = [
-    { id: "auditoria", label: "Auditoría",    icon: <Shield size={15} />    },
+    { id: "auditoria", label: "Audit Log",    icon: <Shield size={15} />    },
     { id: "novedades", label: "Novedades",    icon: <Newspaper size={15} /> },
     { id: "inactivos", label: "Sin actividad",icon: <Clock size={15} />     },
   ];
@@ -634,7 +634,7 @@ export default function AuditLogsPage() {
           <Shield size={20} className="text-purple-400" />
         </div>
         <div>
-          <h1 className="font-display text-2xl font-bold text-dojo-white">Log de Auditoría</h1>
+          <h1 className="font-display text-2xl font-bold text-dojo-white">Audit Log</h1>
           <p className="text-sm text-dojo-muted">Actividad del sistema, engagement con novedades y usuarios inactivos</p>
         </div>
         {activeTab === "auditoria" && (
@@ -660,7 +660,7 @@ export default function AuditLogsPage() {
         ))}
       </div>
 
-      {/* ── TAB: Auditoría ── */}
+      {/* ── TAB: Audit Log ── */}
       {activeTab === "auditoria" && (
         <>
           {/* Filtros */}

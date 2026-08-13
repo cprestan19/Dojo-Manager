@@ -35,6 +35,9 @@ export const NAV_KEYS = {
   // No es un ítem de navegación del dashboard — feature-key de Plan para
   // decidir si el portal del alumno muestra el carnet digital embebido.
   PORTAL_CARD_ACCESS: "portal-card-access",
+  // No es un ítem de navegación del dashboard — feature-key de Plan para
+  // decidir si el dojo puede enviar notificaciones de pago por WhatsApp.
+  WHATSAPP_NOTIFICATIONS: "whatsapp-notifications",
 } as const;
 
 export type NavKey = typeof NAV_KEYS[keyof typeof NAV_KEYS];
@@ -111,7 +114,7 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "schedules":        "Horarios",
   "users":            "Usuarios",
   "dojos":            "Gestión de Dojos",
-  "audit-log":        "Log de Auditoría",
+  "audit-log":        "Audit Log",
   "settings.general": "Conf. General",
   "settings.katas":   "Katas",
   "settings.videos":  "Videos por Cinta",
@@ -132,7 +135,20 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "settings.push":    "Notificaciones Push",
   "portal-access":    "Portal de Alumnos",
   "portal-card-access": "Carnet Digital en Portal",
+  "whatsapp-notifications": "Notificaciones por WhatsApp",
 };
+
+// Feature-keys que Plan.featureKeys puede restringir — incluye los ítems de
+// navegación del dashboard (ALL_DOJO_KEYS) más las funciones que no son nav
+// pero sí se controlan por plan (portal, carnet digital, WhatsApp). Se usa
+// tanto para calcular "todas las funciones" (featureGate.ts) como para el
+// checklist de edición de planes en el panel de sysadmin (PlanManager.tsx).
+export const PLAN_FEATURE_KEYS: NavKey[] = [
+  ...ALL_DOJO_KEYS,
+  NAV_KEYS.PORTAL_ACCESS,
+  NAV_KEYS.PORTAL_CARD_ACCESS,
+  NAV_KEYS.WHATSAPP_NOTIFICATIONS,
+];
 
 export const ROLE_COLORS = [
   { value: "blue",   label: "Azul"    },

@@ -165,6 +165,8 @@ async function _POST(req: NextRequest) {
           fatherPhone:         body.fatherPhone         ?? null,
           fatherEmail:         body.fatherEmail || null,
           primaryGuardian:     body.primaryGuardian     || null,
+          whatsappOptIn:       body.whatsappOptIn       ?? false,
+          whatsappOptInDate:   body.whatsappOptIn       ? new Date() : null,
           address:             body.address             ?? null,
           familyId:            body.familyId            ?? null,
         },
