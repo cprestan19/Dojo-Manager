@@ -47,7 +47,8 @@
       "Bash(tee /tmp/build4.log)",
       "Bash(grep -rn \"generated-certificates/\\\\${\" src -r)",
       "Bash(tee /tmp/build5.log)",
-      "Bash(xargs grep -l \"Academia\\\\|plans\")"
+      "Bash(xargs grep -l \"Academia\\\\|plans\")",
+      "Bash(grep -n \"const \\\\[dojos, setDojos\\\\]\\\\|useEffect\\(\\(\\) => {$\\\\|fetch\\(\\\\\"/api/dojos\\\\\"\\)\\\\|const TABS\" src/app/dashboard/superadmin/clientes/page.tsx)"
     ],
     "additionalDirectories": [
       "c:\\Proyectos\\dojo-manager\\dojo-manager\\src\\app\\api\\schedules\\[id]",

@@ -101,7 +101,56 @@ function daysAgo(iso: string) {
   return `hace ${days} días`;
 }
 
-type TabId = "pendientes" | "contactados" | "todos" | "templates";
+type TabId = "pendientes" | "contactados" | "todos" | "templates" | "respuestas";
+
+interface InboundMessage {
+  id: string; fromPhone: string; type: string; text: string | null;
+  receivedAt: string; handled: boolean;
+  dojo: { name: string; phone: string | null } | null;
+}
+
+// Frases de los botones de ayuda_primer_alumno — para resaltar cuando alguien
+// pidió ayuda de verdad vs. solo confirmó que ya lo tiene controlado.
+const ASKED_FOR_HELP = new Set(["sí, ayúdame", "si, ayudame"]);
+
+function InboundRow({ msg, onToggleHandled }: {
+  msg: InboundMessage; onToggleHandled: (id: string, handled: boolean) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const askedHelp = ASKED_FOR_HELP.has((msg.text ?? "").trim().toLowerCase());
+
+  async function toggle() {
+    setSaving(true);
+    await onToggleHandled(msg.id, !msg.handled);
+    setSaving(false);
+  }
+
+  return (
+    <div className={`border-b border-dojo-border/40 last:border-0 px-4 py-3 flex items-center gap-3 flex-wrap ${!msg.handled && askedHelp ? "bg-orange-900/10" : ""}`}>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-medium text-dojo-white truncate">{msg.dojo?.name ?? "Dojo desconocido"}</p>
+          {askedHelp && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-orange-900/30 text-orange-300">
+              🆘 Pidió ayuda
+            </span>
+          )}
+          {!msg.handled && (
+            <span className="badge-yellow text-[10px]">Sin atender</span>
+          )}
+        </div>
+        <p className="text-sm text-dojo-white mt-1">&ldquo;{msg.text ?? "(mensaje sin texto)"}&rdquo;</p>
+        <p className="text-xs text-dojo-muted mt-0.5">{msg.dojo?.phone ?? msg.fromPhone} · {fmtDate(msg.receivedAt)}</p>
+      </div>
+      <button onClick={toggle} disabled={saving}
+        className={`text-xs px-3 py-1.5 shrink-0 rounded-lg font-semibold transition-colors ${
+          msg.handled ? "bg-dojo-border/50 text-dojo-muted hover:text-dojo-white" : "btn-primary"
+        }`}>
+        {saving ? "…" : msg.handled ? "Marcar sin atender" : "Marcar atendido"}
+      </button>
+    </div>
+  );
+}
 
 function Row({ msg, onContacted, onOpenDojo }: {
   msg: LifecycleMessage; onContacted: (id: string, note: string) => Promise<void>;
@@ -236,6 +285,31 @@ export default function ClientesCrmPage() {
       .catch(() => {});
   }, []);
 
+  const [inbound, setInbound] = useState<InboundMessage[]>([]);
+  const [inboundLoading, setInboundLoading] = useState(true);
+
+  const loadInbound = useCallback(async () => {
+    setInboundLoading(true);
+    const r = await fetch("/api/superadmin/whatsapp-inbound", { cache: "no-store" });
+    if (r.ok) setInbound(await r.json());
+    setInboundLoading(false);
+  }, []);
+
+  // Se carga siempre al entrar (no solo en la pestaña Respuestas) para poder
+  // mostrar el contador de "sin atender" en la pestaña sin tener que abrirla.
+  useEffect(() => { loadInbound(); }, [loadInbound]);
+
+  async function toggleInboundHandled(id: string, handled: boolean) {
+    await fetch(`/api/superadmin/whatsapp-inbound/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ handled }),
+    });
+    loadInbound();
+  }
+
+  const unhandledCount = inbound.filter(m => !m.handled).length;
+
   async function scan() {
     setScanning(true);
     setScanResult(null);
@@ -310,7 +384,7 @@ export default function ClientesCrmPage() {
       const r = await fetch("/api/cron/dojo-lifecycle-messages/send-pending", { method: "POST" });
       const data = await r.json();
       if (data.ok) {
-        setSendResult(`Enviados: ${data.enviados} · Fallidos: ${data.fallidos} · Sin teléfono: ${data.sinTelefono} · Omitidos: ${data.omitidos}`);
+        setSendResult(`Enviados: ${data.enviados} · Fallidos: ${data.fallidos} · Sin teléfono: ${data.sinTelefono} · Omitidos: ${data.omitidos} · Espaciados para la próxima corrida: ${data.espaciados ?? 0}`);
         load();
       } else {
         setSendResult(data.error ?? "Error al enviar.");
@@ -330,6 +404,7 @@ export default function ClientesCrmPage() {
     { id: "pendientes",  label: "Pendientes",  icon: <Clock size={14} />       },
     { id: "contactados", label: "Contactados", icon: <CheckCircle size={14} /> },
     { id: "todos",       label: "Todos",       icon: <Search size={14} />      },
+    { id: "respuestas",  label: `Respuestas${unhandledCount > 0 ? ` (${unhandledCount})` : ""}`, icon: <MessageSquarePlus size={14} /> },
     { id: "templates",   label: "Templates",   icon: <FileText size={14} />    },
   ];
 
@@ -404,7 +479,7 @@ export default function ClientesCrmPage() {
             </button>
           ))}
         </div>
-        {tab !== "templates" && (
+        {tab !== "templates" && tab !== "respuestas" && (
           <div className="relative ml-auto">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
             <input type="text" value={search} onChange={e => setSearch(e.target.value)}
@@ -413,6 +488,27 @@ export default function ClientesCrmPage() {
           </div>
         )}
       </div>
+
+      {/* ── Pestaña: Respuestas ── */}
+      {tab === "respuestas" && (
+        <div className="card p-0 overflow-hidden">
+          <p className="px-4 pt-3 pb-2 text-xs text-dojo-muted">
+            Respuestas de dueños de dojo por WhatsApp — incluye los botones de <span className="font-mono">ayuda_primer_alumno</span> ("Sí, ayúdame" / "Ya lo tengo controlado") y cualquier texto libre.
+          </p>
+          {inboundLoading ? (
+            <div className="space-y-2 p-4">
+              {[1, 2, 3].map(i => <div key={i} className="h-14 bg-dojo-border/40 rounded-xl animate-pulse" />)}
+            </div>
+          ) : inbound.length === 0 ? (
+            <div className="text-center py-14 text-dojo-muted">
+              <MessageSquarePlus size={32} className="mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Todavía no hay respuestas registradas.</p>
+            </div>
+          ) : (
+            inbound.map(m => <InboundRow key={m.id} msg={m} onToggleHandled={toggleInboundHandled} />)
+          )}
+        </div>
+      )}
 
       {/* ── Pestaña: Templates ── */}
       {tab === "templates" && (
@@ -464,7 +560,7 @@ export default function ClientesCrmPage() {
       )}
 
       {/* Lista */}
-      {tab !== "templates" && (
+      {tab !== "templates" && tab !== "respuestas" && (
       <div className="card p-0 overflow-hidden">
         {loading ? (
           <div className="space-y-2 p-4">
@@ -484,7 +580,7 @@ export default function ClientesCrmPage() {
       )}
 
       {/* Contacto manual ad-hoc */}
-      {tab !== "templates" && (
+      {tab !== "templates" && tab !== "respuestas" && (
       <div className="card space-y-3">
         <p className="text-sm font-bold text-dojo-white flex items-center gap-2">
           <MessageSquarePlus size={15} className="text-dojo-gold" /> Registrar contacto manual
