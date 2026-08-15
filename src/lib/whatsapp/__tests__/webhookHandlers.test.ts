@@ -19,9 +19,24 @@ const mockPrisma = {
     findUnique: vi.fn(),
     update:     vi.fn(),
   },
+  crmSettings: {
+    findUnique: vi.fn(),
+  },
 };
 
 vi.mock("@/lib/prisma", () => ({ default: mockPrisma }));
+
+const mockSendFreeformText    = vi.fn().mockResolvedValue({ ok: true, retryable: false, metaMessageId: "wamid.bot" });
+const mockSendInteractiveList = vi.fn().mockResolvedValue({ ok: true, retryable: false, metaMessageId: "wamid.bot" });
+
+vi.mock("@/lib/whatsapp/sendTemplate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../sendTemplate")>();
+  return {
+    ...actual,
+    sendFreeformText:    mockSendFreeformText,
+    sendInteractiveList: mockSendInteractiveList,
+  };
+});
 
 const { handleStatusUpdate, handleIncomingMessage } = await import("../webhookHandlers");
 
@@ -237,6 +252,132 @@ describe("handleIncomingMessage", () => {
     });
 
     expect(mockPrisma.dojo.findMany).not.toHaveBeenCalled();
-    expect(mockPrisma.dojo.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleIncomingMessage — support bot", () => {
+  it("does nothing when supportBotEnabled is off (default)", async () => {
+    mockPrisma.student.findMany.mockResolvedValue([]);
+    mockPrisma.dojo.findMany.mockResolvedValue([{ id: "dojo1", name: "Dojo Test" }]);
+    mockPrisma.crmSettings.findUnique.mockResolvedValue({ supportBotEnabled: false });
+
+    await handleIncomingMessage({
+      fromPhone: "61234567", messageId: "wamid.bot1", type: "text",
+      text: "Sí, ayúdame", timestamp: "1700000000",
+    });
+
+    expect(mockSendInteractiveList).not.toHaveBeenCalled();
+    expect(mockSendFreeformText).not.toHaveBeenCalled();
+  });
+
+  it("sends the menu when the dojo owner taps 'Sí, ayúdame'", async () => {
+    mockPrisma.student.findMany.mockResolvedValue([]);
+    mockPrisma.dojo.findMany.mockResolvedValue([{ id: "dojo1", name: "Dojo Test" }]);
+    mockPrisma.crmSettings.findUnique.mockResolvedValue({ supportBotEnabled: true });
+
+    await handleIncomingMessage({
+      fromPhone: "61234567", messageId: "wamid.bot2", type: "interactive",
+      text: "Sí, ayúdame",
+      interactive: { kind: "button_reply", id: "Sí, ayúdame", title: "Sí, ayúdame" },
+      timestamp: "1700000000",
+    });
+
+    expect(mockSendInteractiveList).toHaveBeenCalledWith("+50761234567", expect.any(String), expect.any(String), expect.any(Array));
+  });
+
+  it("sends the topic script when a menu option is selected (list_reply)", async () => {
+    mockPrisma.student.findMany.mockResolvedValue([]);
+    mockPrisma.dojo.findMany.mockResolvedValue([{ id: "dojo1", name: "Dojo Test" }]);
+    mockPrisma.crmSettings.findUnique.mockResolvedValue({ supportBotEnabled: true });
+
+    await handleIncomingMessage({
+      fromPhone: "61234567", messageId: "wamid.bot3", type: "interactive",
+      text: "Agregar un alumno",
+      interactive: { kind: "list_reply", id: "topic_student", title: "Agregar un alumno" },
+      timestamp: "1700000000",
+    });
+
+    expect(mockSendFreeformText).toHaveBeenCalledTimes(1);
+    expect(mockSendFreeformText.mock.calls[0]![0]).toBe("+50761234567");
+    expect(mockSendFreeformText.mock.calls[0]![1]).toContain("Nuevo Alumno");
+  });
+
+  it("escalates to support (alerts SUPPORT_PHONE + confirms to the dojo) when the support row is picked", async () => {
+    mockPrisma.student.findMany.mockResolvedValue([]);
+    mockPrisma.dojo.findMany.mockResolvedValue([{ id: "dojo1", name: "Dojo Test" }]);
+    mockPrisma.crmSettings.findUnique.mockResolvedValue({ supportBotEnabled: true });
+
+    await handleIncomingMessage({
+      fromPhone: "61234567", messageId: "wamid.bot4", type: "interactive",
+      text: "Hablar con soporte",
+      interactive: { kind: "list_reply", id: "support_human", title: "Hablar con soporte" },
+      timestamp: "1700000000",
+    });
+
+    expect(mockSendFreeformText).toHaveBeenCalledTimes(2);
+    const recipients = mockSendFreeformText.mock.calls.map(c => c[0]);
+    expect(recipients).toContain("+50761234567"); // confirmación al dojo
+    expect(recipients).toContain("+50766261768"); // alerta al número de soporte
+  });
+
+  it("escalates to support on free text containing a support keyword, without going through the menu", async () => {
+    mockPrisma.student.findMany.mockResolvedValue([]);
+    mockPrisma.dojo.findMany.mockResolvedValue([{ id: "dojo1", name: "Dojo Test" }]);
+    mockPrisma.crmSettings.findUnique.mockResolvedValue({ supportBotEnabled: true });
+
+    await handleIncomingMessage({
+      fromPhone: "61234567", messageId: "wamid.bot5", type: "text",
+      text: "soporte", timestamp: "1700000000",
+    });
+
+    expect(mockSendInteractiveList).not.toHaveBeenCalled();
+    expect(mockSendFreeformText).toHaveBeenCalledTimes(2);
+  });
+
+  it("acknowledges 'Ya lo tengo controlado' without the catch-all confusion reply", async () => {
+    mockPrisma.student.findMany.mockResolvedValue([]);
+    mockPrisma.dojo.findMany.mockResolvedValue([{ id: "dojo1", name: "Dojo Test" }]);
+    mockPrisma.crmSettings.findUnique.mockResolvedValue({ supportBotEnabled: true });
+
+    await handleIncomingMessage({
+      fromPhone: "61234567", messageId: "wamid.bot6", type: "interactive",
+      text: "Ya lo tengo controlado",
+      interactive: { kind: "button_reply", id: "Ya lo tengo controlado", title: "Ya lo tengo controlado" },
+      timestamp: "1700000000",
+    });
+
+    expect(mockSendFreeformText).toHaveBeenCalledTimes(1);
+    expect(mockSendFreeformText.mock.calls[0]![1]).not.toContain("No entendí");
+  });
+
+  it("sends the catch-all reply for unrecognized free text", async () => {
+    mockPrisma.student.findMany.mockResolvedValue([]);
+    mockPrisma.dojo.findMany.mockResolvedValue([{ id: "dojo1", name: "Dojo Test" }]);
+    mockPrisma.crmSettings.findUnique.mockResolvedValue({ supportBotEnabled: true });
+
+    await handleIncomingMessage({
+      fromPhone: "61234567", messageId: "wamid.bot7", type: "text",
+      text: "cuánto cuesta el plan anual", timestamp: "1700000000",
+    });
+
+    expect(mockSendFreeformText).toHaveBeenCalledTimes(1);
+    expect(mockSendFreeformText.mock.calls[0]![1]).toContain("No entendí");
+  });
+
+  it("never runs the bot when the message was an opt-out phrase", async () => {
+    mockPrisma.student.findMany.mockResolvedValue([]);
+    mockPrisma.dojo.findMany.mockResolvedValue([{ id: "dojo1", name: "Dojo Test" }]);
+    mockPrisma.crmSettings.findUnique.mockResolvedValue({ supportBotEnabled: true });
+
+    await handleIncomingMessage({
+      fromPhone: "61234567", messageId: "wamid.bot8", type: "text",
+      text: "stop", timestamp: "1700000000",
+    });
+
+    expect(mockPrisma.dojo.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ whatsappOptIn: false }) }),
+    );
+    expect(mockSendFreeformText).not.toHaveBeenCalled();
+    expect(mockSendInteractiveList).not.toHaveBeenCalled();
   });
 });

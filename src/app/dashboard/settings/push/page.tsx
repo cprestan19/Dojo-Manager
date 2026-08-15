@@ -68,6 +68,7 @@ export default function PushSettingsPage() {
 
   const [data,        setData]        = useState<PushData | null>(null);
   const [loading,     setLoading]     = useState(true);
+  const [loadError,   setLoadError]   = useState<string | null>(null);
   const [saving,      setSaving]      = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
@@ -88,9 +89,17 @@ export default function PushSettingsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch("/api/push/settings");
-      if (res.ok) setData(await res.json());
+      if (res.ok) {
+        setData(await res.json());
+      } else {
+        const d = await res.json().catch(() => ({})) as { error?: string };
+        setLoadError(d.error ?? "No se pudo cargar la configuración de notificaciones.");
+      }
+    } catch {
+      setLoadError("Error de red al cargar la configuración.");
     } finally {
       setLoading(false);
     }

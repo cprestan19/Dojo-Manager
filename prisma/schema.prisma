@@ -627,6 +627,12 @@ model PlatformSettings {
 model CrmSettings {
   id                  String   @id @default("singleton")
   whatsappSendEnabled Boolean  @default(false) @map("whatsapp_send_enabled")
+  // Chatbot de soporte por WhatsApp (menú de ayuda + escalamiento a soporte
+  // humano) — apagado por default a propósito: a diferencia del resto del
+  // CRM, esto reacciona SOLO al webhook en vivo, sin ningún botón manual de
+  // por medio, así que el usuario decide cuándo dejarlo actuar sobre tráfico
+  // real de clientes.
+  supportBotEnabled   Boolean  @default(false) @map("support_bot_enabled")
   updatedAt           DateTime @updatedAt
 
   @@map("crm_settings")

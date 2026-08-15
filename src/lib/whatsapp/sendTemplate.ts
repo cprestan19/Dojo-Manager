@@ -118,12 +118,48 @@ export interface MetaTemplateCallParams {
   bodyParams:      string[];
 }
 
-export async function callMetaGraphApi(phone: string, params: MetaTemplateCallParams): Promise<{
+interface MetaSendResult {
   ok: boolean;
   retryable: boolean;
   metaMessageId?: string;
   errorMessage?: string;
-}> {
+}
+
+/**
+ * POST crudo a Meta — compartido por el envío de templates y el envío libre
+ * (texto/interactivo del chatbot de soporte, ver sendFreeformText/
+ * sendInteractiveList más abajo). El `body` ya viene armado por el caller
+ * (distinto shape según type: "template" | "text" | "interactive").
+ */
+async function postWhatsAppMessage(body: Record<string, unknown>): Promise<MetaSendResult> {
+  let res: Response;
+  try {
+    res = await fetch(graphUrl(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    // Error de red — transitorio, se puede reintentar.
+    return { ok: false, retryable: true, errorMessage: err instanceof Error ? err.message : "Error de red" };
+  }
+
+  const json = (await res.json().catch(() => ({}))) as MetaSendResponse;
+
+  if (res.ok && json.messages?.[0]?.id) {
+    return { ok: true, retryable: false, metaMessageId: json.messages[0].id };
+  }
+
+  // 5xx / 429 = transitorio, reintentable. 4xx (número inválido, template
+  // rechazado, opt-out, fuera de ventana de 24h) = permanente, no se reintenta.
+  const retryable = res.status >= 500 || res.status === 429;
+  return { ok: false, retryable, errorMessage: json.error?.message ?? `HTTP ${res.status}` };
+}
+
+export async function callMetaGraphApi(phone: string, params: MetaTemplateCallParams): Promise<MetaSendResult> {
   const components: Record<string, unknown>[] = [];
   if (params.headerDocument) {
     components.push({
@@ -150,7 +186,7 @@ export async function callMetaGraphApi(phone: string, params: MetaTemplateCallPa
     });
   }
 
-  const body = {
+  return postWhatsAppMessage({
     messaging_product: "whatsapp",
     to: phone.replace("+", ""),
     type: "template",
@@ -159,33 +195,47 @@ export async function callMetaGraphApi(phone: string, params: MetaTemplateCallPa
       language: { code: params.language ?? "es_PA" },
       components,
     },
-  };
+  });
+}
 
-  let res: Response;
-  try {
-    res = await fetch(graphUrl(), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+/**
+ * Mensaje de texto LIBRE (no template) — solo funciona dentro de la ventana
+ * de 24h desde el último mensaje que ESE número le mandó al negocio (regla
+ * de Meta). Usado por el chatbot de soporte para responder dentro de esa
+ * ventana, sin necesitar un template aprobado para cada respuesta.
+ */
+export async function sendFreeformText(phone: string, text: string): Promise<MetaSendResult> {
+  return postWhatsAppMessage({
+    messaging_product: "whatsapp",
+    to: phone.replace("+", ""),
+    type: "text",
+    text: { body: text },
+  });
+}
+
+export interface InteractiveListRow { id: string; title: string; description?: string }
+
+/**
+ * Menú tipo lista (hasta 10 opciones) — igual que sendFreeformText, requiere
+ * estar dentro de la ventana de 24h. Meta limita el título de cada fila a
+ * 24 caracteres y la descripción a 72 — recortar antes de llamar si hace falta.
+ */
+export async function sendInteractiveList(
+  phone: string, bodyText: string, buttonLabel: string, rows: InteractiveListRow[],
+): Promise<MetaSendResult> {
+  return postWhatsAppMessage({
+    messaging_product: "whatsapp",
+    to: phone.replace("+", ""),
+    type: "interactive",
+    interactive: {
+      type: "list",
+      body: { text: bodyText },
+      action: {
+        button: buttonLabel,
+        sections: [{ title: "Opciones", rows }],
       },
-      body: JSON.stringify(body),
-    });
-  } catch (err) {
-    // Error de red — transitorio, se puede reintentar.
-    return { ok: false, retryable: true, errorMessage: err instanceof Error ? err.message : "Error de red" };
-  }
-
-  const json = (await res.json().catch(() => ({}))) as MetaSendResponse;
-
-  if (res.ok && json.messages?.[0]?.id) {
-    return { ok: true, retryable: false, metaMessageId: json.messages[0].id };
-  }
-
-  // 5xx / 429 = transitorio, reintentable. 4xx (número inválido, template
-  // rechazado, opt-out) = permanente, no se reintenta.
-  const retryable = res.status >= 500 || res.status === 429;
-  return { ok: false, retryable, errorMessage: json.error?.message ?? `HTTP ${res.status}` };
+    },
+  });
 }
 
 /**

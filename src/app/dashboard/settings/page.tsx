@@ -422,8 +422,11 @@ export default function SettingsPage() {
                   Activar envío automático de recordatorios
                 </label>
                 <p className="text-xs text-dojo-muted mt-1">
-                  Cuando está activo, el sistema envía correos automáticamente a los acudientes
-                  cuyos pagos superen los días de tolerancia configurados.
+                  Cuando está activo, el sistema envía recordatorios automáticamente por correo y
+                  por WhatsApp (si el alumno tiene teléfono cargado y el check de notificaciones
+                  activado) a los acudientes cuyos pagos superen los días de tolerancia configurados.
+                  El aviso por WhatsApp solo llega una vez por cada pago — el correo se puede
+                  reenviar las veces que hagan falta, pero el WhatsApp no se repite.
                 </p>
               </div>
             </div>
@@ -432,8 +435,8 @@ export default function SettingsPage() {
               <div className="flex items-start gap-2 p-3 bg-yellow-900/20 border border-yellow-800/40 rounded-lg">
                 <Bell size={14} className="text-yellow-400 mt-0.5 shrink-0" />
                 <p className="text-xs text-yellow-300">
-                  Los recordatorios automáticos se enviarán a pagos con más de <strong>{toleranceDays} día(s)</strong> de atraso
-                  y se aplicará un recargo de <strong>{interestPct}%</strong> indicado en el correo.
+                  Los recordatorios automáticos (correo + WhatsApp) se enviarán a pagos con más de <strong>{toleranceDays} día(s)</strong> de atraso
+                  y se aplicará un recargo de <strong>{interestPct}%</strong> indicado en el mensaje. Por WhatsApp, cada pago recibe el aviso una sola vez.
                 </p>
               </div>
             )}

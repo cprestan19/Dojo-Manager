@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   PhoneCall, RefreshCw, Search, CheckCircle, Clock, Send,
   AlertTriangle, MessageSquarePlus, ChevronDown, ChevronUp, Power, Rocket,
-  FileText, Eye, CheckCheck, Mail, Users, Calendar, ShieldCheck, ShieldOff,
+  FileText, Eye, CheckCheck, Mail, Users, Calendar, ShieldCheck, ShieldOff, Bot,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -244,9 +244,16 @@ export default function ClientesCrmPage() {
   const [sendingNow, setSendingNow]     = useState(false);
   const [sendResult, setSendResult]     = useState<string | null>(null);
 
+  const [botEnabled, setBotEnabled]         = useState<boolean | null>(null);
+  const [togglingBot, setTogglingBot]       = useState(false);
+
   const loadSettings = useCallback(async () => {
     const r = await fetch("/api/superadmin/crm-settings", { cache: "no-store" });
-    if (r.ok) setSendEnabled((await r.json()).whatsappSendEnabled);
+    if (r.ok) {
+      const d = await r.json();
+      setSendEnabled(d.whatsappSendEnabled);
+      setBotEnabled(d.supportBotEnabled);
+    }
   }, []);
 
   useEffect(() => { loadSettings(); }, [loadSettings]);
@@ -376,6 +383,25 @@ export default function ClientesCrmPage() {
     setTogglingSend(false);
   }
 
+  async function toggleBot() {
+    const next = !botEnabled;
+    if (next && !confirm(
+      "Vas a ACTIVAR el chatbot de soporte por WhatsApp.\n\n" +
+      "A partir de ahora, cuando un dueño de dojo toque \"Sí, ayúdame\" o escriba pidiendo ayuda, " +
+      "el sistema le va a responder automático (menú de opciones, o te avisa a vos si pide soporte real).\n\n" +
+      "¿Confirmas?"
+    )) return;
+
+    setTogglingBot(true);
+    const r = await fetch("/api/superadmin/crm-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ supportBotEnabled: next }),
+    });
+    if (r.ok) setBotEnabled((await r.json()).supportBotEnabled);
+    setTogglingBot(false);
+  }
+
   async function sendPendingNow() {
     if (!confirm("¿Enviar ahora los mensajes PENDING a los dojos reales por WhatsApp?")) return;
     setSendingNow(true);
@@ -465,6 +491,29 @@ export default function ClientesCrmPage() {
           <Send size={13} className="text-dojo-gold shrink-0" /> {sendResult}
         </div>
       )}
+
+      {/* Interruptor del chatbot de soporte */}
+      <div className={`card flex items-center gap-3 flex-wrap border ${botEnabled ? "border-green-700/50 bg-green-900/10" : "border-dojo-border"}`}>
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${botEnabled ? "bg-green-500/15" : "bg-dojo-border/40"}`}>
+          <Bot size={16} className={botEnabled ? "text-green-400" : "text-dojo-muted"} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-dojo-white">
+            Chatbot de soporte: {botEnabled === null ? "…" : botEnabled ? "ACTIVADO" : "Desactivado"}
+          </p>
+          <p className="text-xs text-dojo-muted">
+            {botEnabled
+              ? "Responde automático a \"Sí, ayúdame\" con un menú de opciones, y te avisa por WhatsApp si alguien pide soporte real."
+              : "Apagado por default — mientras esté así, nadie recibe respuestas automáticas."}
+          </p>
+        </div>
+        <button onClick={toggleBot} disabled={togglingBot || botEnabled === null}
+          className={`text-xs px-3 py-2 shrink-0 rounded-lg font-semibold transition-colors ${
+            botEnabled ? "bg-red-900/30 text-red-300 hover:bg-red-900/50" : "btn-primary"
+          }`}>
+          {togglingBot ? "…" : botEnabled ? "Desactivar" : "Activar chatbot"}
+        </button>
+      </div>
 
       {/* Tabs + buscador */}
       <div className="flex gap-2 flex-wrap items-center">

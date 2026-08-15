@@ -120,14 +120,23 @@ export async function POST(req: NextRequest) {
         if (value.messages) {
           for (const message of value.messages) {
             // Respuesta a botón de respuesta rápida (ej. "Sí, ayúdame" del
-            // template ayuda_primer_alumno): llega como type "interactive",
-            // el texto elegido va en interactive.button_reply.title, no en text.
-            const text = message.text?.body ?? message.interactive?.button_reply?.title;
+            // template ayuda_primer_alumno) o a una fila del menú del chatbot
+            // de soporte (list_reply): ambas llegan como type "interactive",
+            // el texto/id elegido va en interactive.*_reply, no en text.
+            const buttonReply = message.interactive?.button_reply;
+            const listReply   = message.interactive?.list_reply;
+            const text = message.text?.body ?? buttonReply?.title ?? listReply?.title;
+            const interactive = buttonReply
+              ? { kind: "button_reply" as const, id: buttonReply.id, title: buttonReply.title }
+              : listReply
+                ? { kind: "list_reply" as const, id: listReply.id, title: listReply.title }
+                : undefined;
             await handleIncomingMessage({
               fromPhone: message.from,
               messageId: message.id,
               type: message.type,
               text,
+              interactive,
               timestamp: message.timestamp,
             });
           }
@@ -171,6 +180,7 @@ interface WhatsAppWebhookPayload {
           interactive?: {
             type: string;
             button_reply?: { id: string; title: string };
+            list_reply?: { id: string; title: string };
           };
         }>;
       };
