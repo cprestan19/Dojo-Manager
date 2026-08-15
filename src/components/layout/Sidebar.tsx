@@ -109,15 +109,37 @@ const IDENTITY_PATHS = [
   "/dashboard/settings/terms",
 ];
 
+// Solo Dojos/Planes/Facturación/Pagos SaaS pasaron a "Administración" (ver
+// SYSADMIN_ADMIN_EXTRA_DEFS) — este grupo se queda con lo que es puramente
+// "de plataforma" y no encaja en ninguna otra sección. Correo/Notificaciones
+// se agregaron aquí también (antes solo vivían en Configuración, que para
+// sysadmin fuera de Vista Previa queda oculta — ver SYSADMIN_SISTEMA_EXTRA_DEFS
+// más abajo, se concatena al renderizar).
 const SYSTEM_DEFS: { href: string; icon: React.ElementType; label: string }[] = [
-  { href: "/dashboard/dojos",                 icon: Building2,  label: "Dojos"                 },
+  { href: "/dashboard/superadmin/clientes",   icon: PhoneCall,  label: "Clientes"               },
   { href: "/dashboard/superadmin/branding",   icon: ImageIcon,  label: "Logo de la Plataforma"  },
   { href: "/dashboard/novedades-sistema",     icon: Sparkles,   label: "Novedades"              },
   { href: "/dashboard/visitors",              icon: Globe,      label: "Visitantes"             },
-  { href: "/dashboard/superadmin/audit-logs", icon: Shield,     label: "Audit Log"              },
-  { href: "/dashboard/superadmin/billing",    icon: Receipt,    label: "Pagos SaaS"             },
-  { href: "/dashboard/superadmin/plans",      icon: LayoutList, label: "Planes"                 },
-  { href: "/dashboard/billing",               icon: Receipt,    label: "Facturación"            },
+  { href: "/dashboard/superadmin/audit-logs", icon: Shield,     label: "Audit Log del Sistema"  },
+];
+
+// Correo/Notificaciones: en Configuración (compartida con admins reales) siguen
+// intactas — esto es SOLO un acceso directo adicional para sysadmin, ya que
+// Configuración completa queda oculta para él fuera de Vista Previa.
+const SYSADMIN_SISTEMA_EXTRA_DEFS: { href: string; icon: React.ElementType; label: string }[] = [
+  { href: "/dashboard/settings/email", icon: Mail, label: "Correo"         },
+  { href: "/dashboard/settings/push",  icon: Bell, label: "Notificaciones" },
+];
+
+// Antes vivían en Sistema — el usuario los quiso en "Administración" en vez.
+// Se agregan como items sysadmin-only aparte de ADMIN_DEFS (que es compartido
+// con los admins reales de cada dojo) para no exponerle Dojos/Planes/Facturación
+// SaaS a un cliente.
+const SYSADMIN_ADMIN_EXTRA_DEFS: { href: string; icon: React.ElementType; label: string }[] = [
+  { href: "/dashboard/dojos",              icon: Building2,  label: "Dojos"       },
+  { href: "/dashboard/superadmin/plans",   icon: LayoutList, label: "Planes"      },
+  { href: "/dashboard/billing",            icon: Receipt,    label: "Facturación" },
+  { href: "/dashboard/superadmin/billing", icon: Receipt,    label: "Pagos SaaS"  },
 ];
 
 // ¿La ruta actual pertenece a alguno de los items de esta sección? — se usa
@@ -162,8 +184,8 @@ export function Sidebar() {
     captacion:    sectionMatchesPath(CAPTACION_DEFS.map(d => d.href), pathname),
     competencias: sectionMatchesPath(COMPETENCIAS_DEFS.map(d => d.href), pathname) || pathname.startsWith("/dashboard/tournaments-pro"),
     identity:     sectionMatchesPath(IDENTITY_DEFS.map(d => d.href), pathname),
-    admin:        sectionMatchesPath(ADMIN_DEFS.map(d => d.href), pathname),
-    sistema:      sectionMatchesPath(SYSTEM_DEFS.map(d => d.href), pathname),
+    admin:        sectionMatchesPath([...ADMIN_DEFS, ...SYSADMIN_ADMIN_EXTRA_DEFS].map(d => d.href), pathname),
+    sistema:      sectionMatchesPath([...SYSTEM_DEFS, ...SYSADMIN_SISTEMA_EXTRA_DEFS].map(d => d.href), pathname),
   }));
   const toggleSection = (key: keyof typeof sections) =>
     setSections(s => ({ ...s, [key]: !s[key] }));
@@ -194,8 +216,15 @@ export function Sidebar() {
   const captacion     = filter(mapDefs(CAPTACION_DEFS));
   const competencias  = filter(mapDefs(COMPETENCIAS_DEFS));
   const identity      = filter(mapDefs(IDENTITY_DEFS));
-  const adminItems    = filter(mapDefs(ADMIN_DEFS));
   const settingsItems = filter(mapDefs(SETTINGS_DEFS));
+
+  // Sysadmin fuera de Vista Previa ya tiene "Audit Log del Sistema" en Sistema
+  // (el cross-dojo completo) — no le repetimos la Auditoría por-dojo acá. En
+  // Vista Previa SÍ se mantiene (Sistema queda oculto, y es lo mismo que vería
+  // el admin real de ese dojo).
+  const dedupeAuditForSysadmin = isSysadmin && !isPreview;
+  const adminItems = filter(mapDefs(ADMIN_DEFS))
+    .filter(i => !(dedupeAuditForSysadmin && i.permKey === NAV_KEYS.AUDIT_LOG));
 
   // Solo se fuerza a mostrar (con el botón de Torneo Pro) cuando hay un dojo
   // activo — sysadmin en "Gestión de Dojos" sin haber entrado a ninguno no
@@ -336,14 +365,31 @@ export function Sidebar() {
           </CollapsibleSection>
         )}
 
-        {/* ADMINISTRACIÓN */}
-        {adminItems.length > 0 && (
+        {/* ADMINISTRACIÓN — para sysadmin (fuera de Vista Previa) suma Dojos/Planes/
+            Facturación/Pagos SaaS, que antes vivían en Sistema. Son items aparte de
+            adminItems (compartido con admins reales) para no exponérselos a un cliente. */}
+        {(adminItems.length > 0 || (isSysadmin && !isPreview)) && (
           <CollapsibleSection label="Administración" open={sections.admin} onToggle={() => toggleSection("admin")}>
             {adminItems.map(renderNavItem)}
+            {isSysadmin && !isPreview && SYSADMIN_ADMIN_EXTRA_DEFS.map(({ href, icon: Icon, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
+                  (pathname === href || pathname.startsWith(href + "/"))
+                    ? "bg-dojo-nav-active text-white"
+                    : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+                )}
+              >
+                <Icon size={18} />
+                {label}
+              </Link>
+            ))}
           </CollapsibleSection>
         )}
 
-        {/* FACTURACIÓN — solo admin del dojo (sysadmin ya la ve en Sistema) */}
+        {/* FACTURACIÓN — solo admin del dojo (sysadmin ya la ve en Administración) */}
         {role === "admin" && (
           <Link
             href="/dashboard/billing"
@@ -359,8 +405,12 @@ export function Sidebar() {
           </Link>
         )}
 
-        {/* CONFIGURACIÓN — expandible */}
-        {settingsItems.length > 0 && (
+        {/* CONFIGURACIÓN — expandible. Oculta para sysadmin fuera de Vista Previa:
+            Correo/Notificaciones quedaron como acceso directo en Sistema, y el resto
+            (General/Página Pública/Videos/Roles/Importar) es operación de UN dojo
+            específico, sin sentido en la vista global de sysadmin. En Vista Previa
+            se muestra completa, igual que la vería el admin real de ese dojo. */}
+        {settingsItems.length > 0 && (!isSysadmin || isPreview) && (
           <div className="mt-1">
             <NavSection label="Configuración" />
             <button
@@ -409,7 +459,7 @@ export function Sidebar() {
         {/* SISTEMA — solo sysadmin, oculto en Vista Previa (el admin real no lo ve) */}
         {isSysadmin && !isPreview && (
           <CollapsibleSection label="Sistema" open={sections.sistema} onToggle={() => toggleSection("sistema")}>
-            {SYSTEM_DEFS.map(({ href, icon: Icon, label }) => (
+            {[...SYSTEM_DEFS, ...SYSADMIN_SISTEMA_EXTRA_DEFS].map(({ href, icon: Icon, label }) => (
               <Link
                 key={href}
                 href={href}

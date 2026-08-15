@@ -2,7 +2,16 @@ import prisma from "@/lib/prisma";
 import { sendEmail, escHtml } from "@/lib/email";
 import { resolveDojoTimezone } from "@/lib/timezone-server";
 
+/**
+ * Un dojo desactivado por sysadmin nunca recibe notificaciones de billing
+ * (ni bienvenida ni recordatorio de renovación) — solo devuelve destinatarios
+ * si el dojo sigue activo. La generación de link/invoice en
+ * paguelofacilRenewal.ts no se toca, solo se silencia el correo.
+ */
 async function getDojoAdminEmails(dojoId: string): Promise<string[]> {
+  const dojo = await prisma.dojo.findUnique({ where: { id: dojoId }, select: { active: true } });
+  if (!dojo?.active) return [];
+
   const admins = await prisma.user.findMany({
     where:  { dojoId, role: "admin", active: true },
     select: { email: true },

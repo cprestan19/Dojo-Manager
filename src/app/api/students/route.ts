@@ -15,6 +15,33 @@ import { attachFamilyPrincipalInfo } from "@/lib/family";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
+// Búsqueda de 2 letras (ej. "mi") se interpreta como iniciales (nombre+apellido),
+// no como substring — si no, "mi" trae a cualquiera con "mi" en cualquier parte
+// del nombre (Dominic, Jazmín, Miguel...). Búsquedas más largas siguen siendo
+// substring normal, para no perder la forma habitual de buscar por nombre.
+const INITIALS_RE = /^[\p{L}]{2}$/u;
+
+function buildStudentSearchFilter(search: string) {
+  const trimmed = search.trim();
+  if (!trimmed) return null;
+
+  if (INITIALS_RE.test(trimmed)) {
+    return {
+      AND: [
+        { firstName: { startsWith: trimmed[0], mode: "insensitive" as const } },
+        { lastName:  { startsWith: trimmed[1], mode: "insensitive" as const } },
+      ],
+    };
+  }
+
+  return {
+    OR: [
+      { firstName: { contains: trimmed, mode: "insensitive" as const } },
+      { lastName:  { contains: trimmed, mode: "insensitive" as const } },
+    ],
+  };
+}
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -39,12 +66,7 @@ export async function GET(req: NextRequest) {
     where: {
       dojoId,
       ...(active !== null ? { active: active === "true" } : {}),
-      ...(search ? {
-        OR: [
-          { firstName: { contains: search, mode: "insensitive" } },
-          { lastName:  { contains: search, mode: "insensitive" } },
-        ],
-      } : {}),
+      ...(buildStudentSearchFilter(search) ?? {}),
     },
     take,
     select: {

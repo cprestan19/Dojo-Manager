@@ -46,7 +46,8 @@
       "Bash(cd \"c:/Proyectos/dojo-manager/dojo-manager\" && ls .next 2>&1 | head -5; echo \"---\"; rm -rf .next/* 2>&1 | head -20; rm -rf .next 2>&1 | head -20; ls -la . | grep \"\\\\.next\")",
       "Bash(tee /tmp/build4.log)",
       "Bash(grep -rn \"generated-certificates/\\\\${\" src -r)",
-      "Bash(tee /tmp/build5.log)"
+      "Bash(tee /tmp/build5.log)",
+      "Bash(xargs grep -l \"Academia\\\\|plans\")"
     ],
     "additionalDirectories": [
       "c:\\Proyectos\\dojo-manager\\dojo-manager\\src\\app\\api\\schedules\\[id]",

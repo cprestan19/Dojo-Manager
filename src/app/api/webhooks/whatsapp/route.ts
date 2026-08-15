@@ -119,11 +119,15 @@ export async function POST(req: NextRequest) {
         // manualmente si hace falta (ej: dashboard interno de "mensajes sin atender").
         if (value.messages) {
           for (const message of value.messages) {
+            // Respuesta a botón de respuesta rápida (ej. "Sí, ayúdame" del
+            // template ayuda_primer_alumno): llega como type "interactive",
+            // el texto elegido va en interactive.button_reply.title, no en text.
+            const text = message.text?.body ?? message.interactive?.button_reply?.title;
             await handleIncomingMessage({
               fromPhone: message.from,
               messageId: message.id,
               type: message.type,
-              text: message.text?.body,
+              text,
               timestamp: message.timestamp,
             });
           }
@@ -164,6 +168,10 @@ interface WhatsAppWebhookPayload {
           timestamp: string;
           type: string;
           text?: { body: string };
+          interactive?: {
+            type: string;
+            button_reply?: { id: string; title: string };
+          };
         }>;
       };
       field: string;

@@ -94,6 +94,25 @@ const adminDrawerItems: NavItem[] = [
   { href: "/dashboard/users",              label: "Usuarios",          icon: Shield,       permKey: NAV_KEYS.USERS              },
 ];
 
+// Sysadmin-only, fuera de Vista Previa — mismo criterio que Sidebar.tsx:
+// Dojos/Planes/Facturación/Pagos SaaS pasan a "Administración" en vez de
+// "Sistema", como items aparte de adminDrawerItems (compartido con admins
+// reales) para no exponérselos a un cliente.
+const SYSADMIN_ADMIN_EXTRA: { href: string; icon: React.ElementType; label: string }[] = [
+  { href: "/dashboard/dojos",              icon: Building2,  label: "Dojos"       },
+  { href: "/dashboard/superadmin/plans",   icon: LayoutList, label: "Planes"      },
+  { href: "/dashboard/billing",            icon: Receipt,    label: "Facturación" },
+  { href: "/dashboard/superadmin/billing", icon: Receipt,    label: "Pagos SaaS"  },
+];
+
+// Correo/Notificaciones siguen intactas en Configuración (compartida con
+// admins reales) — esto es solo un acceso directo extra para sysadmin, ya
+// que Configuración completa queda oculta para él fuera de Vista Previa.
+const SYSADMIN_SISTEMA_EXTRA: { href: string; icon: React.ElementType; label: string }[] = [
+  { href: "/dashboard/settings/email", icon: Mail, label: "Correo"         },
+  { href: "/dashboard/settings/push",  icon: Bell, label: "Notificaciones" },
+];
+
 const settingsDrawerItems: NavItem[] = [
   { href: "/dashboard/settings",             label: "General",           icon: Settings,    permKey: NAV_KEYS.SETTINGS_GENERAL },
   { href: "/dashboard/settings/public-page", label: "Página Pública",    icon: Globe,       permKey: NAV_KEYS.PUBLIC_PAGE      },
@@ -204,8 +223,14 @@ export function MobileNav() {
   const visCaptacion    = filter(captacionItems);
   const visCompetencias = filter(competenciasItems);
   const visIdentity     = filter(identityItems);
-  const visAdmin        = filter(adminDrawerItems);
   const visSettings     = filter(settingsDrawerItems);
+
+  // Sysadmin fuera de Vista Previa ya tiene "Audit Log del Sistema" en Sistema
+  // (cross-dojo completo) — no se repite la Auditoría por-dojo acá. En Vista
+  // Previa sí se mantiene (Sistema queda oculto, igual que vería el admin real).
+  const dedupeAuditForSysadmin = isSysadmin && !isPreview;
+  const visAdmin = filter(adminDrawerItems)
+    .filter(i => !(dedupeAuditForSysadmin && i.permKey === NAV_KEYS.AUDIT_LOG));
 
   // Mismo criterio que Sidebar.tsx: solo forzar la sección (con Torneo Pro)
   // cuando hay contexto de dojo real, no para sysadmin sin dojo en Gestión
@@ -385,15 +410,31 @@ export function MobileNav() {
             </>
           )}
 
-          {/* ADMINISTRACIÓN */}
-          {visAdmin.length > 0 && (
+          {/* ADMINISTRACIÓN — para sysadmin (fuera de Vista Previa) suma Dojos/Planes/
+              Facturación/Pagos SaaS, que antes vivían en Sistema. */}
+          {(visAdmin.length > 0 || (isSysadmin && !isPreview)) && (
             <>
               <NavSection label="Administración" />
-              <div className="space-y-1">{visAdmin.map(renderDrawerItem)}</div>
+              <div className="space-y-1">
+                {visAdmin.map(renderDrawerItem)}
+                {isSysadmin && !isPreview && SYSADMIN_ADMIN_EXTRA.map(({ href, icon: Icon, label }) => (
+                  <Link key={href} href={href} onClick={close}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium",
+                      (pathname === href || pathname.startsWith(href + "/"))
+                        ? "bg-dojo-nav-active text-white"
+                        : "text-dojo-sidebar-muted hover:bg-dojo-border/60 hover:text-dojo-sidebar-text",
+                    )}
+                  >
+                    <Icon size={18} />
+                    {label}
+                  </Link>
+                ))}
+              </div>
             </>
           )}
 
-          {/* FACTURACIÓN — solo admin del dojo (sysadmin ya la ve en Sistema) */}
+          {/* FACTURACIÓN — solo admin del dojo (sysadmin ya la ve en Administración) */}
           {role === "admin" && (
             <Link href="/dashboard/billing" onClick={close}
               className={cn(
@@ -408,8 +449,10 @@ export function MobileNav() {
             </Link>
           )}
 
-          {/* CONFIGURACIÓN — expandible */}
-          {visSettings.length > 0 && (
+          {/* CONFIGURACIÓN — expandible. Oculta para sysadmin fuera de Vista Previa
+              (mismo criterio que Sidebar.tsx): Correo/Notificaciones quedan como
+              acceso directo en Sistema, el resto es operación de UN dojo específico. */}
+          {visSettings.length > 0 && (!isSysadmin || isPreview) && (
             <div className="mt-1">
               <NavSection label="Configuración" />
               <button
@@ -453,13 +496,10 @@ export function MobileNav() {
               <NavSection label="Sistema" />
               <div className="space-y-1">
                 {([
-                  { href: "/dashboard/dojos",                   icon: Building2,  label: "Dojos"            },
-                  { href: "/dashboard/novedades-sistema",       icon: Sparkles,   label: "Novedades"        },
-                  { href: "/dashboard/visitors",                icon: Globe,      label: "Visitantes"       },
-                  { href: "/dashboard/superadmin/audit-logs",   icon: Shield,     label: "Audit Log"        },
-                  { href: "/dashboard/superadmin/billing",      icon: Receipt,    label: "Pagos SaaS"       },
-                  { href: "/dashboard/superadmin/plans",        icon: LayoutList, label: "Planes"           },
-                  { href: "/dashboard/billing",                 icon: Receipt,    label: "Facturación"      },
+                  { href: "/dashboard/novedades-sistema",       icon: Sparkles,   label: "Novedades"              },
+                  { href: "/dashboard/visitors",                icon: Globe,      label: "Visitantes"             },
+                  { href: "/dashboard/superadmin/audit-logs",   icon: Shield,     label: "Audit Log del Sistema"  },
+                  ...SYSADMIN_SISTEMA_EXTRA,
                 ] as { href: string; icon: React.ElementType; label: string }[]).map(({ href, icon: Icon, label }) => (
                   <Link key={href} href={href} onClick={close}
                     className={cn(

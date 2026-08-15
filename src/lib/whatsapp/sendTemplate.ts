@@ -31,9 +31,11 @@ export async function ensurePayToken(paymentId: string, existingToken: string | 
 }
 
 /**
- * Normaliza un teléfono a E.164 asumiendo Panamá (+507) cuando no trae
- * código de país explícito — es el único mercado activo hoy. Devuelve
- * null si el formato no es reconocible (falla controlada, no se envía).
+ * Normaliza un teléfono a E.164. Sin código de país explícito, se asume
+ * el formato local de los mercados activos hoy: Panamá (8 dígitos) o
+ * Venezuela (11 dígitos, formato local "04XX-XXXXXXX" — el 0 inicial se
+ * descarta y se antepone +58). Devuelve null si el formato no es
+ * reconocible (falla controlada, no se envía) — nunca lanza excepción.
  */
 export function normalizePhoneE164(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -45,8 +47,9 @@ export function normalizePhoneE164(raw: string | null | undefined): string | nul
   }
 
   const digits = trimmed.replace(/\D/g, "");
-  if (digits.length === 8) return `+507${digits}`;           // local sin código de país
-  if (digits.length === 11 && digits.startsWith("507")) return `+${digits}`; // ya con 507
+  if (digits.length === 8) return `+507${digits}`;           // Panamá local sin código de país
+  if (digits.length === 11 && digits.startsWith("507")) return `+${digits}`; // Panamá ya con 507
+  if (digits.length === 11 && digits.startsWith("0")) return `+58${digits.slice(1)}`; // Venezuela local "04XX-XXXXXXX"
   return null;
 }
 
@@ -105,7 +108,17 @@ async function sleep(ms: number) {
   await new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function callMetaGraphApi(phone: string, params: SendWhatsAppTemplateParams): Promise<{
+/** Subconjunto de SendWhatsAppTemplateParams que necesita la llamada cruda a Meta — sin dojoId/studentId/type, para poder reusarse fuera del flujo de notificaciones ligadas a un alumno (ver src/lib/whatsapp/sendLifecycleTemplate.ts). */
+export interface MetaTemplateCallParams {
+  templateName:    string;
+  /** Código de idioma EXACTO con el que Meta aprobó ese template (confirmado vía GET .../message_templates — no todos quedan en es_PA, ej. ayuda_primer_alumno quedó en es_ES). Default "es_PA" por compatibilidad con los templates de pagos, ya todos en ese idioma. */
+  language?:       string;
+  headerParams?:   string[];
+  headerDocument?: { link: string; filename: string };
+  bodyParams:      string[];
+}
+
+export async function callMetaGraphApi(phone: string, params: MetaTemplateCallParams): Promise<{
   ok: boolean;
   retryable: boolean;
   metaMessageId?: string;
@@ -126,10 +139,16 @@ async function callMetaGraphApi(phone: string, params: SendWhatsAppTemplateParam
       parameters: params.headerParams.map(text => ({ type: "text", text })),
     });
   }
-  components.push({
-    type: "body",
-    parameters: params.bodyParams.map(text => ({ type: "text", text })),
-  });
+  // Si el body del template no tiene variables, Meta no espera el
+  // componente — mandarlo con parameters:[] en templates sin {{n}} (ej.
+  // bienvenida_dojomaster, que solo tiene variable en el header) puede
+  // ser rechazado por Meta.
+  if (params.bodyParams.length > 0) {
+    components.push({
+      type: "body",
+      parameters: params.bodyParams.map(text => ({ type: "text", text })),
+    });
+  }
 
   const body = {
     messaging_product: "whatsapp",
@@ -137,7 +156,7 @@ async function callMetaGraphApi(phone: string, params: SendWhatsAppTemplateParam
     type: "template",
     template: {
       name: params.templateName,
-      language: { code: "es_PA" },
+      language: { code: params.language ?? "es_PA" },
       components,
     },
   };

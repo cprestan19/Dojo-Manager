@@ -79,6 +79,7 @@ export async function GET(req: NextRequest) {
           select: {
             id:    true,
             name:  true,
+            active: true,
             timezone: true,
             users: { where: { role: "admin" }, select: { email: true } },
           },
@@ -89,7 +90,9 @@ export async function GET(req: NextRequest) {
     let sent = 0, skipped = 0;
 
     for (const sub of subs) {
-      const dojo     = sub.dojo;
+      const dojo = sub.dojo;
+      // Dojo desactivado por sysadmin — nunca recibe notificaciones, ni email ni WhatsApp.
+      if (!dojo.active) { skipped++; continue; }
       const dojoTz   = dojo.timezone ?? DEFAULT_TIMEZONE;
       const daysLeft = Math.max(0, Math.ceil((sub.trialEndsAt.getTime() - now.getTime()) / 86_400_000));
       const emails   = dojo.users.map(u => u.email).filter(Boolean);

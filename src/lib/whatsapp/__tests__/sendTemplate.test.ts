@@ -66,6 +66,15 @@ describe("normalizePhoneE164", () => {
     expect(normalizePhoneE164("+50761234567")).toBe("+50761234567");
   });
 
+  it("converts a local Venezuelan mobile number (0-prefixed, 11 digits) to +58", () => {
+    expect(normalizePhoneE164("04247220878")).toBe("+584247220878");
+  });
+
+  it("strips separators before normalizing (dashes, spaces)", () => {
+    expect(normalizePhoneE164("6247-7907")).toBe("+50762477907");
+    expect(normalizePhoneE164("+507 62019999")).toBe("+50762019999");
+  });
+
   it("returns null for garbage input", () => {
     expect(normalizePhoneE164("abc")).toBeNull();
     expect(normalizePhoneE164("123")).toBeNull();

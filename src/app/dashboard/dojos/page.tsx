@@ -5,6 +5,7 @@ import {
   Building2, Plus, Users, GraduationCap, Globe, CheckCircle, XCircle,
   Copy, KeyRound, LogIn, Lock, Eye, EyeOff, Crown, Trash2, AlertTriangle,
   Crown as CrownIcon, Star, RefreshCw, Loader2, Upload, ImageIcon, FileText,
+  Mail, Phone,
 } from "lucide-react";
 // "Eye" ya importado arriba se reutiliza como ícono de Vista Previa (además del toggle de password)
 import { Modal } from "@/components/ui/Modal";
@@ -347,6 +348,23 @@ export default function DojosPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-dojo-white font-medium truncate">{dojo.name}</p>
+                          {/* Correo/Teléfono: en pantallas lg+ ya tienen su propia columna;
+                              acá abajo del nombre es la única forma de verlos en celular,
+                              donde esas columnas quedan ocultas (hidden lg:table-cell). */}
+                          {(dojo.email || dojo.phone) && (
+                            <div className="lg:hidden mt-0.5 space-y-0.5">
+                              {dojo.email && (
+                                <p className="flex items-center gap-1 text-dojo-muted text-[11px] truncate">
+                                  <Mail size={10} className="shrink-0" /> {dojo.email}
+                                </p>
+                              )}
+                              {dojo.phone && (
+                                <p className="flex items-center gap-1 text-dojo-muted text-[11px] font-mono">
+                                  <Phone size={10} className="shrink-0" /> {dojo.phone}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                         {dojo.active
                           ? <CheckCircle size={13} className="text-green-400 shrink-0" />

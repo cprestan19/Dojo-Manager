@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { CreditCard, Search, Bell, CheckCircle, Filter, AlertTriangle, X, Send, Mail, CalendarPlus, FileText, Pencil } from "lucide-react";
+import { CreditCard, Search, Bell, CheckCircle, Filter, AlertTriangle, X, Send, Mail, CalendarPlus, FileText, Pencil, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { formatDate, PAYMENT_STATUS_LABELS, getPaymentTypeLabel } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
 import { useDojoTimeZone, useDojoCurrency } from "@/lib/hooks/useDojo";
@@ -233,6 +233,36 @@ function ReceiptConfirmModal({
   );
 }
 
+// ── Ordenamiento de columnas (tabla desktop) ────────────────────────────────
+
+type SortField = "name" | "type" | "amount" | "dueDate" | "paidDate" | "status";
+type SortDir   = "asc" | "desc";
+
+function SortTh({
+  label, field, sortField, sortDir, onSort,
+}: {
+  label: string; field: SortField; sortField: SortField | null; sortDir: SortDir;
+  onSort: (f: SortField) => void;
+}) {
+  const active = sortField === field;
+  return (
+    <TableHead
+      onClick={() => onSort(field)}
+      className="cursor-pointer select-none hover:text-dojo-white transition-colors group"
+    >
+      <span className="flex items-center gap-1">
+        {label}
+        <span className="text-dojo-border group-hover:text-dojo-muted transition-colors">
+          {active
+            ? sortDir === "asc" ? <ChevronUp size={12} className="text-dojo-gold" /> : <ChevronDown size={12} className="text-dojo-gold" />
+            : <ChevronsUpDown size={12} />
+          }
+        </span>
+      </span>
+    </TableHead>
+  );
+}
+
 function GenerateModal({
   onClose, onConfirm, generating, result,
 }: {
@@ -318,6 +348,8 @@ export default function PaymentsPage() {
   const [generating,       setGenerating]       = useState(false);
   const [generateResult,   setGenerateResult]   = useState<{ created: number; skipped: number } | null>(null);
   const [editTarget,       setEditTarget]       = useState<Payment | null>(null);
+  const [sortField,        setSortField]        = useState<SortField | null>(null);
+  const [sortDir,          setSortDir]          = useState<SortDir>("desc");
 
   const fetch_ = useCallback(async () => {
     setLoading(true);
@@ -395,10 +427,28 @@ export default function PaymentsPage() {
     fetch_();
   }
 
+  function handleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
+  }
+
   const filtered = payments.filter(p => {
     const name = p.student.fullName.toLowerCase();
     return name.includes(search.toLowerCase());
   });
+
+  const displayed = sortField ? [...filtered].sort((a, b) => {
+    let cmp = 0;
+    switch (sortField) {
+      case "name":     cmp = a.student.fullName.localeCompare(b.student.fullName, "es"); break;
+      case "type":     cmp = getPaymentTypeLabel(a.type).localeCompare(getPaymentTypeLabel(b.type), "es"); break;
+      case "amount":   cmp = a.amount - b.amount; break;
+      case "dueDate":  cmp = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(); break;
+      case "paidDate": cmp = (a.paidDate ? new Date(a.paidDate).getTime() : -Infinity) - (b.paidDate ? new Date(b.paidDate).getTime() : -Infinity); break;
+      case "status":   cmp = (PAYMENT_STATUS_LABELS[a.status]?.label ?? a.status).localeCompare(PAYMENT_STATUS_LABELS[b.status]?.label ?? b.status, "es"); break;
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  }) : filtered;
 
   const totals = {
     pending: payments.filter(p => p.status === "pending").reduce((s, p) => s + p.amount, 0),
@@ -499,10 +549,10 @@ export default function PaymentsPage() {
       {/* ── Vista mobile: tarjetas ── */}
       <div className="block lg:hidden space-y-3">
         {loading && <div className="text-center py-8 text-dojo-muted">Cargando...</div>}
-        {!loading && filtered.length === 0 && (
+        {!loading && displayed.length === 0 && (
           <div className="text-center py-8 text-dojo-muted">No hay pagos que coincidan.</div>
         )}
-        {!loading && filtered.map(p => {
+        {!loading && displayed.map(p => {
           const st = PAYMENT_STATUS_LABELS[p.status] ?? { label: p.status, className: "badge-blue" };
           return (
             <div key={p.id} className="bg-dojo-dark border border-dojo-border rounded-2xl p-4 space-y-3">
@@ -566,19 +616,23 @@ export default function PaymentsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              {["Alumno","Tipo","Monto","Vencimiento","Pago","Estado","Acciones"].map(h => (
-                <TableHead key={h}>{h}</TableHead>
-              ))}
+              <SortTh label="Alumno"      field="name"     sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+              <SortTh label="Tipo"        field="type"     sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+              <SortTh label="Monto"       field="amount"   sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+              <SortTh label="Vencimiento" field="dueDate"  sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+              <SortTh label="Pago"        field="paidDate" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+              <SortTh label="Estado"      field="status"   sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+              <TableHead>Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && (
               <TableRow><TableCell colSpan={7} className="text-center py-12 text-dojo-muted">Cargando...</TableCell></TableRow>
             )}
-            {!loading && filtered.length === 0 && (
+            {!loading && displayed.length === 0 && (
               <TableRow><TableCell colSpan={7} className="text-center py-12 text-dojo-muted">No hay pagos que coincidan.</TableCell></TableRow>
             )}
-            {filtered.map(p => {
+            {displayed.map(p => {
               const st = PAYMENT_STATUS_LABELS[p.status] ?? { label: p.status, className: "badge-blue", variant: "info" as const };
               return (
                 <TableRow

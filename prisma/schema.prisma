@@ -22,6 +22,15 @@ model Dojo {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Consentimiento para los mensajes de WhatsApp del CRM de activación
+  // (DojoLifecycleMessage). Default true: el teléfono es obligatorio al
+  // registrarse, decisión de negocio del dueño de la plataforma de tratar
+  // eso como consentimiento implícito. Se apaga manual o automáticamente
+  // si el dueño del dojo responde algo tipo "detener"/"stop" (ver
+  // handleIncomingMessage en src/lib/whatsapp/webhookHandlers.ts).
+  whatsappOptIn      Boolean   @default(true) @map("whatsapp_opt_in")
+  whatsappOptOutDate DateTime? @map("whatsapp_opt_out_date")
+
   // Cliente destacado en la landing (barra de logos "confían en nosotros")
   featured Boolean @default(false)
 
@@ -49,12 +58,12 @@ model Dojo {
   // (Plan/Subscription/Invoice), que siempre es en USD.
   currency String @default("USD") @map("currency")
 
-  loginBgImage          String? @map("login_bg_image") @db.Text
-  contractPolicy        String? @map("contract_policy") @db.Text // texto de políticas/contrato mostrado en el auto-registro
-  instagramUrl          String? @map("instagram_url")
-  themeId               String  @default("dark-saas") @map("theme_id")
-  locale                String  @default("es") @map("locale") // "es" | "en"
-  tournamentPro         Boolean @default(false) @map("tournament_pro") // Módulo Torneo Pro activado
+  loginBgImage   String? @map("login_bg_image") @db.Text
+  contractPolicy String? @map("contract_policy") @db.Text // texto de políticas/contrato mostrado en el auto-registro
+  instagramUrl   String? @map("instagram_url")
+  themeId        String  @default("dark-saas") @map("theme_id")
+  locale         String  @default("es") @map("locale") // "es" | "en"
+  tournamentPro  Boolean @default(false) @map("tournament_pro") // Módulo Torneo Pro activado
 
   // Colores de marca para el carnet digital del alumno (hex). null = paleta roja/negra por defecto.
   cardPrimaryColor   String? @map("card_primary_color")
@@ -76,6 +85,7 @@ model Dojo {
   rolePermissions         DojoRolePermission[]
   dojoPage                DojoPage?
   freeTrials              FreeTrialRequest[]
+  lifecycleMessages       DojoLifecycleMessage[]
   tournaments             Tournament[]
   tournamentTatamis       TournamentTatami[]
   tournamentJudges        TournamentJudge[]
@@ -202,6 +212,46 @@ model FreeTrialRequest {
   @@index([dojoId, status])
   @@index([dojoId, read])
   @@map("free_trial_requests")
+}
+
+// ── CRM Superadmin — "Primera Etapa": activación y riesgo básico ─────
+// Registro de cada mensaje de seguimiento (automático o manual) enviado
+// a un dojo-cliente por Cristhian/Superadmin. NO tiene dojoId de aislamiento
+// multi-tenant en el sentido normal — este dojoId identifica AL CLIENTE
+// destinatario, no un contexto de datos internos del dojo. Vive fuera del
+// alcance de getEffectiveDojoId() a propósito: solo lo usa el panel Superadmin.
+model DojoLifecycleMessage {
+  id     String @id @default(cuid())
+  dojoId String @map("dojo_id")
+  dojo   Dojo   @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+
+  // "WELCOME" | "HELP_NO_STUDENTS" | "FOLLOWUP" | "LAST_ATTEMPT" | "REACTIVATION" | "MANUAL"
+  type String
+
+  // "whatsapp" | "manual" (contacto directo de Cristhian, registrado a mano)
+  channel      String  @default("whatsapp")
+  templateName String? @map("template_name")
+
+  // "PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED" — igual semántica que WhatsAppNotification.
+  // DELIVERED/READ los actualiza el webhook de WhatsApp vía metaMessageId (ver handleStatusUpdate).
+  status         String  @default("PENDING")
+  recipientPhone String? @map("recipient_phone")
+  errorDetail    String? @map("error_detail") @db.Text
+
+  // ID del mensaje en Meta — permite recibir actualizaciones de entregado/leído
+  // por el webhook. Solo se llena cuando el envío real (send-pending) tuvo éxito.
+  metaMessageId String? @unique @map("meta_message_id")
+
+  // Nota libre — usada tanto para contacto manual como para contexto de un envío automático
+  note String? @db.Text
+
+  sentAt    DateTime? @map("sent_at")
+  createdAt DateTime  @default(now())
+
+  @@index([dojoId])
+  @@index([dojoId, type])
+  @@index([type, status])
+  @@map("dojo_lifecycle_messages")
 }
 
 model User {
@@ -386,8 +436,8 @@ model Kata {
   dojoId String @map("dojo_id")
   dojo   Dojo   @relation(fields: [dojoId], references: [id])
 
-  beltHistory       BeltHistory[]
-  kataCompetitions  KataCompetition[]
+  beltHistory        BeltHistory[]
+  kataCompetitions   KataCompetition[]
   rankingAssignments KataRankingAssignment[]
 
   @@unique([name, dojoId])
@@ -568,6 +618,18 @@ model PlatformSettings {
   updatedAt DateTime @updatedAt
 
   @@map("platform_settings")
+}
+
+// Interruptor del envío real de WhatsApp del CRM "Primera Etapa" — apagado
+// por default a propósito (decisión del usuario: "quiero activarlo yo").
+// Mientras esté en false, POST /api/cron/dojo-lifecycle-messages/send-pending
+// no llama a Meta aunque haya filas PENDING listas para enviar.
+model CrmSettings {
+  id                  String   @id @default("singleton")
+  whatsappSendEnabled Boolean  @default(false) @map("whatsapp_send_enabled")
+  updatedAt           DateTime @updatedAt
+
+  @@map("crm_settings")
 }
 
 model DojoRolePermission {
@@ -1894,13 +1956,13 @@ model WhatsAppNotification {
   // cuando se implemente esa etapa para no acoplar este modelo de antemano.
   tournamentRegistrationId String? @map("tournament_registration_id")
 
-  recipientPhone String                    @map("recipient_phone") // E.164
+  recipientPhone String                     @map("recipient_phone") // E.164
   type           WhatsAppNotificationType
-  templateName   String                    @map("template_name")
-  templateVars   Json                      @map("template_vars")
+  templateName   String                     @map("template_name")
+  templateVars   Json                       @map("template_vars")
   status         WhatsAppNotificationStatus @default(PENDING)
-  metaMessageId  String?                   @unique @map("meta_message_id")
-  errorDetail    String?                   @map("error_detail") @db.Text
+  metaMessageId  String?                    @unique @map("meta_message_id")
+  errorDetail    String?                    @map("error_detail") @db.Text
 
   // fileId del recibo PDF subido a ImageKit (folder "receipts") como header
   // de confirmacion_pago_dojomaster. Se limpia (ImageKit + este campo a null)
@@ -1917,11 +1979,11 @@ model WhatsAppNotification {
 }
 
 model WhatsAppInboundMessage {
-  id            String @id @default(cuid())
-  fromPhone     String @map("from_phone")
-  metaMessageId String @unique @map("meta_message_id")
+  id            String   @id @default(cuid())
+  fromPhone     String   @map("from_phone")
+  metaMessageId String   @unique @map("meta_message_id")
   type          String
-  text          String? @db.Text
+  text          String?  @db.Text
   receivedAt    DateTime @map("received_at")
 
   // Match best-effort por teléfono contra motherPhone/fatherPhone — null si no
