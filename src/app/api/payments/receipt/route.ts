@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { sendPaymentReceipt } from "@/lib/email";
 import { formatDate } from "@/lib/utils";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
+import { sendPaymentConfirmedWhatsApp } from "@/lib/whatsapp/paymentConfirmation";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -79,5 +80,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ sent, recipients: recipients.map(r => r.address) });
+  // Mismo recibo también por WhatsApp — usa la función compartida con el
+  // envío automático al marcar como pagado; su propia idempotencia
+  // (sendWhatsAppTemplate) evita reenviar si ya se mandó antes para este pago.
+  const whatsapp = await sendPaymentConfirmedWhatsApp(dojoId, payment);
+
+  return NextResponse.json({ sent, recipients: recipients.map(r => r.address), whatsapp });
 }

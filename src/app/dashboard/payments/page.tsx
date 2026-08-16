@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { CreditCard, Search, Bell, CheckCircle, Filter, AlertTriangle, X, Send, Mail, CalendarPlus, FileText, Pencil, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { CreditCard, Search, Bell, CheckCircle, Filter, AlertTriangle, X, Send, Mail, MessageCircle, CalendarPlus, FileText, Pencil, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { formatDate, PAYMENT_STATUS_LABELS, getPaymentTypeLabel } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
 import { useDojoTimeZone, useDojoCurrency } from "@/lib/hooks/useDojo";
@@ -19,9 +19,26 @@ interface Payment {
   reminderSent: boolean;
   student: {
     fullName: string; firstName: string; lastName: string;
-    motherName: string | null; motherEmail: string | null;
-    fatherName: string | null; fatherEmail: string | null;
+    motherName: string | null; motherEmail: string | null; motherPhone: string | null;
+    fatherName: string | null; fatherEmail: string | null; fatherPhone: string | null;
+    primaryGuardian: string | null; whatsappOptIn: boolean;
   };
+}
+
+/**
+ * Mismo criterio que resolveGuardianContact() en src/lib/whatsapp/sendTemplate.ts
+ * — un solo destinatario de WhatsApp (el acudiente marcado como principal),
+ * nunca se adivina. Replicado acá solo para mostrarlo en pantalla; el envío
+ * real vuelve a resolverlo del lado del servidor.
+ */
+function resolveWhatsAppRecipient(student: Payment["student"]): { name: string; phone: string } | null {
+  if (student.primaryGuardian === "father" && student.fatherPhone) {
+    return { name: student.fatherName ?? "Padre/Tutor", phone: student.fatherPhone };
+  }
+  if (student.primaryGuardian === "mother" && student.motherPhone) {
+    return { name: student.motherName ?? "Madre/Tutora", phone: student.motherPhone };
+  }
+  return null;
 }
 
 interface ReminderTarget {
@@ -132,12 +149,14 @@ function ReminderConfirmModal({
 }
 
 interface ReceiptTarget {
-  paymentId:   string;
-  studentName: string;
-  amount:      number;
-  paidDate:    string;
-  concept:     string;
-  recipients:  { label: string; name: string; email: string }[];
+  paymentId:     string;
+  studentName:   string;
+  amount:        number;
+  paidDate:      string;
+  concept:       string;
+  recipients:    { label: string; name: string; email: string }[];
+  whatsapp:      { name: string; phone: string } | null;
+  whatsappOptIn: boolean;
 }
 
 function buildReceiptTarget(p: Payment): ReceiptTarget {
@@ -148,13 +167,31 @@ function buildReceiptTarget(p: Payment): ReceiptTarget {
     recipients.push({ label: "Padre / Tutor",  name: p.student.fatherName ?? "—", email: p.student.fatherEmail });
   const concept = `Mensualidad ${new Date(p.dueDate).toLocaleDateString("es-PA", { month: "long", year: "numeric" })}`;
   return {
-    paymentId:   p.id,
-    studentName: p.student.fullName,
-    amount:      p.amount,
-    paidDate:    p.paidDate ? formatDate(p.paidDate) : formatDate(p.dueDate),
+    paymentId:     p.id,
+    studentName:   p.student.fullName,
+    amount:        p.amount,
+    paidDate:      p.paidDate ? formatDate(p.paidDate) : formatDate(p.dueDate),
     concept,
     recipients,
+    whatsapp:      resolveWhatsAppRecipient(p.student),
+    whatsappOptIn: p.student.whatsappOptIn,
   };
+}
+
+const WHATSAPP_SKIP_REASONS: Record<string, string> = {
+  ALREADY_SENT:       "ya se había enviado por WhatsApp antes para este pago, no se reenvía",
+  NO_OPT_IN:           "el alumno no tiene WhatsApp activado",
+  NO_PHONE:            "sin teléfono del acudiente principal",
+  PLAN_NOT_INCLUDED:   "no incluido en el plan del dojo",
+  INVALID_PHONE:       "el teléfono no tiene un formato válido",
+};
+
+function buildReceiptSentMessage(d: { sent: number; whatsapp?: { sent: boolean; reason?: string } }): string {
+  const base = `Recibo enviado a ${d.sent} correo(s)`;
+  if (!d.whatsapp) return `${base}.`;
+  if (d.whatsapp.sent) return `${base} y por WhatsApp.`;
+  const reason = WHATSAPP_SKIP_REASONS[d.whatsapp.reason ?? ""] ?? "no se pudo enviar";
+  return `${base}. Por WhatsApp ${reason} — solo se envió por correo.`;
 }
 
 function ReceiptConfirmModal({
@@ -213,6 +250,26 @@ function ReceiptConfirmModal({
               </div>
             </div>
           ))
+        )}
+
+        {target.whatsapp ? (
+          <div className="flex items-center gap-3 p-3 bg-dojo-dark border border-dojo-border rounded-lg">
+            <MessageCircle size={15} className="text-green-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-dojo-muted">WhatsApp</p>
+              <p className="text-sm text-dojo-white font-medium">{target.whatsapp.name}</p>
+              <p className="text-xs text-green-400 font-mono truncate">{target.whatsapp.phone}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 p-3 bg-dojo-dark/50 border border-dojo-border/50 rounded-lg">
+            <MessageCircle size={15} className="text-dojo-muted shrink-0" />
+            <p className="text-xs text-dojo-muted">
+              {target.whatsappOptIn
+                ? "Sin teléfono del acudiente principal — no se enviará por WhatsApp."
+                : "El alumno no tiene WhatsApp activado — no se enviará por WhatsApp."}
+            </p>
+          </div>
         )}
       </div>
 
@@ -413,7 +470,7 @@ export default function PaymentsPage() {
     const d = await r.json();
     setSendingReceipt(false);
     setReceiptTarget(null);
-    setSentMsg(r.ok ? `Recibo enviado a ${d.sent} correo(s).` : `Error: ${d.error}`);
+    setSentMsg(r.ok ? buildReceiptSentMessage(d) : `Error: ${d.error}`);
   }
 
   async function markPaid(id: string) {

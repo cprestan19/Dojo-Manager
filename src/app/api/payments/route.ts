@@ -8,10 +8,8 @@ import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-contex
 import { CreatePaymentSchema, UpdatePaymentSchema, validationError } from "@/lib/validation";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { withReadOnlyGuard } from "@/lib/billing/readOnlyGuard";
-import {
-  sendWhatsAppTemplate, buildOverdueVars, buildConfirmedVars, resolveGuardianContact,
-} from "@/lib/whatsapp/sendTemplate";
-import { generateAndUploadReceiptPdf } from "@/lib/whatsapp/receiptPdf";
+import { sendWhatsAppTemplate, buildOverdueVars, resolveGuardianContact } from "@/lib/whatsapp/sendTemplate";
+import { sendPaymentConfirmedWhatsApp } from "@/lib/whatsapp/paymentConfirmation";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 
@@ -22,72 +20,19 @@ type SessionUser = { role?: string; dojoId?: string | null };
  * pending/late → paid). Antes solo vivía en _PUT, así que un pago creado
  * directamente como pagado nunca disparaba el WhatsApp — nunca fallaba,
  * simplemente no se llamaba. Síncrono pero nunca bloquea la respuesta al
- * admin si algo falla.
+ * admin si algo falla — sendPaymentConfirmedWhatsApp() nunca lanza.
  */
 async function notifyPaymentConfirmedWhatsApp(
   dojoId:  string,
   payment: { id: string; studentId: string; amount: number; paidDate: Date | null; dueDate: Date },
   ctx:     ReturnType<typeof buildAuditCtx>,
 ) {
-  try {
-    const student = await prisma.student.findUnique({
-      where: { id: payment.studentId, dojoId },
-      select: {
-        id: true, fullName: true, firstName: true, lastName: true, studentCode: true,
-        motherName: true, motherPhone: true, fatherName: true, fatherPhone: true,
-        primaryGuardian: true, whatsappOptIn: true,
-      },
-    });
-    const guardianContact = student ? resolveGuardianContact(student) : { name: null, phone: null };
-    if (!student?.whatsappOptIn || !guardianContact.phone) return;
-
-    const dojo = await prisma.dojo.findUnique({ where: { id: dojoId }, select: { name: true, logo: true, slug: true } });
-    if (!dojo) return;
-
-    const paidDate  = formatDate(payment.paidDate ?? new Date());
-    const receiptNo = payment.id.slice(-8).toUpperCase();
-    const { bodyParams } = buildConfirmedVars({
-      guardianName: guardianContact.name,
-      dojo,
-      amount: payment.amount,
-      paidDate,
-    });
-
-    // El header del template es un documento PDF obligatorio — si la
-    // generación/subida falla, no se envía el WhatsApp (Meta rechaza
-    // el template sin ese header). Ver sendTemplate.ts.
-    let headerDocument: { link: string; filename: string; publicId: string } | undefined;
-    try {
-      headerDocument = await generateAndUploadReceiptPdf({
-        dojoName:    dojo.name,
-        dojoSlug:    dojo.slug,
-        dojoLogoUrl: dojo.logo,
-        receiptNo,
-        studentName: student.fullName || `${student.firstName} ${student.lastName}`.trim(),
-        studentCode: student.studentCode,
-        concept:     `Mensualidad ${new Date(payment.dueDate).toLocaleDateString("es-PA", { month: "long", year: "numeric" })}`,
-        paidDate,
-        amount:      payment.amount,
-      });
-    } catch (pdfErr) {
-      console.error("Error generando/subiendo recibo PDF para WhatsApp:", pdfErr);
-    }
-
-    if (headerDocument) {
-      const result = await sendWhatsAppTemplate({
-        dojoId, studentId: student.id, paymentId: payment.id,
-        type: "PAYMENT_CONFIRMED", templateName: "confirmacion_pago_dojomaster",
-        headerDocument, bodyParams,
-      });
-      await logAudit({
-        ...ctx, action: "WHATSAPP_PAYMENT_CONFIRMED_SENT", module: AUDIT_MODULE.WHATSAPP,
-        resourceType: "Payment", resourceId: payment.id, targetId: student.id,
-        statusCode: 200, details: JSON.stringify(result),
-      });
-    }
-  } catch (err) {
-    console.error("Error sending WhatsApp payment confirmation:", err);
-  }
+  const result = await sendPaymentConfirmedWhatsApp(dojoId, payment);
+  await logAudit({
+    ...ctx, action: "WHATSAPP_PAYMENT_CONFIRMED_SENT", module: AUDIT_MODULE.WHATSAPP,
+    resourceType: "Payment", resourceId: payment.id, targetId: payment.studentId,
+    statusCode: 200, details: JSON.stringify(result),
+  });
 }
 
 export async function GET(req: NextRequest) {
@@ -121,7 +66,12 @@ export async function GET(req: NextRequest) {
       } : {}),
     },
     include: {
-      student: { select: { fullName: true, firstName: true, lastName: true, motherName: true, motherEmail: true, fatherName: true, fatherEmail: true } },
+      student: { select: {
+        fullName: true, firstName: true, lastName: true,
+        motherName: true, motherEmail: true, motherPhone: true,
+        fatherName: true, fatherEmail: true, fatherPhone: true,
+        primaryGuardian: true, whatsappOptIn: true,
+      } },
     },
     orderBy: { dueDate: "desc" },
     take: 1000,
