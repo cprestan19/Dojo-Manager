@@ -269,7 +269,7 @@ export const HELP_CONTENT: Record<string, HelpContent> = {
     description: "Videos de kata de referencia visibles para los alumnos.",
     steps: [
       "Sube un video por grado para que los alumnos practiquen.",
-      "Los videos se almacenan en Cloudinary (máx. 200 MB por video).",
+      "Los videos se almacenan en ImageKit (máx. 50 MB por video).",
       "El alumno accede a su video de grado desde el portal → Videos.",
     ],
     tips: [

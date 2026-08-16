@@ -2,8 +2,8 @@
 // Usado por /api/upload (staff autenticado) y por los endpoints públicos
 // de subida del coach externo (token, sin sesión NextAuth).
 
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;   // 5 MB
-export const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200 MB
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;  // 5 MB
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50 MB — videos ya subidos con más peso se mantienen igual
 
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 export const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"];

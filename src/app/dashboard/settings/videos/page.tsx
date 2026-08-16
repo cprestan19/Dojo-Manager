@@ -5,6 +5,7 @@ import { Video, Plus, Edit2, Trash2, Save, X, Upload, Loader2, PlayCircle, Lock,
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { Modal } from "@/components/ui/Modal";
 import { BELT_COLORS, VIDEO_RANKING_CATEGORIES, getBeltInfo } from "@/lib/utils";
+import { MAX_VIDEO_BYTES } from "@/lib/upload-validation";
 
 const VIDEO_CATEGORIES = [...BELT_COLORS, ...VIDEO_RANKING_CATEGORIES];
 
@@ -93,6 +94,12 @@ export default function VideosSettingsPage() {
   // Cloudinary, el endpoint de subida de ImageKit no corta archivos grandes
   // en un único request.
   async function uploadVideoToImageKit(file: File): Promise<{ url: string; publicId: string }> {
+    // Límite de 50 MB para videos nuevos — los ya subidos con más peso
+    // se mantienen igual, esto solo aplica hacia adelante.
+    if (file.size > MAX_VIDEO_BYTES) {
+      throw new Error(`El video pesa ${(file.size / 1024 / 1024).toFixed(1)} MB — el máximo permitido es 50 MB.`);
+    }
+
     const sigRes = await fetch("/api/upload/video-signature");
     if (!sigRes.ok) throw new Error("No se pudo iniciar la subida. Intenta de nuevo.");
     const { token, expire, signature, publicKey, folder } =
@@ -475,7 +482,7 @@ export default function VideosSettingsPage() {
                 className="hidden"
                 onChange={handleVideoFile}
               />
-              <p className="text-xs text-dojo-muted">MP4, WebM o MOV · máx. 200 MB</p>
+              <p className="text-xs text-dojo-muted">MP4, WebM o MOV · máx. 50 MB</p>
               {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
 
               {/* Preview del video actual */}
@@ -528,7 +535,7 @@ export default function VideosSettingsPage() {
                 className="hidden"
                 onChange={handleTachiFile}
               />
-              <p className="text-xs text-dojo-muted">MP4, WebM o MOV · máx. 200 MB</p>
+              <p className="text-xs text-dojo-muted">MP4, WebM o MOV · máx. 50 MB</p>
               {uploadErrorTachi && <p className="text-xs text-red-400">{uploadErrorTachi}</p>}
               {editing.tachiKataUrl && !uploadingTachi && (
                 <video
