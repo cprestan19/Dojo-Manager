@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import {
   Bell, BellOff, Send, Zap, Users, CheckCircle2,
-  AlertCircle, RefreshCw, Smartphone, ToggleLeft, ToggleRight, Mail,
+  AlertCircle, RefreshCw, Smartphone, ToggleLeft, ToggleRight, Mail, Link2,
 } from "lucide-react";
 import { usePushSubscription } from "@/lib/hooks/usePushSubscription";
 import { formatDistanceToNow } from "date-fns";
@@ -233,6 +233,24 @@ export default function PushSettingsPage() {
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
+
+      {/* Link de la landing de campaña — referencia rápida para sysadmin */}
+      {role === "sysadmin" && (
+        <div className="card flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm text-dojo-white font-medium flex items-center gap-2">
+            <Link2 size={15} className="text-dojo-gold" />
+            Landing page
+          </span>
+          <a
+            href="https://dojomasteronline.com/registro-instagram"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-dojo-gold hover:underline break-all"
+          >
+            dojomasteronline.com/registro-instagram
+          </a>
+        </div>
+      )}
 
       {/* Selector de dojo (solo sysadmin) — sin esto, /api/push/* nunca tiene
           contexto de dojo fuera de Vista Previa y la pantalla se queda sin
