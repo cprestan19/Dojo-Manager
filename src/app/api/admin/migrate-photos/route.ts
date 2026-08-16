@@ -44,6 +44,11 @@ export async function POST(req: NextRequest) {
     users:     { found: 0, migrated: 0, failed: 0 },
   };
 
+  // Slugs de todos los dojos, resueltos una sola vez — evita una consulta
+  // por cada foto al armar la carpeta de ImageKit.
+  const dojoSlugs = new Map((await prisma.dojo.findMany({ select: { id: true, slug: true } }))
+    .map(d => [d.id, d.slug] as const));
+
   // ── 1. Students con foto base64 ───────────────────────────────────────────
   const studentsWithBase64 = await prisma.student.findMany({
     where: { photo: { startsWith: "data:" } },
@@ -56,7 +61,7 @@ export async function POST(req: NextRequest) {
     for (const student of studentsWithBase64) {
       const url = await base64ToImageKit(
         student.photo!,
-        `dojo-manager/${student.dojoId}/students`,
+        `dojo-manager/${dojoSlugs.get(student.dojoId) ?? student.dojoId}/students`,
       );
       if (url) {
         await prisma.student.update({
@@ -86,7 +91,7 @@ export async function POST(req: NextRequest) {
   if (!dryRun) {
     for (const user of usersWithBase64) {
       const folder = user.dojoId
-        ? `dojo-manager/${user.dojoId}/users`
+        ? `dojo-manager/${dojoSlugs.get(user.dojoId) ?? user.dojoId}/users`
         : `dojo-manager/global/users`;
       const url = await base64ToImageKit(user.photo!, folder);
       if (url) {

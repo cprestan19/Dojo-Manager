@@ -6,6 +6,7 @@ import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-contex
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { renderCertificatePdf, type CertElement } from "@/lib/certificate-render";
 import { uploadBuffer } from "@/lib/imagekit";
+import { getDojoUploadFolder } from "@/lib/media";
 import { getBeltInfo } from "@/lib/utils";
 
 type Params = { params: Promise<{ id: string }> };
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
 
     const { url, fileId } = await uploadBuffer(
-      pdfBuffer, `certificado-${id}.pdf`, `dojo-manager/${dojoId}/certificates`, "application/pdf",
+      pdfBuffer, `certificado-${id}.pdf`, `dojo-manager/${await getDojoUploadFolder(dojoId)}/certificates`, "application/pdf",
     );
 
     const updated = await prisma.generatedCertificate.update({

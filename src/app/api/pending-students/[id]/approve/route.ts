@@ -7,6 +7,7 @@ import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-contex
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { formatStudentName } from "@/lib/utils";
 import { uploadBuffer } from "@/lib/imagekit";
+import { getDojoUploadFolder } from "@/lib/media";
 import { validateBase64Image } from "@/lib/file-validation";
 import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
 
@@ -21,7 +22,7 @@ async function uploadBase64Photo(base64: string, dojoId: string): Promise<string
     const buffer   = Buffer.from(b64data, "base64");
     const mimeMatch = /^data:([^;]+);base64/.exec(base64);
     const mimeType  = mimeMatch?.[1] ?? "image/jpeg";
-    const folder    = `dojo-manager/${dojoId}/students`;
+    const folder    = `dojo-manager/${await getDojoUploadFolder(dojoId)}/students`;
     const result    = await uploadBuffer(buffer, `alumno-${randomUUID()}.jpg`, folder, mimeType);
     return result.url;
   } catch {

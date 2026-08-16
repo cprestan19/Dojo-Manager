@@ -11,6 +11,7 @@ import { isOwnMediaUrl } from "@/lib/upload-validation";
 
 export interface PaymentReceiptData {
   dojoName:    string;
+  dojoSlug?:   string | null; // slug del dojo — organiza la carpeta de ImageKit por dojo
   dojoLogoUrl?: string | null; // URL de Cloudinary o base64 legado — ver loadDojoLogo()
   receiptNo:   string;
   studentName: string;
@@ -184,6 +185,7 @@ export async function generateAndUploadReceiptPdf(
 ): Promise<{ link: string; filename: string; publicId: string }> {
   const buffer   = await renderPaymentReceiptPdf(data);
   const filename = `recibo-${data.receiptNo}.pdf`;
-  const { url, fileId } = await uploadBuffer(buffer, filename, "receipts", "application/pdf");
+  const folder   = data.dojoSlug ? `dojo-manager/${data.dojoSlug}/receipts` : "receipts";
+  const { url, fileId } = await uploadBuffer(buffer, filename, folder, "application/pdf");
   return { link: url, filename, publicId: fileId };
 }

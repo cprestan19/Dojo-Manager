@@ -41,7 +41,7 @@ async function notifyPaymentConfirmedWhatsApp(
     const guardianContact = student ? resolveGuardianContact(student) : { name: null, phone: null };
     if (!student?.whatsappOptIn || !guardianContact.phone) return;
 
-    const dojo = await prisma.dojo.findUnique({ where: { id: dojoId }, select: { name: true, logo: true } });
+    const dojo = await prisma.dojo.findUnique({ where: { id: dojoId }, select: { name: true, logo: true, slug: true } });
     if (!dojo) return;
 
     const paidDate  = formatDate(payment.paidDate ?? new Date());
@@ -60,6 +60,7 @@ async function notifyPaymentConfirmedWhatsApp(
     try {
       headerDocument = await generateAndUploadReceiptPdf({
         dojoName:    dojo.name,
+        dojoSlug:    dojo.slug,
         dojoLogoUrl: dojo.logo,
         receiptNo,
         studentName: student.fullName || `${student.firstName} ${student.lastName}`.trim(),

@@ -7,6 +7,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { uploadBuffer } from "@/lib/imagekit";
+import { getDojoUploadFolder } from "@/lib/media";
 import { requireCoachToken } from "@/lib/coach-token";
 import { checkRateLimit, getClientIp, verifyClubOwnership } from "@/lib/tournament-security";
 import { MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES, checkMagicBytes } from "@/lib/upload-validation";
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const subfolder = purpose === "athlete-photo" ? "athlete-photos"
     : purpose === "club-logo"                   ? "club-logos"
     :                                              "payment-proofs";
-  const folder = `dojo-manager/${dojoId}/tournaments/${tournamentId}/${subfolder}`;
+  const folder = `dojo-manager/${await getDojoUploadFolder(dojoId)}/tournaments/${tournamentId}/${subfolder}`;
 
   try {
     const bytes  = await file.arrayBuffer();

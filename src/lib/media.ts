@@ -1,3 +1,4 @@
+import prisma from "@/lib/prisma";
 import { deleteResource, type UploadType } from "@/lib/cloudinary";
 import { deleteFile } from "@/lib/imagekit";
 import { isOwnCloudinaryUrl, isOwnImageKitUrl } from "@/lib/upload-validation";
@@ -25,4 +26,15 @@ export async function deleteMediaAsset(
   } catch {
     /* no bloquear la operación principal por un fallo de borrado */
   }
+}
+
+/**
+ * Carpeta de ImageKit para un dojo — usa el mismo `slug` legible de su
+ * página pública (/dojo/[slug]) en vez del id interno (ilegible), para que
+ * la librería de ImageKit quede organizada por nombre de dojo. Si el dojo
+ * no existe (no debería pasar, dojoId ya viene validado) cae al id crudo.
+ */
+export async function getDojoUploadFolder(dojoId: string): Promise<string> {
+  const dojo = await prisma.dojo.findUnique({ where: { id: dojoId }, select: { slug: true } });
+  return dojo?.slug ?? dojoId;
 }

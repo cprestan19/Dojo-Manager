@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getBrowserUploadAuth } from "@/lib/imagekit";
+import { getDojoUploadFolder } from "@/lib/media";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 
 type SessionUser = { role?: string; dojoId?: string | null };
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
   const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
-  const folder = `dojo-manager/${dojoId}/belt-videos`;
+  const folder = `dojo-manager/${await getDojoUploadFolder(dojoId)}/belt-videos`;
   const auth   = getBrowserUploadAuth();
 
   return NextResponse.json({ ...auth, folder });

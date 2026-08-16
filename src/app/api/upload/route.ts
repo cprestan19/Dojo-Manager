@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { uploadBuffer } from "@/lib/imagekit";
+import { getDojoUploadFolder } from "@/lib/media";
 import { getEffectiveDojoId } from "@/lib/sysadmin-context";
 import {
   MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES, checkMagicBytes,
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
   if (file.size > maxBytes)
     return NextResponse.json({ error: `Archivo demasiado grande (máx ${maxBytes / 1024 / 1024} MB)` }, { status: 400 });
 
-  const scope  = dojoId ?? "global";
+  const scope  = dojoId ? await getDojoUploadFolder(dojoId) : "global";
   const subfolder = purpose === "student-photo"   ? "students"
     : purpose === "belt-video"                    ? "belt-videos"
     : purpose === "dojo-logo"                     ? "logos"
