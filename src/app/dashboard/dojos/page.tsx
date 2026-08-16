@@ -307,7 +307,7 @@ export default function DojosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-dojo-darker text-dojo-muted text-xs uppercase tracking-wide border-b border-dojo-border">
-                <th className="text-left px-4 py-3">Dojo</th>
+                <th className="text-left px-4 py-3 sticky left-0 z-20 bg-dojo-darker">Dojo</th>
                 <th className="text-left px-4 py-3 hidden md:table-cell">Slug</th>
                 <th className="text-left px-4 py-3 hidden md:table-cell">País</th>
                 <th className="text-left px-4 py-3 hidden lg:table-cell">Correo</th>
@@ -320,7 +320,7 @@ export default function DojosPage() {
                 <th className="text-center px-4 py-3 hidden xl:table-cell" title="Aparece en la barra de logos de la página principal">Destacado</th>
                 <th className="text-left px-4 py-3 hidden xl:table-cell">WhatsApp</th>
                 <th className="text-left px-4 py-3 hidden xl:table-cell">Creado</th>
-                <th className="text-right px-4 py-3">Acciones</th>
+                <th className="text-right px-4 py-3 sticky right-0 z-20 bg-dojo-darker border-l border-dojo-border">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dojo-border">
@@ -332,10 +332,11 @@ export default function DojosPage() {
 
                 return (
                   <tr key={dojo.id}
-                    className={`transition-colors hover:bg-dojo-border/20 ${!dojo.active ? "opacity-50" : ""}`}
+                    className={`group transition-colors hover:bg-dojo-border/20 ${!dojo.active ? "opacity-50" : ""}`}
                   >
-                    {/* Nombre + estado */}
-                    <td className="px-4 py-3">
+                    {/* Nombre + estado — fija a la izquierda para identificar la fila
+                        aunque se haga scroll horizontal por las demás columnas. */}
+                    <td className="px-4 py-3 sticky left-0 z-10 bg-dojo-darker group-hover:bg-dojo-border/20 transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 bg-dojo-red rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                           {/* Logo real del dojo si lo tiene; si no, el logo de la vitrina "destacado"
@@ -552,8 +553,9 @@ export default function DojosPage() {
                       </span>
                     </td>
 
-                    {/* Acciones */}
-                    <td className="px-4 py-3">
+                    {/* Acciones — fija a la derecha, siempre visible sin importar
+                        cuánto se scrollee horizontalmente por el resto de columnas. */}
+                    <td className="px-4 py-3 sticky right-0 z-10 bg-dojo-darker group-hover:bg-dojo-border/20 transition-colors border-l border-dojo-border">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => previewDojo(dojo)} disabled={previewing === dojo.id}
                           title="Vista previa — ver el dashboard tal cual lo ve el admin del dojo"

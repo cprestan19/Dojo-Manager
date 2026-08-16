@@ -19,7 +19,12 @@ export async function POST(req: NextRequest) {
     if (user.role !== "admin" && user.role !== "sysadmin") {
       return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
     }
-    const dojoId = getEffectiveDojoId(user.role, user.dojoId, req);
+    // Sysadmin puede pasar ?id= para operar sobre un dojo específico sin
+    // necesidad de "entrar" a él (Vista Previa) — mismo patrón que /api/dojo.
+    const { searchParams } = new URL(req.url);
+    const dojoId = user.role === "sysadmin"
+      ? (searchParams.get("id") ?? getEffectiveDojoId(user.role, user.dojoId, req))
+      : getEffectiveDojoId(user.role, user.dojoId, req);
     if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
     const body = await req.json() as { endpoint?: string; email?: string };

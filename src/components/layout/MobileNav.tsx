@@ -105,14 +105,13 @@ const SYSADMIN_ADMIN_EXTRA: { href: string; icon: React.ElementType; label: stri
   { href: "/dashboard/superadmin/billing", icon: Receipt,    label: "Pagos SaaS"  },
 ];
 
-// Correo sigue intacto en Configuración (compartida con admins reales) —
-// esto es solo un acceso directo extra para sysadmin, ya que Configuración
-// completa queda oculta para él fuera de Vista Previa. OJO: "Notificaciones"
-// (/dashboard/settings/push) NO va acá — esa pantalla exige un dojo activo y
-// sysadmin fuera de Vista Previa nunca lo tiene (bug real reportado
-// 2026-08-16, ver mismo comentario en Sidebar.tsx).
+// Correo/Notificaciones siguen intactas en Configuración (compartida con
+// admins reales) — esto es solo un acceso directo extra para sysadmin.
+// "Notificaciones" volvió el 2026-08-16 (ver comentario completo en
+// Sidebar.tsx) tras agregarle un selector de dojo a la pantalla misma.
 const SYSADMIN_SISTEMA_EXTRA: { href: string; icon: React.ElementType; label: string }[] = [
-  { href: "/dashboard/settings/email", icon: Mail, label: "Correo" },
+  { href: "/dashboard/settings/email", icon: Mail, label: "Correo"         },
+  { href: "/dashboard/settings/push",  icon: Bell, label: "Notificaciones" },
 ];
 
 const settingsDrawerItems: NavItem[] = [

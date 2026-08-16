@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import {
   Bell, BellOff, Send, Zap, Users, CheckCircle2,
   AlertCircle, RefreshCw, Smartphone, ToggleLeft, ToggleRight, Mail,
@@ -7,6 +8,8 @@ import {
 import { usePushSubscription } from "@/lib/hooks/usePushSubscription";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+
+interface DojoOption { id: string; name: string; slug: string }
 
 interface PushSettings {
   enabled:               boolean;
@@ -65,6 +68,30 @@ const SETTING_LABELS: { key: keyof PushSettings; label: string; icon: string }[]
 
 export default function PushSettingsPage() {
   const { state: pushState, subscribe, sendTest } = usePushSubscription();
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string })?.role;
+
+  // Selector de dojo para sysadmin — /api/push/* exige contexto de un dojo
+  // (getEffectiveDojoId), que sysadmin normalmente solo tiene en Vista Previa.
+  // Mismo patrón que /dashboard/settings: elegir cualquier dojo desde acá,
+  // sin necesidad de "entrar" a él primero.
+  const [dojoList,   setDojoList]   = useState<DojoOption[]>([]);
+  const [selectedId, setSelectedId] = useState<string>("");
+
+  useEffect(() => {
+    if (role !== "sysadmin") return;
+    fetch("/api/dojos")
+      .then(r => r.ok ? r.json() : [])
+      .then((list: DojoOption[]) => {
+        setDojoList(list);
+        if (list.length > 0) setSelectedId(list[0].id);
+      })
+      .catch(() => {});
+  }, [role]);
+
+  // Query string a anexar en cada llamada a /api/push/* — vacío para admin
+  // (usa su propio dojoId de sesión), ?id=X para sysadmin.
+  const dojoQuery = role === "sysadmin" && selectedId ? `?id=${selectedId}` : "";
 
   const [data,        setData]        = useState<PushData | null>(null);
   const [loading,     setLoading]     = useState(true);
@@ -88,10 +115,14 @@ export default function PushSettingsPage() {
   }, []);
 
   const load = useCallback(async () => {
+    // Sysadmin: esperar a que se resuelva la lista de dojos y haya uno
+    // seleccionado, para no disparar un fetch condenado a fallar mientras
+    // tanto (evita el parpadeo de error antes de que cargue el selector).
+    if (role === "sysadmin" && !selectedId) { setLoading(false); return; }
     setLoading(true);
     setLoadError(null);
     try {
-      const res = await fetch("/api/push/settings");
+      const res = await fetch(`/api/push/settings${dojoQuery}`);
       if (res.ok) {
         setData(await res.json());
       } else {
@@ -103,7 +134,7 @@ export default function PushSettingsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [role, selectedId, dojoQuery]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -113,7 +144,7 @@ export default function PushSettingsPage() {
     setData(prev => prev ? { ...prev, settings: next } : prev);
     setSaving(true);
     try {
-      const res = await fetch("/api/push/settings", {
+      const res = await fetch(`/api/push/settings${dojoQuery}`, {
         method:  "PUT",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify(next),
@@ -132,7 +163,7 @@ export default function PushSettingsPage() {
     if (!title.trim() || !message.trim()) return;
     setSendLoading(true);
     try {
-      const res = await fetch("/api/push/send", {
+      const res = await fetch(`/api/push/send${dojoQuery}`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ title: title.trim(), message: message.trim(), url }),
@@ -167,7 +198,7 @@ export default function PushSettingsPage() {
     setTestEmailLoading(true);
     setTestEmailResult(null);
     try {
-      const res = await fetch("/api/push/test", {
+      const res = await fetch(`/api/push/test${dojoQuery}`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ email: testEmail.trim() }),
@@ -184,20 +215,6 @@ export default function PushSettingsPage() {
       setTestEmailLoading(false);
     }
   }
-
-  if (loading || !data) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw size={24} className="animate-spin text-dojo-muted" />
-      </div>
-    );
-  }
-
-  const { settings, subscriberCount, logs } = data;
-  const totalSent    = logs.reduce((s, l) => s + l.successCount, 0);
-  const successRate  = logs.length > 0
-    ? Math.round((logs.reduce((s, l) => s + l.successCount, 0) / Math.max(1, logs.reduce((s, l) => s + l.targetCount, 0))) * 100)
-    : 0;
 
   return (
     <div className="space-y-6 p-4 lg:p-6 max-w-3xl">
@@ -217,6 +234,82 @@ export default function PushSettingsPage() {
         </button>
       </div>
 
+      {/* Selector de dojo (solo sysadmin) — sin esto, /api/push/* nunca tiene
+          contexto de dojo fuera de Vista Previa y la pantalla se queda sin
+          datos para siempre. */}
+      {role === "sysadmin" && (
+        <div className="card">
+          <label className="form-label mb-2 block">Seleccionar Dojo</label>
+          {dojoList.length === 0 ? (
+            <p className="text-dojo-muted text-sm">Cargando dojos…</p>
+          ) : (
+            <select
+              value={selectedId}
+              onChange={e => setSelectedId(e.target.value)}
+              className="form-input"
+            >
+              {dojoList.map(d => (
+                <option key={d.id} value={d.id}>{d.name} ({d.slug})</option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw size={24} className="animate-spin text-dojo-muted" />
+        </div>
+      ) : loadError ? (
+        <div className="card border-red-700/40 bg-red-900/10 text-center py-10">
+          <AlertCircle size={28} className="text-red-400 mx-auto mb-2" />
+          <p className="text-sm text-red-300">{loadError}</p>
+        </div>
+      ) : !data ? (
+        <div className="card text-center py-10 text-dojo-muted text-sm">
+          Seleccioná un dojo arriba para ver sus notificaciones.
+        </div>
+      ) : (
+        <PushSettingsBody
+          data={data} loading={loading} pushState={pushState} testLoading={testLoading}
+          saving={saving} sendLoading={sendLoading} title={title} message={message} url={url}
+          testEmail={testEmail} testEmailLoading={testEmailLoading} testEmailResult={testEmailResult}
+          toast={toast}
+          setTitle={setTitle} setMessage={setMessage} setUrl={setUrl}
+          setTestEmail={setTestEmail} setTestEmailResult={setTestEmailResult}
+          handleTest={handleTest} handleSend={handleSend} handleEmailTest={handleEmailTest}
+          toggleSetting={toggleSetting}
+        />
+      )}
+    </div>
+  );
+}
+
+function PushSettingsBody({
+  data, pushState, testLoading, saving, sendLoading, title, message, url,
+  testEmail, testEmailLoading, testEmailResult, toast,
+  setTitle, setMessage, setUrl, setTestEmail, setTestEmailResult,
+  handleTest, handleSend, handleEmailTest, toggleSetting,
+}: {
+  data: PushData; loading: boolean; pushState: string; testLoading: boolean;
+  saving: boolean; sendLoading: boolean; title: string; message: string; url: string;
+  testEmail: string; testEmailLoading: boolean;
+  testEmailResult: { ok: boolean; name?: string; sent?: number; total?: number; error?: string } | null;
+  toast: { msg: string; ok: boolean } | null;
+  setTitle: (v: string) => void; setMessage: (v: string) => void; setUrl: (v: string) => void;
+  setTestEmail: (v: string) => void;
+  setTestEmailResult: (v: { ok: boolean; name?: string; sent?: number; total?: number; error?: string } | null) => void;
+  handleTest: () => void; handleSend: () => void; handleEmailTest: () => void;
+  toggleSetting: (key: keyof PushSettings) => void;
+}) {
+  const { settings, subscriberCount, logs } = data;
+  const totalSent    = logs.reduce((s, l) => s + l.successCount, 0);
+  const successRate  = logs.length > 0
+    ? Math.round((logs.reduce((s, l) => s + l.successCount, 0) / Math.max(1, logs.reduce((s, l) => s + l.targetCount, 0))) * 100)
+    : 0;
+
+  return (
+    <>
       {/* Toast */}
       {toast && (
         <div className={`flex items-center gap-2 p-3 rounded-lg text-sm border ${
@@ -474,6 +567,6 @@ export default function PushSettingsPage() {
           </p>
         </div>
       )}
-    </div>
+    </>
   );
 }

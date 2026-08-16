@@ -15,6 +15,15 @@ import { CURRENCY_OPTIONS, DEFAULT_CURRENCY } from "@/lib/currency";
 
 interface DojoOption { id: string; name: string; slug: string }
 
+// Validación de "Datos del Dojo" — pedida tras encontrar dojos reales con
+// correo/teléfono vacíos o incompletos (Ate Uke, Dojo Kobushi, Dojo Natsuki).
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidEmail(v: string): boolean { return EMAIL_RE.test(v.trim()); }
+function isValidPhone(v: string): boolean { return v.replace(/\D/g, "").length >= 7; }
+/** Nombre y apellido en el mismo campo — exige al menos 2 palabras. */
+function isValidFullName(v: string): boolean { return v.trim().split(/\s+/).filter(Boolean).length >= 2; }
+
 export default function SettingsPage() {
   const { data: session } = useSession();
   const role = (session?.user as { role?: string })?.role;
@@ -153,6 +162,12 @@ export default function SettingsPage() {
     );
   }
 
+  const nameError  = !name.trim()  ? "El nombre del dojo es obligatorio" : "";
+  const emailError = !email.trim() ? "El correo es obligatorio" : !isValidEmail(email) ? "Correo inválido — ej. dojo@correo.com" : "";
+  const phoneError = !phone.trim() ? "El teléfono es obligatorio" : !isValidPhone(phone) ? "Teléfono inválido — mínimo 7 dígitos" : "";
+  const ownerError = !ownerName.trim() ? "El nombre del propietario es obligatorio" : !isValidFullName(ownerName) ? "Ingresá nombre y apellido (ej. Juan Ramírez)" : "";
+  const hasFormErrors = !!(nameError || emailError || phoneError || ownerError);
+
   return (
     <div className="space-y-8 max-w-2xl">
       {/* Header */}
@@ -268,8 +283,9 @@ export default function SettingsPage() {
               <div className="relative">
                 <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
                 <input type="text" value={name} onChange={e => setName(e.target.value)}
-                  className="form-input pl-9" placeholder="Ej. Dojo Shotokan Guadalajara" />
+                  className={`form-input pl-9 ${nameError ? "border-red-500" : ""}`} placeholder="Ej. Dojo Shotokan Guadalajara" />
               </div>
+              {nameError && <p className="text-xs text-red-400">{nameError}</p>}
             </div>
 
             <div className="space-y-2">
@@ -277,9 +293,11 @@ export default function SettingsPage() {
               <div className="relative">
                 <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  className="form-input pl-9" placeholder="dojo@miescuela.com" />
+                  className={`form-input pl-9 ${emailError ? "border-red-500" : ""}`} placeholder="dojo@miescuela.com" />
               </div>
-              <p className="text-xs text-dojo-muted">Los recordatorios y recibos se enviarán desde este correo.</p>
+              {emailError
+                ? <p className="text-xs text-red-400">{emailError}</p>
+                : <p className="text-xs text-dojo-muted">Los recordatorios y recibos se enviarán desde este correo.</p>}
             </div>
 
             <div className="space-y-2">
@@ -287,8 +305,9 @@ export default function SettingsPage() {
               <div className="relative">
                 <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
                 <input type="text" value={ownerName} onChange={e => setOwnerName(e.target.value)}
-                  className="form-input pl-9" placeholder="Ej. Sensei Juan Ramírez" />
+                  className={`form-input pl-9 ${ownerError ? "border-red-500" : ""}`} placeholder="Ej. Sensei Juan Ramírez" />
               </div>
+              {ownerError && <p className="text-xs text-red-400">{ownerError}</p>}
             </div>
 
             <div className="space-y-2">
@@ -296,8 +315,9 @@ export default function SettingsPage() {
               <div className="relative">
                 <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
                 <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                  className="form-input pl-9" placeholder="Ej. +52 33 1234 5678" />
+                  className={`form-input pl-9 ${phoneError ? "border-red-500" : ""}`} placeholder="Ej. +52 33 1234 5678" />
               </div>
+              {phoneError && <p className="text-xs text-red-400">{phoneError}</p>}
             </div>
 
             <div className="space-y-2">
@@ -507,11 +527,14 @@ export default function SettingsPage() {
 
           {/* Guardar */}
           <div className="flex items-center gap-4">
-            <button onClick={handleSave} disabled={saving || saved || !name.trim()} className="btn-primary flex items-center gap-2">
+            <button onClick={handleSave} disabled={saving || saved || hasFormErrors} className="btn-primary flex items-center gap-2 disabled:opacity-50">
               <Save size={16} />
               {saving ? "Guardando..." : saved ? "¡Guardado!" : "Guardar cambios"}
             </button>
             {saved && <span className="text-green-400 text-sm">¡Cambios guardados correctamente!</span>}
+            {!saving && !saved && hasFormErrors && (
+              <span className="text-red-400 text-sm">Revisá los campos marcados en rojo arriba.</span>
+            )}
           </div>
         </>
       )}

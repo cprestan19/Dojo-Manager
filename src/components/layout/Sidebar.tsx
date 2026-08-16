@@ -123,17 +123,19 @@ const SYSTEM_DEFS: { href: string; icon: React.ElementType; label: string }[] = 
   { href: "/dashboard/superadmin/audit-logs", icon: Shield,     label: "Audit Log del Sistema"  },
 ];
 
-// Correo: en Configuración (compartida con admins reales) sigue intacto —
-// esto es SOLO un acceso directo adicional para sysadmin, ya que Configuración
-// completa queda oculta para él fuera de Vista Previa. /api/admin/email-settings
-// es sysadmin-only y no depende de ningún dojo, por eso funciona bien acá.
-// OJO: "Notificaciones" (/dashboard/settings/push) NO va acá — esa pantalla
-// exige un dojo activo (getEffectiveDojoId) y sysadmin fuera de Vista Previa
-// nunca lo tiene, así que el link quedaría siempre roto (se confirmó en
-// producción — bug real reportado 2026-08-16). Solo vive en Configuración,
-// visible únicamente en Vista Previa de un dojo real.
+// Correo/Notificaciones: en Configuración (compartida con admins reales)
+// siguen intactas — esto es SOLO un acceso directo adicional para sysadmin,
+// ya que Configuración completa queda oculta para él fuera de Vista Previa.
+// "Notificaciones" (/dashboard/settings/push) volvió a esta lista el
+// 2026-08-16 — antes se había quitado porque /api/push/* exigía contexto de
+// dojo (getEffectiveDojoId) y sysadmin fuera de Vista Previa nunca lo tenía,
+// dejando la pantalla en spinner infinito. Se arregló de raíz agregando un
+// selector de dojo en la pantalla misma (igual que /dashboard/settings) y
+// soporte de ?id= en /api/push/settings, /api/push/send y /api/push/test —
+// ahora sysadmin puede elegir cualquier dojo sin entrar en Vista Previa.
 const SYSADMIN_SISTEMA_EXTRA_DEFS: { href: string; icon: React.ElementType; label: string }[] = [
-  { href: "/dashboard/settings/email", icon: Mail, label: "Correo" },
+  { href: "/dashboard/settings/email", icon: Mail, label: "Correo"         },
+  { href: "/dashboard/settings/push",  icon: Bell, label: "Notificaciones" },
 ];
 
 // Antes vivían en Sistema — el usuario los quiso en "Administración" en vez.

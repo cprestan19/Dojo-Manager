@@ -91,6 +91,27 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "El nombre del dojo no puede estar vacío" }, { status: 400 });
   }
 
+  // Correo/teléfono/nombre del propietario — autoritativa, el cliente ya
+  // valida esto mismo en src/app/dashboard/settings/page.tsx, pero nunca se
+  // confía solo en eso. Motivada por dojos reales con estos campos vacíos
+  // o incompletos (Ate Uke, Dojo Kobushi, Dojo Natsuki).
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (body.email !== undefined) {
+    const v = String(body.email ?? "").trim();
+    if (!v) return NextResponse.json({ error: "El correo del dojo es obligatorio" }, { status: 400 });
+    if (!EMAIL_RE.test(v)) return NextResponse.json({ error: "El correo del dojo no es válido" }, { status: 400 });
+  }
+  if (body.phone !== undefined) {
+    const v = String(body.phone ?? "").trim();
+    if (!v) return NextResponse.json({ error: "El teléfono del dojo es obligatorio" }, { status: 400 });
+    if (v.replace(/\D/g, "").length < 7) return NextResponse.json({ error: "El teléfono del dojo no es válido (mínimo 7 dígitos)" }, { status: 400 });
+  }
+  if (body.ownerName !== undefined) {
+    const v = String(body.ownerName ?? "").trim();
+    if (!v) return NextResponse.json({ error: "El nombre del propietario es obligatorio" }, { status: 400 });
+    if (v.split(/\s+/).filter(Boolean).length < 2) return NextResponse.json({ error: "Ingresá nombre y apellido del propietario" }, { status: 400 });
+  }
+
   const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
   for (const key of ["cardPrimaryColor", "cardSecondaryColor", "cardTertiaryColor"] as const) {
     if (body[key] != null && !HEX_COLOR_RE.test(body[key])) {
