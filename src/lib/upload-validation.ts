@@ -73,3 +73,18 @@ export function isOwnImageKitUrl(url: string): boolean {
 export function isOwnMediaUrl(url: string): boolean {
   return isOwnCloudinaryUrl(url) || isOwnImageKitUrl(url);
 }
+
+/**
+ * Agrega `?tr=orig-true` a una URL de video de ImageKit para que entregue
+ * el archivo tal cual está guardado, sin re-transformarlo — el video ya se
+ * comprimió antes de subirlo, así que dejar que ImageKit lo vuelva a
+ * transformar en cada entrega solo consume la cuota (limitada) de
+ * transformaciones de video del plan, sin ningún beneficio. No afecta URLs
+ * de Cloudinary (legado). Usa un chequeo simple del hostname (no
+ * isOwnImageKitUrl, que depende de una env var solo disponible en el
+ * servidor) para poder llamarse también desde componentes de cliente.
+ */
+export function videoNoTransform(url: string): string {
+  if (!url.includes("ik.imagekit.io")) return url;
+  return url.includes("?") ? `${url}&tr=orig-true` : `${url}?tr=orig-true`;
+}

@@ -19,6 +19,7 @@ import { DatePicker, todayISOInTz } from "@/components/ui/DatePicker";
 import { calculateAge, formatDate, BELT_COLORS, PAYMENT_STATUS_LABELS, MULTI_KATA_BELTS, getPaymentTypeLabel, formatLateTotal } from "@/lib/utils";
 import { formatCurrency, getCurrencySymbol, currencyInputPadding } from "@/lib/currency";
 import { getLateMinutes, ymdInTz, ymdToUtc, computeAttendanceEffectiveness } from "@/lib/timezone";
+import { videoNoTransform } from "@/lib/upload-validation";
 import { useDojoTimeZone, useDojoCurrency } from "@/lib/hooks/useDojo";
 import Image from "next/image";
 import { usePermissions } from "@/lib/hooks/usePermissions";
@@ -572,7 +573,7 @@ function BeltVideoModal({ beltColor, beltLabel, onClose }: {
               </div>
               <div className="bg-black">
                 {playing === v.id ? (
-                  <video src={v.videoUrl} controls autoPlay className="w-full max-h-72" onEnded={() => setPlaying(null)} />
+                  <video src={videoNoTransform(v.videoUrl)} controls autoPlay className="w-full max-h-72" onEnded={() => setPlaying(null)} />
                 ) : (
                   <button
                     onClick={() => setPlaying(v.id)}

@@ -5,7 +5,7 @@ import { Video, Plus, Edit2, Trash2, Save, X, Upload, Loader2, PlayCircle, Lock,
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { Modal } from "@/components/ui/Modal";
 import { BELT_COLORS, VIDEO_RANKING_CATEGORIES, getBeltInfo } from "@/lib/utils";
-import { MAX_VIDEO_BYTES } from "@/lib/upload-validation";
+import { MAX_VIDEO_BYTES, videoNoTransform } from "@/lib/upload-validation";
 
 const VIDEO_CATEGORIES = [...BELT_COLORS, ...VIDEO_RANKING_CATEGORIES];
 
@@ -488,7 +488,7 @@ export default function VideosSettingsPage() {
               {/* Preview del video actual */}
               {editing.videoUrl && !uploading && (
                 <video
-                  src={editing.videoUrl}
+                  src={videoNoTransform(editing.videoUrl)}
                   controls
                   className="w-full rounded-lg mt-2 max-h-48 bg-black"
                 />
@@ -539,7 +539,7 @@ export default function VideosSettingsPage() {
               {uploadErrorTachi && <p className="text-xs text-red-400">{uploadErrorTachi}</p>}
               {editing.tachiKataUrl && !uploadingTachi && (
                 <video
-                  src={editing.tachiKataUrl}
+                  src={videoNoTransform(editing.tachiKataUrl)}
                   controls
                   className="w-full rounded-lg mt-2 max-h-48 bg-black"
                 />
@@ -590,7 +590,7 @@ export default function VideosSettingsPage() {
               {preview.description && <p className="text-sm text-dojo-muted">{preview.description}</p>}
             </div>
             <video
-              src={preview.videoUrl}
+              src={videoNoTransform(preview.videoUrl)}
               controls
               autoPlay
               className="w-full rounded-lg bg-black"

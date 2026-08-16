@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Video, Lock, Users } from "lucide-react";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { BELT_COLORS, VIDEO_RANKING_CATEGORIES } from "@/lib/utils";
+import { videoNoTransform } from "@/lib/upload-validation";
 
 const VIDEO_CATEGORIES = [...BELT_COLORS, ...VIDEO_RANKING_CATEGORIES];
 
@@ -196,7 +197,7 @@ export default function PortalVideosPage() {
                     <div className="bg-black">
                       {playing === v.id ? (
                         <video
-                          src={v.videoUrl}
+                          src={videoNoTransform(v.videoUrl)}
                           controls
                           autoPlay
                           className="w-full max-h-72"
@@ -225,7 +226,7 @@ export default function PortalVideosPage() {
                       <div className="bg-black">
                         {playing === `tachi-${v.id}` ? (
                           <video
-                            src={v.tachiKataUrl}
+                            src={videoNoTransform(v.tachiKataUrl)}
                             controls
                             autoPlay
                             className="w-full max-h-72"
