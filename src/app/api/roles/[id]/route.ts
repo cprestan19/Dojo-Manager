@@ -12,7 +12,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { role, dojoId } = session.user as SessionUser;
-  if (role !== "sysadmin")
+  if (role !== "sysadmin" && role !== "admin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
 
@@ -68,7 +68,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { role, dojoId } = session.user as SessionUser;
-  if (role !== "sysadmin")
+  if (role !== "sysadmin" && role !== "admin")
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   if (!dojoId) return NextResponse.json({ error: "Sin dojo asignado" }, { status: 403 });
 

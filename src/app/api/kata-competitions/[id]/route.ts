@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 
 type Params = { params: Promise<{ id: string }> };
-type SessionUser = { dojoId?: string | null };
+type SessionUser = { role?: string; dojoId?: string | null };
 
 async function resolveEntry(id: string, dojoId: string) {
   return prisma.kataCompetition.findUnique({
@@ -19,8 +19,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { dojoId } = session.user as SessionUser;
-  // NOTE: role needed for sysadmin context — check SessionUser type
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
   if (!await resolveEntry(id, dojoId)) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
@@ -44,13 +44,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { dojoId } = session.user as SessionUser;
-  // NOTE: role needed for sysadmin context — check SessionUser type
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
   if (!await resolveEntry(id, dojoId)) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 

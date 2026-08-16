@@ -6,14 +6,14 @@ import { sendPaymentReceipt } from "@/lib/email";
 import { formatDate } from "@/lib/utils";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 
-type SessionUser = { dojoId?: string | null };
+type SessionUser = { role?: string; dojoId?: string | null };
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { dojoId } = session.user as SessionUser;
-  // NOTE: role needed for sysadmin context — check SessionUser type
+  const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+  const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   const { paymentId } = await req.json();
