@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { uploadBuffer } from "@/lib/cloudinary";
+import { uploadBuffer } from "@/lib/imagekit";
+import { randomUUID } from "crypto";
 
 type SessionUser = { role?: string };
 
-async function base64ToCloudinary(base64: string, folder: string): Promise<string | null> {
+async function base64ToImageKit(base64: string, folder: string): Promise<string | null> {
   try {
     const [header, b64data] = base64.split(",");
     if (!b64data) return null;
@@ -14,7 +15,7 @@ async function base64ToCloudinary(base64: string, folder: string): Promise<strin
     if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(mime)) return null;
     const buffer = Buffer.from(b64data, "base64");
     if (buffer.length < 100) return null; // datos inválidos
-    const result = await uploadBuffer(buffer, folder, "image");
+    const result = await uploadBuffer(buffer, `foto-${randomUUID()}.jpg`, folder, mime);
     return result.url;
   } catch {
     return null;
@@ -24,7 +25,7 @@ async function base64ToCloudinary(base64: string, folder: string): Promise<strin
 /**
  * POST /api/admin/migrate-photos
  * Sysadmin only. Encuentra todos los registros con fotos base64 en la BD
- * y los sube a Cloudinary, actualizando el campo con la URL resultante.
+ * y los sube a ImageKit, actualizando el campo con la URL resultante.
  *
  * Body (opcional): { dryRun: true } → solo reporta sin migrar.
  */
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
 
   if (!dryRun) {
     for (const student of studentsWithBase64) {
-      const url = await base64ToCloudinary(
+      const url = await base64ToImageKit(
         student.photo!,
         `dojo-manager/${student.dojoId}/students`,
       );
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
       const folder = user.dojoId
         ? `dojo-manager/${user.dojoId}/users`
         : `dojo-manager/global/users`;
-      const url = await base64ToCloudinary(user.photo!, folder);
+      const url = await base64ToImageKit(user.photo!, folder);
       if (url) {
         await prisma.user.update({
           where: { id: user.id },
@@ -110,6 +111,6 @@ export async function POST(req: NextRequest) {
     stats,
     message: dryRun
       ? "Simulación completada. Llama sin dryRun para ejecutar la migración."
-      : "Migración completada. Todas las fotos base64 fueron subidas a Cloudinary o eliminadas.",
+      : "Migración completada. Todas las fotos base64 fueron subidas a ImageKit o eliminadas.",
   });
 }

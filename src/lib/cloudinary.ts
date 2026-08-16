@@ -7,35 +7,12 @@ cloudinary.config({
   secure:     true,
 });
 
+// Cloudinary está CONGELADO — solo sirve/borra lo que ya se subió antes de
+// la migración a ImageKit (src/lib/imagekit.ts). No se expone ningún
+// uploadBuffer() acá a propósito: nada nuevo debe subirse a Cloudinary
+// (es significativamente más caro). Toda subida nueva va a ImageKit.
+
 export type UploadType = "image" | "video" | "raw";
-
-export interface UploadResult {
-  url:      string;
-  publicId: string;
-}
-
-export async function uploadBuffer(
-  buffer:   Buffer,
-  folder:   string,
-  type:     UploadType = "image",
-): Promise<UploadResult> {
-  return new Promise((resolve, reject) => {
-    cloudinary.uploader.upload_stream(
-      {
-        folder,
-        resource_type: type,
-        // Auto-quality and format for images; preserve originals for video/raw
-        ...(type === "image" ? { quality: "auto", fetch_format: "auto" } : {}),
-        ...(type === "video" ? { video_codec: "auto" } : {}),
-        ...(type === "raw"   ? { format: "pdf" } : {}),
-      },
-      (error, result) => {
-        if (error || !result) return reject(error ?? new Error("Cloudinary upload failed"));
-        resolve({ url: result.secure_url, publicId: result.public_id });
-      },
-    ).end(buffer);
-  });
-}
 
 export async function deleteResource(publicId: string, type: UploadType = "image"): Promise<void> {
   await cloudinary.uploader.destroy(publicId, { resource_type: type });
@@ -59,5 +36,3 @@ export function extractCloudinaryPublicId(url: string | null | undefined): strin
   }
   return publicParts.join("/") || null;
 }
-
-export default cloudinary;

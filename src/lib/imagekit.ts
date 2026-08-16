@@ -19,10 +19,12 @@ function getClient(): ImageKit {
 }
 
 /**
- * Sube un buffer a ImageKit — reemplazo de src/lib/cloudinary.ts para todo
- * upload NUEVO (Cloudinary se mantiene solo para lo que ya vivía ahí). A
- * diferencia de Cloudinary, ImageKit no restringe por defecto la entrega de
- * PDFs/raw files vía URL pública.
+ * Proveedor de medios para TODO upload nuevo de la app (fotos de alumno,
+ * fotos de usuario, logos, videos de cinta, imágenes de eventos, plantillas
+ * de carnet, certificados, torneos, recibos de WhatsApp). Cloudinary
+ * (src/lib/cloudinary.ts) queda congelado — solo sirve los archivos que ya
+ * estaban ahí antes de esta migración; nada nuevo debe subirse allí porque
+ * es significativamente más caro que ImageKit.
  */
 export async function uploadBuffer(
   buffer:   Buffer,
@@ -38,4 +40,28 @@ export async function uploadBuffer(
 
 export async function deleteFile(fileId: string): Promise<void> {
   await getClient().files.delete(fileId);
+}
+
+export interface BrowserUploadAuth {
+  token:      string;
+  expire:     number;
+  signature:  string;
+  publicKey:  string;
+  urlEndpoint: string;
+}
+
+/**
+ * Parámetros de autenticación para que el navegador suba un archivo
+ * directamente a ImageKit (sin pasar por nuestro servidor/Vercel) — usado
+ * para videos grandes de cinta, igual propósito que la firma temporal de
+ * Cloudinary que reemplaza. La clave privada nunca sale del servidor; solo
+ * viaja la firma HMAC ya calculada.
+ */
+export function getBrowserUploadAuth(): BrowserUploadAuth {
+  const { token, expire, signature } = getClient().helper.getAuthenticationParameters();
+  return {
+    token, expire, signature,
+    publicKey:   process.env.IMAGEKIT_PUBLIC_KEY!,
+    urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT!,
+  };
 }

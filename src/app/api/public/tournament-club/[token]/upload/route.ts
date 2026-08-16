@@ -6,7 +6,7 @@
  * /api/upload exige rol admin/sysadmin y por eso NO sirve aquí.
  */
 import { NextRequest, NextResponse } from "next/server";
-import { uploadBuffer } from "@/lib/cloudinary";
+import { uploadBuffer } from "@/lib/imagekit";
 import { requireCoachToken } from "@/lib/coach-token";
 import { checkRateLimit, getClientIp, verifyClubOwnership } from "@/lib/tournament-security";
 import { MAX_IMAGE_BYTES, ALLOWED_IMAGE_TYPES, checkMagicBytes } from "@/lib/upload-validation";
@@ -64,10 +64,10 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "El contenido del archivo no corresponde al tipo declarado" }, { status: 400 });
     }
 
-    const result = await uploadBuffer(buffer, folder, "image");
-    return NextResponse.json(result, { status: 201 });
+    const { url, fileId } = await uploadBuffer(buffer, file.name, folder, file.type);
+    return NextResponse.json({ url, publicId: fileId }, { status: 201 });
   } catch (err) {
-    console.error("[coach upload] Cloudinary error:", err);
+    console.error("[coach upload] ImageKit error:", err);
     return NextResponse.json({ error: "Error al subir el archivo" }, { status: 500 });
   }
 }

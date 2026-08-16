@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { uploadBuffer } from "@/lib/cloudinary";
+import { uploadBuffer } from "@/lib/imagekit";
 import { getEffectiveDojoId } from "@/lib/sysadmin-context";
 import {
   MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES, checkMagicBytes,
@@ -66,10 +66,13 @@ export async function POST(req: NextRequest) {
     if (!checkMagicBytes(buffer, uploadType))
       return NextResponse.json({ error: "El contenido del archivo no corresponde al tipo declarado" }, { status: 400 });
 
-    const result = await uploadBuffer(buffer, folder, uploadType);
-    return NextResponse.json(result, { status: 201 });
+    // publicId: se mantiene ese nombre en la respuesta (aunque ahora es un
+    // fileId de ImageKit) para no tener que tocar cada pantalla que consume
+    // este endpoint — solo se usa como identificador opaco de ida y vuelta.
+    const { url, fileId } = await uploadBuffer(buffer, file.name, folder, file.type);
+    return NextResponse.json({ url, publicId: fileId }, { status: 201 });
   } catch (err) {
-    console.error("Cloudinary upload error:", err);
+    console.error("ImageKit upload error:", err);
     return NextResponse.json({ error: "Error al subir el archivo" }, { status: 500 });
   }
 }

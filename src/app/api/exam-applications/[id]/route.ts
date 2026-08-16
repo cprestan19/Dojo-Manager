@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
-import { deleteResource } from "@/lib/cloudinary";
+import { deleteMediaAsset } from "@/lib/media";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -104,9 +104,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
       imagePublicId?: string | null;
     };
 
-    // Si se borra la imagen, eliminar el recurso viejo de Cloudinary
+    // Si se borra la imagen, eliminar el recurso viejo de su proveedor
     if (body.imageUrl === null && existing.imagePublicId) {
-      await deleteResource(existing.imagePublicId, "image").catch(() => {});
+      await deleteMediaAsset(existing.imageUrl, existing.imagePublicId, "image");
     }
 
     const updated = await prisma.examApplication.update({
@@ -160,14 +160,14 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const existing = await prisma.examApplication.findFirst({ where: { id, dojoId } });
     if (!existing) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
-    // Limpiar imagen de postulación + PDFs de Cloudinary
+    // Limpiar imagen de postulación + PDFs de certificados generados
     const certs = await prisma.generatedCertificate.findMany({
       where:  { invitee: { applicationId: id } },
-      select: { pdfPublicId: true },
+      select: { pdfUrl: true, pdfPublicId: true },
     });
     await Promise.allSettled([
-      ...(existing.imagePublicId ? [deleteResource(existing.imagePublicId, "image")] : []),
-      ...certs.filter(c => c.pdfPublicId).map(c => deleteResource(c.pdfPublicId!, "image")),
+      deleteMediaAsset(existing.imageUrl, existing.imagePublicId, "image"),
+      ...certs.map(c => deleteMediaAsset(c.pdfUrl, c.pdfPublicId, "image")),
     ]);
 
     await prisma.examApplication.delete({ where: { id } });

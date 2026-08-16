@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { deleteResource } from "@/lib/cloudinary";
+import { deleteMediaAsset } from "@/lib/media";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { sanitizeStudentAllowlist } from "@/lib/belt-videos";
 import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
@@ -28,19 +28,19 @@ async function _PUT(req: NextRequest, ctx?: unknown) {
   const existing = await prisma.beltVideo.findFirst({ where: { id, dojoId } });
   if (!existing) return NextResponse.json({ error: "Video no encontrado" }, { status: 404 });
 
-  // If a new main video was uploaded, delete the old one from Cloudinary
+  // If a new main video was uploaded, delete the old one
   if (body.videoUrl && body.publicId && body.publicId !== existing.publicId && existing.publicId) {
-    try { await deleteResource(existing.publicId, "video"); } catch { /* continue */ }
+    await deleteMediaAsset(existing.videoUrl, existing.publicId, "video");
   }
 
-  // If a new Tachi Kata video was uploaded, delete the old one from Cloudinary
+  // If a new Tachi Kata video was uploaded, delete the old one
   if (body.tachiKataPublicId && body.tachiKataPublicId !== existing.tachiKataPublicId && existing.tachiKataPublicId) {
-    try { await deleteResource(existing.tachiKataPublicId, "video"); } catch { /* continue */ }
+    await deleteMediaAsset(existing.tachiKataUrl, existing.tachiKataPublicId, "video");
   }
 
-  // If Tachi Kata was explicitly cleared (null sent), delete from Cloudinary
+  // If Tachi Kata was explicitly cleared (null sent), delete it
   if (body.tachiKataUrl === null && existing.tachiKataPublicId) {
-    try { await deleteResource(existing.tachiKataPublicId, "video"); } catch { /* continue */ }
+    await deleteMediaAsset(existing.tachiKataUrl, existing.tachiKataPublicId, "video");
   }
 
   let visibleToStudentIds;
@@ -96,12 +96,12 @@ async function _DELETE(req: NextRequest, ctx?: unknown) {
   const existing = await prisma.beltVideo.findFirst({ where: { id, dojoId } });
   if (!existing) return NextResponse.json({ error: "Video no encontrado" }, { status: 404 });
 
-  // Delete main video and Tachi Kata from Cloudinary, then from DB
+  // Delete main video and Tachi Kata from their provider, then from DB
   if (existing.publicId) {
-    try { await deleteResource(existing.publicId, "video"); } catch { /* continue */ }
+    await deleteMediaAsset(existing.videoUrl, existing.publicId, "video");
   }
   if (existing.tachiKataPublicId) {
-    try { await deleteResource(existing.tachiKataPublicId, "video"); } catch { /* continue */ }
+    await deleteMediaAsset(existing.tachiKataUrl, existing.tachiKataPublicId, "video");
   }
 
   await prisma.beltVideo.delete({ where: { id } });

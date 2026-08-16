@@ -6,11 +6,11 @@ import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { formatStudentName } from "@/lib/utils";
-import { uploadBuffer } from "@/lib/cloudinary";
+import { uploadBuffer } from "@/lib/imagekit";
 import { validateBase64Image } from "@/lib/file-validation";
 import { checkGuardianEmailConflict } from "@/lib/portal-email-guard";
 
-/** Sube un base64 de foto a Cloudinary. Retorna la URL o null si falla o el contenido es inválido. */
+/** Sube un base64 de foto a ImageKit. Retorna la URL o null si falla o el contenido es inválido. */
 async function uploadBase64Photo(base64: string, dojoId: string): Promise<string | null> {
   try {
     // Validar magic bytes antes de subir — rechaza archivos maliciosos disfrazados de imagen
@@ -18,9 +18,11 @@ async function uploadBase64Photo(base64: string, dojoId: string): Promise<string
     const commaIdx = base64.indexOf(",");
     const b64data  = commaIdx >= 0 ? base64.slice(commaIdx + 1) : base64;
     if (!b64data) return null;
-    const buffer = Buffer.from(b64data, "base64");
-    const folder = `dojo-manager/${dojoId}/students`;
-    const result = await uploadBuffer(buffer, folder, "image");
+    const buffer   = Buffer.from(b64data, "base64");
+    const mimeMatch = /^data:([^;]+);base64/.exec(base64);
+    const mimeType  = mimeMatch?.[1] ?? "image/jpeg";
+    const folder    = `dojo-manager/${dojoId}/students`;
+    const result    = await uploadBuffer(buffer, `alumno-${randomUUID()}.jpg`, folder, mimeType);
     return result.url;
   } catch {
     return null;
