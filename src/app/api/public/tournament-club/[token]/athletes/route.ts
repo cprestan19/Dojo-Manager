@@ -9,6 +9,7 @@ import prisma from "@/lib/prisma";
 import { requireCoachToken } from "@/lib/coach-token";
 import { checkRateLimit, getClientIp, verifyClubOwnership, verifyAthleteOwnership } from "@/lib/tournament-security";
 import { calculateAgeGroup } from "@/lib/tournament-categories";
+import { isOwnMediaUrl } from "@/lib/upload-validation";
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -66,8 +67,8 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   // La URL de la foto debe ser de Cloudinary — nunca aceptar base64/URLs arbitrarias del cliente.
-  if (body.photoUrl && !body.photoUrl.startsWith("https://res.cloudinary.com/")) {
-    return NextResponse.json({ error: "photoUrl debe ser una URL de Cloudinary" }, { status: 400 });
+  if (body.photoUrl && !isOwnMediaUrl(body.photoUrl)) {
+    return NextResponse.json({ error: "photoUrl debe ser una URL propia (Cloudinary o ImageKit)" }, { status: 400 });
   }
   if (tournament.requirePhoto && !body.photoUrl) {
     return NextResponse.json({ error: "Este torneo requiere foto del atleta" }, { status: 400 });
@@ -152,8 +153,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const ok = await verifyAthleteOwnership(body.id, clubId, dojoId);
   if (!ok) return NextResponse.json({ error: "Atleta no encontrado" }, { status: 404 });
 
-  if (body.photoUrl && !body.photoUrl.startsWith("https://res.cloudinary.com/")) {
-    return NextResponse.json({ error: "photoUrl debe ser una URL de Cloudinary" }, { status: 400 });
+  if (body.photoUrl && !isOwnMediaUrl(body.photoUrl)) {
+    return NextResponse.json({ error: "photoUrl debe ser una URL propia (Cloudinary o ImageKit)" }, { status: 400 });
   }
 
   const data: Record<string, unknown> = {};

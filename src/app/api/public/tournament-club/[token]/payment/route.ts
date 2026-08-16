@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireCoachToken } from "@/lib/coach-token";
 import { checkRateLimit, getClientIp, verifyClubOwnership } from "@/lib/tournament-security";
+import { isOwnMediaUrl } from "@/lib/upload-validation";
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -31,9 +32,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
     paymentNotes?:    string;
   };
 
-  // Validar que la URL sea de Cloudinary si se provee
-  if (body.paymentProofUrl && !body.paymentProofUrl.startsWith("https://res.cloudinary.com/")) {
-    return NextResponse.json({ error: "paymentProofUrl debe ser una URL de Cloudinary" }, { status: 400 });
+  // Validar que la URL sea propia (Cloudinary o ImageKit) si se provee
+  if (body.paymentProofUrl && !isOwnMediaUrl(body.paymentProofUrl)) {
+    return NextResponse.json({ error: "paymentProofUrl debe ser una URL propia (Cloudinary o ImageKit)" }, { status: 400 });
   }
 
   const data: Record<string, unknown> = {};

@@ -36,13 +36,13 @@ export function participantName(p: DisplayParticipant): string {
   return "—";
 }
 
-function isCloudinaryUrl(url: string | null | undefined): url is string {
+function isHttpUrl(url: string | null | undefined): url is string {
   return !!url && url.startsWith("http");
 }
 
 export function participantPhoto(p: DisplayParticipant): string | null {
   const raw = p.student?.photo ?? p.externalAthlete?.photoUrl;
-  return isCloudinaryUrl(raw) ? raw : null;
+  return isHttpUrl(raw) ? raw : null;
 }
 
 export function participantNationality(p: DisplayParticipant): string | null {

@@ -9,12 +9,12 @@ const ContentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   // Fonts: self + Google Fonts CDN
   "font-src 'self' https://fonts.gstatic.com",
-  // Images: self + Cloudinary + DiceBear avatars + data URIs (avatars/fallbacks)
-  "img-src 'self' https://res.cloudinary.com https://api.dicebear.com data: blob:",
-  // Media: Cloudinary videos
-  "media-src 'self' https://res.cloudinary.com blob:",
-  // API/fetch connections: self + Google Analytics + Cloudinary + Sentry error reporting
-  "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://api.cloudinary.com https://*.ingest.us.sentry.io https://*.ingest.sentry.io",
+  // Images: self + Cloudinary (legado) + ImageKit (nuevo) + DiceBear avatars + data URIs (avatars/fallbacks)
+  "img-src 'self' https://res.cloudinary.com https://ik.imagekit.io https://api.dicebear.com data: blob:",
+  // Media: Cloudinary (legado) + ImageKit (nuevo) videos
+  "media-src 'self' https://res.cloudinary.com https://ik.imagekit.io blob:",
+  // API/fetch connections: self + Google Analytics + Cloudinary (legado) + ImageKit (subida directa de video desde el navegador) + Sentry error reporting
+  "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://api.cloudinary.com https://upload.imagekit.io https://*.ingest.us.sentry.io https://*.ingest.sentry.io",
   // Frames: YouTube embeds permitidos (portal/live, overlay, página pública torneo)
   "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
   "frame-ancestors 'none'",
@@ -39,7 +39,8 @@ const nextConfig = {
 
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "res.cloudinary.com" }, // legado
+      { protocol: "https", hostname: "ik.imagekit.io" },     // nuevo
       { protocol: "https", hostname: "api.dicebear.com" },
     ],
     dangerouslyAllowSVG: false,

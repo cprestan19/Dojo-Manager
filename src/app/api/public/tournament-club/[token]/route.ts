@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireCoachToken } from "@/lib/coach-token";
 import { checkRateLimit, getClientIp, verifyClubOwnership } from "@/lib/tournament-security";
+import { isOwnMediaUrl } from "@/lib/upload-validation";
 
 type Params = { params: Promise<{ token: string }> };
 
@@ -140,8 +141,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (!ok) return NextResponse.json({ error: "Club no encontrado" }, { status: 404 });
 
   const body = await req.json().catch(() => ({})) as { logoUrl?: string | null };
-  if (body.logoUrl && !body.logoUrl.startsWith("https://res.cloudinary.com/")) {
-    return NextResponse.json({ error: "logoUrl debe ser una URL de Cloudinary" }, { status: 400 });
+  if (body.logoUrl && !isOwnMediaUrl(body.logoUrl)) {
+    return NextResponse.json({ error: "logoUrl debe ser una URL propia (Cloudinary o ImageKit)" }, { status: 400 });
   }
   if (body.logoUrl === undefined) {
     return NextResponse.json({ error: "Nada para actualizar" }, { status: 400 });
