@@ -186,7 +186,7 @@ export default function PortalVideosPage() {
                     <div className="min-w-0">
                       <p className="font-semibold text-dojo-white text-sm">{v.title}</p>
                       {v.description && (
-                        <p className="text-xs text-dojo-muted mt-0.5">{v.description}</p>
+                        <p className="text-xs text-dojo-muted mt-0.5 whitespace-pre-line">{v.description}</p>
                       )}
                     </div>
                     <BeltBadge beltColor={v.beltColor} />

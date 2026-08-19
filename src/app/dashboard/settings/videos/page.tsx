@@ -248,7 +248,7 @@ export default function VideosSettingsPage() {
                     <td className="px-4 py-3">
                       <p className="font-semibold text-dojo-white">{v.title}</p>
                       {v.description && (
-                        <p className="text-xs text-dojo-muted mt-0.5">{v.description}</p>
+                        <p className="text-xs text-dojo-muted mt-0.5 whitespace-pre-line line-clamp-2">{v.description}</p>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -587,7 +587,7 @@ export default function VideosSettingsPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <BeltBadge beltColor={preview.beltColor} />
-              {preview.description && <p className="text-sm text-dojo-muted">{preview.description}</p>}
+              {preview.description && <p className="text-sm text-dojo-muted whitespace-pre-line">{preview.description}</p>}
             </div>
             <video
               src={videoNoTransform(preview.videoUrl)}

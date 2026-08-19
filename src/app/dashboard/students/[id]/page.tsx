@@ -569,7 +569,7 @@ function BeltVideoModal({ beltColor, beltLabel, onClose }: {
             <div key={v.id} className="card p-0 overflow-hidden">
               <div className="px-4 py-3 border-b border-dojo-border/40">
                 <p className="font-semibold text-dojo-white text-sm">{v.title}</p>
-                {v.description && <p className="text-xs text-dojo-muted mt-0.5">{v.description}</p>}
+                {v.description && <p className="text-xs text-dojo-muted mt-0.5 whitespace-pre-line">{v.description}</p>}
               </div>
               <div className="bg-black">
                 {playing === v.id ? (
