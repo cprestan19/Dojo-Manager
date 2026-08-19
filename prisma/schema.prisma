@@ -1937,6 +1937,7 @@ enum WhatsAppNotificationType {
   PAYMENT_OVERDUE
   PAYMENT_CONFIRMED
   TOURNAMENT_QR // reservado — acreditación de torneo, fase futura
+  DOJO_DELINQUENCY_SUMMARY // resumen de mora mensual al admin del dojo — sin studentId/paymentId, dojoId + Dojo.phone
 }
 
 enum WhatsAppNotificationStatus {
@@ -1975,10 +1976,17 @@ model WhatsAppNotification {
   // por /api/cron/whatsapp-receipt-cleanup pasados los días de retención.
   receiptPublicId String? @map("receipt_public_id")
 
+  // Cuántas veces se mandó de verdad (Meta confirmó éxito) para este pago+tipo.
+  // Tope real de reenvío = 2 — se incrementa solo en un envío exitoso, nunca
+  // en reintentos fallidos ni en la fila PENDING previa a llamar a Meta.
+  sendCount Int @default(0) @map("send_count")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  // Idempotencia real: un solo aviso de atraso y una sola confirmación por pago.
+  // La unicidad sigue existiendo (una sola fila por pago+tipo, se sobreescribe
+  // en cada reintento) pero ya NO es la idempotencia real — eso ahora lo
+  // decide sendCount (máximo 2 envíos exitosos).
   @@unique([paymentId, type])
   @@index([dojoId])
   @@map("whatsapp_notifications")

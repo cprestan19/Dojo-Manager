@@ -294,19 +294,20 @@ export async function sendWhatsAppTemplate(
     return { sent: false, skipped: true, reason: "PLAN_NOT_INCLUDED" };
   }
 
-  // Idempotencia: si ya existe un envío exitoso para este pago+tipo, no reenviar.
+  // Idempotencia: máximo 2 envíos EXITOSOS por pago+tipo (original + 1 reenvío
+  // manual). sendCount solo se incrementa en un envío realmente confirmado por
+  // Meta (ver abajo) — nunca en la fila PENDING previa ni en un reintento fallido.
   // Corre ANTES de llamar a Meta — a diferencia de un insert, la llamada a la
   // API no es idempotente en sí misma.
+  const MAX_SENDS = 2;
   if (params.paymentId) {
     const existing = await prisma.whatsAppNotification.findFirst({
-      where: {
-        paymentId: params.paymentId,
-        type: params.type,
-        status: { in: ["SENT", "DELIVERED", "READ"] },
-      },
-      select: { id: true },
+      where: { paymentId: params.paymentId, type: params.type },
+      select: { sendCount: true },
     });
-    if (existing) return { sent: false, skipped: true, reason: "ALREADY_SENT" };
+    if (existing && existing.sendCount >= MAX_SENDS) {
+      return { sent: false, skipped: true, reason: "ALREADY_SENT" };
+    }
   }
 
   const student = await prisma.student.findUnique({
@@ -350,7 +351,7 @@ export async function sendWhatsAppTemplate(
   if (result.ok) {
     await prisma.whatsAppNotification.update({
       where: { id: notification.id },
-      data: { status: "SENT", metaMessageId: result.metaMessageId },
+      data: { status: "SENT", metaMessageId: result.metaMessageId, sendCount: { increment: 1 } },
     });
     return { sent: true, skipped: false };
   }

@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/utils";
 import {
   sendWhatsAppTemplate, buildOverdueVars, resolveGuardianContact,
 } from "@/lib/whatsapp/sendTemplate";
+import { computeDelinquencySummary, sendDojoDelinquencySummary } from "@/lib/whatsapp/delinquencySummary";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
 
 export const dynamic     = "force-dynamic";
@@ -31,12 +32,14 @@ export async function GET(req: NextRequest) {
       select: {
         id: true, name: true, logo: true, phone: true, slogan: true, ownerName: true,
         reminderToleranceDays: true, lateInterestPct: true, autoRemindersEnabled: true,
+        whatsappOptIn: true,
       },
     });
 
     let updated = 0;
     let emailsSent = 0;
     let whatsappSent = 0;
+    let delinquencySummariesSent = 0;
 
     for (const dojo of dojos) {
       const cutoff = new Date();
@@ -141,9 +144,29 @@ export async function GET(req: NextRequest) {
         resourceType: "Dojo", resourceId: dojo.id, dojoId: dojo.id, statusCode: 200,
         details: JSON.stringify({ processed: toNotify.length }),
       });
+
+      // Resumen de mora al admin — solo llega este mismo día en que los padres
+      // recibieron su aviso de verdad (toNotify.length > 0 arriba, ya
+      // garantizado por el `continue` de la línea 91). La nota fija del
+      // template afirma "ya se avisó a los padres" — nunca debe mandarse si
+      // eso no ocurrió.
+      try {
+        const stats  = await computeDelinquencySummary(dojo.id);
+        const result = await sendDojoDelinquencySummary(dojo, stats);
+        if (result.sent) {
+          delinquencySummariesSent++;
+          await logAudit({
+            action: "WHATSAPP_DELINQUENCY_SUMMARY_SENT", module: AUDIT_MODULE.WHATSAPP,
+            resourceType: "Dojo", resourceId: dojo.id, dojoId: dojo.id, statusCode: 200,
+            details: JSON.stringify(stats),
+          });
+        }
+      } catch { /* skip — nunca bloquea el resto del batch */ }
     }
 
-    return NextResponse.json({ ok: true, dojosChecked: dojos.length, updated, emailsSent, whatsappSent });
+    return NextResponse.json({
+      ok: true, dojosChecked: dojos.length, updated, emailsSent, whatsappSent, delinquencySummariesSent,
+    });
   } catch (err) {
     console.error("[cron/payment-late-status] error:", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

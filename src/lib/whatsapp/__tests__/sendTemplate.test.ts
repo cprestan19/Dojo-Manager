@@ -170,14 +170,27 @@ describe("sendWhatsAppTemplate", () => {
     expect(mockPrisma.whatsAppNotification.upsert).not.toHaveBeenCalled();
   });
 
-  it("skips without calling Meta when a notification was already sent for this payment+type", async () => {
-    mockPrisma.whatsAppNotification.findFirst.mockResolvedValue({ id: "existing" });
+  it("skips without calling Meta once 2 sends already succeeded for this payment+type (max resends)", async () => {
+    mockPrisma.whatsAppNotification.findFirst.mockResolvedValue({ sendCount: 2 });
     mockPrisma.student.findUnique.mockResolvedValue(optedInStudent);
 
     const result = await sendWhatsAppTemplate(baseParams);
 
     expect(result).toEqual({ sent: false, skipped: true, reason: "ALREADY_SENT" });
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("allows a manual resend (2nd send) when only 1 successful send is on record", async () => {
+    mockPrisma.whatsAppNotification.findFirst.mockResolvedValue({ sendCount: 1 });
+    mockPrisma.student.findUnique.mockResolvedValue(optedInStudent);
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ messages: [{ id: "wamid.resend-ok" }] }),
+    });
+
+    const result = await sendWhatsAppTemplate(baseParams);
+
+    expect(result).toEqual({ sent: true, skipped: false });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("marks FAILED without calling Meta when the phone cannot be normalized", async () => {
@@ -237,7 +250,7 @@ describe("sendWhatsAppTemplate", () => {
     expect(result).toEqual({ sent: true, skipped: false });
     expect(mockPrisma.whatsAppNotification.update).toHaveBeenCalledWith({
       where: { id: "notif1" },
-      data: { status: "SENT", metaMessageId: "wamid.abc123" },
+      data: { status: "SENT", metaMessageId: "wamid.abc123", sendCount: { increment: 1 } },
     });
   });
 
