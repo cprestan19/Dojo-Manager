@@ -27,6 +27,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { callMetaGraphApi } from "@/lib/whatsapp/sendTemplate";
 import { LIFECYCLE_TEMPLATE_CFG, buildLifecycleVars, type LifecycleTriggerType } from "@/lib/whatsapp/lifecycleTemplates";
+import { SUPPORT_PHONE } from "@/lib/whatsapp/supportBot";
 
 export const dynamic     = "force-dynamic";
 export const maxDuration = 60;
@@ -110,6 +111,20 @@ export async function POST(req: NextRequest) {
         data: { status: "SENT", sentAt: new Date(), metaMessageId: result.metaMessageId ?? null },
       });
       enviados++;
+
+      // Copia temporal al número de soporte, para que el sysadmin pueda dar
+      // seguimiento y validar que el envío real del CRM funciona — pedido
+      // explícito del usuario, quitar cuando ya no haga falta verificarlo.
+      // Nunca bloquea ni afecta el resultado del envío principal al dojo.
+      if (msg.recipientPhone !== SUPPORT_PHONE) {
+        try {
+          await callMetaGraphApi(SUPPORT_PHONE, {
+            templateName: cfg.name, language: cfg.language, headerParams, bodyParams,
+          });
+        } catch (err) {
+          console.error("Error enviando copia de seguimiento del mensaje de CRM:", err);
+        }
+      }
     } else {
       await prisma.dojoLifecycleMessage.update({
         where: { id: msg.id },

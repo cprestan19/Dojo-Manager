@@ -13,6 +13,7 @@
  */
 import prisma from "@/lib/prisma";
 import { callMetaGraphApi, normalizePhoneE164 } from "@/lib/whatsapp/sendTemplate";
+import { SUPPORT_PHONE } from "@/lib/whatsapp/supportBot";
 
 // Nombre/idioma reales pendientes de confirmar cuando Meta apruebe el
 // template — mismo criterio que LIFECYCLE_TEMPLATE_CFG (lifecycleTemplates.ts):
@@ -119,6 +120,22 @@ export async function sendDojoDelinquencySummary(
       sendCount:      result.ok ? 1 : 0,
     },
   });
+
+  // Copia temporal al número de soporte, para que el sysadmin pueda dar
+  // seguimiento y validar que el envío real funciona — pedido explícito del
+  // usuario, quitar cuando ya no haga falta verificarlo. Nunca bloquea ni
+  // afecta el resultado del envío principal al dojo.
+  if (result.ok && phone !== SUPPORT_PHONE) {
+    try {
+      await callMetaGraphApi(SUPPORT_PHONE, {
+        templateName: DELINQUENCY_SUMMARY_TEMPLATE.name,
+        language:     DELINQUENCY_SUMMARY_TEMPLATE.language,
+        bodyParams,
+      });
+    } catch (err) {
+      console.error("Error enviando copia de seguimiento del resumen de morosidad:", err);
+    }
+  }
 
   if (result.ok) return { sent: true };
   return { sent: false, reason: "SEND_FAILED" };
