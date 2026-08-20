@@ -458,37 +458,65 @@ export default function ClientesCrmPage() {
       )}
 
       {/* Interruptor de envío real */}
-      <div className={`card flex items-center gap-3 flex-wrap border ${sendEnabled ? "border-green-700/50 bg-green-900/10" : "border-dojo-border"}`}>
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${sendEnabled ? "bg-green-500/15" : "bg-dojo-border/40"}`}>
-          <Power size={16} className={sendEnabled ? "text-green-400" : "text-dojo-muted"} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-dojo-white">
-            Envío real de WhatsApp: {sendEnabled === null ? "…" : sendEnabled ? "ACTIVADO" : "Desactivado"}
-          </p>
-          <p className="text-xs text-dojo-muted">
-            {sendEnabled
-              ? "Los mensajes PENDING se le mandan de verdad a los dojos por Meta al presionar \"Enviar pendientes ahora\"."
-              : "Apagado por default — actívalo cuando quieras empezar a enviar mensajes reales."}
-          </p>
-        </div>
-        <button onClick={toggleSend} disabled={togglingSend || sendEnabled === null}
-          className={`text-xs px-3 py-2 shrink-0 rounded-lg font-semibold transition-colors ${
-            sendEnabled ? "bg-red-900/30 text-red-300 hover:bg-red-900/50" : "btn-primary"
-          }`}>
-          {togglingSend ? "…" : sendEnabled ? "Desactivar" : "Activar envío real"}
-        </button>
-        {sendEnabled && (
-          <button onClick={sendPendingNow} disabled={sendingNow}
-            className="btn-secondary text-xs px-3 py-2 shrink-0 flex items-center gap-1.5">
-            <Rocket size={13} className={sendingNow ? "animate-pulse" : ""} /> {sendingNow ? "Enviando…" : "Enviar pendientes ahora"}
+      <div className={`card flex flex-col gap-3 border ${sendEnabled ? "border-green-700/50 bg-green-900/10" : "border-dojo-border"}`}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${sendEnabled ? "bg-green-500/15" : "bg-dojo-border/40"}`}>
+            <Power size={16} className={sendEnabled ? "text-green-400" : "text-dojo-muted"} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-dojo-white">
+              Mensajes automáticos a dojos: {sendEnabled === null ? "…" : sendEnabled ? "ENCENDIDO" : "Apagado"}
+            </p>
+            <p className="text-xs text-dojo-muted">
+              {sendEnabled
+                ? "El sistema ya revisó todos los dojos y decidió a cuáles hay que escribirles hoy. Al presionar \"Enviar ahora\" se les manda el mensaje de verdad por WhatsApp."
+                : "Está apagado — el sistema no le manda nada a nadie todavía, aunque haya decidido a quién le tocaría escribir."}
+            </p>
+          </div>
+          <button onClick={toggleSend} disabled={togglingSend || sendEnabled === null}
+            className={`text-xs px-3 py-2 shrink-0 rounded-lg font-semibold transition-colors ${
+              sendEnabled ? "bg-red-900/30 text-red-300 hover:bg-red-900/50" : "btn-primary"
+            }`}>
+            {togglingSend ? "…" : sendEnabled ? "Apagar" : "Encender"}
           </button>
-        )}
+          {sendEnabled && (
+            <button onClick={sendPendingNow} disabled={sendingNow}
+              className="btn-secondary text-xs px-3 py-2 shrink-0 flex items-center gap-1.5">
+              <Rocket size={13} className={sendingNow ? "animate-pulse" : ""} /> {sendingNow ? "Enviando…" : "Enviar ahora"}
+            </button>
+          )}
+        </div>
+
+        {/* Qué tipos de mensaje maneja — para que se entienda de un vistazo */}
+        <div className="border-t border-dojo-border/50 pt-3">
+          <p className="text-[11px] font-semibold text-dojo-muted uppercase tracking-wide mb-2">
+            Maneja 4 tipos de mensaje, según la situación de cada dojo
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
+            <div className="flex items-center gap-1.5 text-dojo-white">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+              🎉 Bienvenida — el mismo día que se registra
+            </div>
+            <div className="flex items-center gap-1.5 text-dojo-white">
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+              🆘 Sin alumnos todavía — a los 2+ días
+            </div>
+            <div className="flex items-center gap-1.5 text-dojo-white">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+              👋 Seguimiento — a los 3+ días, si ya tiene alumnos
+            </div>
+            <div className="flex items-center gap-1.5 text-dojo-white">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+              ⏰ Último aviso — a los 7+ días, si sigue sin alumnos
+            </div>
+          </div>
+        </div>
       </div>
 
       {sendResult && (
-        <div className="flex items-center gap-2 text-xs bg-dojo-border/30 border border-dojo-border rounded-lg px-3 py-2 text-dojo-white">
-          <Send size={13} className="text-dojo-gold shrink-0" /> {sendResult}
+        <div className="flex items-start gap-2 text-xs bg-dojo-border/30 border border-dojo-border rounded-lg px-3 py-2.5 text-dojo-white">
+          <Send size={13} className="text-dojo-gold shrink-0 mt-0.5" />
+          <span>{sendResult}</span>
         </div>
       )}
 
