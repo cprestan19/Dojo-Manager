@@ -12,18 +12,25 @@ export async function GET(_req: NextRequest, { params }: Params) {
       where:  { token },
       select: {
         id: true, name: true, active: true, confirmedAt: true,
-        application: {
+        evaluation: {
           select: {
-            id: true, title: true, status: true, examDate: true, examTime: true, location: true,
+            id: true, title: true,
             dojo: { select: { name: true } },
             criteria: { select: { id: true, name: true, weightPct: true, order: true }, orderBy: { order: "asc" } },
-            invitees: {
-              where:  { response: "ACCEPTED" },
+            links: {
               select: {
-                id: true, beltToPresent: true,
-                student: { select: { id: true, fullName: true, photo: true } },
+                application: {
+                  select: {
+                    invitees: {
+                      where:  { response: "ACCEPTED" },
+                      select: {
+                        id: true, beltToPresent: true,
+                        student: { select: { id: true, fullName: true, photo: true } },
+                      },
+                    },
+                  },
+                },
               },
-              orderBy: { student: { fullName: "asc" } },
             },
           },
         },
@@ -31,6 +38,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
     });
 
     if (!evaluator) return NextResponse.json({ error: "Link no válido" }, { status: 404 });
+
+    const students = evaluator.evaluation.links
+      .flatMap(l => l.application.invitees)
+      .sort((a, b) => a.student.fullName.localeCompare(b.student.fullName));
 
     const myScores = await prisma.examScore.findMany({
       where:  { evaluatorId: evaluator.id },
@@ -44,17 +55,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
     }
 
     return NextResponse.json({
-      evaluatorName: evaluator.name,
-      active:        evaluator.active,
-      confirmed:     !!evaluator.confirmedAt,
-      applicationTitle: evaluator.application.title,
-      applicationStatus: evaluator.application.status,
-      dojoName:      evaluator.application.dojo.name,
-      examDate:      evaluator.application.examDate,
-      examTime:      evaluator.application.examTime,
-      location:      evaluator.application.location,
-      criteria:      evaluator.application.criteria,
-      students: evaluator.application.invitees.map(inv => ({
+      evaluatorName:     evaluator.name,
+      active:            evaluator.active,
+      confirmed:         !!evaluator.confirmedAt,
+      evaluationTitle:   evaluator.evaluation.title,
+      dojoName:          evaluator.evaluation.dojo.name,
+      criteria:          evaluator.evaluation.criteria,
+      students: students.map(inv => ({
         inviteeId:     inv.id,
         studentId:     inv.student.id,
         fullName:      inv.student.fullName,

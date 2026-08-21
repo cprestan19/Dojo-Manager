@@ -4,13 +4,18 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
-import { issueCertificate } from "@/lib/certificateIssuance";
 
 type Params = { params: Promise<{ id: string }> };
 
-// POST /api/generated-certificates/[id]/issue — renderiza el PDF real y
-// pasa el certificado de DRAFT a ISSUED. Solo alcanza a certificados
-// DRAFT del propio dojo, cuyo postulado siga ACCEPTED + passed=true.
+// POST /api/exam-applications/[id]/reopen — FINALIZED → CLOSED
+//
+// Vuelve solo a CLOSED, nunca a PUBLISHED: agregar alumnos nuevos sigue
+// bloqueado (canAddStudents solo permite DRAFT/PUBLISHED), así que reabrir
+// nunca permite incluir a nadie que no estuviera ya en la postulación. Sirve
+// para corregir asistencia/aprobado de alumnos que faltaron y volver a
+// Finalizar — esa segunda corrida es idempotente (ver beltAwarded /
+// resultNotifiedAt en finalize/route.ts), no repite cinta ni notificación a
+// quien ya se procesó.
 export async function POST(req: NextRequest, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);
@@ -26,27 +31,27 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     const { id } = await params;
 
-    const result = await issueCertificate(id, dojoId);
-    if (!result.ok) {
-      const status = result.error === "No encontrado" ? 404 : 400;
-      return NextResponse.json({ error: result.error }, { status });
+    const existing = await prisma.examApplication.findFirst({ where: { id, dojoId } });
+    if (!existing) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+    if (existing.status !== "FINALIZED") {
+      return NextResponse.json({ error: "Solo se puede reabrir una postulación finalizada" }, { status: 400 });
     }
 
-    const updated = await prisma.generatedCertificate.findUnique({ where: { id } });
+    const updated = await prisma.examApplication.update({ where: { id }, data: { status: "CLOSED" } });
 
     const ctx = buildAuditCtx(session, req, { dojoId });
     await logAudit({
       ...ctx,
-      action:       "CERTIFICATE_ISSUED",
+      action:       "EXAM_APPLICATION_REOPENED",
       module:       AUDIT_MODULE.SETTINGS,
-      resourceType: "GeneratedCertificate",
+      resourceType: "ExamApplication",
       resourceId:   id,
       statusCode:   200,
     });
 
     return NextResponse.json(updated);
   } catch (err) {
-    console.error("POST /api/generated-certificates/[id]/issue", err);
-    return NextResponse.json({ error: "Error al emitir el certificado" }, { status: 500 });
+    console.error("POST /api/exam-applications/[id]/reopen", err);
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }

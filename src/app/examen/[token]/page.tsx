@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { ChevronLeft, Loader2, CheckCircle2, Lock, Circle } from "lucide-react";
-import { getBeltInfo, formatDate } from "@/lib/utils";
+import { getBeltInfo } from "@/lib/utils";
 
 interface Criteria { id: string; name: string; weightPct: number; order: number }
 interface ScoreEntry { criteriaId: string; value: number; note: string | null }
@@ -15,17 +15,13 @@ interface StudentRow {
   scores:        ScoreEntry[];
 }
 interface ExamData {
-  evaluatorName:     string;
-  active:            boolean;
-  confirmed:         boolean;
-  applicationTitle:  string;
-  applicationStatus: string;
-  dojoName:          string;
-  examDate:          string;
-  examTime:          string;
-  location:          string;
-  criteria:          Criteria[];
-  students:          StudentRow[];
+  evaluatorName:   string;
+  active:          boolean;
+  confirmed:       boolean;
+  evaluationTitle: string;
+  dojoName:        string;
+  criteria:        Criteria[];
+  students:        StudentRow[];
 }
 
 const SCALE = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
@@ -118,9 +114,9 @@ export default function ExamEvaluatorPage() {
       <main className="min-h-screen bg-dojo-darker flex items-center justify-center p-4">
         <div className="text-center space-y-3 max-w-sm">
           <Lock size={40} className="mx-auto text-dojo-muted" />
-          <h1 className="text-xl font-bold text-dojo-white font-display">Examen cerrado</h1>
+          <h1 className="text-xl font-bold text-dojo-white font-display">Evaluación cerrada</h1>
           <p className="text-dojo-muted text-sm">
-            &quot;{data.applicationTitle}&quot; ya fue finalizado. Si necesitas corregir una nota, pide al administrador que reabra el examen.
+            &quot;{data.evaluationTitle}&quot; ya fue cerrada. Si necesitas corregir una nota, pide al administrador que la reabra.
           </p>
         </div>
       </main>
@@ -137,8 +133,8 @@ export default function ExamEvaluatorPage() {
             <CheckCircle2 size={28} className="text-dojo-gold" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-dojo-white font-display">{data.applicationTitle}</h1>
-            <p className="text-sm text-dojo-muted">{data.dojoName} · 📅 {formatDate(data.examDate)} {data.examTime}</p>
+            <h1 className="text-lg font-bold text-dojo-white font-display">{data.evaluationTitle}</h1>
+            <p className="text-sm text-dojo-muted">{data.dojoName}</p>
           </div>
           <p className="text-dojo-white">
             ¿Eres <span className="font-bold text-dojo-gold">{data.evaluatorName}</span>?
@@ -239,7 +235,7 @@ export default function ExamEvaluatorPage() {
   return (
     <main className="min-h-screen bg-dojo-darker pb-10">
       <div className="sticky top-0 z-10 bg-dojo-darker/95 backdrop-blur border-b border-dojo-border px-4 py-3">
-        <p className="font-bold text-dojo-white">{data.applicationTitle}</p>
+        <p className="font-bold text-dojo-white">{data.evaluationTitle}</p>
         <p className="text-xs text-dojo-muted">Evaluando como <span className="text-dojo-gold font-medium">{data.evaluatorName}</span></p>
       </div>
 

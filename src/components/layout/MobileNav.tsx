@@ -17,7 +17,7 @@ import {
   ClipboardList, QrCode, ChevronDown, Video, ShieldCheck,
   ChevronLeft, Home, Mail, LayoutDashboard, Trophy, ScrollText,
   Crown, Lock, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag,
-  Receipt, LayoutList, Bell, Upload, Sparkles, GraduationCap, IdCard,
+  Receipt, LayoutList, Bell, Upload, Sparkles, GraduationCap, IdCard, ClipboardCheck,
 } from "lucide-react";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -30,6 +30,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/attendance":                "Asistencia",
   "/dashboard/registros":                 "Auto-registro",
   "/dashboard/postulaciones":             "Examen",
+  "/dashboard/evaluaciones":              "Evaluaciones",
   "/dashboard/leads":                     "Prospectos",
   "/dashboard/reports":                   "Reportes",
   "/dashboard/users":                     "Usuarios",
@@ -80,6 +81,7 @@ const captacionItems: NavItem[] = [
 // propio grupo junto a Academia (ver mismo criterio en Sidebar.tsx).
 const graduacionesItems: NavItem[] = [
   { href: "/dashboard/postulaciones",      label: "Examen",            icon: GraduationCap,permKey: NAV_KEYS.POSTULACIONES      },
+  { href: "/dashboard/evaluaciones",       label: "Evaluaciones",      icon: ClipboardCheck,permKey: NAV_KEYS.EVALUATIONS        },
 ];
 
 const competenciasItems: NavItem[] = [
@@ -152,6 +154,7 @@ const backRoutes: Record<string, string> = {
   "/dashboard/attendance":                  "/dashboard",
   "/dashboard/registros":                   "/dashboard",
   "/dashboard/postulaciones":               "/dashboard",
+  "/dashboard/evaluaciones":                "/dashboard",
   "/dashboard/leads":                       "/dashboard",
   "/dashboard/belts":                       "/dashboard",
   "/dashboard/reports":                     "/dashboard",

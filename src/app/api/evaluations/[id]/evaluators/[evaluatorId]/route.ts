@@ -5,27 +5,27 @@ import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
+type SessionUser = { role?: string; dojoId?: string | null };
 type Params = { params: Promise<{ id: string; evaluatorId: string }> };
 
-// PATCH /api/exam-applications/[id]/evaluators/[evaluatorId] — activar/desactivar el link
+// PATCH /api/evaluations/[id]/evaluators/[evaluatorId] — activar/desactivar el link
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const user = session.user as { role?: string; dojoId?: string | null };
-    if (user.role !== "admin" && user.role !== "sysadmin") {
+    const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+    if (role !== "admin" && role !== "sysadmin") {
       return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
     }
-
-    const dojoId = getEffectiveDojoId(user.role, user.dojoId, req);
+    const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
     if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
     const { id, evaluatorId } = await params;
-    const application = await prisma.examApplication.findFirst({ where: { id, dojoId } });
-    if (!application) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+    const evaluation = await prisma.evaluation.findFirst({ where: { id, dojoId } });
+    if (!evaluation) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
-    const evaluator = await prisma.examEvaluator.findFirst({ where: { id: evaluatorId, applicationId: id } });
+    const evaluator = await prisma.examEvaluator.findFirst({ where: { id: evaluatorId, evaluationId: id } });
     if (!evaluator) return NextResponse.json({ error: "Sensei no encontrado" }, { status: 404 });
 
     const body = await req.json() as { active?: boolean };
@@ -50,31 +50,30 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     return NextResponse.json(updated);
   } catch (err) {
-    console.error("PATCH /api/exam-applications/[id]/evaluators/[evaluatorId]", err);
+    console.error("PATCH /api/evaluations/[id]/evaluators/[evaluatorId]", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }
 
-// DELETE /api/exam-applications/[id]/evaluators/[evaluatorId] — solo si aún no calificó a nadie
+// DELETE /api/evaluations/[id]/evaluators/[evaluatorId] — solo si aún no calificó a nadie
 export async function DELETE(req: NextRequest, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const user = session.user as { role?: string; dojoId?: string | null };
-    if (user.role !== "admin" && user.role !== "sysadmin") {
+    const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+    if (role !== "admin" && role !== "sysadmin") {
       return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
     }
-
-    const dojoId = getEffectiveDojoId(user.role, user.dojoId, req);
+    const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
     if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
     const { id, evaluatorId } = await params;
-    const application = await prisma.examApplication.findFirst({ where: { id, dojoId } });
-    if (!application) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+    const evaluation = await prisma.evaluation.findFirst({ where: { id, dojoId } });
+    if (!evaluation) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
     const evaluator = await prisma.examEvaluator.findFirst({
-      where:  { id: evaluatorId, applicationId: id },
+      where:  { id: evaluatorId, evaluationId: id },
       select: { id: true, _count: { select: { scores: true } } },
     });
     if (!evaluator) return NextResponse.json({ error: "Sensei no encontrado" }, { status: 404 });
@@ -96,7 +95,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("DELETE /api/exam-applications/[id]/evaluators/[evaluatorId]", err);
+    console.error("DELETE /api/evaluations/[id]/evaluators/[evaluatorId]", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }

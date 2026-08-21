@@ -5,62 +5,58 @@ import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
+type SessionUser = { role?: string; dojoId?: string | null };
 type Params = { params: Promise<{ id: string }> };
 
-async function requireApplication(dojoId: string, id: string) {
-  return prisma.examApplication.findFirst({ where: { id, dojoId } });
+async function requireEvaluation(dojoId: string, id: string) {
+  return prisma.evaluation.findFirst({ where: { id, dojoId } });
 }
 
-// GET /api/exam-applications/[id]/criteria
+// GET /api/evaluations/[id]/criteria
 export async function GET(req: NextRequest, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const user = session.user as { role?: string; dojoId?: string | null };
-    if (user.role !== "admin" && user.role !== "sysadmin") {
+    const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+    if (role !== "admin" && role !== "sysadmin") {
       return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
     }
-
-    const dojoId = getEffectiveDojoId(user.role, user.dojoId, req);
+    const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
     if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
     const { id } = await params;
-    const application = await requireApplication(dojoId, id);
-    if (!application) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+    const evaluation = await requireEvaluation(dojoId, id);
+    if (!evaluation) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
     const criteria = await prisma.examCriteria.findMany({
-      where:   { applicationId: id },
+      where:   { evaluationId: id },
       orderBy: { order: "asc" },
     });
 
     return NextResponse.json(criteria);
   } catch (err) {
-    console.error("GET /api/exam-applications/[id]/criteria", err);
+    console.error("GET /api/evaluations/[id]/criteria", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }
 
-// POST /api/exam-applications/[id]/criteria — crea un criterio
+// POST /api/evaluations/[id]/criteria — crea un criterio
 export async function POST(req: NextRequest, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const user = session.user as { role?: string; dojoId?: string | null };
-    if (user.role !== "admin" && user.role !== "sysadmin") {
+    const { role, dojoId: sessionDojoId } = session.user as SessionUser;
+    if (role !== "admin" && role !== "sysadmin") {
       return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
     }
-
-    const dojoId = getEffectiveDojoId(user.role, user.dojoId, req);
+    const dojoId = getEffectiveDojoId(role, sessionDojoId, req);
     if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
     const { id } = await params;
-    const application = await requireApplication(dojoId, id);
-    if (!application) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
-    if (application.status === "FINALIZED") {
-      return NextResponse.json({ error: "No se pueden editar los criterios de un examen finalizado" }, { status: 400 });
-    }
+    const evaluation = await requireEvaluation(dojoId, id);
+    if (!evaluation) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
     const body = await req.json() as { name?: string; weightPct?: number };
     const name = body.name?.trim();
@@ -69,10 +65,10 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "El peso debe ser un número entre 1 y 100" }, { status: 400 });
     }
 
-    const count = await prisma.examCriteria.count({ where: { applicationId: id } });
+    const count = await prisma.examCriteria.count({ where: { evaluationId: id } });
 
     const criteria = await prisma.examCriteria.create({
-      data: { applicationId: id, name, weightPct: body.weightPct, order: count },
+      data: { evaluationId: id, name, weightPct: body.weightPct, order: count },
     });
 
     const ctx = buildAuditCtx(session, req, { dojoId });
@@ -83,12 +79,12 @@ export async function POST(req: NextRequest, { params }: Params) {
       resourceType: "ExamCriteria",
       resourceId:   criteria.id,
       statusCode:   200,
-      details:      JSON.stringify({ applicationId: id, name, weightPct: body.weightPct }),
+      details:      JSON.stringify({ evaluationId: id, name, weightPct: body.weightPct }),
     });
 
     return NextResponse.json(criteria);
   } catch (err) {
-    console.error("POST /api/exam-applications/[id]/criteria", err);
+    console.error("POST /api/evaluations/[id]/criteria", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }

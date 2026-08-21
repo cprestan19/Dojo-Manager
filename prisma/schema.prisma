@@ -121,6 +121,7 @@ model Dojo {
   whatsAppNotifications   WhatsAppNotification[]
   whatsAppInboundMessages WhatsAppInboundMessage[]
   studentCustomFields     StudentCustomField[]
+  evaluations             Evaluation[]
 
   @@map("dojos")
 }
@@ -1773,10 +1774,9 @@ model ExamApplication {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  dojo       Dojo                     @relation(fields: [dojoId], references: [id], onDelete: Cascade)
-  invitees   ExamApplicationInvitee[]
-  criteria   ExamCriteria[]
-  evaluators ExamEvaluator[]
+  dojo             Dojo                          @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  invitees         ExamApplicationInvitee[]
+  evaluationLinks  EvaluationLink[]
 
   @@index([dojoId, status])
   @@index([dojoId, examDate])
@@ -1797,6 +1797,10 @@ model ExamApplicationInvitee {
   attended      Boolean   @default(false)
   passed        Boolean?
   finalScore    Float?    @map("final_score") // calculado a partir de ExamScore — nunca editado a mano
+  // Idempotencia para permitir Reabrir + volver a Finalizar sin duplicar
+  // efectos ya aplicados a quienes se procesaron en una corrida anterior.
+  beltAwarded      Boolean   @default(false) @map("belt_awarded")
+  resultNotifiedAt DateTime? @map("result_notified_at")
   createdAt     DateTime  @default(now()) @map("created_at")
 
   application ExamApplication       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
@@ -1811,37 +1815,74 @@ model ExamApplicationInvitee {
 }
 
 // ── Evaluación (Senseis, criterios y notas) ──────────────────────────────
+// Módulo independiente de Postulaciones: el admin configura una Evaluación
+// (criterios + Senseis) una sola vez y "llama" (vincula) una o varias
+// Postulaciones existentes para traer a sus postulados aceptados como
+// candidatos — así no hay que repetir la configuración por cada examen, y
+// una misma Evaluación puede combinar postulados de varias Postulaciones.
 // Un Sensei entra por su propio link (token, sin cuenta de usuario — mismo
-// patrón que RegistrationLink) y solo ve/califica a los postulados con
-// response=ACCEPTED de este examen. No ve las notas de otros Senseis.
+// patrón que RegistrationLink) y solo ve/califica a los postulados
+// aceptados de las Postulaciones vinculadas. No ve las notas de otros Senseis.
+
+model Evaluation {
+  id        String   @id @default(cuid())
+  dojoId    String   @map("dojo_id")
+  dojo      Dojo     @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  title     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  criteria   ExamCriteria[]
+  evaluators ExamEvaluator[]
+  links      EvaluationLink[]
+
+  @@index([dojoId])
+  @@map("evaluations")
+}
+
+// Postulación "llamada" a una Evaluación — sus postulados con response=ACCEPTED
+// pasan a ser candidatos de la Evaluación.
+model EvaluationLink {
+  id           String @id @default(cuid())
+  evaluationId String @map("evaluation_id")
+  applicationId String @map("application_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  evaluation  Evaluation      @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  application ExamApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([evaluationId, applicationId])
+  @@index([applicationId])
+  @@map("evaluation_links")
+}
 
 model ExamCriteria {
-  id            String @id @default(cuid())
-  applicationId String @map("application_id")
-  name          String // "Kihon", "Kata"...
-  weightPct     Float  @map("weight_pct") // el conjunto de criterios de un examen debe sumar 100
-  order         Int    @default(0)
+  id           String @id @default(cuid())
+  evaluationId String @map("evaluation_id")
+  name         String // "Kihon", "Kata"...
+  weightPct    Float  @map("weight_pct") // el conjunto de criterios de una evaluación debe sumar 100
+  order        Int    @default(0)
 
-  application ExamApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  scores      ExamScore[]
+  evaluation Evaluation  @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  scores     ExamScore[]
 
-  @@index([applicationId])
+  @@index([evaluationId])
   @@map("exam_criteria")
 }
 
 model ExamEvaluator {
-  id            String    @id @default(cuid())
-  applicationId String    @map("application_id")
-  name          String // sin cuenta de usuario — el Sensei solo confirma su nombre al entrar
-  token         String    @unique // crypto.randomUUID()
-  active        Boolean   @default(true) // se desactiva al cerrar/finalizar el examen
-  confirmedAt   DateTime? @map("confirmed_at") // primera vez que validó su nombre
-  createdAt     DateTime  @default(now()) @map("created_at")
+  id           String    @id @default(cuid())
+  evaluationId String    @map("evaluation_id")
+  name         String // sin cuenta de usuario — el Sensei solo confirma su nombre al entrar
+  token        String    @unique // crypto.randomUUID()
+  active       Boolean   @default(true) // se desactiva al cerrar la evaluación
+  confirmedAt  DateTime? @map("confirmed_at") // primera vez que validó su nombre
+  createdAt    DateTime  @default(now()) @map("created_at")
 
-  application ExamApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  scores      ExamScore[]
+  evaluation Evaluation  @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  scores     ExamScore[]
 
-  @@index([applicationId])
+  @@index([evaluationId])
   @@map("exam_evaluators")
 }
 

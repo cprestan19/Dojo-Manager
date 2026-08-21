@@ -32,6 +32,7 @@ const translations = {
       settingsTerms:          "Políticas y Términos",
       settingsPush:           "Notificaciones Push",
       settingsCustomFields:   "Campos Personalizados",
+      evaluaciones:           "Evaluaciones",
     },
     topbar: {
       dashboard:          "Dashboard",
@@ -125,6 +126,7 @@ const translations = {
       settingsTerms:          "Policies & Terms",
       settingsPush:           "Push Notifications",
       settingsCustomFields:   "Custom Fields",
+      evaluaciones:           "Evaluations",
     },
     topbar: {
       dashboard:          "Dashboard",

@@ -17,7 +17,7 @@ import {
   BarChart2, Settings, LogOut, Shield, Building2, ClipboardList, ExternalLink,
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
   Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Upload,
-  Receipt, LayoutList, Bell, BellOff, Sparkles, GraduationCap, IdCard,
+  Receipt, LayoutList, Bell, BellOff, Sparkles, GraduationCap, IdCard, ClipboardCheck,
   Image as ImageIcon,
 } from "lucide-react";
 import { usePushSubscription } from "@/lib/hooks/usePushSubscription";
@@ -79,6 +79,7 @@ const CAPTACION_DEFS: NavItemDef[] = [
 // cinta, así que tiene su propio grupo junto a Academia.
 const GRADUACIONES_DEFS: NavItemDef[] = [
   { href: "/dashboard/postulaciones",      icon: GraduationCap, permKey: NAV_KEYS.POSTULACIONES,      labelKey: "postulaciones" },
+  { href: "/dashboard/evaluaciones",       icon: ClipboardCheck, permKey: NAV_KEYS.EVALUATIONS,        labelKey: "evaluaciones"  },
 ];
 
 const COMPETENCIAS_DEFS: NavItemDef[] = [

@@ -11,10 +11,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     const evaluator = await prisma.examEvaluator.findUnique({
       where:  { token },
-      select: { id: true, active: true, applicationId: true },
+      select: { id: true, active: true, evaluationId: true },
     });
     if (!evaluator) return NextResponse.json({ error: "Link no válido" }, { status: 404 });
-    if (!evaluator.active) return NextResponse.json({ error: "Este link ya no está activo — el examen fue cerrado" }, { status: 403 });
+    if (!evaluator.active) return NextResponse.json({ error: "Este link ya no está activo — la evaluación fue cerrada" }, { status: 403 });
 
     const body = await req.json() as { inviteeId?: string; criteriaId?: string; value?: number; note?: string | null };
     if (!body.inviteeId || !body.criteriaId) {
@@ -24,20 +24,26 @@ export async function PUT(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "La nota debe estar entre 0 y 10" }, { status: 400 });
     }
 
-    // El alumno y el criterio deben pertenecer al mismo examen que este Sensei — nunca
-    // confiar en los IDs del body sin validar que estén dentro del alcance del token.
+    // El alumno y el criterio deben pertenecer a la misma Evaluación que este
+    // Sensei — nunca confiar en los IDs del body sin validar que estén dentro
+    // del alcance del token. El alumno llega a través de una de las
+    // Postulaciones vinculadas (EvaluationLink), no directamente.
     const [invitee, criteria] = await Promise.all([
       prisma.examApplicationInvitee.findFirst({
-        where:  { id: body.inviteeId, applicationId: evaluator.applicationId, response: "ACCEPTED" },
+        where: {
+          id:       body.inviteeId,
+          response: "ACCEPTED",
+          application: { evaluationLinks: { some: { evaluationId: evaluator.evaluationId } } },
+        },
         select: { id: true },
       }),
       prisma.examCriteria.findFirst({
-        where:  { id: body.criteriaId, applicationId: evaluator.applicationId },
+        where:  { id: body.criteriaId, evaluationId: evaluator.evaluationId },
         select: { id: true },
       }),
     ]);
-    if (!invitee)  return NextResponse.json({ error: "Alumno no encontrado en este examen" }, { status: 404 });
-    if (!criteria) return NextResponse.json({ error: "Criterio no encontrado en este examen" }, { status: 404 });
+    if (!invitee)  return NextResponse.json({ error: "Alumno no encontrado en esta evaluación" }, { status: 404 });
+    if (!criteria) return NextResponse.json({ error: "Criterio no encontrado en esta evaluación" }, { status: 404 });
 
     const note = body.note?.trim().slice(0, 500) || null;
 

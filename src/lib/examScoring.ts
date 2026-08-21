@@ -6,11 +6,26 @@ import prisma from "@/lib/prisma";
  * calificaron cada criterio, y el resultado se pondera solo con los
  * criterios que ya tienen al menos una nota — así el número tiene sentido
  * también "en progreso", antes de que todos los Senseis terminen.
+ *
+ * Los criterios ya no viven en la Postulación del alumno — viven en la
+ * Evaluación a la que esa Postulación fue vinculada (EvaluationLink).
  */
 export async function recomputeInviteeFinalScore(inviteeId: string): Promise<number | null> {
+  const invitee = await prisma.examApplicationInvitee.findUnique({
+    where:  { id: inviteeId },
+    select: { applicationId: true },
+  });
+  if (!invitee) return null;
+
+  const link = await prisma.evaluationLink.findFirst({
+    where:  { applicationId: invitee.applicationId },
+    select: { evaluationId: true },
+  });
+  if (!link) return null; // la postulación de este alumno no está vinculada a ninguna evaluación
+
   const [criteria, scores] = await Promise.all([
     prisma.examCriteria.findMany({
-      where:  { application: { invitees: { some: { id: inviteeId } } } },
+      where:  { evaluationId: link.evaluationId },
       select: { id: true, weightPct: true },
     }),
     prisma.examScore.findMany({
