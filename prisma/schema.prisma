@@ -694,6 +694,11 @@ model CrmSettings {
   // por medio, así que el usuario decide cuándo dejarlo actuar sobre tráfico
   // real de clientes.
   supportBotEnabled   Boolean  @default(false) @map("support_bot_enabled")
+  // Habilita el botón manual "Enviar resumen de morosidad ahora" — recalcula
+  // mora + recaudado del MES EN CURSO por dojo y lo manda a cada uno por
+  // WhatsApp (con copia al número de soporte de cada envío), sin depender del
+  // cron diario. Apagado por default, mismo criterio que los otros interruptores.
+  delinquencySummaryManualEnabled Boolean @default(false) @map("delinquency_summary_manual_enabled")
   updatedAt           DateTime @updatedAt
 
   @@map("crm_settings")

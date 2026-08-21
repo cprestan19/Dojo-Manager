@@ -247,12 +247,18 @@ export default function ClientesCrmPage() {
   const [botEnabled, setBotEnabled]         = useState<boolean | null>(null);
   const [togglingBot, setTogglingBot]       = useState(false);
 
+  const [delinquencyEnabled, setDelinquencyEnabled]       = useState<boolean | null>(null);
+  const [togglingDelinquency, setTogglingDelinquency]     = useState(false);
+  const [sendingDelinquency, setSendingDelinquency]       = useState(false);
+  const [delinquencyResult, setDelinquencyResult]         = useState<string | null>(null);
+
   const loadSettings = useCallback(async () => {
     const r = await fetch("/api/superadmin/crm-settings", { cache: "no-store" });
     if (r.ok) {
       const d = await r.json();
       setSendEnabled(d.whatsappSendEnabled);
       setBotEnabled(d.supportBotEnabled);
+      setDelinquencyEnabled(d.delinquencySummaryManualEnabled);
     }
   }, []);
 
@@ -402,6 +408,42 @@ export default function ClientesCrmPage() {
     setTogglingBot(false);
   }
 
+  async function toggleDelinquency() {
+    const next = !delinquencyEnabled;
+    if (next && !confirm(
+      "Vas a ACTIVAR el envío manual del resumen de morosidad.\n\n" +
+      "A partir de ahora, cada vez que presiones \"Enviar resumen ahora\" se le manda por WhatsApp a CADA dojo activo su propio número de alumnos atrasados, monto atrasado y monto recaudado del mes en curso — y a ti te llega una copia de lo que recibió cada uno.\n\n" +
+      "¿Confirmas?"
+    )) return;
+
+    setTogglingDelinquency(true);
+    const r = await fetch("/api/superadmin/crm-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delinquencySummaryManualEnabled: next }),
+    });
+    if (r.ok) setDelinquencyEnabled((await r.json()).delinquencySummaryManualEnabled);
+    setTogglingDelinquency(false);
+  }
+
+  async function sendDelinquencyNow() {
+    if (!confirm("¿Enviar ahora el resumen de morosidad del mes en curso a TODOS los dojos activos? A cada uno le llega solo su propia información, y a ti una copia de cada uno.")) return;
+    setSendingDelinquency(true);
+    setDelinquencyResult(null);
+    try {
+      const r = await fetch("/api/superadmin/delinquency-summary/send-now", { method: "POST" });
+      const data = await r.json();
+      if (data.ok) {
+        setDelinquencyResult(`Dojos: ${data.totalDojos} · Enviados: ${data.sent} · Sin teléfono: ${data.noPhone} · Opt-out: ${data.optOut} · Fallidos: ${data.failed}`);
+      } else {
+        setDelinquencyResult(data.error ?? "Error al enviar.");
+      }
+    } catch {
+      setDelinquencyResult("Error de red al enviar.");
+    }
+    setSendingDelinquency(false);
+  }
+
   async function sendPendingNow() {
     if (!confirm("¿Enviar ahora los mensajes PENDING a los dojos reales por WhatsApp?")) return;
     setSendingNow(true);
@@ -541,6 +583,40 @@ export default function ClientesCrmPage() {
           }`}>
           {togglingBot ? "…" : botEnabled ? "Desactivar" : "Activar chatbot"}
         </button>
+      </div>
+
+      {/* Interruptor de resumen de morosidad manual */}
+      <div className={`card flex flex-col gap-3 border ${delinquencyEnabled ? "border-green-700/50 bg-green-900/10" : "border-dojo-border"}`}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${delinquencyEnabled ? "bg-green-500/15" : "bg-dojo-border/40"}`}>
+            <AlertTriangle size={16} className={delinquencyEnabled ? "text-green-400" : "text-dojo-muted"} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-dojo-white">
+              Resumen de morosidad manual: {delinquencyEnabled === null ? "…" : delinquencyEnabled ? "ACTIVADO" : "Desactivado"}
+            </p>
+            <p className="text-xs text-dojo-muted">
+              {delinquencyEnabled
+                ? "Al presionar \"Enviar resumen ahora\" se le manda por WhatsApp a CADA dojo activo su propio número de alumnos atrasados, monto atrasado y monto recaudado del mes en curso (recalculado al momento de enviar, no un dato guardado). A ti te llega una copia de lo que recibió cada dojo, para que puedas dar seguimiento."
+                : "Apagado por default — mientras esté así, el botón de envío manual no aparece. Esto es aparte del envío automático diario (que solo dispara el mismo día que se le avisa a los padres de un atraso)."}
+            </p>
+          </div>
+          <button onClick={toggleDelinquency} disabled={togglingDelinquency || delinquencyEnabled === null}
+            className={`text-xs px-3 py-2 shrink-0 rounded-lg font-semibold transition-colors ${
+              delinquencyEnabled ? "bg-red-900/30 text-red-300 hover:bg-red-900/50" : "btn-primary"
+            }`}>
+            {togglingDelinquency ? "…" : delinquencyEnabled ? "Desactivar" : "Activar"}
+          </button>
+          {delinquencyEnabled && (
+            <button onClick={sendDelinquencyNow} disabled={sendingDelinquency}
+              className="btn-secondary text-xs px-3 py-2 shrink-0 flex items-center gap-1.5">
+              <Send size={13} className={sendingDelinquency ? "animate-pulse" : ""} /> {sendingDelinquency ? "Enviando…" : "Enviar resumen ahora"}
+            </button>
+          )}
+        </div>
+        {delinquencyResult && (
+          <p className="text-xs text-dojo-white bg-dojo-border/30 border border-dojo-border rounded-lg px-3 py-2">{delinquencyResult}</p>
+        )}
       </div>
 
       {/* Tabs + buscador */}

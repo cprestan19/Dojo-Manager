@@ -48,6 +48,10 @@ function isSupportedType(type: string): type is LifecycleTriggerType {
   return type in LIFECYCLE_TEMPLATE_CFG;
 }
 
+// Vercel Cron siempre llama por GET (nunca POST) — mismo handler que el
+// botón "Enviar pendientes" del panel, que sigue llamando por POST.
+export const GET = POST;
+
 export async function POST(req: NextRequest) {
   if (!(await checkAuth(req))) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 

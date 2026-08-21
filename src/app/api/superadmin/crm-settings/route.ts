@@ -33,6 +33,7 @@ export async function GET() {
   return NextResponse.json({
     whatsappSendEnabled: cfg?.whatsappSendEnabled ?? false,
     supportBotEnabled:   cfg?.supportBotEnabled ?? false,
+    delinquencySummaryManualEnabled: cfg?.delinquencySummaryManualEnabled ?? false,
   });
 }
 
@@ -41,16 +42,22 @@ export async function PUT(req: NextRequest) {
   if (error) return error;
 
   const t0   = Date.now();
-  const body = await req.json().catch(() => ({})) as { whatsappSendEnabled?: boolean; supportBotEnabled?: boolean };
+  const body = await req.json().catch(() => ({})) as {
+    whatsappSendEnabled?: boolean;
+    supportBotEnabled?: boolean;
+    delinquencySummaryManualEnabled?: boolean;
+  };
 
   const existing = await prisma.crmSettings.findUnique({ where: { id: "singleton" } });
   const whatsappSendEnabled = body.whatsappSendEnabled ?? existing?.whatsappSendEnabled ?? false;
   const supportBotEnabled   = body.supportBotEnabled   ?? existing?.supportBotEnabled   ?? false;
+  const delinquencySummaryManualEnabled =
+    body.delinquencySummaryManualEnabled ?? existing?.delinquencySummaryManualEnabled ?? false;
 
   const cfg = await prisma.crmSettings.upsert({
     where:  { id: "singleton" },
-    create: { id: "singleton", whatsappSendEnabled, supportBotEnabled },
-    update: { whatsappSendEnabled, supportBotEnabled },
+    create: { id: "singleton", whatsappSendEnabled, supportBotEnabled, delinquencySummaryManualEnabled },
+    update: { whatsappSendEnabled, supportBotEnabled, delinquencySummaryManualEnabled },
   });
 
   const ctx = buildAuditCtx(session!, req, { startTime: t0 });
@@ -74,9 +81,20 @@ export async function PUT(req: NextRequest) {
       statusCode:   200,
     });
   }
+  if (body.delinquencySummaryManualEnabled !== undefined) {
+    await logAudit({
+      ...ctx,
+      action:       body.delinquencySummaryManualEnabled ? "CRM_DELINQUENCY_SUMMARY_MANUAL_ENABLED" : "CRM_DELINQUENCY_SUMMARY_MANUAL_DISABLED",
+      module:       AUDIT_MODULE.WHATSAPP,
+      resourceType: "CrmSettings",
+      resourceId:   "singleton",
+      statusCode:   200,
+    });
+  }
 
   return NextResponse.json({
     whatsappSendEnabled: cfg.whatsappSendEnabled,
     supportBotEnabled:   cfg.supportBotEnabled,
+    delinquencySummaryManualEnabled: cfg.delinquencySummaryManualEnabled,
   });
 }

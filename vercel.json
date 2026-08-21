@@ -27,6 +27,14 @@
     {
       "path": "/api/cron/whatsapp-receipt-cleanup",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/dojo-lifecycle-messages/register",
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/cron/dojo-lifecycle-messages/send-pending",
+      "schedule": "10 */4 * * *"
     }
   ]
 }
