@@ -46,6 +46,10 @@ interface Payment {
   id: string; type: string; amount: number;
   dueDate: string; paidDate: string | null; status: string; note: string | null;
 }
+interface ExamInviteeEntry {
+  id: string; beltToPresent: string; attended: boolean; passed: boolean | null; finalScore: number | null;
+  application: { id: string; title: string; examDate: string };
+}
 interface Student {
   id: string; fullName: string; firstName: string; lastName: string; photo: string | null;
   studentCode: number | null; cardToken: string | null; cedula: string | null;
@@ -75,6 +79,7 @@ interface Student {
   kataRankingAssignments:  KataRankingEntry[];
   payments:                Payment[];
   studentSchedules:        StudentScheduleEntry[];
+  examInvitees:            ExamInviteeEntry[];
 }
 
 interface StudentScheduleEntry {
@@ -1411,6 +1416,40 @@ export default function StudentDetailPage() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+
+          {/* Historial de Exámenes — solo postulaciones ya finalizadas */}
+          <div className="card">
+            <p className="section-title flex items-center gap-2 mb-4"><ClipboardList size={13}/>Historial de Exámenes</p>
+            {student.examInvitees.length === 0 ? (
+              <p className="text-center text-dojo-muted py-6 text-sm">Sin exámenes finalizados todavía.</p>
+            ) : (
+              <div className="space-y-3">
+                {student.examInvitees.map(entry => (
+                  <div key={entry.id} className="flex items-start gap-3 p-3 rounded-lg border border-dojo-border bg-dojo-dark">
+                    <div className="mt-0.5 shrink-0"><BeltBadge beltColor={entry.beltToPresent} /></div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-dojo-white truncate">{entry.application.title}</p>
+                      <p className="text-xs text-dojo-muted">{formatDate(entry.application.examDate)}</p>
+                    </div>
+                    {entry.finalScore != null && (
+                      <span className="text-xs text-dojo-gold font-semibold shrink-0">{entry.finalScore.toFixed(2)}</span>
+                    )}
+                    <div className="shrink-0">
+                      {!entry.attended ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-dojo-border text-dojo-muted">No asistió</span>
+                      ) : entry.passed === true ? (
+                        <span className="badge-green text-xs">Aprobó</span>
+                      ) : entry.passed === false ? (
+                        <span className="badge-red text-xs">No aprobó</span>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-dojo-border text-dojo-muted">Pendiente</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

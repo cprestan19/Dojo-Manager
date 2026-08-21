@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   ChevronLeft, Loader2, Trash2, Power, Copy, Check, Plus, Link2,
-  Search, X, CheckCircle2, Circle, Lock, Pencil, ArrowLeft,
+  Search, X, CheckCircle2, Circle, XCircle, Lock, Pencil, ArrowLeft, ClipboardCheck,
 } from "lucide-react";
 import { getBeltInfo, BELT_COLORS } from "@/lib/utils";
 
@@ -22,6 +22,7 @@ interface EvaluationDetail {
   criteria: Criteria[];
   evaluators: Evaluator[];
   links: LinkedApp[];
+  resultsConfirmedAt: string | null;
 }
 interface Candidate {
   inviteeId: string; studentId: string; fullName: string; photo: string | null;
@@ -238,6 +239,13 @@ export default function EvaluacionDetallePage() {
   const [deletingEvaluation, setDeletingEvaluation] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // ── Generar resultados / Confirmar evaluación ────────────────────────
+  const [resultsMode, setResultsMode] = useState(false);
+  const [passDecisions, setPassDecisions] = useState<Record<string, boolean>>({});
+  const [confirmResultsOpen, setConfirmResultsOpen] = useState(false);
+  const [confirmingResults, setConfirmingResults] = useState(false);
+  const [confirmResultsError, setConfirmResultsError] = useState("");
+
   async function addEvaluator() {
     setEvalError("");
     const name = newEvalName.trim();
@@ -275,6 +283,38 @@ export default function EvaluacionDetallePage() {
       const res = await fetch(`/api/evaluations/${id}/close`, { method: "POST" });
       if (res.ok) await load();
     } finally { setClosing(false); }
+  }
+
+  function openResultsMode() {
+    const prefill: Record<string, boolean> = {};
+    for (const c of candidates) {
+      if (c.passed != null) prefill[c.inviteeId] = c.passed;
+    }
+    setPassDecisions(prefill);
+    setResultsMode(true);
+  }
+
+  function setPassDecision(inviteeId: string, passed: boolean) {
+    setPassDecisions(prev => ({ ...prev, [inviteeId]: passed }));
+  }
+
+  async function confirmResults() {
+    setConfirmResultsError("");
+    setConfirmingResults(true);
+    try {
+      const decisions = Object.entries(passDecisions).map(([inviteeId, passed]) => ({ inviteeId, passed }));
+      const res = await fetch(`/api/evaluations/${id}/confirm-results`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decisions }),
+      });
+      const d = await res.json() as { error?: string };
+      if (!res.ok) { setConfirmResultsError(d.error ?? "Error al confirmar"); return; }
+      setConfirmResultsOpen(false);
+      setResultsMode(false);
+      await load();
+    } finally {
+      setConfirmingResults(false);
+    }
   }
 
   async function deleteEvaluation() {
@@ -449,13 +489,25 @@ export default function EvaluacionDetallePage() {
 
       {/* Candidatos */}
       <div className="card space-y-3">
-        <h3 className="font-semibold text-dojo-white text-sm">Candidatos ({candidates.length})</h3>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="font-semibold text-dojo-white text-sm">Candidatos ({candidates.length})</h3>
+          {ev.resultsConfirmedAt ? (
+            <span className="text-xs text-green-400 flex items-center gap-1.5">
+              <Lock size={12} /> Confirmada el {new Date(ev.resultsConfirmedAt).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric" })}
+            </span>
+          ) : !resultsMode && candidates.length > 0 && (
+            <button onClick={openResultsMode} className="btn-secondary text-xs flex items-center gap-1.5">
+              <ClipboardCheck size={13} /> Generar resultados
+            </button>
+          )}
+        </div>
         <div className="space-y-2">
           {candidates.map(c => {
             const belt = getBeltInfo(c.beltToPresent);
             const done = c.scoresGiven === c.scoresExpected && c.scoresExpected > 0;
+            const decided = ev.resultsConfirmedAt ? c.passed : passDecisions[c.inviteeId];
             return (
-              <div key={c.inviteeId} className="flex items-center gap-3">
+              <div key={c.inviteeId} className="flex items-center gap-3 flex-wrap">
                 {c.photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={c.photo} alt={c.fullName} className="w-9 h-9 rounded-full object-cover shrink-0" />
@@ -475,11 +527,45 @@ export default function EvaluacionDetallePage() {
                   {done ? <CheckCircle2 size={14} className="text-green-400" /> : <Circle size={14} className="text-dojo-muted" />}
                   <span className={done ? "text-green-400" : "text-dojo-muted"}>{c.scoresGiven}/{c.scoresExpected}</span>
                 </div>
+                {(resultsMode || ev.resultsConfirmedAt) && (
+                  <div className="flex items-center gap-1 shrink-0 w-full sm:w-auto justify-end">
+                    <button
+                      disabled={!!ev.resultsConfirmedAt}
+                      onClick={() => setPassDecision(c.inviteeId, true)}
+                      className={`text-xs px-2 py-1 rounded-lg flex items-center gap-1 transition-colors ${
+                        decided === true ? "bg-green-900/40 text-green-400 border border-green-700/50" : "bg-dojo-border/40 text-dojo-muted hover:text-dojo-white"
+                      }`}
+                    >
+                      <CheckCircle2 size={12} /> Aprobó
+                    </button>
+                    <button
+                      disabled={!!ev.resultsConfirmedAt}
+                      onClick={() => setPassDecision(c.inviteeId, false)}
+                      className={`text-xs px-2 py-1 rounded-lg flex items-center gap-1 transition-colors ${
+                        decided === false ? "bg-red-900/40 text-red-400 border border-red-700/50" : "bg-dojo-border/40 text-dojo-muted hover:text-dojo-white"
+                      }`}
+                    >
+                      <XCircle size={12} /> No aprobó
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
           {candidates.length === 0 && <p className="text-sm text-dojo-muted">Sin candidatos todavía — llama una postulación arriba.</p>}
         </div>
+        {resultsMode && !ev.resultsConfirmedAt && (
+          <div className="flex items-center gap-3 pt-2 border-t border-dojo-border flex-wrap">
+            <button onClick={() => setResultsMode(false)} className="btn-ghost text-xs">Cancelar</button>
+            <button
+              onClick={() => setConfirmResultsOpen(true)}
+              disabled={Object.keys(passDecisions).length === 0}
+              className="btn-primary text-xs flex items-center gap-1.5 ml-auto"
+            >
+              <Lock size={13} /> Confirmar evaluación
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Modal: llamar postulación */}
@@ -602,6 +688,32 @@ export default function EvaluacionDetallePage() {
               <button onClick={() => setConfirmDelEval(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
               <button onClick={() => deleteEvaluator(confirmDelEval)} className="flex-1 text-sm bg-dojo-red hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors">
                 Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: confirmar resultados */}
+      {confirmResultsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dojo-dark border border-dojo-border rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-dojo-gold/10 flex items-center justify-center shrink-0">
+                <Lock size={20} className="text-dojo-gold" />
+              </div>
+              <div>
+                <p className="font-semibold text-dojo-white">Confirmar evaluación</p>
+                <p className="text-xs text-dojo-muted">
+                  Se guarda Aprobó/No aprobó para {Object.keys(passDecisions).length} de {candidates.length} alumno(s). <span className="text-dojo-gold">Después de confirmar no hay vuelta atrás</span> — para corregir algo tendrías que hacerlo desde la Postulación.
+                </p>
+              </div>
+            </div>
+            {confirmResultsError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{confirmResultsError}</div>}
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmResultsOpen(false)} disabled={confirmingResults} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={confirmResults} disabled={confirmingResults} className="btn-primary flex-1 text-sm flex items-center justify-center gap-2">
+                {confirmingResults ? <Loader2 size={14} className="animate-spin" /> : null} Sí, confirmar
               </button>
             </div>
           </div>

@@ -65,6 +65,16 @@ export async function GET( req: NextRequest, { params }: Params) {
             schedule: { select: { id: true, name: true, days: true } },
           },
         },
+        // Historial de exámenes — solo postulaciones ya finalizadas (mientras
+        // esté en curso, el resultado puede seguir cambiando).
+        examInvitees: {
+          where:   { application: { status: "FINALIZED" } },
+          orderBy: { application: { examDate: "desc" } },
+          select: {
+            id: true, beltToPresent: true, attended: true, passed: true, finalScore: true,
+            application: { select: { id: true, title: true, examDate: true } },
+          },
+        },
       },
     });
     if (!student) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
@@ -89,6 +99,7 @@ export async function GET( req: NextRequest, { params }: Params) {
       dojo:                   student.dojo,
       payments:               student.payments,
       studentSchedules:       student.studentSchedules,
+      examInvitees:           student.examInvitees,
     });
   }
 
@@ -129,6 +140,16 @@ export async function GET( req: NextRequest, { params }: Params) {
       },
       customFieldValues: {
         select: { fieldId: true, value: true, field: { select: { label: true, active: true } } },
+      },
+      // Historial de exámenes — solo postulaciones ya finalizadas (mientras
+      // esté en curso, el resultado puede seguir cambiando).
+      examInvitees: {
+        where:   { application: { status: "FINALIZED" } },
+        orderBy: { application: { examDate: "desc" } },
+        select: {
+          id: true, beltToPresent: true, attended: true, passed: true, finalScore: true,
+          application: { select: { id: true, title: true, examDate: true } },
+        },
       },
     },
   });

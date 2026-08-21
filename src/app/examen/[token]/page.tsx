@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, CheckCircle2, Lock, ArrowRight, PartyPopper } from "lucide-react";
+import { Loader2, CheckCircle2, Lock, ArrowRight, ArrowLeft, PartyPopper } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 
 interface Criteria { id: string; name: string; weightPct: number; order: number }
@@ -299,9 +299,20 @@ export default function ExamEvaluatorPage() {
               Siguiente criterio: {nextCriteria.name} <ArrowRight size={16} />
             </button>
           ) : (
-            <div className="card bg-green-900/10 border-green-800/30 flex items-center gap-2.5 justify-center text-center">
-              <PartyPopper size={18} className="text-green-400 shrink-0" />
-              <p className="text-sm text-green-400 font-medium">Este era el último criterio</p>
+            <div className="space-y-3">
+              <div className="card bg-green-900/10 border-green-800/30 flex items-center gap-2.5 justify-center text-center">
+                <PartyPopper size={18} className="text-green-400 shrink-0" />
+                <p className="text-sm text-green-400 font-medium">Este era el último criterio</p>
+              </div>
+              <p className="text-xs text-dojo-muted text-center">
+                Revisa arriba que todos los alumnos tengan nota en cada criterio. El administrador es quien confirma la evaluación cuando todos los Senseis terminen.
+              </p>
+              <button
+                onClick={() => { setActiveCriteriaId(data.criteria[0].id); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                className="btn-secondary w-full flex items-center justify-center gap-2"
+              >
+                <ArrowLeft size={16} /> Volver al primer criterio
+              </button>
             </div>
           )
         )}

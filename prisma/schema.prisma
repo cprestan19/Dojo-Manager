@@ -1836,6 +1836,10 @@ model Evaluation {
   title     String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  // Cuando el admin presiona "Confirmar evaluación" — deja fijos attended/passed
+  // de cada candidato y bloquea nuevos cambios. No dispara cinta ni diploma
+  // por sí sola, eso sigue siendo el paso de "Finalizar" de la Postulación.
+  resultsConfirmedAt DateTime? @map("results_confirmed_at")
 
   criteria   ExamCriteria[]
   evaluators ExamEvaluator[]

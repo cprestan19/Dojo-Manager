@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { formatDate, getBeltInfo } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
-import { Loader2, FileText } from "lucide-react";
+import { Loader2, FileText, History } from "lucide-react";
 import { usePortalTimeZone } from "@/lib/context/PortalTimeZoneContext";
 import { usePortalCurrency } from "@/lib/context/PortalCurrencyContext";
 import { ymdInTz } from "@/lib/timezone";
@@ -39,6 +39,7 @@ export default function PortalPostulacionesPage() {
   const [items,   setItems]   = useState<ExamItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [noAccess, setNoAccess] = useState(false);
+  const [tab, setTab] = useState<"activas" | "historial">("activas");
 
   useEffect(() => {
     fetch("/api/portal/exam-applications")
@@ -95,6 +96,12 @@ export default function PortalPostulacionesPage() {
     );
   }
 
+  const activas   = items.filter(i => i.application.status !== "FINALIZED");
+  const historial = items
+    .filter(i => i.application.status === "FINALIZED")
+    .sort((a, b) => new Date(b.application.examDate).getTime() - new Date(a.application.examDate).getTime());
+  const listed = tab === "activas" ? activas : historial;
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -106,12 +113,43 @@ export default function PortalPostulacionesPage() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        {/* Si hay más de un alumno en la familia mostrar etiqueta por card */}
-        {items.map(item => (
-          <ExamCard key={item.inviteeId} item={item} onRespond={respond} showStudentName={items.some(i => i.studentId !== item.studentId)} />
-        ))}
+      {/* Tabs Activas / Historial */}
+      <div className="flex border-b border-dojo-border">
+        <button
+          onClick={() => setTab("activas")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            tab === "activas" ? "border-dojo-red text-dojo-white" : "border-transparent text-dojo-muted hover:text-dojo-white"
+          }`}
+        >
+          Activas
+          <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-dojo-border text-dojo-muted">{activas.length}</span>
+        </button>
+        <button
+          onClick={() => setTab("historial")}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            tab === "historial" ? "border-dojo-red text-dojo-white" : "border-transparent text-dojo-muted hover:text-dojo-white"
+          }`}
+        >
+          <History size={14} /> Historial
+          <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-dojo-border text-dojo-muted">{historial.length}</span>
+        </button>
       </div>
+
+      {listed.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+          <FileText size={40} className="text-dojo-border" />
+          <p className="text-dojo-muted text-sm">
+            {tab === "activas" ? "No tienes exámenes activos por ahora." : "Todavía no tienes exámenes en tu historial."}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Si hay más de un alumno en la familia mostrar etiqueta por card */}
+          {listed.map(item => (
+            <ExamCard key={item.inviteeId} item={item} onRespond={respond} showStudentName={items.some(i => i.studentId !== item.studentId)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
