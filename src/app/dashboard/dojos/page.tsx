@@ -40,6 +40,7 @@ interface CreatedAdmin { email: string; tempPassword: string; loginUrl: string; 
 const defaultForm = { name: "", slug: "", adminPassword: "", showPass: false };
 
 type StatusFilter = "active" | "inactive" | "all";
+type SortBy = "newest" | "oldest" | "students";
 
 const SUB_BADGE: Record<string, string> = {
   TRIAL:         "bg-blue-900/30 text-blue-300 border border-blue-700/40",
@@ -66,6 +67,7 @@ export default function DojosPage() {
   const [dojos,         setDojos]         = useState<Dojo[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [statusFilter,  setStatusFilter]  = useState<StatusFilter>("active");
+  const [sortBy,        setSortBy]        = useState<SortBy>("newest");
   const [modal,         setModal]         = useState(false);
   const [saving,        setSaving]        = useState(false);
   const [form,          setForm]          = useState(defaultForm);
@@ -253,7 +255,13 @@ export default function DojosPage() {
 
   const active   = dojos.filter(d => d.active);
   const inactive = dojos.filter(d => !d.active);
-  const visible  = statusFilter === "active" ? active : statusFilter === "inactive" ? inactive : dojos;
+  const visible  = (statusFilter === "active" ? active : statusFilter === "inactive" ? inactive : dojos)
+    .slice()
+    .sort((a, b) => {
+      if (sortBy === "newest")   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (sortBy === "oldest")   return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return b._count.students - a._count.students;
+    });
 
   return (
     <div className="space-y-6">
@@ -273,25 +281,36 @@ export default function DojosPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex items-center gap-2">
-        {(["active", "inactive", "all"] as const).map(f => {
-          const count = f === "active" ? active.length : f === "inactive" ? inactive.length : dojos.length;
-          const label = f === "active" ? "Activos" : f === "inactive" ? "Inactivos" : "Todos";
-          return (
-            <button key={f} onClick={() => setStatusFilter(f)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                statusFilter === f
-                  ? "bg-dojo-red text-white"
-                  : "bg-dojo-card border border-dojo-border text-dojo-muted hover:text-dojo-white"
-              }`}
-            >
-              {label}
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === f ? "bg-white/20" : "bg-dojo-border"}`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          {(["active", "inactive", "all"] as const).map(f => {
+            const count = f === "active" ? active.length : f === "inactive" ? inactive.length : dojos.length;
+            const label = f === "active" ? "Activos" : f === "inactive" ? "Inactivos" : "Todos";
+            return (
+              <button key={f} onClick={() => setStatusFilter(f)}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  statusFilter === f
+                    ? "bg-dojo-red text-white"
+                    : "bg-dojo-card border border-dojo-border text-dojo-muted hover:text-dojo-white"
+                }`}
+              >
+                {label}
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === f ? "bg-white/20" : "bg-dojo-border"}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as SortBy)}
+          className="form-input text-sm w-auto py-1.5"
+        >
+          <option value="newest">Más nuevos primero</option>
+          <option value="oldest">Más antiguos primero</option>
+          <option value="students">Más alumnos primero</option>
+        </select>
       </div>
 
       {/* Tabla */}

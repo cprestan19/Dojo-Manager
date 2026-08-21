@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Search, Filter, ChevronLeft, ChevronRight, Shield, Globe,
   Building2, Newspaper, Clock, CheckCircle, XCircle, ChevronDown,
@@ -221,7 +221,7 @@ function ActionBadge({ action }: { action: string }) {
 
 // ── Fila expandida con todos los detalles ─────────────────────────────────────
 
-function ExpandedRow({ log, colSpan }: { log: AuditEntry; colSpan: number }) {
+function ExpandedRow({ log, colSpan, dojoNameById }: { log: AuditEntry; colSpan: number; dojoNameById: Record<string, string> }) {
   const det = parseDetails(log.details);
   const detEntries = Object.entries(det);
   return (
@@ -280,10 +280,13 @@ function ExpandedRow({ log, colSpan }: { log: AuditEntry; colSpan: number }) {
                 <p className="text-dojo-muted font-mono text-[10px] break-all">{log.resourceId ?? "—"}</p>
               </div>
             )}
-            {(log.dojoSlug || log.dojoId) && (
+            {(log.dojoId || log.dojoSlug) && (
               <div>
                 <p className="text-[10px] text-dojo-muted uppercase tracking-wider mb-0.5">Dojo</p>
-                <p className="text-dojo-white">{log.dojoSlug ?? log.dojoId?.slice(0, 12) ?? "—"}</p>
+                <p className="text-dojo-white">{(log.dojoId && dojoNameById[log.dojoId]) ?? "—"}</p>
+                {(log.dojoSlug ?? log.dojoId) && (
+                  <p className="text-dojo-muted font-mono text-[10px]">{log.dojoSlug ?? log.dojoId?.slice(0, 12)}</p>
+                )}
               </div>
             )}
             {log.targetEmail && (
@@ -588,6 +591,14 @@ export default function AuditLogsPage() {
   const [dojos,      setDojos]      = useState<DojoOption[]>([]);
   const [expanded,   setExpanded]   = useState<string | null>(null);
 
+  // Nombre del dojo por id — el log solo guarda dojoId (y a veces dojoSlug),
+  // así que se resuelve el nombre a mostrar contra la lista de dojos ya
+  // cargada para el filtro, en vez de agregar un campo nuevo al log.
+  const dojoNameById = useMemo(
+    () => Object.fromEntries(dojos.map(d => [d.id, d.name])),
+    [dojos],
+  );
+
   useEffect(() => {
     fetch("/api/dojos")
       .then(r => r.ok ? r.json() : [])
@@ -768,7 +779,9 @@ export default function AuditLogsPage() {
                                 <>
                                   <p className="text-dojo-white font-medium">{log.userName ?? log.userEmail}</p>
                                   {log.userName && <p className="text-dojo-muted">{log.userEmail}</p>}
-                                  {log.dojoSlug && <p className="text-dojo-muted font-mono text-[10px]">{log.dojoSlug}</p>}
+                                  {log.dojoId && dojoNameById[log.dojoId] && (
+                                    <p className="text-dojo-gold text-[10px]">{dojoNameById[log.dojoId]}</p>
+                                  )}
                                   {log.isSysadminProxy && (
                                     <span className="text-[9px] bg-purple-800/40 text-purple-300 px-1 py-0.5 rounded">PROXY</span>
                                   )}
@@ -798,7 +811,7 @@ export default function AuditLogsPage() {
                               {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                             </td>
                           </tr>
-                          {isOpen && <ExpandedRow log={log} colSpan={COL_COUNT} />}
+                          {isOpen && <ExpandedRow log={log} colSpan={COL_COUNT} dojoNameById={dojoNameById} />}
                         </React.Fragment>
                       );
                     })
