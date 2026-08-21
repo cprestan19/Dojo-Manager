@@ -209,80 +209,89 @@ export default function ExamEvaluatorPage() {
           </div>
         )}
 
-        {activeCriteria && data.students.map(s => {
-          const existing = s.scores.find(sc => sc.criteriaId === activeCriteria.id);
-          const key = `${s.inviteeId}_${activeCriteria.id}`;
-          const isSaving = saving === key;
-          const beltInfo = getBeltInfo(s.beltToPresent);
-          return (
-            <div key={s.inviteeId} className="card space-y-3">
-              <div className="flex items-center gap-3">
-                {s.photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={s.photo} alt={s.fullName} className="w-9 h-9 rounded-full object-cover shrink-0" />
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-dojo-border/50 flex items-center justify-center text-dojo-muted text-xs font-bold shrink-0">
-                    {s.fullName.slice(0, 1).toUpperCase()}
+        {activeCriteria && data.students.length > 0 && (
+          <div className="rounded-xl border border-dojo-border divide-y divide-dojo-border overflow-hidden">
+            {data.students.map(s => {
+              const existing = s.scores.find(sc => sc.criteriaId === activeCriteria.id);
+              const key = `${s.inviteeId}_${activeCriteria.id}`;
+              const isSaving = saving === key;
+              const beltInfo = getBeltInfo(s.beltToPresent);
+              return (
+                <div key={s.inviteeId} className="px-3 py-2.5 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    {/* Foto + nombre + cinta — fijos, no se van con el scroll horizontal */}
+                    <div className="flex items-center gap-2 shrink-0 w-[132px]">
+                      {s.photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={s.photo} alt={s.fullName} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-dojo-border/50 flex items-center justify-center text-dojo-muted text-[10px] font-bold shrink-0">
+                          {s.fullName.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-medium text-dojo-white truncate text-xs leading-tight">{s.fullName}</p>
+                        <span className="text-[9px] px-1 py-0.5 rounded-full inline-block"
+                          style={{ backgroundColor: beltInfo.hex + "30", color: beltInfo.hex === "#FFFFFF" ? "#aaa" : beltInfo.hex }}>
+                          {beltInfo.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Notas 0-10 — misma línea, con scroll horizontal si no caben */}
+                    <div className="flex items-center gap-1 overflow-x-auto flex-1 pb-0.5">
+                      {SCALE.map(v => (
+                        <button
+                          key={v}
+                          onClick={() => saveScore(s.inviteeId, activeCriteria.id, v, existing?.note ?? null)}
+                          disabled={isSaving}
+                          className={`w-8 h-8 shrink-0 rounded-lg text-sm font-bold transition-colors ${
+                            existing?.value === v
+                              ? "bg-dojo-gold text-black"
+                              : "bg-dojo-border/40 text-dojo-white hover:bg-dojo-border"
+                          }`}
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
+
+                    {existing != null && <CheckCircle2 size={15} className="text-green-400 shrink-0" />}
                   </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-dojo-white truncate text-sm">{s.fullName}</p>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full"
-                    style={{ backgroundColor: beltInfo.hex + "30", color: beltInfo.hex === "#FFFFFF" ? "#aaa" : beltInfo.hex }}>
-                    {beltInfo.label}
-                  </span>
-                </div>
-                {existing != null && <CheckCircle2 size={16} className="text-green-400 shrink-0" />}
-              </div>
 
-              <div className="grid grid-cols-6 gap-1.5">
-                {SCALE.map(v => (
-                  <button
-                    key={v}
-                    onClick={() => saveScore(s.inviteeId, activeCriteria.id, v, existing?.note ?? null)}
-                    disabled={isSaving}
-                    className={`aspect-square rounded-lg text-sm font-bold transition-colors ${
-                      existing?.value === v
-                        ? "bg-dojo-gold text-black"
-                        : "bg-dojo-border/40 text-dojo-white hover:bg-dojo-border"
-                    }`}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-
-              {noteOpen === key ? (
-                <div className="space-y-2">
-                  <textarea
-                    className="form-input text-sm"
-                    rows={2}
-                    placeholder="Observación (opcional)"
-                    value={noteDraft}
-                    onChange={e => setNoteDraft(e.target.value)}
-                  />
-                  <div className="flex gap-2">
+                  {noteOpen === key ? (
+                    <div className="space-y-2 pl-[140px]">
+                      <textarea
+                        className="form-input text-sm"
+                        rows={2}
+                        placeholder="Observación (opcional)"
+                        value={noteDraft}
+                        onChange={e => setNoteDraft(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { if (existing) saveScore(s.inviteeId, activeCriteria.id, existing.value, noteDraft.trim() || null); }}
+                          disabled={existing == null}
+                          className="btn-secondary text-xs flex-1"
+                        >
+                          Guardar nota
+                        </button>
+                        <button onClick={() => setNoteOpen(null)} className="btn-ghost text-xs">Cerrar</button>
+                      </div>
+                    </div>
+                  ) : (
                     <button
-                      onClick={() => { if (existing) saveScore(s.inviteeId, activeCriteria.id, existing.value, noteDraft.trim() || null); }}
-                      disabled={existing == null}
-                      className="btn-secondary text-xs flex-1"
+                      onClick={() => { setNoteOpen(key); setNoteDraft(existing?.note ?? ""); }}
+                      className="text-xs text-dojo-muted hover:text-dojo-gold transition-colors pl-[140px]"
                     >
-                      Guardar nota
+                      {existing?.note ? `📝 ${existing.note}` : "+ Agregar observación"}
                     </button>
-                    <button onClick={() => setNoteOpen(null)} className="btn-ghost text-xs">Cerrar</button>
-                  </div>
+                  )}
                 </div>
-              ) : (
-                <button
-                  onClick={() => { setNoteOpen(key); setNoteDraft(existing?.note ?? ""); }}
-                  className="text-xs text-dojo-muted hover:text-dojo-gold transition-colors"
-                >
-                  {existing?.note ? `📝 ${existing.note}` : "+ Agregar observación"}
-                </button>
-              )}
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        )}
 
         {activeCriteria && data.students.length > 0 && (
           nextCriteria ? (
