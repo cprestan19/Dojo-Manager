@@ -1800,6 +1800,10 @@ model ExamApplicationInvitee {
   paymentStatus String    @default("PENDING") @map("payment_status")
   paidAt        DateTime? @map("paid_at")
   attended      Boolean   @default(false)
+  // Hora y quién marcó la llegada — vía scanner QR o entrada manual en
+  // Asistencia de Examen (mismo patrón que TournamentEventParticipant).
+  arrivedAt     DateTime? @map("arrived_at")
+  scannedBy     String?   @map("scanned_by")
   passed        Boolean?
   finalScore    Float?    @map("final_score") // calculado a partir de ExamScore — nunca editado a mano
   // Idempotencia para permitir Reabrir + volver a Finalizar sin duplicar

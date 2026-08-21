@@ -44,7 +44,7 @@ async function _GET(req: NextRequest) {
         archivedAt:  true,
         createdAt:   true,
         _count: { select: { invitees: true } },
-        invitees: { select: { response: true, beltToPresent: true } },
+        invitees: { select: { response: true, beltToPresent: true, attended: true } },
       },
     });
 
@@ -64,6 +64,7 @@ async function _GET(req: NextRequest) {
       const accepted = a.invitees.filter(i => i.response === "ACCEPTED").length;
       const rejected = a.invitees.filter(i => i.response === "REJECTED").length;
       const pending  = a.invitees.filter(i => i.response === "PENDING").length;
+      const attended = a.invitees.filter(i => i.response === "ACCEPTED" && i.attended).length;
       const beltCounts: Record<string, number> = {};
       for (const i of a.invitees) {
         if (i.response !== "ACCEPTED") continue;
@@ -84,6 +85,7 @@ async function _GET(req: NextRequest) {
         accepted,
         rejected,
         pending,
+        attended,
         beltCounts,
       };
     });

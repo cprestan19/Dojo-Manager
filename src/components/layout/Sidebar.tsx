@@ -18,7 +18,7 @@ import {
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
   Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Upload,
   Receipt, LayoutList, Bell, BellOff, Sparkles, GraduationCap, IdCard, ClipboardCheck,
-  Image as ImageIcon,
+  Image as ImageIcon, QrCode,
 } from "lucide-react";
 import { usePushSubscription } from "@/lib/hooks/usePushSubscription";
 
@@ -80,6 +80,7 @@ const CAPTACION_DEFS: NavItemDef[] = [
 const GRADUACIONES_DEFS: NavItemDef[] = [
   { href: "/dashboard/postulaciones",      icon: GraduationCap, permKey: NAV_KEYS.POSTULACIONES,      labelKey: "postulaciones" },
   { href: "/dashboard/evaluaciones",       icon: ClipboardCheck, permKey: NAV_KEYS.EVALUATIONS,        labelKey: "evaluaciones"  },
+  { href: "/dashboard/asistencia-examen",  icon: QrCode,        permKey: NAV_KEYS.EXAM_ATTENDANCE,    labelKey: "exam-attendance" },
 ];
 
 const COMPETENCIAS_DEFS: NavItemDef[] = [

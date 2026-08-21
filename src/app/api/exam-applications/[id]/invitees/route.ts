@@ -28,19 +28,26 @@ export async function POST(req: NextRequest, { params }: Params) {
     const application = await prisma.examApplication.findFirst({ where: { id: applicationId, dojoId } });
     if (!application) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
-    if (application.status !== "DRAFT" && application.status !== "PUBLISHED") {
-      return NextResponse.json({ error: "Solo se pueden agregar invitados en DRAFT o PUBLISHED" }, { status: 400 });
+    const VALID_STATUSES = ["DRAFT", "PUBLISHED", "CLOSED", "FINALIZED"];
+    if (!VALID_STATUSES.includes(application.status)) {
+      return NextResponse.json({ error: "Estado de postulación no válido" }, { status: 400 });
     }
 
-    // Bloquear si el plazo de respuesta ya venció (comparar por fecha en la zona del dojo, no timestamp)
-    if (application.deadline) {
+    // El plazo de respuesta solo tiene sentido mientras la postulación sigue
+    // publicada — en CLOSED/FINALIZED un admin puede agregar a alguien
+    // manualmente desde Asistencia de Examen (ej. un alumno que llegó sin
+    // haber respondido a tiempo), así que el plazo ya no aplica ahí.
+    if (application.status === "PUBLISHED" && application.deadline) {
       const dojoTz = await resolveDojoTimezone(dojoId);
       if (ymdInTz(new Date(), dojoTz) > ymdInTz(application.deadline, dojoTz)) {
         return NextResponse.json({ error: "El plazo de respuesta ha vencido — no se pueden agregar más invitados" }, { status: 400 });
       }
     }
 
-    const body = await req.json() as { studentId: string; beltToPresent: string };
+    const body = await req.json() as {
+      studentId: string; beltToPresent: string;
+      response?: "ACCEPTED"; attended?: boolean;
+    };
     if (!body.studentId?.trim())    return NextResponse.json({ error: "studentId requerido" }, { status: 400 });
     if (!body.beltToPresent?.trim()) return NextResponse.json({ error: "beltToPresent requerido" }, { status: 400 });
 
@@ -55,6 +62,10 @@ export async function POST(req: NextRequest, { params }: Params) {
         applicationId:  applicationId,
         studentId:      body.studentId,
         beltToPresent:  body.beltToPresent,
+        // Un alumno agregado manualmente desde Asistencia de Examen (postulación
+        // ya cerrada) entra directo como aceptado — y si ya llegó, presente.
+        ...(body.response === "ACCEPTED" ? { response: "ACCEPTED", respondedAt: new Date() } : {}),
+        ...(body.attended === true ? { attended: true, arrivedAt: new Date() } : {}),
       },
     });
 
@@ -148,8 +159,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const application = await prisma.examApplication.findFirst({ where: { id: applicationId, dojoId } });
     if (!application) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
-    if (application.status !== "DRAFT" && application.status !== "PUBLISHED") {
-      return NextResponse.json({ error: "Solo se pueden quitar invitados en estado DRAFT o PUBLISHED" }, { status: 400 });
+    const VALID_STATUSES = ["DRAFT", "PUBLISHED", "CLOSED", "FINALIZED"];
+    if (!VALID_STATUSES.includes(application.status)) {
+      return NextResponse.json({ error: "Estado de postulación no válido" }, { status: 400 });
     }
 
     const body = await req.json() as { inviteeId: string };
@@ -159,6 +171,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       where: { id: body.inviteeId, applicationId },
     });
     if (!invitee) return NextResponse.json({ error: "Invitado no encontrado" }, { status: 404 });
+
+    // Una vez que ya tiene un resultado de examen decidido (o cinta ya
+    // otorgada), quitarlo borraría ese registro para siempre — bloqueado,
+    // primero hay que corregir el resultado antes de poder eliminarlo.
+    if (invitee.passed !== null || invitee.beltAwarded) {
+      return NextResponse.json({ error: "Este alumno ya tiene un resultado de examen registrado — no se puede eliminar" }, { status: 400 });
+    }
 
     await prisma.examApplicationInvitee.delete({ where: { id: body.inviteeId } });
 

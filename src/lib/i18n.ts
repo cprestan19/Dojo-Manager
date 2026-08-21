@@ -33,6 +33,7 @@ const translations = {
       settingsPush:           "Notificaciones Push",
       settingsCustomFields:   "Campos Personalizados",
       evaluaciones:           "Evaluaciones",
+      "exam-attendance":      "Asistencia de Examen",
     },
     topbar: {
       dashboard:          "Dashboard",
@@ -127,6 +128,7 @@ const translations = {
       settingsPush:           "Push Notifications",
       settingsCustomFields:   "Custom Fields",
       evaluaciones:           "Evaluations",
+      "exam-attendance":      "Exam Attendance",
     },
     topbar: {
       dashboard:          "Dashboard",

@@ -38,6 +38,8 @@ export async function GET(req: NextRequest, { params }: Params) {
             paymentStatus: true,
             paidAt:        true,
             attended:      true,
+            arrivedAt:     true,
+            scannedBy:     true,
             passed:        true,
             finalScore:    true,
             student: {
@@ -45,6 +47,7 @@ export async function GET(req: NextRequest, { params }: Params) {
                 id:          true,
                 fullName:    true,
                 studentCode: true,
+                photo:       true,
               },
             },
             certificate: {

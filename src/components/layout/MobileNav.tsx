@@ -31,6 +31,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/registros":                 "Auto-registro",
   "/dashboard/postulaciones":             "Examen",
   "/dashboard/evaluaciones":              "Evaluaciones",
+  "/dashboard/asistencia-examen":         "Asistencia de Examen",
   "/dashboard/leads":                     "Prospectos",
   "/dashboard/reports":                   "Reportes",
   "/dashboard/users":                     "Usuarios",
@@ -82,6 +83,7 @@ const captacionItems: NavItem[] = [
 const graduacionesItems: NavItem[] = [
   { href: "/dashboard/postulaciones",      label: "Examen",            icon: GraduationCap,permKey: NAV_KEYS.POSTULACIONES      },
   { href: "/dashboard/evaluaciones",       label: "Evaluaciones",      icon: ClipboardCheck,permKey: NAV_KEYS.EVALUATIONS        },
+  { href: "/dashboard/asistencia-examen",  label: "Asist. de Examen",  icon: QrCode,       permKey: NAV_KEYS.EXAM_ATTENDANCE    },
 ];
 
 const competenciasItems: NavItem[] = [
@@ -147,6 +149,7 @@ const backRoutes: Record<string, string> = {
   "/dashboard/registros":                   "/dashboard",
   "/dashboard/postulaciones":               "/dashboard",
   "/dashboard/evaluaciones":                "/dashboard",
+  "/dashboard/asistencia-examen":           "/dashboard",
   "/dashboard/leads":                       "/dashboard",
   "/dashboard/belts":                       "/dashboard",
   "/dashboard/reports":                     "/dashboard",
