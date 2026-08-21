@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   ChevronLeft, Loader2, Trash2, Power, Copy, Check, Plus, Link2,
   Search, X, CheckCircle2, Circle, Lock, Pencil, ArrowLeft,
@@ -62,6 +63,9 @@ function BeltChipPicker({ beltCounts, selected, onToggle }: {
 export default function EvaluacionDetallePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
+  const role    = (session?.user as { role?: string } | undefined)?.role ?? "";
+  const isAdmin = role === "admin" || role === "sysadmin";
 
   const [ev,       setEv]       = useState<EvaluationDetail | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -223,6 +227,9 @@ export default function EvaluacionDetallePage() {
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [confirmDelEval, setConfirmDelEval] = useState<Evaluator | null>(null);
   const [closing, setClosing] = useState(false);
+  const [confirmDelEvaluation, setConfirmDelEvaluation] = useState(false);
+  const [deletingEvaluation, setDeletingEvaluation] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   async function addEvaluator() {
     setEvalError("");
@@ -263,6 +270,17 @@ export default function EvaluacionDetallePage() {
     } finally { setClosing(false); }
   }
 
+  async function deleteEvaluation() {
+    setDeleteError("");
+    setDeletingEvaluation(true);
+    try {
+      const res = await fetch(`/api/evaluations/${id}`, { method: "DELETE" });
+      if (res.ok) { router.push("/dashboard/evaluaciones"); return; }
+      const d = await res.json() as { error?: string };
+      setDeleteError(d.error ?? "Error al eliminar");
+    } finally { setDeletingEvaluation(false); }
+  }
+
   function evaluatorLink(token: string) {
     return `${typeof window !== "undefined" ? window.location.origin : ""}/examen/${token}`;
   }
@@ -298,6 +316,11 @@ export default function EvaluacionDetallePage() {
         {anyoneActive && (
           <button onClick={closeEvaluation} disabled={closing} className="btn-secondary text-xs flex items-center gap-1.5 shrink-0">
             {closing ? <Loader2 size={13} className="animate-spin" /> : <Lock size={13} />} Cerrar evaluación
+          </button>
+        )}
+        {isAdmin && (
+          <button onClick={() => { setDeleteError(""); setConfirmDelEvaluation(true); }} className="p-1.5 rounded-lg text-dojo-muted hover:text-dojo-red hover:bg-dojo-red/10 transition-colors shrink-0" title="Eliminar evaluación">
+            <Trash2 size={16} />
           </button>
         )}
       </div>
@@ -564,6 +587,32 @@ export default function EvaluacionDetallePage() {
               <button onClick={() => setConfirmDelEval(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
               <button onClick={() => deleteEvaluator(confirmDelEval)} className="flex-1 text-sm bg-dojo-red hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors">
                 Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal eliminar evaluación */}
+      {confirmDelEvaluation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dojo-dark border border-dojo-border rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-dojo-red/10 flex items-center justify-center shrink-0">
+                <Trash2 size={20} className="text-dojo-red" />
+              </div>
+              <div>
+                <p className="font-semibold text-dojo-white">Eliminar evaluación</p>
+                <p className="text-xs text-dojo-muted">
+                  Se borran las postulaciones vinculadas (el vínculo, no la postulación), los criterios, los Senseis y <span className="text-dojo-red font-medium">todas las notas ya cargadas</span> — incluidas las de alumnos ya finalizados. No se puede deshacer.
+                </p>
+              </div>
+            </div>
+            {deleteError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{deleteError}</div>}
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDelEvaluation(false)} disabled={deletingEvaluation} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={deleteEvaluation} disabled={deletingEvaluation} className="flex-1 text-sm bg-dojo-red hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+                {deletingEvaluation ? <Loader2 size={14} className="animate-spin" /> : null} Eliminar
               </button>
             </div>
           </div>
