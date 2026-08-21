@@ -39,6 +39,7 @@ export async function GET(req: NextRequest, { params }: Params) {
             paidAt:        true,
             attended:      true,
             passed:        true,
+            finalScore:    true,
             student: {
               select: {
                 id:          true,

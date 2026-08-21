@@ -30,10 +30,12 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Solo se puede finalizar desde estado CLOSED" }, { status: 400 });
     }
 
-    const updated = await prisma.examApplication.update({
-      where: { id },
-      data:  { status: "FINALIZED" },
-    });
+    const [updated] = await prisma.$transaction([
+      prisma.examApplication.update({ where: { id }, data: { status: "FINALIZED" } }),
+      // Los links de los Senseis dejan de aceptar notas — corregir algo después
+      // de finalizado requiere que el admin reabra el examen manualmente.
+      prisma.examEvaluator.updateMany({ where: { applicationId: id }, data: { active: false } }),
+    ]);
 
     const ctx = buildAuditCtx(session, req, { dojoId });
     await logAudit({
@@ -44,6 +46,32 @@ export async function POST(req: NextRequest, { params }: Params) {
       resourceId:   id,
       statusCode:   200,
     });
+
+    // Actualizar la cinta automáticamente para los aprobados — recién acá,
+    // porque "Finalizar" es la confirmación del Sensei principal (nunca antes,
+    // aunque ya hubiera notas o el checkbox "Aprobó" estuviera marcado).
+    const passedInvitees = await prisma.examApplicationInvitee.findMany({
+      where:  { applicationId: id, attended: true, passed: true },
+      select: { studentId: true, beltToPresent: true },
+    });
+    if (passedInvitees.length > 0) {
+      await prisma.beltHistory.createMany({
+        data: passedInvitees.map(inv => ({
+          studentId:  inv.studentId,
+          beltColor:  inv.beltToPresent,
+          changeDate: existing.examDate,
+          notes:      `Examen: ${existing.title}`,
+        })),
+      });
+      await logAudit({
+        ...ctx,
+        action:       "BELT_ADDED",
+        module:       AUDIT_MODULE.BELTS,
+        resourceType: "BeltHistory",
+        statusCode:   200,
+        details:      JSON.stringify({ applicationId: id, autoFromExam: true, studentIds: passedInvitees.map(i => i.studentId) }),
+      });
+    }
 
     // Push personalizado a cada alumno con su resultado — fire-and-forget
     const pushSettings = await prisma.pushSettings.findUnique({ where: { dojoId }, select: { enabled: true, notifyExamResult: true } }).catch(() => null);

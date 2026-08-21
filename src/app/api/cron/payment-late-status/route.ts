@@ -7,6 +7,7 @@ import {
 } from "@/lib/whatsapp/sendTemplate";
 import { computeDelinquencySummary, sendDojoDelinquencySummary } from "@/lib/whatsapp/delinquencySummary";
 import { logAudit, AUDIT_MODULE } from "@/lib/audit";
+import { LINKED_PAYMENT_TYPES } from "@/lib/linkedPayments";
 
 export const dynamic     = "force-dynamic";
 export const maxDuration = 60;
@@ -46,12 +47,15 @@ export async function GET(req: NextRequest) {
       cutoff.setDate(cutoff.getDate() - (dojo.reminderToleranceDays ?? 5));
 
       // Paso 1: transición pending → late (comportamiento original, sin tocar).
+      // Excluye cargos de evento/examen (LINKED_PAYMENT_TYPES) — no acumulan
+      // mora, el aviso de atraso está redactado para mensualidades.
       const toMarkLate = await prisma.payment.findMany({
         where: {
           student:  { dojoId: dojo.id },
           status:   "pending",
           paidDate: null,
           dueDate:  { lte: cutoff },
+          type:     { notIn: [...LINKED_PAYMENT_TYPES] },
         },
         select: { id: true },
       });
@@ -78,6 +82,7 @@ export async function GET(req: NextRequest) {
           paidDate:     null,
           dueDate:      { lte: cutoff },
           reminderSent: false,
+          type:         { notIn: [...LINKED_PAYMENT_TYPES] },
         },
         select: {
           id: true, amount: true, dueDate: true, payToken: true, reminderSent: true,

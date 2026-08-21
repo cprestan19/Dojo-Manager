@@ -47,6 +47,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       },
     });
 
+    // Mantener en sincronía el cargo reflejado en la cuenta del alumno
+    // (Payment.examInviteeId) — un solo botón, un solo estado visible.
+    await prisma.payment.updateMany({
+      where: { examInviteeId: body.inviteeId },
+      data:  body.paymentStatus === "PAID"
+        ? { status: "paid", paidDate: new Date() }
+        : { status: "pending", paidDate: null },
+    });
+
     const ctx = buildAuditCtx(session, req, { dojoId });
     await logAudit({
       ...ctx,

@@ -165,7 +165,9 @@ function buildReceiptTarget(p: Payment): ReceiptTarget {
     recipients.push({ label: "Madre / Tutora", name: p.student.motherName ?? "—", email: p.student.motherEmail });
   if (p.student.fatherEmail)
     recipients.push({ label: "Padre / Tutor",  name: p.student.fatherName ?? "—", email: p.student.fatherEmail });
-  const concept = `Mensualidad ${new Date(p.dueDate).toLocaleDateString("es-PA", { month: "long", year: "numeric" })}`;
+  const concept = p.type === "monthly"
+    ? `Mensualidad ${new Date(p.dueDate).toLocaleDateString("es-PA", { month: "long", year: "numeric" })}`
+    : p.note ?? getPaymentTypeLabel(p.type);
   return {
     paymentId:     p.id,
     studentName:   p.student.fullName,
@@ -586,6 +588,8 @@ export default function PaymentsPage() {
             <SelectItem value="biweekly">Quincenales</SelectItem>
             <SelectItem value="annual">Anualidades</SelectItem>
             <SelectItem value="affiliation">Afiliaciones</SelectItem>
+            <SelectItem value="event">Eventos</SelectItem>
+            <SelectItem value="exam">Exámenes</SelectItem>
             <SelectItem value="other">Otros</SelectItem>
           </SelectContent>
         </Select>
@@ -617,7 +621,7 @@ export default function PaymentsPage() {
                 <div className="min-w-0">
                   <p className="font-semibold text-dojo-white truncate">{p.student.fullName}</p>
                   <p className="text-xs text-dojo-muted mt-0.5">
-                    {getPaymentTypeLabel(p.type)} · Vence {formatDate(p.dueDate)}
+                    {getPaymentTypeLabel(p.type)}{p.note ? ` — ${p.note}` : ""} · Vence {formatDate(p.dueDate)}
                   </p>
                 </div>
                 <span className={`${st.className} shrink-0`}>{st.label}</span>
@@ -703,6 +707,7 @@ export default function PaymentsPage() {
                   </TableCell>
                   <TableCell className="text-dojo-muted capitalize">
                     {getPaymentTypeLabel(p.type)}
+                    {p.note && <p className="text-xs normal-case">{p.note}</p>}
                   </TableCell>
                   <TableCell className="text-dojo-gold font-bold">{formatCurrency(p.amount, currency)}</TableCell>
                   <TableCell className="text-dojo-muted">{formatDate(p.dueDate)}</TableCell>

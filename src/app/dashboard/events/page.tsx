@@ -8,8 +8,9 @@ import {
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useToast, ToastContainer } from "@/components/ui/Toast";
-import { useDojoTimeZone } from "@/lib/hooks/useDojo";
+import { useDojoTimeZone, useDojoCurrency } from "@/lib/hooks/useDojo";
 import { toDateTimeLocalInTz, dateTimeLocalToUtc } from "@/lib/timezone";
+import { formatCurrency } from "@/lib/currency";
 
 interface DojoEvent {
   id:                string;
@@ -17,6 +18,7 @@ interface DojoEvent {
   description:       string | null;
   location:          string | null;
   imageUrl:          string | null;
+  price:             number | null;
   startDate:         string;
   endDate:           string;
   tournamentEventId: string | null;
@@ -28,6 +30,7 @@ interface PreviewData {
   description: string;
   location:    string;
   imageUrl:    string;
+  price:       number;
   startDate:   string;
   endDate:     string;
 }
@@ -74,11 +77,12 @@ function toIso(val: string, tz: string): string {
   return dateTimeLocalToUtc(val, tz).toISOString();
 }
 
-const EMPTY_FORM = { title: "", description: "", location: "", imageUrl: "", startDate: "", endDate: "" };
+const EMPTY_FORM = { title: "", description: "", location: "", imageUrl: "", price: "", startDate: "", endDate: "" };
 
 /* ── Vista previa (portal view) ──────────────────────────────── */
 function EventPreviewCard({ data }: { data: PreviewData }) {
-  const tz    = useDojoTimeZone();
+  const tz       = useDojoTimeZone();
+  const currency = useDojoCurrency();
   const start = toIso(data.startDate, tz);
   const end   = toIso(data.endDate, tz);
   return (
@@ -88,9 +92,16 @@ function EventPreviewCard({ data }: { data: PreviewData }) {
         <img src={data.imageUrl} alt={data.title} className="w-full h-auto block" />
       )}
       <div className="p-3 space-y-2.5">
-        <p className="font-display font-bold text-dojo-white text-sm leading-tight">
-          {data.title || <span className="text-dojo-muted italic">Sin título</span>}
-        </p>
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-display font-bold text-dojo-white text-sm leading-tight">
+            {data.title || <span className="text-dojo-muted italic">Sin título</span>}
+          </p>
+          {data.price > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-dojo-gold/15 text-dojo-gold font-semibold shrink-0">
+              {formatCurrency(data.price, currency)}
+            </span>
+          )}
+        </div>
         <div className="flex flex-wrap gap-2 text-[11px]">
           <span className="flex items-center gap-1 text-dojo-muted">
             <Clock size={11} className="text-dojo-red" />
@@ -196,7 +207,8 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting, syncing,
   syncing:   boolean;
   onSyncList: () => void;
 }) {
-  const tz = useDojoTimeZone();
+  const tz       = useDojoTimeZone();
+  const currency = useDojoCurrency();
   const [activeTab,   setActiveTab]   = useState<"info" | "attendees">("info");
   const [rsvpData,    setRsvpData]    = useState<RsvpData | null>(null);
   const [rsvpLoading, setRsvpLoading] = useState(false);
@@ -328,6 +340,11 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting, syncing,
                   <div className="space-y-2 flex-1 min-w-0">
                     <div className="flex items-start gap-2">
                       <p className="font-semibold text-dojo-white text-base leading-tight flex-1">{ev.title}</p>
+                      {!!ev.price && ev.price > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-dojo-gold/15 text-dojo-gold font-semibold shrink-0">
+                          {formatCurrency(ev.price, currency)}
+                        </span>
+                      )}
                       {isPast && <span className="badge-gold text-xs shrink-0">Finalizado</span>}
                     </div>
                     {ev.description && (
@@ -515,7 +532,8 @@ function EventCard({ ev, isPast, onEdit, onDelete, onPreview, deleting, syncing,
 
 /* ── Página principal ────────────────────────────────────────── */
 export default function EventsPage() {
-  const tz = useDojoTimeZone();
+  const tz       = useDojoTimeZone();
+  const currency = useDojoCurrency();
   const [tab,       setTab]      = useState<Tab>("active");
   const [events,    setEvents]   = useState<DojoEvent[]>([]);
   const [loading,   setLoading]  = useState(true);
@@ -554,6 +572,7 @@ export default function EventsPage() {
       description: ev.description ?? "",
       location:    ev.location    ?? "",
       imageUrl:    ev.imageUrl    ?? "",
+      price:       ev.price ? String(ev.price) : "",
       startDate:   toDateTimeLocalInTz(ev.startDate, tz),
       endDate:     toDateTimeLocalInTz(ev.endDate, tz),
     });
@@ -567,6 +586,7 @@ export default function EventsPage() {
       description: ev.description ?? "",
       location:    ev.location    ?? "",
       imageUrl:    ev.imageUrl    ?? "",
+      price:       ev.price ?? 0,
       startDate:   ev.startDate,
       endDate:     ev.endDate,
     });
@@ -578,6 +598,7 @@ export default function EventsPage() {
       description: form.description || "",
       location:    form.location    || "",
       imageUrl:    form.imageUrl    || "",
+      price:       Number(form.price) || 0,
       startDate:   form.startDate   || new Date().toISOString(),
       endDate:     form.endDate     || new Date().toISOString(),
     });
@@ -609,6 +630,10 @@ export default function EventsPage() {
     if (new Date(form.endDate) <= new Date(form.startDate)) {
       setError("La fecha de fin debe ser posterior al inicio"); return;
     }
+    const price = form.price.trim() ? Number(form.price) : 0;
+    if (form.price.trim() && (Number.isNaN(price) || price < 0)) {
+      setError("El precio debe ser un número mayor o igual a 0"); return;
+    }
     setSaving(true);
     try {
       const body = {
@@ -616,6 +641,7 @@ export default function EventsPage() {
         description: form.description.trim() || null,
         location:    form.location.trim()    || null,
         imageUrl:    form.imageUrl           || null,
+        price,
         startDate:   dateTimeLocalToUtc(form.startDate, tz).toISOString(),
         endDate:     dateTimeLocalToUtc(form.endDate, tz).toISOString(),
       };
@@ -776,6 +802,17 @@ export default function EventsPage() {
             <label className="form-label">Nombre del evento *</label>
             <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               className="form-input" placeholder="Ej. Torneo de Primavera 2026" />
+          </div>
+
+          {/* Precio */}
+          <div>
+            <label className="form-label">Precio ({currency}) — opcional</label>
+            <input type="number" min={0} step="0.01" value={form.price}
+              onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+              className="form-input" placeholder="0.00" />
+            <p className="text-xs text-dojo-muted mt-1">
+              Si tiene precio, al confirmar asistencia se le genera al alumno un cargo pendiente por este monto. Vacío o 0 = evento gratis.
+            </p>
           </div>
 
           {/* Fechas */}

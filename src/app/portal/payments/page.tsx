@@ -95,6 +95,7 @@ export default async function PortalPaymentsPage() {
                             <p className="text-sm text-dojo-white font-medium">
                               {getPaymentTypeLabel(p.type)}
                             </p>
+                            {p.note && <p className="text-xs text-dojo-muted">{p.note}</p>}
                             <p className="text-xs text-dojo-muted">Vence: {formatDate(p.dueDate)}</p>
                             {p.paidDate && <p className="text-xs text-green-400">Pagado: {formatDate(p.paidDate)}</p>}
                           </div>

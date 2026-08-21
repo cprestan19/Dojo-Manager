@@ -13,7 +13,10 @@ export default async function EditStudentPage({ params }: { params: Promise<{ id
 
   const student = await prisma.student.findUnique({
     where: dojoId ? { id, dojoId } : { id },
-    include: { inscription: true },
+    include: {
+      inscription: true,
+      customFieldValues: { select: { fieldId: true, value: true } },
+    },
   });
 
   if (!student) notFound();
@@ -53,6 +56,7 @@ export default async function EditStudentPage({ params }: { params: Promise<{ id
       paymentPeriod:     student.inscription.paymentPeriod  ?? "monthly",
       biweeklyAmount:    String(student.inscription.biweeklyAmount ?? 0),
     } : undefined,
+    customFieldValues: student.customFieldValues,
   };
 
   return <StudentForm defaultValues={formValues} isEdit />;

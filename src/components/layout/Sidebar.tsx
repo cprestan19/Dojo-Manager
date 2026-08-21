@@ -17,7 +17,7 @@ import {
   BarChart2, Settings, LogOut, Shield, Building2, ClipboardList, ExternalLink,
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
   Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Upload,
-  Receipt, LayoutList, FileText, Bell, BellOff, Sparkles,
+  Receipt, LayoutList, Bell, BellOff, Sparkles, GraduationCap, IdCard,
   Image as ImageIcon,
 } from "lucide-react";
 import { usePushSubscription } from "@/lib/hooks/usePushSubscription";
@@ -71,8 +71,14 @@ const ACADEMIA_DEFS: NavItemDef[] = [
 
 const CAPTACION_DEFS: NavItemDef[] = [
   { href: "/dashboard/registros",          icon: Receipt,       permKey: NAV_KEYS.REGISTROS,          labelKey: "registros"     },
-  { href: "/dashboard/postulaciones",      icon: FileText,      permKey: NAV_KEYS.POSTULACIONES,      labelKey: "postulaciones" },
   { href: "/dashboard/leads",              icon: UserPlus,      permKey: NAV_KEYS.LEADS,              labelKey: "leads"         },
+];
+
+// Cambio de cinta / graduaciones — antes vivía dentro de "Captación" (pensado
+// para captar alumnos nuevos), pero es sobre alumnos existentes que suben de
+// cinta, así que tiene su propio grupo junto a Academia.
+const GRADUACIONES_DEFS: NavItemDef[] = [
+  { href: "/dashboard/postulaciones",      icon: GraduationCap, permKey: NAV_KEYS.POSTULACIONES,      labelKey: "postulaciones" },
 ];
 
 const COMPETENCIAS_DEFS: NavItemDef[] = [
@@ -101,6 +107,7 @@ const SETTINGS_DEFS: NavItemDef[] = [
   { href: "/dashboard/settings/roles",       icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES,   labelKey: "settingsRoles"   },
   { href: "/dashboard/settings/import",      icon: Upload,      permKey: NAV_KEYS.SETTINGS_IMPORT,  labelKey: "importStudents"  },
   { href: "/dashboard/settings/push",        icon: Bell,        permKey: NAV_KEYS.SETTINGS_PUSH,    labelKey: "settingsPush"    },
+  { href: "/dashboard/settings/custom-fields", icon: IdCard,    permKey: NAV_KEYS.SETTINGS_CUSTOM_FIELDS, labelKey: "settingsCustomFields" },
 ];
 
 const IDENTITY_PATHS = [
@@ -188,6 +195,7 @@ export function Sidebar() {
   // página actual, para no mostrar siempre todo el menú expandido.
   const [sections, setSections] = useState(() => ({
     academia:     sectionMatchesPath(ACADEMIA_DEFS.map(d => d.href), pathname),
+    graduaciones: sectionMatchesPath(GRADUACIONES_DEFS.map(d => d.href), pathname),
     captacion:    sectionMatchesPath(CAPTACION_DEFS.map(d => d.href), pathname),
     competencias: sectionMatchesPath(COMPETENCIAS_DEFS.map(d => d.href), pathname) || pathname.startsWith("/dashboard/tournaments-pro"),
     identity:     sectionMatchesPath(IDENTITY_DEFS.map(d => d.href), pathname),
@@ -220,6 +228,7 @@ export function Sidebar() {
   const filter = (items: NavItem[]) => items.filter(i => perms.has(i.permKey) && planAllowed(i.permKey));
 
   const academia      = filter(mapDefs(ACADEMIA_DEFS));
+  const graduaciones  = filter(mapDefs(GRADUACIONES_DEFS));
   const captacion     = filter(mapDefs(CAPTACION_DEFS));
   const competencias  = filter(mapDefs(COMPETENCIAS_DEFS));
   const identity      = filter(mapDefs(IDENTITY_DEFS));
@@ -319,6 +328,13 @@ export function Sidebar() {
         {academia.length > 0 && (
           <CollapsibleSection label="Academia" open={sections.academia} onToggle={() => toggleSection("academia")}>
             {academia.map(renderNavItem)}
+          </CollapsibleSection>
+        )}
+
+        {/* GRADUACIONES */}
+        {graduaciones.length > 0 && (
+          <CollapsibleSection label="Graduaciones" open={sections.graduaciones} onToggle={() => toggleSection("graduaciones")}>
+            {graduaciones.map(renderNavItem)}
           </CollapsibleSection>
         )}
 

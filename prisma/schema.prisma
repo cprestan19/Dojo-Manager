@@ -47,6 +47,14 @@ model Dojo {
   // Tolerancia de tardanzas en asistencia (minutos después del inicio de clase)
   lateToleranceMinutes Int @default(10) @map("late_tolerance_minutes")
 
+  // Visibilidad de campos específicos de organización (FEPAKA/Ryo Bukai) —
+  // apagados por defecto en dojos nuevos, ya que son propios de federaciones
+  // panameñas puntuales y no aplican a todos los dojos. Se activan solos vía
+  // script para los dojos que ya tenían datos guardados ahí antes de que
+  // existiera este interruptor (ver migrate-legacy-field-visibility).
+  showFepakaField   Boolean @default(false) @map("show_fepaka_field")
+  showRyoBukaiField Boolean @default(false) @map("show_ryo_bukai_field")
+
   // Zona horaria IANA del dojo (ej. "America/Panama", "America/Caracas") — determina
   // cómo se muestran e interpretan todas las fechas/horas del dojo (asistencia,
   // eventos, exámenes, postulaciones, recordatorios, etc.)
@@ -112,6 +120,7 @@ model Dojo {
   pushSettings            PushSettings?
   whatsAppNotifications   WhatsAppNotification[]
   whatsAppInboundMessages WhatsAppInboundMessage[]
+  studentCustomFields     StudentCustomField[]
 
   @@map("dojos")
 }
@@ -359,6 +368,7 @@ model Student {
   storePurchaseRequests    StorePurchaseRequest[]
   whatsAppNotifications    WhatsAppNotification[]
   whatsAppInboundMessages  WhatsAppInboundMessage[]
+  customFieldValues        StudentCustomFieldValue[]
 
   @@index([dojoId, active])
   @@index([dojoId, lastName, firstName])
@@ -366,6 +376,40 @@ model Student {
   @@index([dojoId, active, fullName])
   @@index([familyId])
   @@map("students")
+}
+
+// ── Campos personalizados del alumno ─────────────────────────────────────
+// Para organizaciones/federaciones distintas a FEPAKA/Ryo Bukai (que ya
+// tienen sus propios campos fijos — ver Dojo.showFepakaField/showRyoBukaiField).
+// Un dojo que use FEPAKA o Ryo Bukai debe activar esos campos existentes,
+// no crear uno personalizado con el mismo nombre.
+model StudentCustomField {
+  id        String   @id @default(cuid())
+  dojoId    String   @map("dojo_id")
+  dojo      Dojo     @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  label     String // ej. "ID Federación Nacional"
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  values StudentCustomFieldValue[]
+
+  @@index([dojoId])
+  @@map("student_custom_fields")
+}
+
+model StudentCustomFieldValue {
+  id        String   @id @default(cuid())
+  studentId String   @map("student_id")
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  fieldId   String   @map("field_id")
+  field     StudentCustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([studentId, fieldId])
+  @@index([fieldId])
+  @@map("student_custom_field_values")
 }
 
 model Inscription {
@@ -406,6 +450,13 @@ model Payment {
   note         String?
   reminderSent Boolean @default(false)
 
+  // Vínculo opcional cuando el cargo se generó automáticamente al confirmar
+  // un evento con precio o una postulación a examen con costo — sin FK formal
+  // (mismo criterio que TournamentEvent.sourceEventId), solo para poder
+  // encontrar/cancelar el cargo si el alumno cambia de opinión.
+  eventId       String? @map("event_id")
+  examInviteeId String? @map("exam_invitee_id")
+
   // Token público impredecible para /pagar/[token] (página informativa enlazada
   // desde el botón del template de WhatsApp de atraso) — se genera on-demand.
   payToken String? @unique @map("pay_token")
@@ -419,6 +470,15 @@ model Payment {
   @@index([studentId, status, dueDate])
   @@index([status, dueDate])
   @@index([reminderSent, status, dueDate])
+  // Únicos separados de (studentId, type, dueDate) — ese triple puede
+  // colisionar entre dos eventos/exámenes distintos que caigan en la misma
+  // fecha para el mismo alumno (dueDate normalmente es medianoche). Estos
+  // dos garantizan un solo cargo por evento o por postulación sin ese riesgo,
+  // y permiten upsert atómico en vez de find-then-create (evita condición de carrera).
+  @@unique([eventId, studentId])
+  @@unique([examInviteeId])
+  @@index([eventId])
+  @@index([examInviteeId])
   @@map("payments")
 }
 
@@ -1311,6 +1371,7 @@ model Event {
   description String?  @db.Text
   location    String?
   imageUrl    String?  @map("image_url") @db.Text
+  price       Float?   @default(0) // null o 0 = gratis. Al confirmar asistencia con precio > 0 se genera un cargo pendiente en la cuenta del alumno.
   startDate   DateTime @map("start_date")
   endDate     DateTime @map("end_date")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -1712,8 +1773,10 @@ model ExamApplication {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  dojo     Dojo                     @relation(fields: [dojoId], references: [id], onDelete: Cascade)
-  invitees ExamApplicationInvitee[]
+  dojo       Dojo                     @relation(fields: [dojoId], references: [id], onDelete: Cascade)
+  invitees   ExamApplicationInvitee[]
+  criteria   ExamCriteria[]
+  evaluators ExamEvaluator[]
 
   @@index([dojoId, status])
   @@index([dojoId, examDate])
@@ -1733,16 +1796,73 @@ model ExamApplicationInvitee {
   paidAt        DateTime? @map("paid_at")
   attended      Boolean   @default(false)
   passed        Boolean?
+  finalScore    Float?    @map("final_score") // calculado a partir de ExamScore — nunca editado a mano
   createdAt     DateTime  @default(now()) @map("created_at")
 
   application ExamApplication       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   student     Student               @relation(fields: [studentId], references: [id], onDelete: Restrict)
   certificate GeneratedCertificate?
+  scores      ExamScore[]
 
   @@unique([applicationId, studentId])
   @@index([studentId])
   @@index([applicationId, response])
   @@map("exam_application_invitees")
+}
+
+// ── Evaluación (Senseis, criterios y notas) ──────────────────────────────
+// Un Sensei entra por su propio link (token, sin cuenta de usuario — mismo
+// patrón que RegistrationLink) y solo ve/califica a los postulados con
+// response=ACCEPTED de este examen. No ve las notas de otros Senseis.
+
+model ExamCriteria {
+  id            String @id @default(cuid())
+  applicationId String @map("application_id")
+  name          String // "Kihon", "Kata"...
+  weightPct     Float  @map("weight_pct") // el conjunto de criterios de un examen debe sumar 100
+  order         Int    @default(0)
+
+  application ExamApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  scores      ExamScore[]
+
+  @@index([applicationId])
+  @@map("exam_criteria")
+}
+
+model ExamEvaluator {
+  id            String    @id @default(cuid())
+  applicationId String    @map("application_id")
+  name          String // sin cuenta de usuario — el Sensei solo confirma su nombre al entrar
+  token         String    @unique // crypto.randomUUID()
+  active        Boolean   @default(true) // se desactiva al cerrar/finalizar el examen
+  confirmedAt   DateTime? @map("confirmed_at") // primera vez que validó su nombre
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  application ExamApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  scores      ExamScore[]
+
+  @@index([applicationId])
+  @@map("exam_evaluators")
+}
+
+model ExamScore {
+  id          String   @id @default(cuid())
+  inviteeId   String   @map("invitee_id")
+  criteriaId  String   @map("criteria_id")
+  evaluatorId String   @map("evaluator_id")
+  value       Float // escala 0-10
+  note        String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  invitee   ExamApplicationInvitee @relation(fields: [inviteeId], references: [id], onDelete: Cascade)
+  criteria  ExamCriteria           @relation(fields: [criteriaId], references: [id], onDelete: Cascade)
+  evaluator ExamEvaluator          @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+
+  @@unique([inviteeId, criteriaId, evaluatorId])
+  @@index([inviteeId])
+  @@index([evaluatorId])
+  @@map("exam_scores")
 }
 
 model CertificateTemplate {

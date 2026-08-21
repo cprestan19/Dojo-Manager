@@ -29,6 +29,9 @@ interface ExamItem {
   response:      string;
   responseNote:  string | null;
   respondedAt:   string | null;
+  attended:      boolean | null;
+  passed:        boolean | null;
+  finalScore:    number | null;
 }
 
 export default function PortalPostulacionesPage() {
@@ -253,6 +256,26 @@ function ExamCard({
             </button>
           </div>
         </div>
+      ) : app.status === "FINALIZED" && item.response === "ACCEPTED" ? (
+        item.attended === false ? (
+          <p className="text-xs text-dojo-muted bg-dojo-border/30 rounded-lg px-3 py-2">No se registró tu asistencia a este examen.</p>
+        ) : item.passed === true ? (
+          <div className="rounded-lg px-3 py-3 space-y-1 border bg-green-900/15 border-green-800/40">
+            <p className="text-sm font-bold text-green-400">🏆 ¡Aprobaste! Nueva cinta: {beltInfo.label}</p>
+            {item.finalScore != null && (
+              <p className="text-xs text-dojo-muted">Nota final: <span className="text-dojo-white font-semibold">{item.finalScore.toFixed(2)} / 10</span></p>
+            )}
+          </div>
+        ) : item.passed === false ? (
+          <div className="rounded-lg px-3 py-3 space-y-1 border bg-red-900/15 border-red-800/40">
+            <p className="text-sm font-bold text-red-400">No aprobaste esta vez</p>
+            {item.finalScore != null && (
+              <p className="text-xs text-dojo-muted">Nota final: <span className="text-dojo-white font-semibold">{item.finalScore.toFixed(2)} / 10</span></p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-dojo-muted bg-dojo-border/30 rounded-lg px-3 py-2">Resultado pendiente de confirmar.</p>
+        )
       ) : (app.status === "CLOSED" || app.status === "FINALIZED") ? (
         <p className="text-xs text-dojo-muted bg-dojo-border/30 rounded-lg px-3 py-2">
           {app.status === "FINALIZED" ? "Examen finalizado" : "Inscripciones cerradas"}

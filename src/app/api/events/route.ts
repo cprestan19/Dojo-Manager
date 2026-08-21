@@ -93,7 +93,7 @@ async function _POST(req: NextRequest) {
   if (!dojoId) return NextResponse.json({ error: NO_DOJO_CONTEXT_ERROR }, { status: 403 });
 
   try {
-    const { title, description, location, imageUrl, startDate, endDate } = await req.json();
+    const { title, description, location, imageUrl, startDate, endDate, price } = await req.json();
 
     if (!title?.trim())
       return NextResponse.json({ error: "El título es requerido" }, { status: 400 });
@@ -101,6 +101,8 @@ async function _POST(req: NextRequest) {
       return NextResponse.json({ error: "Las fechas son requeridas" }, { status: 400 });
     if (new Date(endDate) <= new Date(startDate))
       return NextResponse.json({ error: "La fecha de fin debe ser posterior al inicio" }, { status: 400 });
+    if (price != null && (typeof price !== "number" || price < 0))
+      return NextResponse.json({ error: "El precio debe ser un número mayor o igual a 0" }, { status: 400 });
 
     const event = await prisma.event.create({
       data: {
@@ -111,6 +113,7 @@ async function _POST(req: NextRequest) {
         imageUrl:    imageUrl            || null,
         startDate:   new Date(startDate),
         endDate:     new Date(endDate),
+        price:       price ?? 0,
       },
     });
 

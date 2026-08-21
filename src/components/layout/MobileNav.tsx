@@ -17,7 +17,7 @@ import {
   ClipboardList, QrCode, ChevronDown, Video, ShieldCheck,
   ChevronLeft, Home, Mail, LayoutDashboard, Trophy, ScrollText,
   Crown, Lock, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag,
-  Receipt, LayoutList, FileText, Bell, Upload, Sparkles,
+  Receipt, LayoutList, Bell, Upload, Sparkles, GraduationCap, IdCard,
 } from "lucide-react";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -48,6 +48,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/settings/roles":            "Roles y Accesos",
   "/dashboard/settings/import":           "Importar Alumnos",
   "/dashboard/settings/push":             "Notificaciones Push",
+  "/dashboard/settings/custom-fields":    "Campos Personalizados",
   "/dashboard/settings/public-page":      "Página Pública",
   "/dashboard/settings/card-template":    "Diseño de Carnet",
   "/dashboard/settings/certificados":     "Diplomas / Certificados",
@@ -72,8 +73,13 @@ const academiaItems: NavItem[] = [
 
 const captacionItems: NavItem[] = [
   { href: "/dashboard/registros",          label: "Auto-registro",     icon: Receipt,      permKey: NAV_KEYS.REGISTROS          },
-  { href: "/dashboard/postulaciones",      label: "Examen",            icon: FileText,     permKey: NAV_KEYS.POSTULACIONES      },
   { href: "/dashboard/leads",              label: "Prospectos",        icon: UserPlus,     permKey: NAV_KEYS.LEADS              },
+];
+
+// Cambio de cinta / graduaciones — antes vivía en "Captación", ahora tiene su
+// propio grupo junto a Academia (ver mismo criterio en Sidebar.tsx).
+const graduacionesItems: NavItem[] = [
+  { href: "/dashboard/postulaciones",      label: "Examen",            icon: GraduationCap,permKey: NAV_KEYS.POSTULACIONES      },
 ];
 
 const competenciasItems: NavItem[] = [
@@ -122,6 +128,7 @@ const settingsDrawerItems: NavItem[] = [
   { href: "/dashboard/settings/roles",       label: "Roles y Accesos",   icon: ShieldCheck, permKey: NAV_KEYS.SETTINGS_ROLES   },
   { href: "/dashboard/settings/import",      label: "Importar Alumnos",  icon: Upload,      permKey: NAV_KEYS.SETTINGS_IMPORT  },
   { href: "/dashboard/settings/push",        label: "Notificaciones Push",icon: Bell,       permKey: NAV_KEYS.SETTINGS_PUSH    },
+  { href: "/dashboard/settings/custom-fields", label: "Campos Personalizados", icon: IdCard, permKey: NAV_KEYS.SETTINGS_CUSTOM_FIELDS },
 ];
 
 const quickItems: NavItem[] = [
@@ -161,6 +168,7 @@ const backRoutes: Record<string, string> = {
   "/dashboard/settings/roles":              "/dashboard/settings",
   "/dashboard/settings/import":             "/dashboard/settings",
   "/dashboard/settings/push":              "/dashboard/settings",
+  "/dashboard/settings/custom-fields":     "/dashboard/settings",
   "/dashboard/settings/public-page":        "/dashboard/settings",
   "/dashboard/settings/card-template":      "/dashboard",
   "/dashboard/settings/certificados":       "/dashboard",
@@ -221,6 +229,7 @@ export function MobileNav() {
   const filter = (items: NavItem[]) => items.filter(i => perms.has(i.permKey) && planAllowed(i.permKey));
 
   const visAcademia     = filter(academiaItems);
+  const visGraduaciones = filter(graduacionesItems);
   const visCaptacion    = filter(captacionItems);
   const visCompetencias = filter(competenciasItems);
   const visIdentity     = filter(identityItems);
@@ -362,6 +371,14 @@ export function MobileNav() {
             <>
               <NavSection label="Academia" />
               <div className="space-y-1">{visAcademia.map(renderDrawerItem)}</div>
+            </>
+          )}
+
+          {/* GRADUACIONES */}
+          {visGraduaciones.length > 0 && (
+            <>
+              <NavSection label="Graduaciones" />
+              <div className="space-y-1">{visGraduaciones.map(renderDrawerItem)}</div>
             </>
           )}
 

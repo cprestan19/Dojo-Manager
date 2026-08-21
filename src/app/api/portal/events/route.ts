@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { sendPushToDojoAdminsAsync } from "@/lib/push";
+import { createLinkedPayment, cancelLinkedPaymentIfUnpaid } from "@/lib/linkedPayments";
+import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type PortalUser = { role?: string; studentId?: string | null };
 
@@ -66,6 +68,7 @@ export async function GET(req: NextRequest) {
       description:    ev.description,
       location:       ev.location,
       imageUrl:       ev.imageUrl,
+      price:          ev.price ?? 0,
       startDate:      ev.startDate,
       endDate:        ev.endDate,
       attendingCount: ev._count.rsvps,
@@ -87,6 +90,7 @@ export async function GET(req: NextRequest) {
       description:    ev.description,
       location:       ev.location,
       imageUrl:       ev.imageUrl,
+      price:          ev.price ?? 0,
       startDate:      ev.startDate,
       endDate:        ev.endDate,
       attendingCount: 0,
@@ -136,6 +140,46 @@ export async function POST(req: NextRequest) {
       create: { eventId, studentId: rsvpStudentId, status: rsvpStatus, note: note ?? null },
       update: { status: rsvpStatus, note: note ?? null },
     });
+
+    // Cargo automático a la cuenta del alumno cuando el evento tiene precio.
+    if (rsvpStatus === "attending" && event.price && event.price > 0) {
+      const payment = await createLinkedPayment({
+        studentId: rsvpStudentId,
+        type:      "event",
+        amount:    event.price,
+        dueDate:   event.startDate,
+        note:      `Evento: ${event.title}`,
+        eventId,
+      });
+      if (payment) {
+        const ctx = buildAuditCtx(session, req, { dojoId: family.dojoId });
+        await logAudit({
+          ...ctx,
+          action:       "PAYMENT_CREATED_EVENT_CONFIRM",
+          module:       AUDIT_MODULE.PAYMENTS,
+          resourceType: "Payment",
+          resourceId:   payment.id,
+          targetId:     rsvpStudentId,
+          statusCode:   200,
+          details:      JSON.stringify({ eventId, amount: event.price }),
+        });
+      }
+    } else if (rsvpStatus === "not_attending") {
+      const result = await cancelLinkedPaymentIfUnpaid({ eventId, studentId: rsvpStudentId });
+      if (result.canceled) {
+        const ctx = buildAuditCtx(session, req, { dojoId: family.dojoId });
+        await logAudit({
+          ...ctx,
+          action:       "PAYMENT_CANCELED_EVENT_OPTOUT",
+          module:       AUDIT_MODULE.PAYMENTS,
+          resourceType: "Payment",
+          resourceId:   result.payment.id,
+          targetId:     rsvpStudentId,
+          statusCode:   200,
+          details:      JSON.stringify({ eventId, reason: "student changed RSVP to not_attending" }),
+        });
+      }
+    }
 
     const attendingCount = await prisma.eventRSVP.count({
       where: { eventId, status: "attending" },

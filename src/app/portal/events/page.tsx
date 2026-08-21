@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Calendar, MapPin, Clock, CalendarCheck, History, CheckCircle2, X, Users, Loader2 } from "lucide-react";
 import { usePortalTimeZone } from "@/lib/context/PortalTimeZoneContext";
+import { usePortalCurrency } from "@/lib/context/PortalCurrencyContext";
+import { formatCurrency } from "@/lib/currency";
 
 interface FamilyMemberRsvp {
   studentId: string;
@@ -16,6 +18,7 @@ interface DojoEvent {
   description:    string | null;
   location:       string | null;
   imageUrl:       string | null;
+  price:          number;
   startDate:      string;
   endDate:        string;
   memberRsvps:    FamilyMemberRsvp[];
@@ -126,6 +129,7 @@ function RsvpBanner({ event, onUpdate }: {
     finally { setLoading(null); }
   }
 
+  const currency = usePortalCurrency();
   const isFamily = event.memberRsvps.length > 1;
 
   // ── Vista familia: una fila por miembro ─────────────────────────────────────
@@ -136,6 +140,11 @@ function RsvpBanner({ event, onUpdate }: {
           <Users size={12} className="text-dojo-muted" />
           <span className="text-[11px] font-semibold uppercase tracking-wider text-dojo-muted">Familia</span>
         </div>
+        {event.price > 0 && (
+          <div className="px-4 pb-1.5 text-[11px] text-dojo-muted">
+            💰 Costo por alumno confirmado: <span className="text-dojo-gold font-semibold">{formatCurrency(event.price, currency)}</span>
+          </div>
+        )}
         <div className="divide-y divide-dojo-border/40 pb-1">
           {event.memberRsvps.map(m => (
             <MemberRsvpRow
@@ -215,6 +224,11 @@ function RsvpBanner({ event, onUpdate }: {
         <div className="w-2 h-2 rounded-full bg-yellow-400/60 animate-pulse shrink-0" />
         <span className="text-xs font-semibold text-yellow-400/80">⏳ Pendiente de respuesta</span>
       </div>
+      {event.price > 0 && (
+        <div className="px-4 pb-2 text-[11px] text-dojo-muted">
+          💰 Este evento tiene un costo de <span className="text-dojo-gold font-semibold">{formatCurrency(event.price, currency)}</span> — si confirmas, se agrega como pago pendiente en tu cuenta.
+        </div>
+      )}
       {/* Botones de acción */}
       <div className="flex">
         <button
@@ -260,7 +274,8 @@ function RsvpBanner({ event, onUpdate }: {
 // ── Página principal ─────────────────────────────────────────────────────────
 
 export default function PortalEventsPage() {
-  const tz = usePortalTimeZone();
+  const tz       = usePortalTimeZone();
+  const currency = usePortalCurrency();
   const [tab,     setTab]    = useState<Tab>("active");
   const [events,  setEvents] = useState<DojoEvent[]>([]);
   const [loading, setLoading]= useState(true);
@@ -350,7 +365,14 @@ export default function PortalEventsPage() {
               <div className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <h2 className="font-display font-bold text-dojo-white text-lg leading-tight">{ev.title}</h2>
-                  {isPast && <span className="badge-yellow text-xs shrink-0">Finalizado</span>}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {ev.price > 0 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-dojo-gold/15 text-dojo-gold font-semibold">
+                        {formatCurrency(ev.price, currency)}
+                      </span>
+                    )}
+                    {isPast && <span className="badge-yellow text-xs">Finalizado</span>}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-3 text-sm">

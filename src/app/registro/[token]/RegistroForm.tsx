@@ -26,6 +26,8 @@ interface Props {
   dojoName:          string;
   dojoLogo:          string | null;
   dojoTimezone:      string;
+  showFepakaField:   boolean;
+  showRyoBukaiField: boolean;
   expiresAt:         string | null;
   reset?:            boolean;
   termsContent:      string | null;
@@ -110,7 +112,7 @@ function formatExpiry(iso: string, tz: string): string {
   });
 }
 
-export default function RegistroForm({ token, dojoName, dojoLogo, dojoTimezone, expiresAt, reset, termsContent, termsVersion, alreadySubmitted }: Props) {
+export default function RegistroForm({ token, dojoName, dojoLogo, dojoTimezone, showFepakaField, showRyoBukaiField, expiresAt, reset, termsContent, termsVersion, alreadySubmitted }: Props) {
   const defaultPhoneCountry = timezoneToCountry(dojoTimezone);
   const [step,     setStep]     = useState<Step>(alreadySubmitted ? "already-submitted" : "splash");
   const [form,     setForm]     = useState<FormData>(INIT);
@@ -556,16 +558,22 @@ export default function RegistroForm({ token, dojoName, dojoLogo, dojoTimezone, 
           <input className={inputCls(errors.cedula)} value={form.cedula}
             onChange={e => { set("cedula", e.target.value); clearError("cedula"); }} placeholder="Ej: 8-123-456" maxLength={30} />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="ID FEPAKA">
-            <input className="form-input uppercase" value={form.fepakaId}
-              onChange={e => set("fepakaId", e.target.value.toUpperCase())} placeholder="Opcional" maxLength={15} />
-          </Field>
-          <Field label="ID Ryo Bukai">
-            <input className="form-input uppercase" value={form.ryoBukaiId}
-              onChange={e => set("ryoBukaiId", e.target.value.toUpperCase())} placeholder="Opcional" maxLength={15} />
-          </Field>
-        </div>
+        {(showFepakaField || showRyoBukaiField) && (
+          <div className="grid grid-cols-2 gap-3">
+            {showFepakaField && (
+              <Field label="ID FEPAKA">
+                <input className="form-input uppercase" value={form.fepakaId}
+                  onChange={e => set("fepakaId", e.target.value.toUpperCase())} placeholder="Opcional" maxLength={15} />
+              </Field>
+            )}
+            {showRyoBukaiField && (
+              <Field label="ID Ryo Bukai">
+                <input className="form-input uppercase" value={form.ryoBukaiId}
+                  onChange={e => set("ryoBukaiId", e.target.value.toUpperCase())} placeholder="Opcional" maxLength={15} />
+              </Field>
+            )}
+          </div>
+        )}
       </Section>
 
       {/* ── 2. Datos de Salud ── */}

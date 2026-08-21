@@ -50,6 +50,7 @@ interface Student {
   id: string; fullName: string; firstName: string; lastName: string; photo: string | null;
   studentCode: number | null; cardToken: string | null; cedula: string | null;
   fepakaId: string | null; ryoBukaiId: string | null;
+  customFieldValues: { fieldId: string; value: string; field: { label: string; active: boolean } }[];
   birthDate: string; gender: string; nationality: string;
   condition: string | null; bloodType: string | null;
   hasPrivateInsurance: boolean; insuranceName: string | null; insuranceNumber: string | null;
@@ -1255,6 +1256,22 @@ export default function StudentDetailPage() {
             </div>
           </div>
 
+          {/* Campos personalizados del dojo */}
+          {student.customFieldValues.some(v => v.field.active && v.value.trim()) && (
+            <div className="card">
+              <p className="section-title flex items-center gap-2"><IdCard size={13}/>Campos Personalizados</p>
+              <div className="space-y-1.5 text-sm">
+                {student.customFieldValues
+                  .filter(v => v.field.active && v.value.trim())
+                  .map(v => (
+                    <p key={v.fieldId} className="text-dojo-muted">
+                      {v.field.label}: <span className="text-dojo-white font-semibold">{v.value}</span>
+                    </p>
+                  ))}
+              </div>
+            </div>
+          )}
+
           {/* Contacts */}
           <div className="card">
             <p className="section-title flex items-center gap-2"><Phone size={13}/>Contactos</p>
@@ -1509,6 +1526,7 @@ export default function StudentDetailPage() {
                         <tr key={p.id} className="border-b border-dojo-border/40 hover:bg-dojo-border/10">
                           <td className="px-2 py-2 capitalize text-dojo-white">
                             {getPaymentTypeLabel(p.type)}
+                            {p.note && <p className="text-xs text-dojo-muted normal-case">{p.note}</p>}
                           </td>
                           <td className="px-2 py-2 text-dojo-gold font-semibold">{formatCurrency(p.amount, currency)}</td>
                           <td className="px-2 py-2 text-dojo-muted">{formatDate(p.dueDate)}</td>

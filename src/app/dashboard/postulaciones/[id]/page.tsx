@@ -5,7 +5,8 @@ import Link from "next/link";
 import { formatDate, getBeltInfo, BELT_COLORS } from "@/lib/utils";
 import {
   ChevronLeft, Loader2, CheckCircle, XCircle, Clock, Users, Award, ClipboardList,
-  Pencil, Archive, Trash2, UserPlus, UserMinus, Search, Lock, ChevronDown, ChevronUp
+  Pencil, Archive, Trash2, UserPlus, UserMinus, Search, Lock, ChevronDown, ChevronUp,
+  ClipboardCheck, Copy, Power, Check
 } from "lucide-react";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { NAV_KEYS } from "@/lib/permissions";
@@ -30,8 +31,15 @@ interface Invitee {
   paidAt:        string | null;
   attended:      boolean;
   passed:        boolean | null;
+  finalScore:    number | null;
   student:       { id: string; fullName: string; studentCode: number | null };
   certificate:   { id: string; status: string; pdfUrl: string | null; issuedDate: string } | null;
+}
+
+interface Criteria { id: string; name: string; weightPct: number; order: number }
+interface Evaluator {
+  id: string; name: string; token: string; active: boolean; confirmedAt: string | null;
+  _count: { scores: number };
 }
 
 interface Application {
@@ -81,7 +89,7 @@ export default function PostulacionDetallePage() {
   const [app,       setApp]       = useState<Application | null>(null);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState("");
-  const [tab,       setTab]       = useState<"respuestas" | "asistencia" | "certificados">("respuestas");
+  const [tab,       setTab]       = useState<"respuestas" | "asistencia" | "evaluacion" | "certificados">("respuestas");
   const [filter,    setFilter]    = useState<ResponseFilter>("all");
   const [actioning, setActioning] = useState<string | null>(null);
 
@@ -118,6 +126,21 @@ export default function PostulacionDetallePage() {
   const [issuingId,    setIssuingId]    = useState<string | null>(null);
 
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
+  // Evaluación (criterios + Senseis)
+  const [criteria,        setCriteria]        = useState<Criteria[]>([]);
+  const [evaluators,      setEvaluators]      = useState<Evaluator[]>([]);
+  const [evalLoaded,      setEvalLoaded]      = useState(false);
+  const [newCritName,     setNewCritName]     = useState("");
+  const [newCritWeight,   setNewCritWeight]   = useState("");
+  const [newEvalName,     setNewEvalName]     = useState("");
+  const [critSaving,      setCritSaving]      = useState(false);
+  const [evalSaving,      setEvalSaving]      = useState(false);
+  const [critError,       setCritErrorMsg]    = useState("");
+  const [evalError,       setEvalErrorMsg]    = useState("");
+  const [copiedToken,     setCopiedToken]     = useState<string | null>(null);
+  const [confirmDelCrit,  setConfirmDelCrit]  = useState<Criteria | null>(null);
+  const [confirmDelEval,  setConfirmDelEval]  = useState<Evaluator | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -188,6 +211,94 @@ export default function PostulacionDetallePage() {
       body: JSON.stringify(data),
     });
     await load();
+  }
+
+  async function loadEvaluation() {
+    setEvalLoaded(true);
+    const [cRes, eRes] = await Promise.all([
+      fetch(`/api/exam-applications/${id}/criteria`),
+      fetch(`/api/exam-applications/${id}/evaluators`),
+    ]);
+    if (cRes.ok) setCriteria(await cRes.json() as Criteria[]);
+    if (eRes.ok) setEvaluators(await eRes.json() as Evaluator[]);
+  }
+
+  async function addCriteria() {
+    setCritErrorMsg("");
+    const name = newCritName.trim();
+    const weightPct = Number(newCritWeight);
+    if (!name) { setCritErrorMsg("Escribe un nombre"); return; }
+    if (!weightPct || weightPct <= 0 || weightPct > 100) { setCritErrorMsg("El peso debe ser entre 1 y 100"); return; }
+    setCritSaving(true);
+    try {
+      const res = await fetch(`/api/exam-applications/${id}/criteria`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, weightPct }),
+      });
+      const d = await res.json() as Criteria & { error?: string };
+      if (!res.ok) { setCritErrorMsg(d.error ?? "Error al agregar"); return; }
+      setCriteria(prev => [...prev, d]);
+      setNewCritName(""); setNewCritWeight("");
+    } finally { setCritSaving(false); }
+  }
+
+  async function saveCriteriaWeight(critId: string, weightPct: number) {
+    if (!weightPct || weightPct <= 0 || weightPct > 100) return;
+    const res = await fetch(`/api/exam-applications/${id}/criteria/${critId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ weightPct }),
+    });
+    if (res.ok) {
+      setCriteria(prev => prev.map(c => c.id === critId ? { ...c, weightPct } : c));
+      await load(true);
+    }
+  }
+
+  async function deleteCriteria(crit: Criteria) {
+    const res = await fetch(`/api/exam-applications/${id}/criteria/${crit.id}`, { method: "DELETE" });
+    if (res.ok) { setCriteria(prev => prev.filter(c => c.id !== crit.id)); setConfirmDelCrit(null); await load(true); }
+  }
+
+  async function addEvaluator() {
+    setEvalErrorMsg("");
+    const name = newEvalName.trim();
+    if (!name) { setEvalErrorMsg("Escribe el nombre del Sensei"); return; }
+    setEvalSaving(true);
+    try {
+      const res = await fetch(`/api/exam-applications/${id}/evaluators`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const d = await res.json() as Evaluator & { error?: string };
+      if (!res.ok) { setEvalErrorMsg(d.error ?? "Error al agregar"); return; }
+      setEvaluators(prev => [...prev, { ...d, _count: { scores: 0 } }]);
+      setNewEvalName("");
+    } finally { setEvalSaving(false); }
+  }
+
+  async function toggleEvaluatorActive(ev: Evaluator) {
+    const res = await fetch(`/api/exam-applications/${id}/evaluators/${ev.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: !ev.active }),
+    });
+    if (res.ok) setEvaluators(prev => prev.map(e => e.id === ev.id ? { ...e, active: !ev.active } : e));
+  }
+
+  async function deleteEvaluator(ev: Evaluator) {
+    const res = await fetch(`/api/exam-applications/${id}/evaluators/${ev.id}`, { method: "DELETE" });
+    if (res.ok) { setEvaluators(prev => prev.filter(e => e.id !== ev.id)); setConfirmDelEval(null); }
+  }
+
+  function evaluatorLink(token: string) {
+    return `${typeof window !== "undefined" ? window.location.origin : ""}/examen/${token}`;
+  }
+
+  async function copyLink(token: string) {
+    try {
+      await navigator.clipboard.writeText(evaluatorLink(token));
+      setCopiedToken(token);
+      setTimeout(() => setCopiedToken(t => t === token ? null : t), 2000);
+    } catch { /* portapapeles no disponible — el link sigue visible para copiar a mano */ }
   }
 
   async function loadTemplates() {
@@ -305,7 +416,11 @@ export default function PostulacionDetallePage() {
   const passedInvitees   = app.invitees.filter(i => i.response === "ACCEPTED" && i.passed === true);
   const pendingCount     = app.invitees.filter(i => i.response === "PENDING").length;
   const canShowAttendance   = app.status === "CLOSED" || app.status === "FINALIZED";
+  const canShowEvaluation   = app.status !== "DRAFT";
   const canShowCertificates = (app.status === "CLOSED" || app.status === "FINALIZED") && perms.has(NAV_KEYS.CERTIFICADOS);
+  const totalWeight         = criteria.reduce((sum, c) => sum + c.weightPct, 0);
+  const totalScoresGiven    = evaluators.reduce((sum, e) => sum + e._count.scores, 0);
+  const totalScoresExpected = acceptedInvitees.length * criteria.length * evaluators.length;
   const deadlinePassed      = !!app.deadline && new Date(app.deadline) < new Date();
   const canAddStudents      = (app.status === "DRAFT" || app.status === "PUBLISHED") && !deadlinePassed;
 
@@ -389,13 +504,18 @@ export default function PostulacionDetallePage() {
         {([
           { key: "respuestas",   label: "Respuestas",  icon: Users },
           ...(canShowAttendance   ? [{ key: "asistencia",   label: "Asistencia",  icon: ClipboardList }] : []),
+          ...(canShowEvaluation   ? [{ key: "evaluacion",   label: "Evaluación",  icon: ClipboardCheck }] : []),
           ...(canShowCertificates ? [{ key: "certificados", label: "Certificados", icon: Award }] : []),
         ] as { key: string; label: string; icon: React.ElementType }[]).map(t => {
           const Icon = t.icon;
           return (
             <button
               key={t.key}
-              onClick={() => { setTab(t.key as typeof tab); if (t.key === "certificados" && !templates.length) loadTemplates(); }}
+              onClick={() => {
+                setTab(t.key as typeof tab);
+                if (t.key === "certificados" && !templates.length) loadTemplates();
+                if (t.key === "evaluacion" && !evalLoaded) loadEvaluation();
+              }}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 tab === t.key ? "border-dojo-red text-dojo-red" : "border-transparent text-dojo-muted hover:text-dojo-white"
               }`}
@@ -768,6 +888,9 @@ export default function PostulacionDetallePage() {
               <div key={inv.id} className="card flex items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-dojo-white text-sm">{inv.student.fullName}</p>
+                  {inv.finalScore != null && (
+                    <p className="text-xs text-dojo-gold">Nota de Senseis: {inv.finalScore.toFixed(2)} / 10</p>
+                  )}
                 </div>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input
@@ -793,6 +916,92 @@ export default function PostulacionDetallePage() {
             {acceptedInvitees.length === 0 && (
               <p className="text-center text-dojo-muted py-8">No hay alumnos que hayan aceptado</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab Evaluación */}
+      {tab === "evaluacion" && canShowEvaluation && (
+        <div className="space-y-4">
+          {/* Progreso general */}
+          {evaluators.length > 0 && criteria.length > 0 && (
+            <div className="flex items-center gap-2 text-xs bg-dojo-border/30 border border-dojo-border rounded-lg px-3 py-2 text-dojo-white">
+              <ClipboardCheck size={13} className="text-dojo-gold shrink-0" />
+              {totalScoresGiven} / {totalScoresExpected} evaluaciones registradas
+            </div>
+          )}
+
+          {/* Criterios */}
+          <div className="card space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-dojo-white text-sm">Criterios de evaluación</h3>
+              <span className={`text-xs font-medium ${totalWeight === 100 ? "text-green-400" : "text-orange-400"}`}>
+                Suma: {totalWeight}%{totalWeight !== 100 && " (debería ser 100%)"}
+              </span>
+            </div>
+            {critError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{critError}</div>}
+            <div className="space-y-2">
+              {criteria.map(c => (
+                <div key={c.id} className="flex items-center gap-2">
+                  <span className="flex-1 text-sm text-dojo-white truncate">{c.name}</span>
+                  <input
+                    type="number" min={1} max={100}
+                    defaultValue={c.weightPct}
+                    onBlur={e => { const v = Number(e.target.value); if (v !== c.weightPct) saveCriteriaWeight(c.id, v); }}
+                    className="form-input w-20 text-sm text-right"
+                  />
+                  <span className="text-xs text-dojo-muted">%</span>
+                  <button onClick={() => setConfirmDelCrit(c)} className="p-1.5 rounded-lg text-dojo-muted hover:text-red-400 hover:bg-red-900/20 transition-colors">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              {criteria.length === 0 && <p className="text-sm text-dojo-muted">Todavía no hay criterios — agrega el primero abajo.</p>}
+            </div>
+            <div className="flex gap-2 pt-2 border-t border-dojo-border">
+              <input className="form-input text-sm flex-1" placeholder="Nombre (ej. Kihon)" value={newCritName} onChange={e => setNewCritName(e.target.value)} />
+              <input className="form-input text-sm w-20" type="number" min={1} max={100} placeholder="%" value={newCritWeight} onChange={e => setNewCritWeight(e.target.value)} />
+              <button onClick={addCriteria} disabled={critSaving} className="btn-secondary text-sm shrink-0">
+                {critSaving ? <Loader2 size={14} className="animate-spin" /> : "Agregar"}
+              </button>
+            </div>
+          </div>
+
+          {/* Senseis evaluadores */}
+          <div className="card space-y-3">
+            <h3 className="font-semibold text-dojo-white text-sm">Senseis evaluadores</h3>
+            <p className="text-xs text-dojo-muted">
+              Cada Sensei entra por su propio link, confirma su nombre y solo ve a los alumnos que aceptaron ({acceptedInvitees.length}). No ve las notas de los demás.
+            </p>
+            {evalError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{evalError}</div>}
+            <div className="space-y-2">
+              {evaluators.map(ev => (
+                <div key={ev.id} className="flex items-center gap-2 flex-wrap">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${ev.active ? "bg-green-400" : "bg-dojo-border"}`} title={ev.active ? "Activo" : "Desactivado"} />
+                  <span className="text-sm text-dojo-white flex-1 min-w-[100px] truncate">{ev.name}</span>
+                  <span className="text-xs text-dojo-muted shrink-0">{ev._count.scores} notas</span>
+                  <button onClick={() => copyLink(ev.token)} className="text-xs px-2 py-1 rounded-lg bg-dojo-border/40 text-dojo-white hover:bg-dojo-border flex items-center gap-1 shrink-0">
+                    {copiedToken === ev.token ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+                    {copiedToken === ev.token ? "Copiado" : "Copiar link"}
+                  </button>
+                  <button onClick={() => toggleEvaluatorActive(ev)} className="p-1.5 rounded-lg text-dojo-muted hover:text-dojo-white hover:bg-dojo-border/40 transition-colors shrink-0" title={ev.active ? "Desactivar link" : "Activar link"}>
+                    <Power size={14} className={ev.active ? "text-green-400" : ""} />
+                  </button>
+                  {ev._count.scores === 0 && (
+                    <button onClick={() => setConfirmDelEval(ev)} className="p-1.5 rounded-lg text-dojo-muted hover:text-red-400 hover:bg-red-900/20 transition-colors shrink-0">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {evaluators.length === 0 && <p className="text-sm text-dojo-muted">Todavía no hay Senseis — agrega el primero abajo.</p>}
+            </div>
+            <div className="flex gap-2 pt-2 border-t border-dojo-border">
+              <input className="form-input text-sm flex-1" placeholder="Nombre del Sensei" value={newEvalName} onChange={e => setNewEvalName(e.target.value)} />
+              <button onClick={addEvaluator} disabled={evalSaving} className="btn-secondary text-sm shrink-0">
+                {evalSaving ? <Loader2 size={14} className="animate-spin" /> : "Agregar Sensei"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -992,6 +1201,52 @@ export default function PostulacionDetallePage() {
                   ? <Loader2 size={14} className="animate-spin" />
                   : <UserMinus size={14} />}
                 Quitar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal eliminar criterio */}
+      {confirmDelCrit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dojo-dark border border-dojo-border rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-dojo-red/10 flex items-center justify-center">
+                <Trash2 size={20} className="text-dojo-red" />
+              </div>
+              <div>
+                <p className="font-semibold text-dojo-white">Eliminar criterio</p>
+                <p className="text-xs text-dojo-muted">También se borran las notas ya cargadas para &quot;{confirmDelCrit.name}&quot;</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDelCrit(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={() => deleteCriteria(confirmDelCrit)} className="flex-1 text-sm bg-dojo-red hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors">
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal eliminar Sensei */}
+      {confirmDelEval && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dojo-dark border border-dojo-border rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-dojo-red/10 flex items-center justify-center">
+                <Trash2 size={20} className="text-dojo-red" />
+              </div>
+              <div>
+                <p className="font-semibold text-dojo-white">Eliminar Sensei</p>
+                <p className="text-xs text-dojo-muted">Se borra su link — no ha calificado a nadie todavía</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDelEval(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
+              <button onClick={() => deleteEvaluator(confirmDelEval)} className="flex-1 text-sm bg-dojo-red hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors">
+                Eliminar
               </button>
             </div>
           </div>

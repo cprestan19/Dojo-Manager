@@ -6,6 +6,7 @@ import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { sendPushToDojoAdminsAsync } from "@/lib/push";
 import { resolveDojoTimezone } from "@/lib/timezone-server";
 import { ymdInTz } from "@/lib/timezone";
+import { createLinkedPayment, cancelLinkedPaymentIfUnpaid } from "@/lib/linkedPayments";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     const application = await prisma.examApplication.findUnique({
       where:  { id: applicationId },
-      select: { id: true, status: true, deadline: true, dojoId: true, title: true },
+      select: { id: true, status: true, deadline: true, dojoId: true, title: true, amount: true, examDate: true },
     });
     if (!application) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
     if (application.status !== "PUBLISHED") {
@@ -95,7 +96,45 @@ export async function POST(req: NextRequest, { params }: Params) {
       },
     });
 
-    const ctx = buildAuditCtx(session, req, { dojoId: null });
+    const ctx = buildAuditCtx(session, req, { dojoId: application.dojoId });
+
+    // Cargo automático a la cuenta del alumno cuando la postulación tiene costo.
+    if (body.response === "ACCEPTED" && application.amount > 0) {
+      const payment = await createLinkedPayment({
+        studentId: targetStudentId,
+        type:      "exam",
+        amount:    application.amount,
+        dueDate:   application.examDate,
+        note:      `Examen: ${application.title}`,
+        examInviteeId: invitee.id,
+      });
+      if (payment) {
+        await logAudit({
+          ...ctx,
+          action:       "PAYMENT_CREATED_EXAM_ACCEPT",
+          module:       AUDIT_MODULE.PAYMENTS,
+          resourceType: "Payment",
+          resourceId:   payment.id,
+          targetId:     targetStudentId,
+          statusCode:   200,
+          details:      JSON.stringify({ applicationId, amount: application.amount }),
+        });
+      }
+    } else if (body.response === "REJECTED") {
+      const result = await cancelLinkedPaymentIfUnpaid({ examInviteeId: invitee.id, studentId: targetStudentId });
+      if (result.canceled) {
+        await logAudit({
+          ...ctx,
+          action:       "PAYMENT_CANCELED_EXAM_OPTOUT",
+          module:       AUDIT_MODULE.PAYMENTS,
+          resourceType: "Payment",
+          resourceId:   result.payment.id,
+          targetId:     targetStudentId,
+          statusCode:   200,
+          details:      JSON.stringify({ applicationId, reason: "student changed response to REJECTED" }),
+        });
+      }
+    }
     await logAudit({
       ...ctx,
       action:       "EXAM_INVITATION_RESPONDED",

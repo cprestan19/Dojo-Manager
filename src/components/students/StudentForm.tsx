@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { cn, calculateAge, BELT_COLORS, GENDERS, NATIONALITIES } from "@/lib/utils";
 import { formatCurrency, getCurrencySymbol, currencyInputPadding } from "@/lib/currency";
-import { useDojoCurrency, useDojoTimeZone } from "@/lib/hooks/useDojo";
+import { useDojo, useDojoCurrency, useDojoTimeZone } from "@/lib/hooks/useDojo";
 import { timezoneToCountry } from "@/lib/timezone";
 import PhotoCropper from "@/components/ui/PhotoCropper";
 import PhoneInputField from "@/components/ui/PhoneInputField";
@@ -55,9 +55,12 @@ interface StudentFormProps {
     id?: string; photo?: string | null; studentCode?: number | null;
     fepakaId?: string | null; ryoBukaiId?: string | null;
     fullName?: string;
+    customFieldValues?: { fieldId: string; value: string }[];
   };
   isEdit?: boolean;
 }
+
+interface CustomFieldDef { id: string; label: string; }
 
 function Section({ title, icon: Icon, children, defaultOpen = true }: {
   title: string; icon: React.ElementType; children: React.ReactNode; defaultOpen?: boolean;
@@ -82,7 +85,18 @@ function Section({ title, icon: Icon, children, defaultOpen = true }: {
 
 export default function StudentForm({ defaultValues, isEdit = false }: StudentFormProps) {
   const router = useRouter();
+  const dojo = useDojo();
   const currency = useDojoCurrency();
+  const [customFields, setCustomFields] = useState<CustomFieldDef[]>([]);
+  const [customValues, setCustomValues] = useState<Record<string, string>>(
+    () => Object.fromEntries((defaultValues?.customFieldValues ?? []).map(v => [v.fieldId, v.value])),
+  );
+  useEffect(() => {
+    fetch("/api/student-custom-fields?active=1")
+      .then(r => r.ok ? r.json() as Promise<CustomFieldDef[]> : [])
+      .then(setCustomFields)
+      .catch(() => {});
+  }, []);
   const currencySymbol = getCurrencySymbol(currency);
   const defaultPhoneCountry = timezoneToCountry(useDojoTimeZone());
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -279,6 +293,16 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
 
     const newStudentId = (body as { id: string }).id;
 
+    // Guardar valores de campos personalizados — no bloquea si falla, el
+    // alumno ya se guardó correctamente
+    if (customFields.length > 0) {
+      fetch(`/api/students/${newStudentId}/custom-fields`, {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ values: customFields.map(f => ({ fieldId: f.id, value: customValues[f.id] ?? "" })) }),
+      }).catch(() => {});
+    }
+
     // If sibling selected but had no familyId yet, create the family link now
     if (!isEdit && selectedSibling && !selectedSibling.familyId) {
       await fetch("/api/families", {
@@ -438,51 +462,68 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
               </select>
             </div>
 
-            {/* Código Fepaka */}
-            <div>
-              <label className="form-label">Código Fepaka</label>
-              {(() => {
-                const { onChange: rhfOnChange, ...fepakaRest } = register("fepakaId", {
-                  maxLength: { value: 15, message: "Máximo 15 caracteres" },
-                });
-                return (
-                  <input
-                    {...fepakaRest}
-                    onChange={e => {
-                      e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15);
-                      rhfOnChange(e);
-                    }}
-                    className={cn("form-input font-mono", errors.fepakaId && "border-red-600")}
-                    placeholder="Ej. FEP001"
-                    maxLength={15}
-                  />
-                );
-              })()}
-              {errors.fepakaId && <p className="text-xs text-red-400 mt-1">{errors.fepakaId.message}</p>}
-            </div>
+            {/* Código Fepaka — solo dojos que lo activaron en Configuración */}
+            {dojo?.showFepakaField && (
+              <div>
+                <label className="form-label">Código Fepaka</label>
+                {(() => {
+                  const { onChange: rhfOnChange, ...fepakaRest } = register("fepakaId", {
+                    maxLength: { value: 15, message: "Máximo 15 caracteres" },
+                  });
+                  return (
+                    <input
+                      {...fepakaRest}
+                      onChange={e => {
+                        e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15);
+                        rhfOnChange(e);
+                      }}
+                      className={cn("form-input font-mono", errors.fepakaId && "border-red-600")}
+                      placeholder="Ej. FEP001"
+                      maxLength={15}
+                    />
+                  );
+                })()}
+                {errors.fepakaId && <p className="text-xs text-red-400 mt-1">{errors.fepakaId.message}</p>}
+              </div>
+            )}
 
-            {/* Pasaporte Ryo Bukai */}
-            <div>
-              <label className="form-label">Pasaporte Ryo Bukai</label>
-              {(() => {
-                const { onChange: rhfOnChange, ...ryoRest } = register("ryoBukaiId", {
-                  maxLength: { value: 15, message: "Máximo 15 caracteres" },
-                });
-                return (
-                  <input
-                    {...ryoRest}
-                    onChange={e => {
-                      e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15);
-                      rhfOnChange(e);
-                    }}
-                    className={cn("form-input font-mono", errors.ryoBukaiId && "border-red-600")}
-                    placeholder="Ej. RYO001"
-                    maxLength={15}
-                  />
-                );
-              })()}
-              {errors.ryoBukaiId && <p className="text-xs text-red-400 mt-1">{errors.ryoBukaiId.message}</p>}
-            </div>
+            {/* Pasaporte Ryo Bukai — solo dojos que lo activaron en Configuración */}
+            {dojo?.showRyoBukaiField && (
+              <div>
+                <label className="form-label">Pasaporte Ryo Bukai</label>
+                {(() => {
+                  const { onChange: rhfOnChange, ...ryoRest } = register("ryoBukaiId", {
+                    maxLength: { value: 15, message: "Máximo 15 caracteres" },
+                  });
+                  return (
+                    <input
+                      {...ryoRest}
+                      onChange={e => {
+                        e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15);
+                        rhfOnChange(e);
+                      }}
+                      className={cn("form-input font-mono", errors.ryoBukaiId && "border-red-600")}
+                      placeholder="Ej. RYO001"
+                      maxLength={15}
+                    />
+                  );
+                })()}
+                {errors.ryoBukaiId && <p className="text-xs text-red-400 mt-1">{errors.ryoBukaiId.message}</p>}
+              </div>
+            )}
+
+            {/* Campos personalizados del dojo */}
+            {customFields.map(f => (
+              <div key={f.id}>
+                <label className="form-label">{f.label}</label>
+                <input
+                  className="form-input"
+                  value={customValues[f.id] ?? ""}
+                  onChange={e => setCustomValues(prev => ({ ...prev, [f.id]: e.target.value }))}
+                  maxLength={200}
+                />
+              </div>
+            ))}
 
             {isEdit && defaultValues?.studentCode && (
               <div className="col-span-2 flex items-center gap-2 text-xs text-dojo-muted bg-dojo-darker rounded-lg px-3 py-2">

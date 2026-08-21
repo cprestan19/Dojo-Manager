@@ -88,6 +88,11 @@ export async function GET(_req: NextRequest) {
       response:      inv.response,
       responseNote:  inv.responseNote,
       respondedAt:   inv.respondedAt,
+      // El resultado (nota/aprobación) solo tiene sentido una vez finalizado
+      // — antes de eso el examen puede seguir en evaluación.
+      attended:      inv.application.status === "FINALIZED" ? inv.attended   : null,
+      passed:        inv.application.status === "FINALIZED" ? inv.passed    : null,
+      finalScore:    inv.application.status === "FINALIZED" ? inv.finalScore : null,
     }));
 
     return NextResponse.json(result);

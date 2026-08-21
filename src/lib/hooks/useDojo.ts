@@ -16,6 +16,8 @@ export interface DojoInfo {
   timezone:       string;    // IANA, ej. "America/Panama"
   currency:       string;    // ISO 4217, ej. "USD" — moneda en la que paga el alumno
   tournamentPro:  boolean;   // Módulo Torneo Pro activado
+  showFepakaField:   boolean;  // Mostrar campo "FEPAKA ID" en el perfil/formulario del alumno
+  showRyoBukaiField: boolean;  // Mostrar campo "RYO BUKAI ID" en el perfil/formulario del alumno
 }
 
 /**

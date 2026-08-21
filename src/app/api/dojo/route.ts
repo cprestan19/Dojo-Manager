@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
       createdAt: true, updatedAt: true,
       reminderToleranceDays: true, lateInterestPct: true,
       autoRemindersEnabled: true, lateToleranceMinutes: true,
+      showFepakaField: true, showRyoBukaiField: true,
       cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true,
       logo:             true,              // siempre — es URL corta de Cloudinary
       cardTemplateImage: includeExtended,    // solo cuando Settings lo pide
@@ -191,6 +192,8 @@ export async function PUT(req: NextRequest) {
       lateInterestPct:       body.lateInterestPct       != null ? Number(body.lateInterestPct)       : undefined,
       autoRemindersEnabled:  body.autoRemindersEnabled  != null ? Boolean(body.autoRemindersEnabled)  : undefined,
       lateToleranceMinutes:  body.lateToleranceMinutes  != null ? Number(body.lateToleranceMinutes)   : undefined,
+      showFepakaField:       body.showFepakaField       != null ? Boolean(body.showFepakaField)       : undefined,
+      showRyoBukaiField:     body.showRyoBukaiField     != null ? Boolean(body.showRyoBukaiField)     : undefined,
       timezone:              body.timezone != null ? String(body.timezone) : undefined,
       currency:              body.currency != null ? String(body.currency) : undefined,
       locale:                body.locale === "en" ? "en" : body.locale === "es" ? "es" : undefined,
@@ -211,6 +214,7 @@ export async function PUT(req: NextRequest) {
       locale: true, tournamentPro: true, timezone: true, currency: true,
       reminderToleranceDays: true, lateInterestPct: true,
       autoRemindersEnabled: true, lateToleranceMinutes: true, logo: true,
+      showFepakaField: true, showRyoBukaiField: true,
       cardPrimaryColor: true, cardSecondaryColor: true, cardTertiaryColor: true,
     },
   });

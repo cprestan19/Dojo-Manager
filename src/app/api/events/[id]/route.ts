@@ -27,7 +27,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const existing = await resolveEvent(id, dojoId);
     if (!existing) return NextResponse.json({ error: "Evento no encontrado" }, { status: 404 });
 
-    const { title, description, location, imageUrl, startDate, endDate } = await req.json();
+    const { title, description, location, imageUrl, startDate, endDate, price } = await req.json();
 
     if (!title?.trim())
       return NextResponse.json({ error: "El título es requerido" }, { status: 400 });
@@ -35,6 +35,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Las fechas son requeridas" }, { status: 400 });
     if (new Date(endDate) <= new Date(startDate))
       return NextResponse.json({ error: "La fecha de fin debe ser posterior al inicio" }, { status: 400 });
+    if (price != null && (typeof price !== "number" || price < 0))
+      return NextResponse.json({ error: "El precio debe ser un número mayor o igual a 0" }, { status: 400 });
 
     const updated = await prisma.event.update({
       where: { id },
@@ -45,6 +47,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         imageUrl:    imageUrl            || null,
         startDate:   new Date(startDate),
         endDate:     new Date(endDate),
+        price:       price ?? 0,
       },
     });
 

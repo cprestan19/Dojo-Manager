@@ -127,6 +127,9 @@ export async function GET( req: NextRequest, { params }: Params) {
           schedule: { select: { id: true, name: true, days: true } },
         },
       },
+      customFieldValues: {
+        select: { fieldId: true, value: true, field: { select: { label: true, active: true } } },
+      },
     },
   });
 

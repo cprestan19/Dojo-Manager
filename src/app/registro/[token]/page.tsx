@@ -22,6 +22,7 @@ export default async function RegistroPage({ params, searchParams }: Props) {
       dojo: {
         select: {
           name: true, logo: true, contractPolicy: true, timezone: true,
+          showFepakaField: true, showRyoBukaiField: true,
           termsPolicy: { select: { content: true, version: true, enabled: true } },
         },
       },
@@ -89,6 +90,8 @@ export default async function RegistroPage({ params, searchParams }: Props) {
             dojoName={dojoName}
             dojoLogo={dojoLogo}
             dojoTimezone={dojoTimezone}
+            showFepakaField={link.dojo.showFepakaField}
+            showRyoBukaiField={link.dojo.showRyoBukaiField}
             expiresAt={expiresAt}
             reset={reset === "1"}
             termsContent={termsContent}

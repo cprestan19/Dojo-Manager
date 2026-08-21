@@ -31,6 +31,7 @@ const translations = {
       "tournament-events":    "Asistencia de Eventos",
       settingsTerms:          "Políticas y Términos",
       settingsPush:           "Notificaciones Push",
+      settingsCustomFields:   "Campos Personalizados",
     },
     topbar: {
       dashboard:          "Dashboard",
@@ -123,6 +124,7 @@ const translations = {
       "tournament-events":    "Event Attendance",
       settingsTerms:          "Policies & Terms",
       settingsPush:           "Push Notifications",
+      settingsCustomFields:   "Custom Fields",
     },
     topbar: {
       dashboard:          "Dashboard",

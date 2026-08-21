@@ -117,6 +117,11 @@ export const MULTI_KATA_BELTS = new Set([
   "negra", "negra-1-dan", "negra-2-dan", "negra-3-dan",
 ]);
 
+// Tope de campos personalizados por dojo — evita que el formulario del
+// alumno se vuelva inmanejable. FEPAKA/Ryo Bukai no cuentan acá, tienen su
+// propio interruptor (Dojo.showFepakaField/showRyoBukaiField).
+export const MAX_STUDENT_CUSTOM_FIELDS = 5;
+
 export const PAYMENT_STATUS_LABELS: Record<string, { label: string; className: string; variant: "warning" | "success" | "danger" }> = {
   pending: { label: "Pendiente", className: "badge-yellow", variant: "warning" },
   paid:    { label: "Pagado",    className: "badge-green",  variant: "success" },
@@ -128,6 +133,8 @@ export const PAYMENT_TYPE_LABELS: Record<string, string> = {
   biweekly:    "Quincenal",
   annual:      "Anualidad",
   affiliation: "Afiliación",
+  event:       "Evento",
+  exam:        "Examen",
   other:       "Otro",
 };
 
