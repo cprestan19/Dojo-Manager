@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Users, Phone, Calendar, CheckCircle, Clock, XCircle, Check,
-  MessageCircle, ChevronDown, Trash2, ExternalLink, Star,
+  MessageCircle, ChevronDown, Trash2, Star,
   UserPlus, AlertCircle, FileText,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";

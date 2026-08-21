@@ -1843,9 +1843,15 @@ model Evaluation {
 // Postulación "llamada" a una Evaluación — sus postulados con response=ACCEPTED
 // pasan a ser candidatos de la Evaluación.
 model EvaluationLink {
-  id           String @id @default(cuid())
-  evaluationId String @map("evaluation_id")
-  applicationId String @map("application_id")
+  id           String   @id @default(cuid())
+  evaluationId String   @map("evaluation_id")
+  applicationId String  @map("application_id")
+  // Cintas de esta Postulación que en verdad pertenecen a esta Evaluación —
+  // permite "llamar" la misma Postulación (con alumnos de varias cintas) a
+  // distintas Evaluaciones (una por franja horaria/grupo de cinta) sin que
+  // se mezclen. Array vacío = todas las cintas de la Postulación (comportamiento
+  // histórico, retro-compatible con los vínculos creados antes de este campo).
+  beltFilter   String[] @default([]) @map("belt_filter")
   createdAt    DateTime @default(now()) @map("created_at")
 
   evaluation  Evaluation      @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
@@ -1915,7 +1921,11 @@ model CertificateTemplate {
   canvasWidth   Int      @default(1000) @map("canvas_width")
   canvasHeight  Int      @default(700) @map("canvas_height")
   elements      Json
-  active        Boolean  @default(true)
+  active        Boolean  @default(true) // false = eliminada (soft-delete), no implica "en uso"
+  // La plantilla que se usa para emitir diplomas al finalizar un examen —
+  // una sola por dojo a la vez (se reasigna al crear una nueva o al elegir
+  // "usar esta plantilla" en Configuración > Certificados).
+  isDefault     Boolean  @default(false) @map("is_default")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

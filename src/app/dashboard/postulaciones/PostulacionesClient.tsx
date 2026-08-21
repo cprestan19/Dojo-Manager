@@ -1,11 +1,10 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FileText, Plus, Users, CheckCircle, XCircle, Clock, Archive, Pencil, Trash2, History } from "lucide-react";
 import { useDojoTimeZone, useDojoCurrency } from "@/lib/hooks/useDojo";
 import { formatCurrency } from "@/lib/currency";
-import { ymdInTz } from "@/lib/timezone";
+import { isExamApplicationHistoric } from "@/lib/timezone";
 
 interface PostulacionItem {
   id:            string;
@@ -51,19 +50,17 @@ function fmtDate(val: Date | string | null): string {
   return `${day} ${month} ${year}`;
 }
 
-// examDate es una fecha pura (UTC medianoche) — comparar por día calendario del dojo,
-// no por instante, para no marcar "historial" varias horas antes de que termine el día.
-function isHistory(item: PostulacionItem, todayYMD: string): boolean {
+// Pasa a "historial" el día calendario siguiente a su fecha límite de
+// respuesta (o si no tiene deadline, cuando ya pasó la fecha del examen) —
+// comparado por día calendario del dojo, ver isExamApplicationHistoric().
+function isHistory(item: PostulacionItem, tz: string): boolean {
   if (item.archivedAt) return true;
-  const examYMD = new Date(item.examDate).toISOString().slice(0, 10);
-  return examYMD < todayYMD;
+  return isExamApplicationHistoric(item.deadline, item.examDate, tz);
 }
 
 export default function PostulacionesClient({ initialData }: { initialData: PostulacionItem[] }) {
   const tz                          = useDojoTimeZone();
   const currency                    = useDojoCurrency();
-  const todayYMD                    = ymdInTz(new Date(), tz);
-  const router                      = useRouter();
   const [items, setItems]           = useState<PostulacionItem[]>(initialData);
   const [tab, setTab]               = useState<"active" | "history">("active");
   const [search, setSearch]         = useState("");
@@ -78,7 +75,7 @@ export default function PostulacionesClient({ initialData }: { initialData: Post
   }
 
   const listed = items
-    .filter(i => (tab === "active" ? !isHistory(i, todayYMD) : isHistory(i, todayYMD)))
+    .filter(i => (tab === "active" ? !isHistory(i, tz) : isHistory(i, tz)))
     .filter(i => {
       if (!search) return true;
       return (
@@ -154,7 +151,7 @@ export default function PostulacionesClient({ initialData }: { initialData: Post
         >
           Activas
           <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-dojo-border text-dojo-muted">
-            {items.filter(i => !isHistory(i, todayYMD)).length}
+            {items.filter(i => !isHistory(i, tz)).length}
           </span>
         </button>
         <button
@@ -167,7 +164,7 @@ export default function PostulacionesClient({ initialData }: { initialData: Post
         >
           <History size={14} /> Historial
           <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-dojo-border text-dojo-muted">
-            {items.filter(i => isHistory(i, todayYMD)).length}
+            {items.filter(i => isHistory(i, tz)).length}
           </span>
         </button>
       </div>
@@ -203,7 +200,7 @@ export default function PostulacionesClient({ initialData }: { initialData: Post
       ) : (
         <div className="space-y-3">
           {listed.map(item => {
-            const inHistory = isHistory(item, todayYMD);
+            const inHistory = isHistory(item, tz);
             return (
               <div key={item.id} className={`card transition-colors ${
                 inHistory ? "opacity-80" : "hover:border-dojo-gold/30"

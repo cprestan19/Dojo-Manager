@@ -132,6 +132,26 @@ export function addDaysYMD(ymd: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
+/**
+ * true si una Postulación de examen ya debe considerarse histórica — pasa a
+ * histórico el día calendario siguiente a su fecha límite de respuesta
+ * (deadline), o si no tiene deadline, cuando su fecha de examen ya pasó.
+ * Comparación por día calendario en la zona del dojo, no por instante — el
+ * deadline día X sigue activo todo ese día, recién al día X+1 se oculta.
+ */
+export function isExamApplicationHistoric(
+  deadline: string | Date | null,
+  examDate: string | Date,
+  tz: string = DEFAULT_TIMEZONE,
+): boolean {
+  const todayYMD = ymdInTz(new Date(), tz);
+  if (deadline) {
+    const cutoffYMD = addDaysYMD(ymdInTz(deadline, tz), 1);
+    return todayYMD >= cutoffYMD;
+  }
+  return ymdInTz(examDate, tz) < todayYMD;
+}
+
 /** Límites UTC del día calendario "hoy" (00:00:00 a 23:59:59.999) en la zona del dojo */
 export function getDayBoundsUtc(now: Date, tz: string = DEFAULT_TIMEZONE): { start: Date; end: Date } {
   const today = ymdInTz(now, tz);

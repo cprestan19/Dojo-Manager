@@ -53,6 +53,7 @@ interface Template {
   canvasHeight:  number;
   elements:      CertElement[];
   active:        boolean;
+  isDefault:     boolean;
 }
 
 const ELEMENT_TYPES = [
@@ -217,6 +218,7 @@ export default function CertificadosSettingsPage() {
         canvasHeight:  700,
         elements:      [],
         active:        true,
+        isDefault:     false,
       });
     } finally { setUploading(false); }
   }
@@ -254,6 +256,22 @@ export default function CertificadosSettingsPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } finally { setSaving(false); }
+  }
+
+  async function setAsDefault(id: string) {
+    setError("");
+    const res = await fetch(`/api/certificate-templates/${id}`, {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ isDefault: true }),
+    });
+    if (res.ok) {
+      await loadTemplates();
+      if (selected?.id === id) setSelected({ ...selected, isDefault: true });
+    } else {
+      const d = await res.json() as { error?: string };
+      setError(d.error ?? "Error al activar la plantilla");
+    }
   }
 
   async function handleDelete(id: string) {
@@ -356,10 +374,18 @@ export default function CertificadosSettingsPage() {
         >
           <Plus size={15} /> Nueva Plantilla
         </button>
+        {templates.length > 0 && (
+          <p className="text-xs text-dojo-muted">Al guardar una plantilla nueva, se vuelve la predeterminada automáticamente.</p>
+        )}
+        {templates.length > 1 && !templates.some(t => t.isDefault) && (
+          <p className="text-xs text-orange-400 bg-orange-900/20 border border-orange-800/40 rounded-lg px-2.5 py-2">
+            Tienes varias plantillas pero ninguna marcada como predeterminada — elige cuál usar con &quot;Usar esta&quot;.
+          </p>
+        )}
         {templates.map(t => (
           <div
             key={t.id}
-            className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+            className={`p-3 rounded-lg border cursor-pointer transition-colors space-y-2 ${
               selected?.id === t.id
                 ? "border-dojo-gold/50 bg-dojo-gold/5"
                 : "border-dojo-border hover:border-dojo-border/80"
@@ -372,15 +398,29 @@ export default function CertificadosSettingsPage() {
               }
             }}
           >
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-dojo-white truncate">{t.name}</p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-dojo-white truncate">{t.name}</p>
+              </div>
+              <button
+                onClick={e => { e.stopPropagation(); handleDelete(t.id); }}
+                className="p-1 text-dojo-muted hover:text-red-400 transition-colors"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
-            <button
-              onClick={e => { e.stopPropagation(); handleDelete(t.id); }}
-              className="p-1 text-dojo-muted hover:text-red-400 transition-colors"
-            >
-              <Trash2 size={14} />
-            </button>
+            {t.isDefault ? (
+              <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-green-900/30 text-green-400 border border-green-800/40">
+                ✓ Predeterminada — se usa al finalizar exámenes
+              </span>
+            ) : (
+              <button
+                onClick={e => { e.stopPropagation(); setAsDefault(t.id); }}
+                className="text-xs text-dojo-gold hover:underline"
+              >
+                Usar esta plantilla
+              </button>
+            )}
           </div>
         ))}
       </div>

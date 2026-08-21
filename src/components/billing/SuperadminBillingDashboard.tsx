@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import {
-  Users, CreditCard, AlertTriangle, CheckCircle2, Clock, XCircle,
+  CreditCard, AlertTriangle, CheckCircle2, Clock, XCircle,
   ChevronLeft, ChevronRight, Search, Download, RefreshCw,
   Loader2, Receipt, Building2, Copy, Check, Gift, CalendarPlus, Ban,
   Star,
@@ -755,7 +755,7 @@ function InvoicesTable({ initialDojoId }: { initialDojoId?: string }) {
   const [search,     setSearch]     = useState("");
   const [filterGw,   setFilterGw]   = useState("ALL");
   const [filterSt,   setFilterSt]   = useState("ALL");
-  const [dojoFilter, setDojoFilter] = useState(initialDojoId ?? "");
+  const [dojoFilter] = useState(initialDojoId ?? "");
   const [reprocessingId, setReprocessingId] = useState<string | null>(null);
 
   const limit = 50;
@@ -996,7 +996,7 @@ function AccessEmailLogsTable({ initialDojoId }: { initialDojoId?: string }) {
   const [total,   setTotal]   = useState(0);
   const [page,    setPage]    = useState(1);
   const [loading, setLoading] = useState(true);
-  const [dojoFilter, setDojoFilter] = useState(initialDojoId ?? "");
+  const [dojoFilter] = useState(initialDojoId ?? "");
   const limit = 50;
 
   const load = useCallback(async (p: number) => {

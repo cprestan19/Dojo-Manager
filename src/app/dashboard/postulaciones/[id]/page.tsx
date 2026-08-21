@@ -49,7 +49,7 @@ interface Application {
   invitees:    Invitee[];
 }
 
-interface CertTemplate { id: string; name: string; }
+interface CertTemplate { id: string; name: string; isDefault: boolean; }
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Borrador", PUBLISHED: "Publicada", CLOSED: "Cerrada", FINALIZED: "Finalizada",
@@ -129,7 +129,7 @@ export default function PostulacionDetallePage() {
     } finally { if (!silent) setLoading(false); }
   }, [id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadTemplates(); }, [load]);
 
   // Auto-polling cada 15s mientras la página es visible
   useEffect(() => {
@@ -393,6 +393,13 @@ export default function PostulacionDetallePage() {
           </button>
         </div>
       </div>
+
+      {perms.has(NAV_KEYS.CERTIFICADOS) && !templates.some(t => t.isDefault) && (
+        <div className="flex items-center justify-between gap-3 bg-orange-900/20 border border-orange-800/40 rounded-lg px-3 py-2.5 text-sm flex-wrap">
+          <span className="text-orange-400">⚠️ No tienes una plantilla de diploma predeterminada — los alumnos que aprueben aquí no recibirán su diploma automáticamente al finalizar.</span>
+          <Link href="/dashboard/settings/certificados" className="btn-secondary text-xs shrink-0">Configurar plantilla</Link>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-dojo-border overflow-x-auto">

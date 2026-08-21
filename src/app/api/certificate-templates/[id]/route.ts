@@ -59,17 +59,29 @@ export async function PUT(req: NextRequest, { params }: Params) {
       elements?:     unknown;
       canvasWidth?:  number;
       canvasHeight?: number;
+      isDefault?:    boolean;
     };
 
-    const updated = await prisma.certificateTemplate.update({
-      where: { id },
-      data: {
-        ...(body.name         != null ? { name:         body.name.trim() }   : {}),
-        ...(body.elements     != null ? { elements:     body.elements }       : {}),
-        ...(body.canvasWidth  != null ? { canvasWidth:  body.canvasWidth }   : {}),
-        ...(body.canvasHeight != null ? { canvasHeight: body.canvasHeight }  : {}),
-      },
-    });
+    const data = {
+      ...(body.name         != null ? { name:         body.name.trim() }   : {}),
+      ...(body.elements     != null ? { elements:     body.elements }       : {}),
+      ...(body.canvasWidth  != null ? { canvasWidth:  body.canvasWidth }   : {}),
+      ...(body.canvasHeight != null ? { canvasHeight: body.canvasHeight }  : {}),
+      ...(body.isDefault === true ? { isDefault: true } : {}),
+    };
+
+    // Solo una plantilla predeterminada por dojo a la vez — "usar esta
+    // plantilla" le quita el puesto a la anterior en la misma transacción.
+    let updated;
+    if (body.isDefault === true) {
+      const [, u] = await prisma.$transaction([
+        prisma.certificateTemplate.updateMany({ where: { dojoId, isDefault: true, id: { not: id } }, data: { isDefault: false } }),
+        prisma.certificateTemplate.update({ where: { id }, data }),
+      ]);
+      updated = u;
+    } else {
+      updated = await prisma.certificateTemplate.update({ where: { id }, data });
+    }
 
     const ctx = buildAuditCtx(session, req, { dojoId });
     await logAudit({
@@ -117,7 +129,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
     await prisma.certificateTemplate.update({
       where: { id },
-      data:  { active: false },
+      data:  { active: false, isDefault: false },
     });
 
     const ctx = buildAuditCtx(session, req, { dojoId });

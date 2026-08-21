@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Users, CreditCard, AlertTriangle, CheckCircle, Bell,
+  Users, CreditCard, CheckCircle, Bell,
   Mail, X, Clock, CalendarClock, TrendingUp, ChevronRight,
   UserX, Loader2, TriangleAlert,
 } from "lucide-react";

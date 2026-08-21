@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import {
-  ALL_DOJO_KEYS, NAV_KEYS, NAV_KEY_LABELS, DEFAULT_PERMISSIONS,
+  NAV_KEYS, NAV_KEY_LABELS, DEFAULT_PERMISSIONS,
   ROLE_COLORS, BADGE_BY_COLOR,
 } from "@/lib/permissions";
 import type { NavKey } from "@/lib/permissions";
@@ -232,7 +232,7 @@ export default function RolesPage() {
                 {/* Nav item sub-headers */}
                 <tr className="border-b border-dojo-border bg-dojo-card/40">
                   <th className="sticky left-0 bg-dojo-card/90" />
-                  {ALL_VISIBLE_KEYS.map((key, i) => {
+                  {ALL_VISIBLE_KEYS.map((key) => {
                     const isFirstInGroup = NAV_GROUPS.some(g => g.keys[0] === key);
                     return (
                       <th
@@ -280,7 +280,7 @@ export default function RolesPage() {
                       </td>
 
                       {/* Permission checkboxes */}
-                      {ALL_VISIBLE_KEYS.map((key, i) => {
+                      {ALL_VISIBLE_KEYS.map((key) => {
                         const isFirstInGroup = NAV_GROUPS.some(g => g.keys[0] === key);
                         const checked = isSysadmin ? true : perms.has(key);
                         return (

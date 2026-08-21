@@ -16,7 +16,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const { role, dojoId, id: sessionUserId, email: sessionEmail } = session.user as SessionUser;
+    const { role, dojoId } = session.user as SessionUser;
     if (role !== "sysadmin" && role !== "admin")
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 
@@ -134,7 +134,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const { role, dojoId, id: sessionUserId, email: sessionEmail } = session.user as SessionUser;
+    const { role, dojoId, id: sessionUserId } = session.user as SessionUser;
     if (role !== "sysadmin" && role !== "admin")
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
 

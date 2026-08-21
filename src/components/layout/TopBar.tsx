@@ -4,7 +4,7 @@ import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import {
   Bell, ChevronDown, LogOut, KeyRound,
-  CreditCard, UserX, AlertTriangle, X, ExternalLink,
+  CreditCard, UserX, AlertTriangle, X,
   ChevronRight, ShieldAlert, CalendarCheck, ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";

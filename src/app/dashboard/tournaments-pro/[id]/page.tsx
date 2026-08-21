@@ -6,7 +6,7 @@ import {
   Crown, ArrowLeft, Info, Users, Trophy, Tv, Radio,
   Plus, Trash2, RefreshCw, Check, X, Search, Filter,
   Copy, Youtube, Monitor, QrCode, Play, Square,
-  ChevronRight, AlertTriangle, Settings,
+  AlertTriangle,
   GripVertical, ChevronUp, ChevronDown, Shuffle,
 } from "lucide-react";
 import { cn, BELT_COLORS, calculateAge } from "@/lib/utils";
@@ -87,14 +87,6 @@ const GENDER_OPTIONS = [
   { value: "M", label: "Masculino" },
   { value: "F", label: "Femenino" },
 ];
-
-const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  draft:     { label: "Borrador",   cls: "badge-yellow" },
-  ready:     { label: "Listo",      cls: "badge-blue"   },
-  active:    { label: "Activo",     cls: "badge-green"  },
-  completed: { label: "Completo",   cls: "badge-red"    },
-  confirmed: { label: "Confirmado", cls: "badge-green"  },
-};
 
 function CopyBtn({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -446,10 +438,8 @@ export default function TournamentProDetailPage() {
     );
   }
 
-  const st     = STATUS_CFG[tournament.status] ?? { label: tournament.status, cls: "badge-yellow" };
   const kumiteBrackets = brackets.filter(b => b.type === "kumite");
   const kataBrackets   = brackets.filter(b => b.type === "kata");
-  const matchesForBracket = (bId: string) => matches.filter(m => m.bracketId === bId);
   const partsForBracket   = (bId: string) => participants.filter(p => p.bracketId === bId);
 
   const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
@@ -2046,7 +2036,6 @@ function ResultadosTab({ brackets, participants, matches, tournamentName }: {
       <h2>${bracket.name}${bracket.gender ? ` — ${bracket.gender === "M" ? "Masculino" : "Femenino"}` : ""} · ${bracket.type.toUpperCase()}</h2>
       <div class="podium">
         ${podium.map((p, i) => {
-          const m = MEDAL[i];
           const cls = i === 0 ? "gold" : i === 1 ? "silver" : "bronze";
           return `<div class="place ${cls}">
             <div class="medal">${["🥇","🥈","🥉","🥉"][i]}</div>

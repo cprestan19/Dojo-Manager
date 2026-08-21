@@ -38,7 +38,7 @@ class DashboardErrorBoundary extends Component<
 }
 
 /* ─── Shell: Error Boundary + App Context ─────────────────── */
-export function DashboardShell({ children, theme }: { children: ReactNode; theme?: string }) {
+export function DashboardShell({ children }: { children: ReactNode; theme?: string }) {
   return (
     <DashboardErrorBoundary>
       <AppContextProvider>

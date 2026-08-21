@@ -32,6 +32,7 @@ interface ExamItem {
   attended:      boolean | null;
   passed:        boolean | null;
   finalScore:    number | null;
+  hasCertificate: boolean;
 }
 
 export default function PortalPostulacionesPage() {
@@ -265,6 +266,9 @@ function ExamCard({
             {item.finalScore != null && (
               <p className="text-xs text-dojo-muted">Nota final: <span className="text-dojo-white font-semibold">{item.finalScore.toFixed(2)} / 10</span></p>
             )}
+            <p className="text-xs text-dojo-muted pt-1">
+              {item.hasCertificate ? "🎓 Tu diploma ya está listo en Diplomas." : "🎓 Tu diploma se está preparando — aparecerá en Diplomas cuando esté listo."}
+            </p>
           </div>
         ) : item.passed === false ? (
           <div className="rounded-lg px-3 py-3 space-y-1 border bg-red-900/15 border-red-800/40">

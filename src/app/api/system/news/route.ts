@@ -10,7 +10,7 @@ function isSysadmin(session: { user?: { role?: string } } | null) {
 }
 
 // GET — lista todas (solo sysadmin)
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await getServerSession(authOptions);
   if (!isSysadmin(session)) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 

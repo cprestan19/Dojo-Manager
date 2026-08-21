@@ -1,6 +1,6 @@
 "use client";
 
-import { parseCardLayout, getFontStack, getGoogleFontsUrl, getCardDimensions, type CardLayout } from "@/lib/card-layout";
+import { parseCardLayout, getFontStack, getGoogleFontsUrl, type CardLayout } from "@/lib/card-layout";
 
 // ─── Dimensiones CR80 a 300 DPI ───────────────────────────────────────────────
 // 54mm × 85.6mm → 638 × 1009 px  (300 DPI exacto)

@@ -15,7 +15,7 @@ import {
   Menu, X, Users, CreditCard, Award, BookOpen,
   BarChart2, Settings, LogOut, Shield, Building2,
   ClipboardList, QrCode, ChevronDown, Video, ShieldCheck,
-  ChevronLeft, Home, Mail, LayoutDashboard, Trophy, ScrollText,
+  ChevronLeft, Mail, LayoutDashboard, Trophy, ScrollText,
   Crown, Lock, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag,
   Receipt, LayoutList, Bell, Upload, Sparkles, GraduationCap, IdCard, ClipboardCheck,
 } from "lucide-react";
@@ -131,14 +131,6 @@ const settingsDrawerItems: NavItem[] = [
   { href: "/dashboard/settings/import",      label: "Importar Alumnos",  icon: Upload,      permKey: NAV_KEYS.SETTINGS_IMPORT  },
   { href: "/dashboard/settings/push",        label: "Notificaciones Push",icon: Bell,       permKey: NAV_KEYS.SETTINGS_PUSH    },
   { href: "/dashboard/settings/custom-fields", label: "Campos Personalizados", icon: IdCard, permKey: NAV_KEYS.SETTINGS_CUSTOM_FIELDS },
-];
-
-const quickItems: NavItem[] = [
-  { href: "/dashboard",                    label: "Inicio",     icon: Home,          permKey: NAV_KEYS.DASHBOARD          },
-  { href: "/dashboard/students",           label: "Alumnos",    icon: Users,         permKey: NAV_KEYS.STUDENTS           },
-  { href: "/dashboard/attendance",         label: "Asistencia", icon: ClipboardList, permKey: NAV_KEYS.ATTENDANCE          },
-  { href: "/dashboard/tournament-events",  label: "Torneos",    icon: Trophy,        permKey: NAV_KEYS.TOURNAMENT_EVENTS },
-  { href: "/dashboard/payments",           label: "Pagos",      icon: CreditCard,    permKey: NAV_KEYS.PAYMENTS           },
 ];
 
 const IDENTITY_PATHS = [

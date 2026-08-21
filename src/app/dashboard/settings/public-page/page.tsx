@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useDojo } from "@/lib/hooks/useDojo";
 import {
   Globe, Eye, EyeOff, Copy, Check, Save, Image as ImageIcon,
-  ExternalLink, X, Palette, ToggleLeft, ToggleRight, MapPin, Plus, Building2, Loader2,
+  ExternalLink, X, Palette, ToggleLeft, ToggleRight, Plus, Building2, Loader2,
 } from "lucide-react";
 
 interface OrgItem { id: string; name: string; logoUrl: string | null; order: number }

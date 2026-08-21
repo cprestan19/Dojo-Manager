@@ -4,7 +4,7 @@ import Image from "next/image";
 import {
   Phone, Mail, Instagram, Clock, MapPin,
   Gift, Send, ChevronDown, CheckCircle, Star, X,
-  Users, MessageCircle, ArrowRight, ShoppingBag,
+  MessageCircle, ArrowRight, ShoppingBag,
   ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { formatTimeStr } from "@/lib/utils";

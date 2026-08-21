@@ -747,7 +747,6 @@ function WinnerScreen({
 }) {
   const winnerId  = tatami.winnerParticipantId;
   const winner    = winnerId === match?.participant1?.id ? match?.participant1 : match?.participant2;
-  const loser     = winnerId === match?.participant1?.id ? match?.participant2 : match?.participant1;
   const winnerSide = winnerId === match?.participant1?.id ? "AO" : "AKA";
   const reason    = tatami.winnerReason ?? "points";
 

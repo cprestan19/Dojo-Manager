@@ -60,11 +60,6 @@ if (!CRON_SECRET || CRON_SECRET.includes("replace")) {
 const auth = { "Authorization": `Bearer ${CRON_SECRET}` };
 const json = { "Content-Type": "application/json" };
 
-async function get(path) {
-  const res = await fetch(`${BASE}${path}`, { headers: auth });
-  return res.json();
-}
-
 async function post(path, body) {
   const res = await fetch(`${BASE}${path}`, {
     method:  "POST",
@@ -118,7 +113,7 @@ async function run() {
 
   // ── 1. Obtener dojoId ───────────────────────────────────────────────────────
   sep("Paso 1 — Obtener dojo");
-  const { data: dojoData } = await post("/api/dev/simulate-payment", {
+  await post("/api/dev/simulate-payment", {
     dojoId: "ping",  // solo para verificar que el server responde
   }).catch(() => ({ data: { error: "Server no disponible" } }));
 
@@ -147,7 +142,7 @@ async function run() {
 
   // ── 2. Verificar/crear plan ─────────────────────────────────────────────────
   sep("Paso 2 — Planes disponibles");
-  const { data: plans } = await post("/api/billing/plans", {});
+  await post("/api/billing/plans", {});
   const plansRes = await fetch(`${BASE}/api/billing/plans`, { headers: auth });
   const plansList = await plansRes.json();
 
@@ -206,7 +201,7 @@ async function run() {
 
   // ── 7. Verificar que readOnly está desactivado ──────────────────────────────
   sep("Paso 7 — Verificar acceso (isReadOnly = false)");
-  const { data: isRO } = await post("/api/dev/simulate-payment", {
+  await post("/api/dev/simulate-payment", {
     dojoId: targetDojoId,
     event:  "ACTIVATED",  // re-activar para confirmar
   });

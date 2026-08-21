@@ -7,7 +7,7 @@ import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type SessionUser = { role?: string };
 
-async function guardEmailAdmin(req: NextRequest) {
+async function guardEmailAdmin() {
   const session = await getServerSession(authOptions);
   if (!session) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }), session: null };
   const { role } = session.user as SessionUser;
@@ -16,8 +16,8 @@ async function guardEmailAdmin(req: NextRequest) {
   return { error: null, session };
 }
 
-export async function GET(req: NextRequest) {
-  const { error } = await guardEmailAdmin(req);
+export async function GET() {
+  const { error } = await guardEmailAdmin();
   if (error) return error;
 
   const cfg = await prisma.emailSettings.findUnique({ where: { id: "singleton" } });
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const { error, session } = await guardEmailAdmin(req);
+  const { error, session } = await guardEmailAdmin();
   if (error) return error;
 
   const t0   = Date.now();

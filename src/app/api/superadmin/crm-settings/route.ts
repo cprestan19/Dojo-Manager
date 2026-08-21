@@ -16,7 +16,7 @@ import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type SessionUser = { role?: string };
 
-async function guardSysadmin(req: NextRequest) {
+async function guardSysadmin() {
   const session = await getServerSession(authOptions);
   if (!session) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }), session: null };
   const { role } = session.user as SessionUser;
@@ -25,8 +25,8 @@ async function guardSysadmin(req: NextRequest) {
   return { error: null, session };
 }
 
-export async function GET(req: NextRequest) {
-  const { error } = await guardSysadmin(req);
+export async function GET() {
+  const { error } = await guardSysadmin();
   if (error) return error;
 
   const cfg = await prisma.crmSettings.findUnique({ where: { id: "singleton" } });
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const { error, session } = await guardSysadmin(req);
+  const { error, session } = await guardSysadmin();
   if (error) return error;
 
   const t0   = Date.now();

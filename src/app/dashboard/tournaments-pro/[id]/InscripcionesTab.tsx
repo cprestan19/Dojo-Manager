@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock, Users, DollarSign, ChevronDown, ChevronUp, Mail, RefreshCw, Wand2 } from "lucide-react";
+import { CheckCircle, XCircle, Users, DollarSign, ChevronDown, ChevronUp, Mail, RefreshCw, Wand2 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useDojoCurrency } from "@/lib/hooks/useDojo";
 

@@ -135,7 +135,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (!auth) return NextResponse.json({ error: "Rate limit" }, { status: 429 });
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: 401 });
 
-  const { clubId, dojoId, tournamentId } = auth.payload;
+  const { clubId, dojoId } = auth.payload;
 
   const body = await req.json().catch(() => ({})) as {
     id?:          string;

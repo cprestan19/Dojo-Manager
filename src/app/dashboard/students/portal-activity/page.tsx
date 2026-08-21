@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, Search, Smartphone, Clock, Globe, Users,
-  UserCheck, UserX, AlertTriangle, KeyRound, Mail, MailX,
+  UserCheck, AlertTriangle, KeyRound, Mail, MailX,
   CheckCircle, Loader2, ChevronDown,
 } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";

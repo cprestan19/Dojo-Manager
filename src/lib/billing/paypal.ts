@@ -1,9 +1,6 @@
 import {
-  ApiError,
   Client,
   Environment,
-  OrdersController,
-  PaymentsController,
 } from "@paypal/paypal-server-sdk";
 
 // ── Singleton client ──────────────────────────────────────────────────────────

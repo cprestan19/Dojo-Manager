@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { Plus, Minus, RotateCcw, Check, AlertTriangle, Trophy } from "lucide-react";
+import { RotateCcw, Check, AlertTriangle, Trophy } from "lucide-react";
 
 interface Judge    { id: string; name: string; role: string; tatamiId: string | null }
 interface Tatami   { id: string; name: string; color: string }
@@ -16,33 +16,6 @@ interface Match {
 }
 
 const PRIMARY = "#C0392B";
-
-/* ── Botón de puntuación grande ── */
-function ScoreBtn({ label, value, color, onAdd, onSub }: {
-  label: string; value: number; color: string;
-  onAdd: () => void; onSub: () => void;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.5)" }}>{label}</p>
-      <div className="flex items-center gap-3">
-        <button onPointerDown={onSub}
-          className="w-12 h-12 rounded-full flex items-center justify-center text-white active:scale-95 transition-transform"
-          style={{ background: "rgba(255,255,255,0.1)", border: "1.5px solid rgba(255,255,255,0.15)" }}>
-          <Minus size={20}/>
-        </button>
-        <div className="min-w-[72px] text-center">
-          <span className="font-black text-white" style={{ fontSize: "56px", lineHeight: 1, color }}>{value}</span>
-        </div>
-        <button onPointerDown={onAdd}
-          className="w-12 h-12 rounded-full flex items-center justify-center text-white active:scale-95 transition-transform"
-          style={{ background: color, border: `1.5px solid ${color}` }}>
-          <Plus size={20}/>
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /* ── Botón de punto karate (Ippon / Waza-ari / Yuko) ── */
 function KarateBtn({ label, pts, color, onPress }: { label: string; pts: number; color: string; onPress: () => void }) {
@@ -951,53 +924,6 @@ export default function JudgePage() {
         );
       })()}
     </div>
-  );
-}
-
-// ── Cronómetro Sencho para el app del juez ────────────────────────────────────
-function SenchoTimer({ matchId, tatamiId }: { matchId: string; tatamiId: string | null }) {
-  const [startedAt, setStartedAt] = useState<string | null>(null);
-  const [elapsed,   setElapsed]   = useState(0);
-
-  useEffect(() => {
-    if (!tatamiId) return;
-    const fetchTime = async () => {
-      try {
-        const r = await fetch(`/api/public/tatami-display/${tatamiId}`);
-        if (r.ok) {
-          const d = await r.json();
-          setStartedAt(d.tatami?.matchStartedAt ?? null);
-        }
-      } catch { /* silent */ }
-    };
-    fetchTime();
-    const iv = setInterval(fetchTime, 10000); // actualizar referencia cada 10s
-    return () => clearInterval(iv);
-  }, [tatamiId, matchId]);
-
-  useEffect(() => {
-    if (!startedAt) { setElapsed(0); return; }
-    const start = new Date(startedAt).getTime();
-    const tick  = () => setElapsed(Math.floor((Date.now() - start) / 1000));
-    tick();
-    const iv = setInterval(tick, 1000);
-    return () => clearInterval(iv);
-  }, [startedAt]);
-
-  // Cuenta regresiva desde 120s
-  const DURATION = 120;
-  const remaining = Math.max(0, DURATION - elapsed);
-  const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
-  const ss = String(remaining % 60).padStart(2, "0");
-
-  return (
-    <p className="font-black tabular-nums"
-      style={{
-        fontSize: "clamp(32px, 8vw, 52px)", fontFamily: "'Courier New', monospace", lineHeight: 1,
-        color: remaining === 0 ? "#EF4444" : remaining <= 30 ? "#F59E0B" : "white",
-      }}>
-      {mm}:{ss}
-    </p>
   );
 }
 

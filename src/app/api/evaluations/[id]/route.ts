@@ -33,10 +33,12 @@ export async function GET(req: NextRequest, { params }: Params) {
         links: {
           select: {
             id: true,
+            beltFilter: true,
             application: {
               select: {
                 id: true, title: true, status: true,
                 _count: { select: { invitees: true } },
+                invitees: { where: { response: "ACCEPTED" }, select: { beltToPresent: true } },
               },
             },
           },
@@ -45,7 +47,23 @@ export async function GET(req: NextRequest, { params }: Params) {
     });
     if (!evaluation) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
-    return NextResponse.json(evaluation);
+    // Desglose de cintas aceptadas por postulación vinculada, para que el
+    // admin vea de un vistazo cuántos alumnos de cada cinta hay disponibles
+    // al momento de elegir/editar el filtro de cinta de cada vínculo.
+    const result = {
+      ...evaluation,
+      links: evaluation.links.map(l => {
+        const beltCounts: Record<string, number> = {};
+        for (const inv of l.application.invitees) {
+          beltCounts[inv.beltToPresent] = (beltCounts[inv.beltToPresent] ?? 0) + 1;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- se destructura solo para omitir el campo de la respuesta
+        const { invitees: _invitees, ...application } = l.application;
+        return { ...l, application, beltCounts };
+      }),
+    };
+
+    return NextResponse.json(result);
   } catch (err) {
     console.error("GET /api/evaluations/[id]", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

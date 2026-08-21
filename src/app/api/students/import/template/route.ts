@@ -3,7 +3,7 @@
  * Genera y descarga la plantilla Excel para importación masiva de alumnos.
  * Solo admin/sysadmin autenticado.
  */
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import ExcelJS from "exceljs";
@@ -13,7 +13,7 @@ import {
 
 type SessionUser = { role?: string };
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await getServerSession(authOptions);
   const role = (session?.user as SessionUser)?.role;
   if (!session?.user || !["admin", "sysadmin"].includes(role ?? "")) {

@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 // GET /api/portal/terms — verifica si el alumno necesita aceptar los términos
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     const user    = session?.user as { role?: string; studentId?: string | null; dojoId?: string | null } | undefined;

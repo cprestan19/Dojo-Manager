@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import { headers, cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import RegistroForm from "./RegistroForm";

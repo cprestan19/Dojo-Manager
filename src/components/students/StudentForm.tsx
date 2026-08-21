@@ -7,7 +7,7 @@ import {
   Camera, ChevronDown, ChevronUp, Save, ArrowLeft, Calendar, Loader2,
   Users, Link2, X,
 } from "lucide-react";
-import { cn, calculateAge, BELT_COLORS, GENDERS, NATIONALITIES } from "@/lib/utils";
+import { cn, calculateAge, GENDERS, NATIONALITIES } from "@/lib/utils";
 import { formatCurrency, getCurrencySymbol, currencyInputPadding } from "@/lib/currency";
 import { useDojo, useDojoCurrency, useDojoTimeZone } from "@/lib/hooks/useDojo";
 import { timezoneToCountry } from "@/lib/timezone";
@@ -262,6 +262,7 @@ export default function StudentForm({ defaultValues, isEdit = false }: StudentFo
     const parts     = trimmed.split(/\s+/);
     const firstName = parts[0] ?? "";
     const lastName  = parts.slice(1).join(" ");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- se destructura solo para omitir el campo del payload
     const { fullName: _, ...rest } = data;
 
     // If sibling already has a familyId, attach the new student to it directly

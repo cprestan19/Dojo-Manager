@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Search, Check, Trophy, Calendar, MapPin, Users } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";

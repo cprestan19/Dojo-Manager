@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Users, CreditCard, Clock, Info, Plus, RefreshCw, Upload } from "lucide-react";
+import { Users, CreditCard, Clock, Info, Plus, Upload } from "lucide-react";
 import { AddAthleteModal } from "./AddAthleteModal";
 import { PaymentTab } from "./PaymentTab";
 import { StatusTimeline } from "./StatusTimeline";

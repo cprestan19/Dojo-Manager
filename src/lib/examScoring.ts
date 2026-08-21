@@ -1,6 +1,30 @@
 import prisma from "@/lib/prisma";
 
 /**
+ * Resuelve a cuál Evaluación pertenece un postulado dentro de una Postulación
+ * dada, respetando el `beltFilter` de cada EvaluationLink — necesario porque
+ * una misma Postulación (con alumnos de varias cintas) puede estar "llamada"
+ * a varias Evaluaciones distintas, una por grupo de cinta/franja horaria.
+ * Un vínculo con `beltFilter` vacío es "todas las cintas" (catch-all) y solo
+ * se usa si no hay un vínculo más específico que incluya la cinta del alumno.
+ * Si se pasa `evaluationId`, restringe la búsqueda a esa Evaluación puntual
+ * (para validar que un postulado pertenece a ella, no para descubrirla).
+ */
+export async function findEvaluationLinkForInvitee(
+  applicationId: string,
+  beltToPresent: string,
+  evaluationId?: string,
+): Promise<{ evaluationId: string; beltFilter: string[] } | null> {
+  const links = await prisma.evaluationLink.findMany({
+    where:  { applicationId, ...(evaluationId ? { evaluationId } : {}) },
+    select: { evaluationId: true, beltFilter: true },
+  });
+  return links.find(l => l.beltFilter.length > 0 && l.beltFilter.includes(beltToPresent))
+      ?? links.find(l => l.beltFilter.length === 0)
+      ?? null;
+}
+
+/**
  * Recalcula ExamApplicationInvitee.finalScore a partir de las notas cargadas
  * hasta el momento (ExamScore). Se promedia entre los Senseis que ya
  * calificaron cada criterio, y el resultado se pondera solo con los
@@ -13,14 +37,11 @@ import prisma from "@/lib/prisma";
 export async function recomputeInviteeFinalScore(inviteeId: string): Promise<number | null> {
   const invitee = await prisma.examApplicationInvitee.findUnique({
     where:  { id: inviteeId },
-    select: { applicationId: true },
+    select: { applicationId: true, beltToPresent: true },
   });
   if (!invitee) return null;
 
-  const link = await prisma.evaluationLink.findFirst({
-    where:  { applicationId: invitee.applicationId },
-    select: { evaluationId: true },
-  });
+  const link = await findEvaluationLinkForInvitee(invitee.applicationId, invitee.beltToPresent);
   if (!link) return null; // la postulación de este alumno no está vinculada a ninguna evaluación
 
   const [criteria, scores] = await Promise.all([

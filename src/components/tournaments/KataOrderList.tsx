@@ -77,7 +77,6 @@ export function KataOrderList({ participants, bracketName, tournamentName, locke
         {sorted.map((p, idx) => {
           const belt = p.student.beltHistory[0]?.beltColor ?? null;
           const isFirst  = idx === 0;
-          const isLast   = idx === sorted.length - 1;
 
           return (
             <div

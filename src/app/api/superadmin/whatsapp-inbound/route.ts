@@ -14,7 +14,7 @@ import prisma from "@/lib/prisma";
 
 type SessionUser = { role?: string };
 
-async function guardSysadmin(req: NextRequest) {
+async function guardSysadmin() {
   const session = await getServerSession(authOptions);
   if (!session) return { error: NextResponse.json({ error: "No autorizado" }, { status: 401 }), session: null };
   const { role } = session.user as SessionUser;
@@ -24,7 +24,7 @@ async function guardSysadmin(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const { error } = await guardSysadmin(req);
+  const { error } = await guardSysadmin();
   if (error) return error;
 
   const { searchParams } = new URL(req.url);

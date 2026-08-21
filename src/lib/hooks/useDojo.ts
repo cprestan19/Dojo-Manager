@@ -26,6 +26,7 @@ export interface DojoInfo {
  * The overrideId parameter is kept for backward compat but is ignored
  * (sysadmin dojo context is managed via the sx-dojo cookie instead).
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- parámetro conservado por compatibilidad hacia atrás (ver comentario arriba)
 export function useDojo(_overrideId?: string | null): DojoInfo | null {
   return useAppContext().dojo;
 }

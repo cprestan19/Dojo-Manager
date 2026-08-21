@@ -1,8 +1,11 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { BELT_COLORS, getBeltInfo } from "@/lib/utils";
 import { useDojoCurrency } from "@/lib/hooks/useDojo";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { NAV_KEYS } from "@/lib/permissions";
 import { ChevronLeft, ChevronRight, Save, Loader2, Search, ImagePlus, X } from "lucide-react";
 
 interface StudentOption {
@@ -20,6 +23,16 @@ interface InviteeSelection {
 export default function NewPostulacionPage() {
   const router = useRouter();
   const currency = useDojoCurrency();
+  const perms = usePermissions();
+
+  const [hasDefaultTemplate, setHasDefaultTemplate] = useState(true); // optimista hasta cargar
+  useEffect(() => {
+    if (!perms.has(NAV_KEYS.CERTIFICADOS)) return;
+    fetch("/api/certificate-templates")
+      .then(r => r.ok ? r.json() as Promise<{ isDefault: boolean }[]> : [])
+      .then(list => setHasDefaultTemplate(list.some(t => t.isDefault)))
+      .catch(() => {});
+  }, [perms]);
 
   // Step 1 fields
   const [step, setStep]               = useState(1);
@@ -38,17 +51,54 @@ export default function NewPostulacionPage() {
   // Step 2 fields
   const [students, setStudents]         = useState<StudentOption[]>([]);
   const [search, setSearch]             = useState("");
+  const [beltFilter, setBeltFilter]     = useState<Set<string>>(new Set());
   const [selected, setSelected]         = useState<Map<string, InviteeSelection>>(new Map());
   const [loadingStudents, setLoadingStudents] = useState(false);
 
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
 
-  // Filtro client-side
-  const filtered = students.filter(s =>
-    s.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    String(s.studentCode ?? "").includes(search)
-  );
+  function currentBeltOf(s: StudentOption): string {
+    return s.beltHistory[0]?.beltColor ?? "blanca";
+  }
+
+  // Cintas presentes entre los alumnos activos, con cuántos hay de cada una —
+  // para armar los chips de filtro rápido (solo se muestran las que existen).
+  const beltCounts = students.reduce<Record<string, number>>((acc, s) => {
+    const b = currentBeltOf(s);
+    acc[b] = (acc[b] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  // Filtro client-side: texto + cintas activas (OR entre cintas elegidas)
+  const filtered = students.filter(s => {
+    const matchesSearch = s.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      String(s.studentCode ?? "").includes(search);
+    const matchesBelt = beltFilter.size === 0 || beltFilter.has(currentBeltOf(s));
+    return matchesSearch && matchesBelt;
+  });
+
+  function toggleBeltFilter(belt: string) {
+    setBeltFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(belt)) next.delete(belt); else next.add(belt);
+      return next;
+    });
+  }
+
+  function selectAllVisible() {
+    const next = new Map(selected);
+    for (const s of filtered) {
+      if (!next.has(s.id)) next.set(s.id, { studentId: s.id, beltToPresent: getNextBelt(currentBeltOf(s)) });
+    }
+    setSelected(next);
+  }
+
+  function deselectAllVisible() {
+    const next = new Map(selected);
+    for (const s of filtered) next.delete(s.id);
+    setSelected(next);
+  }
 
   function validateStep1(): boolean {
     if (!title.trim())    { setError("El nombre del evento es requerido."); return false; }
@@ -179,6 +229,13 @@ export default function NewPostulacionPage() {
         <div className="bg-red-900/40 border border-red-800/50 rounded-lg p-3 text-red-400 text-sm">{error}</div>
       )}
 
+      {perms.has(NAV_KEYS.CERTIFICADOS) && !hasDefaultTemplate && (
+        <div className="flex items-center justify-between gap-3 bg-orange-900/20 border border-orange-800/40 rounded-lg px-3 py-2.5 text-sm flex-wrap">
+          <span className="text-orange-400">⚠️ No tienes una plantilla de diploma predeterminada — los alumnos que aprueben esta postulación no recibirán su diploma automáticamente al finalizar.</span>
+          <Link href="/dashboard/settings/certificados" className="btn-secondary text-xs shrink-0">Configurar plantilla</Link>
+        </div>
+      )}
+
       {/* Paso 1 — Datos del evento */}
       {step === 1 && (
         <div className="card space-y-4">
@@ -278,6 +335,39 @@ export default function NewPostulacionPage() {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
+
+          {!loadingStudents && students.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {BELT_COLORS.filter(b => (beltCounts[b.value] ?? 0) > 0).map(b => {
+                const isActive = beltFilter.has(b.value);
+                return (
+                  <button
+                    key={b.value}
+                    type="button"
+                    onClick={() => toggleBeltFilter(b.value)}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                      isActive
+                        ? "bg-dojo-gold text-black border-dojo-gold font-semibold"
+                        : "bg-dojo-border/30 text-dojo-white border-dojo-border hover:bg-dojo-border/60"
+                    }`}
+                  >
+                    {b.label} ({beltCounts[b.value]})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {!loadingStudents && filtered.length > 0 && (
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={selectAllVisible} className="text-xs text-dojo-gold hover:underline">
+                Seleccionar los {filtered.length} visibles
+              </button>
+              <button type="button" onClick={deselectAllVisible} className="text-xs text-dojo-muted hover:underline">
+                Quitar selección visible
+              </button>
+            </div>
+          )}
 
           {loadingStudents ? (
             <div className="flex justify-center py-8">

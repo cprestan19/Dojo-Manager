@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
         if (allowlist && allowlist.length > 0) return allowlist.includes(studentId);
         return earnedBelts.includes(v.beltColor);
       })
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- se destructura solo para omitir el campo de la respuesta
       .map(({ visibleToStudentIds: _omit, ...v }) => v);
 
     return NextResponse.json({ videos, earnedBelts });

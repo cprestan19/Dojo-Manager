@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Clock, Plus, Edit2, Trash2, Save, X, Users, Search,
-  AlertCircle, CheckCircle2, ChevronDown, ChevronRight, UserMinus,
+  CheckCircle2, ChevronDown, ChevronRight, UserMinus,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { BeltBadge } from "@/components/ui/BeltBadge";

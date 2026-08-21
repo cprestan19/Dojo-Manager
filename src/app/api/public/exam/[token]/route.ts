@@ -19,6 +19,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
             criteria: { select: { id: true, name: true, weightPct: true, order: true }, orderBy: { order: "asc" } },
             links: {
               select: {
+                beltFilter: true,
                 application: {
                   select: {
                     invitees: {
@@ -39,8 +40,14 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
     if (!evaluator) return NextResponse.json({ error: "Link no válido" }, { status: 404 });
 
+    // Cada vínculo puede traer solo un subconjunto de cintas de su Postulación
+    // (beltFilter) — así una Postulación con varias cintas se reparte entre
+    // varias Evaluaciones sin que un Sensei vea alumnos que no le tocan.
+    // beltFilter vacío = todas las cintas de esa Postulación (retro-compatible).
     const students = evaluator.evaluation.links
-      .flatMap(l => l.application.invitees)
+      .flatMap(l => l.beltFilter.length > 0
+        ? l.application.invitees.filter(inv => l.beltFilter.includes(inv.beltToPresent))
+        : l.application.invitees)
       .sort((a, b) => a.student.fullName.localeCompare(b.student.fullName));
 
     const myScores = await prisma.examScore.findMany({

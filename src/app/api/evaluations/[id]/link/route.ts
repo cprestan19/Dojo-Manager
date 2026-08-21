@@ -4,9 +4,19 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-context";
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
+import { BELT_COLORS } from "@/lib/utils";
 
 type SessionUser = { role?: string; dojoId?: string | null };
 type Params = { params: Promise<{ id: string }> };
+
+const VALID_BELTS = new Set(BELT_COLORS.map(b => b.value));
+
+// true si dos filtros de cinta se pisan — un filtro vacío ("todas las cintas")
+// se pisa con cualquier otro, vacío o no.
+function beltFilterOverlaps(a: string[], b: string[]): boolean {
+  if (a.length === 0 || b.length === 0) return true;
+  return a.some(belt => b.includes(belt));
+}
 
 // POST /api/evaluations/[id]/link — "llama" una Postulación existente del
 // mismo dojo: sus postulados aceptados pasan a ser candidatos de la Evaluación.
@@ -26,8 +36,13 @@ export async function POST(req: NextRequest, { params }: Params) {
     const evaluation = await prisma.evaluation.findFirst({ where: { id: evaluationId, dojoId } });
     if (!evaluation) return NextResponse.json({ error: "Evaluación no encontrada" }, { status: 404 });
 
-    const body = await req.json() as { applicationId?: string };
+    const body = await req.json() as { applicationId?: string; beltFilter?: string[] };
     if (!body.applicationId) return NextResponse.json({ error: "applicationId requerido" }, { status: 400 });
+
+    const beltFilter = [...new Set(body.beltFilter ?? [])];
+    for (const belt of beltFilter) {
+      if (!VALID_BELTS.has(belt)) return NextResponse.json({ error: `Cinta inválida: ${belt}` }, { status: 400 });
+    }
 
     // Nunca confiar en el ID sin validar que la postulación es de este dojo.
     const application = await prisma.examApplication.findFirst({
@@ -41,8 +56,25 @@ export async function POST(req: NextRequest, { params }: Params) {
     });
     if (existing) return NextResponse.json({ error: "Esa postulación ya está vinculada" }, { status: 400 });
 
+    // Esta misma Postulación puede estar repartida entre varias Evaluaciones
+    // por cinta (una por franja horaria) — pero dos vínculos no pueden pisarse
+    // en la misma cinta, o un alumno terminaría siendo candidato de dos
+    // Evaluaciones distintas a la vez.
+    const otherLinks = await prisma.evaluationLink.findMany({
+      where:  { applicationId: application.id, evaluationId: { not: evaluationId } },
+      select: { beltFilter: true, evaluation: { select: { title: true } } },
+    });
+    const conflict = otherLinks.find(l => beltFilterOverlaps(l.beltFilter, beltFilter));
+    if (conflict) {
+      return NextResponse.json({
+        error: beltFilter.length === 0
+          ? `Esta postulación ya tiene cintas vinculadas a "${conflict.evaluation.title}" — elige cintas específicas en vez de "todas"`
+          : `Alguna de estas cintas ya está vinculada a "${conflict.evaluation.title}"`,
+      }, { status: 400 });
+    }
+
     const link = await prisma.evaluationLink.create({
-      data: { evaluationId, applicationId: application.id },
+      data: { evaluationId, applicationId: application.id, beltFilter },
     });
 
     const ctx = buildAuditCtx(session, req, { dojoId });
@@ -53,7 +85,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       resourceType: "EvaluationLink",
       resourceId:   link.id,
       statusCode:   200,
-      details:      JSON.stringify({ evaluationId, applicationId: application.id, applicationTitle: application.title }),
+      details:      JSON.stringify({ evaluationId, applicationId: application.id, applicationTitle: application.title, beltFilter }),
     });
 
     return NextResponse.json({ ...link, application });

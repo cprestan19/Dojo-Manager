@@ -36,7 +36,6 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (!match) return NextResponse.json({ error: "Match no encontrado en este torneo" }, { status: 404 });
 
     // Asignar tatami al match y marcarlo como activo en el tatami
-    const now = new Date();
     await prisma.$transaction([
       prisma.tournamentMatch.update({ where: { id: matchId }, data: { tatamiId } }),
       prisma.tournamentTatami.update({

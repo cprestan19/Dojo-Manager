@@ -84,7 +84,10 @@ export async function POST(req: NextRequest, { params }: Params) {
     // silencio (pedido explícito: "es importante que salga un aviso...que
     // indique revisar su plantilla de diploma").
     if (passedInvitees.length > 0 && await hasFeature(dojoId, NAV_KEYS.CERTIFICADOS)) {
-      const template = await prisma.certificateTemplate.findFirst({ where: { dojoId, active: true } });
+      const template = await prisma.certificateTemplate.findFirst({
+        where:   { dojoId, active: true, isDefault: true },
+        orderBy: { createdAt: "desc" },
+      });
       if (!template) {
         sendPushToDojoAdminOnlyAsync(dojoId, {
           title: "⚠️ Revisa tu plantilla de diploma",
@@ -140,6 +143,18 @@ export async function POST(req: NextRequest, { params }: Params) {
         where:  { applicationId: id, attended: true, resultNotifiedAt: null },
         select: { id: true, studentId: true, passed: true },
       });
+
+      // Quiénes de estos ya tienen su diploma emitido (recién generado arriba,
+      // o de una corrida anterior) — para mencionarlo explícitamente en el push
+      // en vez del aviso genérico de "resultado disponible".
+      const certified = invitees.length > 0
+        ? await prisma.generatedCertificate.findMany({
+            where:  { inviteeId: { in: invitees.map(i => i.id) }, status: "ISSUED" },
+            select: { inviteeId: true },
+          })
+        : [];
+      const certifiedInviteeIds = new Set(certified.map(c => c.inviteeId));
+
       for (const inv of invitees) {
         const subs = await prisma.pushSubscription.findMany({
           where:  { studentId: inv.studentId, active: true },
@@ -147,16 +162,19 @@ export async function POST(req: NextRequest, { params }: Params) {
         });
         await prisma.examApplicationInvitee.update({ where: { id: inv.id }, data: { resultNotifiedAt: new Date() } });
         if (subs.length === 0) continue;
-        const approved = inv.passed === true;
+        const approved  = inv.passed === true;
+        const hasDiploma = approved && certifiedInviteeIds.has(inv.id);
         sendPushToSubscriptions(subs, {
-          title: approved ? "🏆 ¡Felicidades! Aprobaste el examen" : "📋 Resultado del examen disponible",
-          body:  approved
-            ? `Pasaste el examen de "${existing.title}". ¡Sigue adelante!`
-            : `Tu resultado del examen "${existing.title}" está disponible.`,
-          url:   "/portal/postulaciones",
+          title: hasDiploma ? "🎓 ¡Tu diploma está listo!" : approved ? "🏆 ¡Felicidades! Aprobaste el examen" : "📋 Resultado del examen disponible",
+          body:  hasDiploma
+            ? `Aprobaste el examen "${existing.title}" y ya puedes descargar tu diploma.`
+            : approved
+              ? `Pasaste el examen de "${existing.title}". ¡Sigue adelante!`
+              : `Tu resultado del examen "${existing.title}" está disponible.`,
+          url:   hasDiploma ? "/portal/certificados" : "/portal/postulaciones",
           tag:   "exam-result",
         })
-          .then(result => logPushSent({ dojoId, type: "exam_result", title: "Resultado de examen", body: existing.title, url: "/portal/postulaciones", result }))
+          .then(result => logPushSent({ dojoId, type: "exam_result", title: "Resultado de examen", body: existing.title, url: hasDiploma ? "/portal/certificados" : "/portal/postulaciones", result }))
           .catch(() => {});
       }
     }

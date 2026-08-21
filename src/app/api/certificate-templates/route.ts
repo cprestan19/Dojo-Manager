@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
         canvasWidth:  true,
         canvasHeight: true,
         active:       true,
+        isDefault:    true,
         createdAt:    true,
       },
     });
@@ -73,17 +74,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "imageUrl inválida — debe ser una imagen subida por el sistema" }, { status: 400 });
     }
 
-    const template = await prisma.certificateTemplate.create({
-      data: {
-        dojoId,
-        name:          body.name.trim(),
-        imageUrl:      body.imageUrl.trim(),
-        imagePublicId: body.imagePublicId.trim(),
-        canvasWidth:   body.canvasWidth  ?? 1000,
-        canvasHeight:  body.canvasHeight ?? 700,
-        elements:      body.elements ?? [],
-      },
-    });
+    // Solo una plantilla "predeterminada" (en uso para emitir diplomas) por
+    // dojo a la vez — crear una nueva la vuelve la predeterminada automática,
+    // para que "cambié la plantilla" siempre tome la nueva sin ambigüedad.
+    // active se deja intacto (solo indica "no borrada", ver DELETE).
+    const [, template] = await prisma.$transaction([
+      prisma.certificateTemplate.updateMany({ where: { dojoId, isDefault: true }, data: { isDefault: false } }),
+      prisma.certificateTemplate.create({
+        data: {
+          dojoId,
+          name:          body.name.trim(),
+          imageUrl:      body.imageUrl.trim(),
+          imagePublicId: body.imagePublicId.trim(),
+          canvasWidth:   body.canvasWidth  ?? 1000,
+          canvasHeight:  body.canvasHeight ?? 700,
+          elements:      body.elements ?? [],
+          isDefault:     true,
+        },
+      }),
+    ]);
 
     const ctx = buildAuditCtx(session, req, { dojoId });
     await logAudit({

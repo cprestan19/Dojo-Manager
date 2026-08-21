@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 // GET /api/portal/exam-applications — postulaciones donde el alumno o sus hermanos están invitados
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -61,6 +61,7 @@ export async function GET(_req: NextRequest) {
       },
       include: {
         student: { select: { fullName: true } },
+        certificate: { select: { status: true } },
         application: {
           select: {
             id:           true,
@@ -93,6 +94,7 @@ export async function GET(_req: NextRequest) {
       attended:      inv.application.status === "FINALIZED" ? inv.attended   : null,
       passed:        inv.application.status === "FINALIZED" ? inv.passed    : null,
       finalScore:    inv.application.status === "FINALIZED" ? inv.finalScore : null,
+      hasCertificate: inv.certificate?.status === "ISSUED",
     }));
 
     return NextResponse.json(result);

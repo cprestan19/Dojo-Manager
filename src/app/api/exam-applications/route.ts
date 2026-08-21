@@ -6,6 +6,8 @@ import { getEffectiveDojoId, NO_DOJO_CONTEXT_ERROR } from "@/lib/sysadmin-contex
 import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 import { withPlanFeatureGuard } from "@/lib/billing/planFeatureGuard";
 import { NAV_KEYS } from "@/lib/permissions";
+import { isExamApplicationHistoric } from "@/lib/timezone";
+import { resolveDojoTimezone } from "@/lib/timezone-server";
 
 // GET /api/exam-applications — lista postulaciones del dojo
 async function _GET(req: NextRequest) {
@@ -23,23 +25,11 @@ async function _GET(req: NextRequest) {
 
     const statusFilter = req.nextUrl.searchParams.get("status");
     const view         = req.nextUrl.searchParams.get("view"); // "active" | "history"
-    const now          = new Date();
-
-    // Filtro por vista: activas vs historial
-    // Activas  : archivedAt IS NULL AND examDate >= hoy
-    // Historial: archivedAt IS NOT NULL OR examDate < hoy
-    let viewWhere: Record<string, unknown> = {};
-    if (view === "active") {
-      viewWhere = { archivedAt: null, examDate: { gte: now } };
-    } else if (view === "history") {
-      viewWhere = { OR: [{ archivedAt: { not: null } }, { examDate: { lt: now } }] };
-    }
 
     const applications = await prisma.examApplication.findMany({
       where: {
         dojoId,
         ...(statusFilter ? { status: statusFilter } : {}),
-        ...viewWhere,
       },
       orderBy: { examDate: "desc" },
       select: {
@@ -54,14 +44,31 @@ async function _GET(req: NextRequest) {
         archivedAt:  true,
         createdAt:   true,
         _count: { select: { invitees: true } },
-        invitees: { select: { response: true } },
+        invitees: { select: { response: true, beltToPresent: true } },
       },
     });
 
-    const result = applications.map(a => {
+    // Filtro por vista: activas vs historial — pasa a histórico el día
+    // siguiente a la fecha límite de respuesta (o a la fecha de examen si no
+    // tiene deadline), comparado por día calendario en la zona del dojo.
+    let filtered = applications;
+    if (view === "active" || view === "history") {
+      const dojoTz = await resolveDojoTimezone(dojoId);
+      filtered = applications.filter(a => {
+        const historic = !!a.archivedAt || isExamApplicationHistoric(a.deadline, a.examDate, dojoTz);
+        return view === "active" ? !historic : historic;
+      });
+    }
+
+    const result = filtered.map(a => {
       const accepted = a.invitees.filter(i => i.response === "ACCEPTED").length;
       const rejected = a.invitees.filter(i => i.response === "REJECTED").length;
       const pending  = a.invitees.filter(i => i.response === "PENDING").length;
+      const beltCounts: Record<string, number> = {};
+      for (const i of a.invitees) {
+        if (i.response !== "ACCEPTED") continue;
+        beltCounts[i.beltToPresent] = (beltCounts[i.beltToPresent] ?? 0) + 1;
+      }
       return {
         id:          a.id,
         title:       a.title,
@@ -77,6 +84,7 @@ async function _GET(req: NextRequest) {
         accepted,
         rejected,
         pending,
+        beltCounts,
       };
     });
 

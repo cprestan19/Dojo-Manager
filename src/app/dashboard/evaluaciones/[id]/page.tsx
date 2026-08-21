@@ -3,16 +3,19 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ChevronLeft, Loader2, Trash2, Power, Copy, Check, Plus, Link2,
-  Search, X, CheckCircle2, Circle, Lock,
+  Search, X, CheckCircle2, Circle, Lock, Pencil, ArrowLeft,
 } from "lucide-react";
-import { getBeltInfo } from "@/lib/utils";
+import { getBeltInfo, BELT_COLORS } from "@/lib/utils";
 
 interface Criteria { id: string; name: string; weightPct: number; order: number }
 interface Evaluator {
   id: string; name: string; token: string; active: boolean; confirmedAt: string | null;
   _count: { scores: number };
 }
-interface LinkedApp { id: string; application: { id: string; title: string; status: string; _count: { invitees: number } } }
+interface LinkedApp {
+  id: string; beltFilter: string[]; beltCounts: Record<string, number>;
+  application: { id: string; title: string; status: string; _count: { invitees: number } };
+}
 interface EvaluationDetail {
   id: string; title: string;
   criteria: Criteria[];
@@ -24,7 +27,37 @@ interface Candidate {
   beltToPresent: string; finalScore: number | null; passed: boolean | null;
   applicationTitle: string; scoresGiven: number; scoresExpected: number;
 }
-interface PickerApp { id: string; title: string; status: string; accepted: number }
+interface PickerApp { id: string; title: string; status: string; accepted: number; beltCounts: Record<string, number> }
+
+// Chips de cinta ordenados por progresión (blanca → negra), solo las que
+// tienen al menos un postulado aceptado en la postulación en cuestión.
+function BeltChipPicker({ beltCounts, selected, onToggle }: {
+  beltCounts: Record<string, number>; selected: Set<string>; onToggle: (belt: string) => void;
+}) {
+  const belts = BELT_COLORS.filter(b => (beltCounts[b.value] ?? 0) > 0);
+  if (belts.length === 0) return <p className="text-xs text-dojo-muted">Esta postulación todavía no tiene aceptados.</p>;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {belts.map(b => {
+        const isSelected = selected.has(b.value);
+        return (
+          <button
+            key={b.value}
+            type="button"
+            onClick={() => onToggle(b.value)}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+              isSelected
+                ? "bg-dojo-gold text-black border-dojo-gold font-semibold"
+                : "bg-dojo-border/30 text-dojo-white border-dojo-border hover:bg-dojo-border/60"
+            }`}
+          >
+            {b.label} ({beltCounts[b.value]})
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function EvaluacionDetallePage() {
   const { id } = useParams<{ id: string }>();
@@ -54,33 +87,93 @@ export default function EvaluacionDetallePage() {
   const [pickerSearch, setPickerSearch] = useState("");
   const [pickerLoading, setPickerLoading] = useState(false);
   const [linkError, setLinkError] = useState("");
+  const [linkSaving, setLinkSaving] = useState(false);
+  const [pickerApp, setPickerApp] = useState<PickerApp | null>(null); // paso 2: elegir cintas
+  const [pickerBelts, setPickerBelts] = useState<Set<string>>(new Set());
 
   async function openPicker() {
     setPickerOpen(true);
+    setPickerApp(null);
+    setPickerBelts(new Set());
     setLinkError("");
     if (pickerApps.length > 0) return;
     setPickerLoading(true);
     try {
-      const res = await fetch("/api/exam-applications");
+      const res = await fetch("/api/exam-applications?view=active");
       if (res.ok) setPickerApps(await res.json() as PickerApp[]);
     } finally { setPickerLoading(false); }
   }
 
-  async function linkApplication(applicationId: string) {
-    setLinkError("");
-    const res = await fetch(`/api/evaluations/${id}/link`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ applicationId }),
-    });
-    const d = await res.json() as { error?: string };
-    if (!res.ok) { setLinkError(d.error ?? "Error al vincular"); return; }
+  function closePicker() {
     setPickerOpen(false);
-    await load();
+    setPickerApp(null);
+    setPickerBelts(new Set());
+    setLinkError("");
+  }
+
+  function togglePickerBelt(belt: string) {
+    setPickerBelts(prev => {
+      const next = new Set(prev);
+      if (next.has(belt)) next.delete(belt); else next.add(belt);
+      return next;
+    });
+  }
+
+  async function confirmLinkApplication() {
+    if (!pickerApp) return;
+    setLinkError("");
+    setLinkSaving(true);
+    try {
+      const res = await fetch(`/api/evaluations/${id}/link`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: pickerApp.id, beltFilter: [...pickerBelts] }),
+      });
+      const d = await res.json() as { error?: string };
+      if (!res.ok) { setLinkError(d.error ?? "Error al vincular"); return; }
+      closePicker();
+      await load();
+    } finally { setLinkSaving(false); }
   }
 
   async function unlinkApplication(applicationId: string) {
     const res = await fetch(`/api/evaluations/${id}/link/${applicationId}`, { method: "DELETE" });
     if (res.ok) await load();
+  }
+
+  // ── Editar cintas de un vínculo ya creado ────────────────────────────
+  const [editingLink, setEditingLink] = useState<LinkedApp | null>(null);
+  const [editBelts, setEditBelts] = useState<Set<string>>(new Set());
+  const [editError, setEditError] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
+  function openEditBelts(l: LinkedApp) {
+    setEditingLink(l);
+    setEditBelts(new Set(l.beltFilter));
+    setEditError("");
+  }
+
+  function toggleEditBelt(belt: string) {
+    setEditBelts(prev => {
+      const next = new Set(prev);
+      if (next.has(belt)) next.delete(belt); else next.add(belt);
+      return next;
+    });
+  }
+
+  async function saveEditBelts() {
+    if (!editingLink) return;
+    setEditError("");
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/evaluations/${id}/link/${editingLink.application.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ beltFilter: [...editBelts] }),
+      });
+      const d = await res.json() as { error?: string };
+      if (!res.ok) { setEditError(d.error ?? "Error al guardar"); return; }
+      setEditingLink(null);
+      await load();
+    } finally { setEditSaving(false); }
   }
 
   // ── Criterios ──────────────────────────────────────────────────────────
@@ -217,14 +310,34 @@ export default function EvaluacionDetallePage() {
             <Plus size={13} /> Llamar postulación
           </button>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {ev.links.map(l => (
-            <div key={l.id} className="flex items-center gap-2">
-              <span className="flex-1 text-sm text-dojo-white truncate">{l.application.title}</span>
-              <span className="text-xs text-dojo-muted shrink-0">{l.application._count.invitees} postulados</span>
-              <button onClick={() => unlinkApplication(l.application.id)} className="p-1.5 rounded-lg text-dojo-muted hover:text-red-400 hover:bg-red-900/20 transition-colors shrink-0">
-                <X size={14} />
-              </button>
+            <div key={l.id} className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="flex-1 text-sm text-dojo-white truncate">{l.application.title}</span>
+                <span className="text-xs text-dojo-muted shrink-0">{l.application._count.invitees} postulados</span>
+                <button onClick={() => openEditBelts(l)} className="p-1.5 rounded-lg text-dojo-muted hover:text-dojo-gold hover:bg-dojo-gold/10 transition-colors shrink-0" title="Editar cintas">
+                  <Pencil size={14} />
+                </button>
+                <button onClick={() => unlinkApplication(l.application.id)} className="p-1.5 rounded-lg text-dojo-muted hover:text-red-400 hover:bg-red-900/20 transition-colors shrink-0">
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {l.beltFilter.length === 0 ? (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-dojo-border/40 text-dojo-muted">Todas las cintas</span>
+                ) : (
+                  l.beltFilter.map(b => {
+                    const belt = getBeltInfo(b);
+                    return (
+                      <span key={b} className="text-[10px] px-1.5 py-0.5 rounded-full"
+                        style={{ backgroundColor: belt.hex + "30", color: belt.hex === "#FFFFFF" ? "#aaa" : belt.hex }}>
+                        {belt.label}
+                      </span>
+                    );
+                  })
+                )}
+              </div>
             </div>
           ))}
           {ev.links.length === 0 && <p className="text-sm text-dojo-muted">Sin postulaciones vinculadas — llama una para traer a sus alumnos aceptados.</p>}
@@ -343,28 +456,70 @@ export default function EvaluacionDetallePage() {
       {pickerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-dojo-dark border border-dojo-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <p className="font-semibold text-dojo-white">Llamar postulación</p>
-              <button onClick={() => setPickerOpen(false)} className="p-1 text-dojo-muted hover:text-dojo-white"><X size={18} /></button>
-            </div>
-            {linkError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{linkError}</div>}
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
-              <input className="form-input pl-9 text-sm" placeholder="Buscar postulación..." value={pickerSearch} onChange={e => setPickerSearch(e.target.value)} />
-            </div>
-            {pickerLoading ? (
-              <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-dojo-gold" /></div>
-            ) : (
-              <div className="max-h-64 overflow-y-auto space-y-1">
-                {pickerFiltered.map(a => (
-                  <button key={a.id} onClick={() => linkApplication(a.id)} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-dojo-border/40 text-left transition-colors">
-                    <span className="flex-1 min-w-0 text-sm text-dojo-white truncate">{a.title}</span>
-                    <span className="text-xs text-dojo-muted shrink-0">{a.accepted} aceptados</span>
+            {pickerApp ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setPickerApp(null); setPickerBelts(new Set()); setLinkError(""); }} className="p-1 -ml-1 text-dojo-muted hover:text-dojo-white">
+                    <ArrowLeft size={18} />
                   </button>
-                ))}
-                {pickerFiltered.length === 0 && <p className="text-center text-dojo-muted text-sm py-4">Sin resultados</p>}
-              </div>
+                  <p className="font-semibold text-dojo-white flex-1 truncate">{pickerApp.title}</p>
+                  <button onClick={closePicker} className="p-1 text-dojo-muted hover:text-dojo-white"><X size={18} /></button>
+                </div>
+                {linkError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{linkError}</div>}
+                <p className="text-xs text-dojo-muted">
+                  Elige qué cintas de esta postulación pertenecen a esta Evaluación. Si no eliges ninguna, se incluyen <span className="text-dojo-white font-medium">todas las cintas</span> de esta postulación.
+                </p>
+                <BeltChipPicker beltCounts={pickerApp.beltCounts} selected={pickerBelts} onToggle={togglePickerBelt} />
+                <button onClick={confirmLinkApplication} disabled={linkSaving} className="btn-primary w-full flex items-center justify-center gap-2">
+                  {linkSaving ? <Loader2 size={16} className="animate-spin" /> : (pickerBelts.size === 0 ? "Vincular todas las cintas" : `Vincular ${pickerBelts.size} cinta${pickerBelts.size > 1 ? "s" : ""}`)}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-dojo-white">Llamar postulación</p>
+                  <button onClick={closePicker} className="p-1 text-dojo-muted hover:text-dojo-white"><X size={18} /></button>
+                </div>
+                {linkError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{linkError}</div>}
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
+                  <input className="form-input pl-9 text-sm" placeholder="Buscar postulación..." value={pickerSearch} onChange={e => setPickerSearch(e.target.value)} />
+                </div>
+                {pickerLoading ? (
+                  <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-dojo-gold" /></div>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto space-y-1">
+                    {pickerFiltered.map(a => (
+                      <button key={a.id} onClick={() => { setPickerApp(a); setPickerBelts(new Set()); setLinkError(""); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-dojo-border/40 text-left transition-colors">
+                        <span className="flex-1 min-w-0 text-sm text-dojo-white truncate">{a.title}</span>
+                        <span className="text-xs text-dojo-muted shrink-0">{a.accepted} aceptados</span>
+                      </button>
+                    ))}
+                    {pickerFiltered.length === 0 && <p className="text-center text-dojo-muted text-sm py-4">Sin resultados</p>}
+                  </div>
+                )}
+              </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: editar cintas de un vínculo */}
+      {editingLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dojo-dark border border-dojo-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-dojo-white truncate">{editingLink.application.title}</p>
+              <button onClick={() => setEditingLink(null)} className="p-1 text-dojo-muted hover:text-dojo-white"><X size={18} /></button>
+            </div>
+            {editError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{editError}</div>}
+            <p className="text-xs text-dojo-muted">
+              Cintas de esta postulación que pertenecen a esta Evaluación. Sin ninguna elegida = todas las cintas.
+            </p>
+            <BeltChipPicker beltCounts={editingLink.beltCounts} selected={editBelts} onToggle={toggleEditBelt} />
+            <button onClick={saveEditBelts} disabled={editSaving} className="btn-primary w-full flex items-center justify-center gap-2">
+              {editSaving ? <Loader2 size={16} className="animate-spin" /> : "Guardar cintas"}
+            </button>
           </div>
         </div>
       )}

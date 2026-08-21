@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { ChevronLeft, Loader2, CheckCircle2, Lock, Circle } from "lucide-react";
+import { Loader2, CheckCircle2, Lock, ArrowRight, PartyPopper } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 
 interface Criteria { id: string; name: string; weightPct: number; order: number }
@@ -34,7 +34,7 @@ export default function ExamEvaluatorPage() {
   const [error,       setError]       = useState("");
   const [confirming,  setConfirming]  = useState(false);
   const [confirmedLocal, setConfirmedLocal] = useState(false);
-  const [openStudent, setOpenStudent] = useState<string | null>(null);
+  const [activeCriteriaId, setActiveCriteriaId] = useState<string | null>(null);
   const [saving,      setSaving]      = useState<string | null>(null); // `${inviteeId}_${criteriaId}`
   const [noteOpen,    setNoteOpen]    = useState<string | null>(null);
   const [noteDraft,   setNoteDraft]   = useState("");
@@ -53,6 +53,12 @@ export default function ExamEvaluatorPage() {
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (data && data.criteria.length > 0 && activeCriteriaId == null) {
+      setActiveCriteriaId(data.criteria[0].id);
+    }
+  }, [data, activeCriteriaId]);
 
   async function handleConfirm() {
     setConfirming(true);
@@ -147,99 +153,46 @@ export default function ExamEvaluatorPage() {
     );
   }
 
-  // ── Detalle de un alumno: calificar por criterio ──────────────────────
-  const current = data.students.find(s => s.inviteeId === openStudent);
-  if (current) {
-    return (
-      <main className="min-h-screen bg-dojo-darker pb-10">
-        <div className="sticky top-0 z-10 bg-dojo-darker/95 backdrop-blur border-b border-dojo-border px-4 py-3 flex items-center gap-3">
-          <button onClick={() => setOpenStudent(null)} className="p-1.5 -ml-1.5 rounded-lg text-dojo-muted hover:text-dojo-white">
-            <ChevronLeft size={20} />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="font-bold text-dojo-white truncate">{current.fullName}</p>
-            <p className="text-xs text-dojo-muted">{getBeltInfo(current.beltToPresent).label}</p>
-          </div>
-        </div>
+  // ── Evaluación por criterio: un criterio a la vez, todos los alumnos abajo ──
+  const activeCriteria = data.criteria.find(c => c.id === activeCriteriaId) ?? data.criteria[0] ?? null;
+  const activeIndex    = activeCriteria ? data.criteria.findIndex(c => c.id === activeCriteria.id) : -1;
+  const nextCriteria   = activeIndex >= 0 ? data.criteria[activeIndex + 1] ?? null : null;
 
-        <div className="p-4 space-y-4 max-w-md mx-auto">
-          {data.criteria.map(c => {
-            const existing = current.scores.find(s => s.criteriaId === c.id);
-            const key = `${current.inviteeId}_${c.id}`;
-            const isSaving = saving === key;
-            const noteKey = key;
-            return (
-              <div key={c.id} className="card space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-dojo-white">{c.name}</p>
-                  <span className="text-xs text-dojo-muted">peso {c.weightPct}%</span>
-                </div>
-                <div className="grid grid-cols-6 gap-1.5">
-                  {SCALE.map(v => (
-                    <button
-                      key={v}
-                      onClick={() => saveScore(current.inviteeId, c.id, v, existing?.note ?? null)}
-                      disabled={isSaving}
-                      className={`aspect-square rounded-lg text-sm font-bold transition-colors ${
-                        existing?.value === v
-                          ? "bg-dojo-gold text-black"
-                          : "bg-dojo-border/40 text-dojo-white hover:bg-dojo-border"
-                      }`}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-                {existing != null && (
-                  <p className="flex items-center gap-1.5 text-xs text-green-400">
-                    <CheckCircle2 size={12} /> Guardado{isSaving ? "..." : ""}
-                  </p>
-                )}
-                {noteOpen === noteKey ? (
-                  <div className="space-y-2">
-                    <textarea
-                      className="form-input text-sm"
-                      rows={2}
-                      placeholder="Observación (opcional)"
-                      value={noteDraft}
-                      onChange={e => setNoteDraft(e.target.value)}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { if (existing) saveScore(current.inviteeId, c.id, existing.value, noteDraft.trim() || null); }}
-                        disabled={existing == null}
-                        className="btn-secondary text-xs flex-1"
-                      >
-                        Guardar nota
-                      </button>
-                      <button onClick={() => setNoteOpen(null)} className="btn-ghost text-xs">Cerrar</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => { setNoteOpen(noteKey); setNoteDraft(existing?.note ?? ""); }}
-                    className="text-xs text-dojo-muted hover:text-dojo-gold transition-colors"
-                  >
-                    {existing?.note ? `📝 ${existing.note}` : "+ Agregar observación"}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </main>
-    );
+  function goToNextCriteria() {
+    if (nextCriteria) {
+      setActiveCriteriaId(nextCriteria.id);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
 
-  // ── Lista de alumnos confirmados ───────────────────────────────────────
   return (
     <main className="min-h-screen bg-dojo-darker pb-10">
       <div className="sticky top-0 z-10 bg-dojo-darker/95 backdrop-blur border-b border-dojo-border px-4 py-3">
-        <p className="font-bold text-dojo-white">{data.evaluationTitle}</p>
+        <p className="font-bold text-dojo-white truncate">{data.evaluationTitle}</p>
         <p className="text-xs text-dojo-muted">Evaluando como <span className="text-dojo-gold font-medium">{data.evaluatorName}</span></p>
+
+        {data.criteria.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto mt-3 pb-1 -mx-1 px-1">
+            {data.criteria.map(c => {
+              const done = data.students.filter(s => s.scores.some(sc => sc.criteriaId === c.id)).length;
+              const isActive = activeCriteria?.id === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setActiveCriteriaId(c.id)}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                    isActive ? "bg-dojo-gold text-black" : "bg-dojo-border/40 text-dojo-white hover:bg-dojo-border"
+                  }`}
+                >
+                  {c.name} · {done}/{data.students.length}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      <div className="p-4 space-y-2 max-w-md mx-auto">
+      <div className="p-4 space-y-3 max-w-md mx-auto">
         {data.criteria.length === 0 && (
           <p className="text-center text-dojo-muted text-sm py-8">
             El administrador todavía no configuró los criterios de este examen.
@@ -248,40 +201,101 @@ export default function ExamEvaluatorPage() {
         {data.students.length === 0 && data.criteria.length > 0 && (
           <p className="text-center text-dojo-muted text-sm py-8">No hay alumnos confirmados todavía.</p>
         )}
-        {data.students.map(s => {
-          const done = s.scores.length;
-          const total = data.criteria.length;
+
+        {activeCriteria && data.students.length > 0 && (
+          <div className="card bg-dojo-gold/5 border-dojo-gold/30 flex items-center justify-between">
+            <p className="font-bold text-dojo-white">{activeCriteria.name}</p>
+            <span className="text-xs text-dojo-muted">peso {activeCriteria.weightPct}%</span>
+          </div>
+        )}
+
+        {activeCriteria && data.students.map(s => {
+          const existing = s.scores.find(sc => sc.criteriaId === activeCriteria.id);
+          const key = `${s.inviteeId}_${activeCriteria.id}`;
+          const isSaving = saving === key;
           const beltInfo = getBeltInfo(s.beltToPresent);
           return (
-            <button
-              key={s.inviteeId}
-              onClick={() => setOpenStudent(s.inviteeId)}
-              className="w-full card flex items-center gap-3 text-left hover:border-dojo-gold/40 transition-colors"
-            >
-              {s.photo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={s.photo} alt={s.fullName} className="w-11 h-11 rounded-full object-cover shrink-0" />
-              ) : (
-                <div className="w-11 h-11 rounded-full bg-dojo-border/50 flex items-center justify-center text-dojo-muted text-sm font-bold shrink-0">
-                  {s.fullName.slice(0, 1).toUpperCase()}
+            <div key={s.inviteeId} className="card space-y-3">
+              <div className="flex items-center gap-3">
+                {s.photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.photo} alt={s.fullName} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-dojo-border/50 flex items-center justify-center text-dojo-muted text-xs font-bold shrink-0">
+                    {s.fullName.slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-dojo-white truncate text-sm">{s.fullName}</p>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full"
+                    style={{ backgroundColor: beltInfo.hex + "30", color: beltInfo.hex === "#FFFFFF" ? "#aaa" : beltInfo.hex }}>
+                    {beltInfo.label}
+                  </span>
                 </div>
+                {existing != null && <CheckCircle2 size={16} className="text-green-400 shrink-0" />}
+              </div>
+
+              <div className="grid grid-cols-6 gap-1.5">
+                {SCALE.map(v => (
+                  <button
+                    key={v}
+                    onClick={() => saveScore(s.inviteeId, activeCriteria.id, v, existing?.note ?? null)}
+                    disabled={isSaving}
+                    className={`aspect-square rounded-lg text-sm font-bold transition-colors ${
+                      existing?.value === v
+                        ? "bg-dojo-gold text-black"
+                        : "bg-dojo-border/40 text-dojo-white hover:bg-dojo-border"
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+
+              {noteOpen === key ? (
+                <div className="space-y-2">
+                  <textarea
+                    className="form-input text-sm"
+                    rows={2}
+                    placeholder="Observación (opcional)"
+                    value={noteDraft}
+                    onChange={e => setNoteDraft(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { if (existing) saveScore(s.inviteeId, activeCriteria.id, existing.value, noteDraft.trim() || null); }}
+                      disabled={existing == null}
+                      className="btn-secondary text-xs flex-1"
+                    >
+                      Guardar nota
+                    </button>
+                    <button onClick={() => setNoteOpen(null)} className="btn-ghost text-xs">Cerrar</button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setNoteOpen(key); setNoteDraft(existing?.note ?? ""); }}
+                  className="text-xs text-dojo-muted hover:text-dojo-gold transition-colors"
+                >
+                  {existing?.note ? `📝 ${existing.note}` : "+ Agregar observación"}
+                </button>
               )}
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-dojo-white truncate">{s.fullName}</p>
-                <span className="text-xs px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: beltInfo.hex + "30", color: beltInfo.hex === "#FFFFFF" ? "#aaa" : beltInfo.hex }}>
-                  {beltInfo.label}
-                </span>
-              </div>
-              <div className="shrink-0 flex items-center gap-1.5 text-xs">
-                {done === total && total > 0
-                  ? <CheckCircle2 size={16} className="text-green-400" />
-                  : <Circle size={16} className="text-dojo-muted" />}
-                <span className={done === total && total > 0 ? "text-green-400" : "text-dojo-muted"}>{done}/{total}</span>
-              </div>
-            </button>
+            </div>
           );
         })}
+
+        {activeCriteria && data.students.length > 0 && (
+          nextCriteria ? (
+            <button onClick={goToNextCriteria} className="btn-primary w-full flex items-center justify-center gap-2">
+              Siguiente criterio: {nextCriteria.name} <ArrowRight size={16} />
+            </button>
+          ) : (
+            <div className="card bg-green-900/10 border-green-800/30 flex items-center gap-2.5 justify-center text-center">
+              <PartyPopper size={18} className="text-green-400 shrink-0" />
+              <p className="text-sm text-green-400 font-medium">Este era el último criterio</p>
+            </div>
+          )
+        )}
       </div>
     </main>
   );

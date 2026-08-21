@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2, Plus, Users, GraduationCap, Globe, CheckCircle, XCircle,
-  Copy, KeyRound, LogIn, Lock, Eye, EyeOff, Crown, Trash2, AlertTriangle,
+  Copy, KeyRound, LogIn, Lock, Eye, EyeOff, Trash2, AlertTriangle,
   Crown as CrownIcon, Star, RefreshCw, Loader2, Upload, ImageIcon, FileText,
   Mail, Phone,
 } from "lucide-react";

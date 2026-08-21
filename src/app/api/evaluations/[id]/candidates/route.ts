@@ -25,15 +25,15 @@ export async function GET(req: NextRequest, { params }: Params) {
     const evaluation = await prisma.evaluation.findFirst({ where: { id, dojoId } });
     if (!evaluation) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
-    const links = await prisma.evaluationLink.findMany({ where: { evaluationId: id }, select: { applicationId: true } });
+    const links = await prisma.evaluationLink.findMany({ where: { evaluationId: id }, select: { applicationId: true, beltFilter: true } });
     const applicationIds = links.map(l => l.applicationId);
 
-    const [invitees, criteriaCount, evaluatorCount] = await Promise.all([
+    const [allInvitees, criteriaCount, evaluatorCount] = await Promise.all([
       applicationIds.length > 0
         ? prisma.examApplicationInvitee.findMany({
             where:  { applicationId: { in: applicationIds }, response: "ACCEPTED" },
             select: {
-              id: true, beltToPresent: true, finalScore: true, passed: true,
+              id: true, beltToPresent: true, finalScore: true, passed: true, applicationId: true,
               student:    { select: { id: true, fullName: true, photo: true } },
               application: { select: { id: true, title: true } },
               _count:     { select: { scores: true } },
@@ -44,6 +44,14 @@ export async function GET(req: NextRequest, { params }: Params) {
       prisma.examCriteria.count({ where: { evaluationId: id } }),
       prisma.examEvaluator.count({ where: { evaluationId: id } }),
     ]);
+
+    // Un mismo applicationId puede estar vinculado con distintos beltFilter —
+    // un postulado solo es candidato real si su cinta cae dentro de alguno
+    // de los vínculos de ESTA Evaluación (vacío = todas las cintas de ese vínculo).
+    const invitees = allInvitees.filter(inv =>
+      links.some(l => l.applicationId === inv.applicationId
+        && (l.beltFilter.length === 0 || l.beltFilter.includes(inv.beltToPresent))),
+    );
 
     const expectedScoresPerInvitee = criteriaCount * evaluatorCount;
 

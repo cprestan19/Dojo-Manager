@@ -25,7 +25,6 @@ export function PaymentTab({ token, club, totals, onRefresh }: Props) {
   const [error,       setError]       = useState("");
   const [saved,       setSaved]       = useState(false);
 
-  const bg    = "#0d1117";
   const card  = "rgba(255,255,255,0.05)";
   const border = "rgba(255,255,255,0.1)";
   const isPaid = club.paymentStatus === "paid" || club.paymentStatus === "waived";

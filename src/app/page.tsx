@@ -6,7 +6,7 @@ import {
   BarChart2, QrCode, Shield, Star, Check, ChevronDown,
   MessageCircle, ArrowRight, Zap, Clock, X, Menu,
   Smartphone, Bell, Video, Lock, Wifi, Calendar,
-  ChevronRight, TrendingUp, Mail, IdCard,
+  TrendingUp, Mail, IdCard,
 } from "lucide-react";
 // FIX: eliminados imports no usados: Play, Gift, Sparkles, ClipboardList
 
