@@ -94,11 +94,13 @@ export default function EvaluacionDetallePage() {
   const [linkSaving, setLinkSaving] = useState(false);
   const [pickerApp, setPickerApp] = useState<PickerApp | null>(null); // paso 2: elegir cintas
   const [pickerBelts, setPickerBelts] = useState<Set<string>>(new Set());
+  const [justLinked, setJustLinked] = useState<string | null>(null);
 
   async function openPicker() {
     setPickerOpen(true);
     setPickerApp(null);
     setPickerBelts(new Set());
+    setJustLinked(null);
     setLinkError("");
     if (pickerApps.length > 0) return;
     setPickerLoading(true);
@@ -112,6 +114,7 @@ export default function EvaluacionDetallePage() {
     setPickerOpen(false);
     setPickerApp(null);
     setPickerBelts(new Set());
+    setJustLinked(null);
     setLinkError("");
   }
 
@@ -134,7 +137,11 @@ export default function EvaluacionDetallePage() {
       });
       const d = await res.json() as { error?: string };
       if (!res.ok) { setLinkError(d.error ?? "Error al vincular"); return; }
-      closePicker();
+      // No cerramos el modal — vuelve a la lista para poder vincular otra
+      // postulación de una vez, sin tener que reabrir "Llamar postulación".
+      setJustLinked(pickerApp.title);
+      setPickerApp(null);
+      setPickerBelts(new Set());
       await load();
     } finally { setLinkSaving(false); }
   }
@@ -500,9 +507,17 @@ export default function EvaluacionDetallePage() {
             ) : (
               <>
                 <div className="flex items-center justify-between">
-                  <p className="font-semibold text-dojo-white">Llamar postulación</p>
-                  <button onClick={closePicker} className="p-1 text-dojo-muted hover:text-dojo-white"><X size={18} /></button>
+                  <div>
+                    <p className="font-semibold text-dojo-white">Llamar postulación</p>
+                    <p className="text-xs text-dojo-muted">Puedes vincular varias, una a la vez — el modal se queda abierto.</p>
+                  </div>
+                  <button onClick={closePicker} className="p-1 text-dojo-muted hover:text-dojo-white shrink-0"><X size={18} /></button>
                 </div>
+                {justLinked && (
+                  <div className="text-green-400 text-xs bg-green-900/20 border border-green-800/40 rounded-lg px-3 py-2">
+                    ✓ &quot;{justLinked}&quot; vinculada — elige otra o cierra cuando termines.
+                  </div>
+                )}
                 {linkError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{linkError}</div>}
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dojo-muted" />
@@ -513,7 +528,7 @@ export default function EvaluacionDetallePage() {
                 ) : (
                   <div className="max-h-64 overflow-y-auto space-y-1">
                     {pickerFiltered.map(a => (
-                      <button key={a.id} onClick={() => { setPickerApp(a); setPickerBelts(new Set()); setLinkError(""); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-dojo-border/40 text-left transition-colors">
+                      <button key={a.id} onClick={() => { setPickerApp(a); setPickerBelts(new Set()); setLinkError(""); setJustLinked(null); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-dojo-border/40 text-left transition-colors">
                         <span className="flex-1 min-w-0 text-sm text-dojo-white truncate">{a.title}</span>
                         <span className="text-xs text-dojo-muted shrink-0">{a.accepted} aceptados</span>
                       </button>

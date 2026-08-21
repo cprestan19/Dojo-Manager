@@ -90,35 +90,36 @@ export default function EvaluacionesPage() {
         </div>
       </div>
 
-      <div className="space-y-2">
-        {evaluations.map(ev => (
-          <Link key={ev.id} href={`/dashboard/evaluaciones/${ev.id}`} className="card flex items-center gap-4 hover:border-dojo-gold/40 transition-colors">
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-dojo-white truncate">{ev.title}</p>
-              <p className="text-xs text-dojo-muted">
-                {new Date(ev.createdAt).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric" })}
-              </p>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-dojo-muted shrink-0">
-              <span className="flex items-center gap-1"><Users size={12} /> {ev._count.links}</span>
-              <span className="flex items-center gap-1"><Star size={12} /> {ev._count.criteria}</span>
-              <span className="flex items-center gap-1"><UserCog size={12} /> {ev._count.evaluators}</span>
-            </div>
-            {isAdmin && (
-              <button
-                onClick={e => { e.preventDefault(); e.stopPropagation(); setDeleteError(""); setConfirmDel(ev); }}
-                className="p-1.5 rounded-lg text-dojo-muted hover:text-red-400 hover:bg-red-900/20 transition-colors shrink-0"
-                title="Eliminar evaluación"
-              >
-                <Trash2 size={14} />
-              </button>
-            )}
-          </Link>
-        ))}
-        {evaluations.length === 0 && (
-          <p className="text-center text-dojo-muted text-sm py-8">Todavía no hay evaluaciones — crea la primera arriba.</p>
-        )}
-      </div>
+      {evaluations.length === 0 ? (
+        <p className="text-center text-dojo-muted text-sm py-8">Todavía no hay evaluaciones — crea la primera arriba.</p>
+      ) : (
+        <div className="rounded-xl border border-dojo-border divide-y divide-dojo-border overflow-hidden">
+          {evaluations.map(ev => (
+            <Link key={ev.id} href={`/dashboard/evaluaciones/${ev.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-dojo-border/20 transition-colors">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-dojo-white truncate">{ev.title}</p>
+                <p className="text-xs text-dojo-muted">
+                  {new Date(ev.createdAt).toLocaleDateString("es-PA", { day: "2-digit", month: "short", year: "numeric" })}
+                </p>
+              </div>
+              <div className="hidden sm:flex items-center gap-3 text-xs text-dojo-muted shrink-0">
+                <span className="flex items-center gap-1"><Users size={12} /> {ev._count.links}</span>
+                <span className="flex items-center gap-1"><Star size={12} /> {ev._count.criteria}</span>
+                <span className="flex items-center gap-1"><UserCog size={12} /> {ev._count.evaluators}</span>
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={e => { e.preventDefault(); e.stopPropagation(); setDeleteError(""); setConfirmDel(ev); }}
+                  className="p-1.5 rounded-lg text-dojo-muted hover:text-red-400 hover:bg-red-900/20 transition-colors shrink-0"
+                  title="Eliminar evaluación"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Modal eliminar evaluación */}
       {confirmDel && (
