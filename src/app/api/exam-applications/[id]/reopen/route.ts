@@ -7,15 +7,18 @@ import { logAudit, buildAuditCtx, AUDIT_MODULE } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 
-// POST /api/exam-applications/[id]/reopen — FINALIZED → CLOSED
-//
-// Vuelve solo a CLOSED, nunca a PUBLISHED: agregar alumnos nuevos sigue
-// bloqueado (canAddStudents solo permite DRAFT/PUBLISHED), así que reabrir
-// nunca permite incluir a nadie que no estuviera ya en la postulación. Sirve
-// para corregir asistencia/aprobado de alumnos que faltaron y volver a
-// Finalizar — esa segunda corrida es idempotente (ver beltAwarded /
-// resultNotifiedAt en finalize/route.ts), no repite cinta ni notificación a
-// quien ya se procesó.
+// POST /api/exam-applications/[id]/reopen — un paso hacia atrás:
+//   FINALIZED → CLOSED : corregir asistencia/aprobado y volver a Finalizar.
+//     Nunca permite agregar alumnos nuevos (canAddStudents solo permite
+//     DRAFT/PUBLISHED); esa segunda corrida de Finalizar es idempotente (ver
+//     beltAwarded/resultNotifiedAt en finalize/route.ts) — no repite cinta ni
+//     notificación a quien ya se procesó.
+//   CLOSED → PUBLISHED : reabre las inscripciones (ej. se cerró antes de
+//     tiempo) — los alumnos vuelven a poder responder desde el portal.
+//     Bloqueado si ya hay asistencia/aprobado registrado (señal de que el
+//     examen ya empezó) — para ese caso conviene crear una Postulación nueva.
+// Nunca reabre una PUBLISHED/DRAFT (no aplica) ni salta directo de FINALIZED
+// a PUBLISHED (siempre un paso a la vez).
 export async function POST(req: NextRequest, { params }: Params) {
   try {
     const session = await getServerSession(authOptions);
@@ -33,11 +36,26 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     const existing = await prisma.examApplication.findFirst({ where: { id, dojoId } });
     if (!existing) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
-    if (existing.status !== "FINALIZED") {
-      return NextResponse.json({ error: "Solo se puede reabrir una postulación finalizada" }, { status: 400 });
+
+    let newStatus: "CLOSED" | "PUBLISHED";
+    if (existing.status === "FINALIZED") {
+      newStatus = "CLOSED";
+    } else if (existing.status === "CLOSED") {
+      const hasExamActivity = await prisma.examApplicationInvitee.findFirst({
+        where: { applicationId: id, OR: [{ attended: true }, { passed: { not: null } }] },
+        select: { id: true },
+      });
+      if (hasExamActivity) {
+        return NextResponse.json({
+          error: "Ya hay asistencia o resultados registrados — no se puede reabrir para inscripciones. Crea una nueva Postulación si necesitas invitar a más alumnos.",
+        }, { status: 400 });
+      }
+      newStatus = "PUBLISHED";
+    } else {
+      return NextResponse.json({ error: "Solo se puede reabrir una postulación cerrada o finalizada" }, { status: 400 });
     }
 
-    const updated = await prisma.examApplication.update({ where: { id }, data: { status: "CLOSED" } });
+    const updated = await prisma.examApplication.update({ where: { id }, data: { status: newStatus } });
 
     const ctx = buildAuditCtx(session, req, { dojoId });
     await logAudit({
@@ -47,6 +65,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       resourceType: "ExamApplication",
       resourceId:   id,
       statusCode:   200,
+      details:      JSON.stringify({ from: existing.status, to: newStatus }),
     });
 
     return NextResponse.json(updated);

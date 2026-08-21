@@ -39,6 +39,12 @@ const NAV_GROUPS = [
     keys: [NAV_KEYS.USERS, NAV_KEYS.DOJOS],
   },
   {
+    label: "Graduaciones",
+    keys: [
+      NAV_KEYS.POSTULACIONES, NAV_KEYS.EVALUATIONS, NAV_KEYS.EXAM_ATTENDANCE, NAV_KEYS.CERTIFICADOS,
+    ],
+  },
+  {
     label: "Configuración",
     keys: [
       NAV_KEYS.SETTINGS_GENERAL, NAV_KEYS.SETTINGS_KATAS, NAV_KEYS.SETTINGS_VIDEOS,

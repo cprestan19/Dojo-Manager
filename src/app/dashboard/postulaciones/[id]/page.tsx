@@ -359,9 +359,18 @@ export default function PostulacionDetallePage() {
             </button>
           )}
           {app.status === "CLOSED" && (
-            <button onClick={() => changeStatus("finalize")} disabled={!!actioning} className="btn-secondary text-sm">
-              {actioning === "finalize" ? <Loader2 size={14} className="animate-spin" /> : "Finalizar"}
-            </button>
+            <>
+              <button
+                onClick={() => { if (confirm("¿Reabrir inscripciones? Vuelve a estado \"Publicada\" — los alumnos podrán volver a inscribirse/responder desde el portal.")) changeStatus("reopen"); }}
+                disabled={!!actioning}
+                className="btn-ghost text-sm"
+              >
+                {actioning === "reopen" ? <Loader2 size={14} className="animate-spin" /> : "Reabrir inscripciones"}
+              </button>
+              <button onClick={() => changeStatus("finalize")} disabled={!!actioning} className="btn-secondary text-sm">
+                {actioning === "finalize" ? <Loader2 size={14} className="animate-spin" /> : "Finalizar"}
+              </button>
+            </>
           )}
           {app.status === "FINALIZED" && (
             <button
