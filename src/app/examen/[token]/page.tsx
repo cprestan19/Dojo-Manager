@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, CheckCircle2, Lock, ArrowRight, ArrowLeft, PartyPopper } from "lucide-react";
+import { Loader2, CheckCircle2, Lock, ArrowRight, ArrowLeft, PartyPopper, ArrowLeftRight } from "lucide-react";
 import { getBeltInfo } from "@/lib/utils";
 
 interface Criteria { id: string; name: string; weightPct: number; order: number }
@@ -14,6 +14,14 @@ interface StudentRow {
   beltToPresent: string;
   scores:        ScoreEntry[];
 }
+interface FederatedStudentRow {
+  federatedCandidateId: string;
+  fullName:      string;
+  photo:         string | null;
+  beltToPresent: string;
+  dojoLabel:     string;
+  scores:        ScoreEntry[];
+}
 interface ExamData {
   evaluatorName:   string;
   active:          boolean;
@@ -22,6 +30,23 @@ interface ExamData {
   dojoName:        string;
   criteria:        Criteria[];
   students:        StudentRow[];
+  federatedStudents: FederatedStudentRow[];
+  canReassign:     boolean;
+  otherEvaluators: { id: string; name: string }[];
+}
+
+// Fila unificada para renderizar — local o de un dojo hijo vinculado, mismo
+// componente visual, distinguido por `kind` para saber a qué endpoint apuntar.
+interface CandidateRow {
+  key:           string;
+  kind:          "local" | "federated";
+  inviteeId?:    string;
+  federatedCandidateId?: string;
+  fullName:      string;
+  photo:         string | null;
+  beltToPresent: string;
+  dojoLabel?:    string;
+  scores:        ScoreEntry[];
 }
 
 const SCALE = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
@@ -38,6 +63,9 @@ export default function ExamEvaluatorPage() {
   const [saving,      setSaving]      = useState<string | null>(null); // `${inviteeId}_${criteriaId}`
   const [noteOpen,    setNoteOpen]    = useState<string | null>(null);
   const [noteDraft,   setNoteDraft]   = useState("");
+  const [moveOpen,    setMoveOpen]    = useState<string | null>(null); // key del candidato
+  const [moving,      setMoving]      = useState<string | null>(null);
+  const [moveError,   setMoveError]   = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -71,27 +99,61 @@ export default function ExamEvaluatorPage() {
     }
   }
 
-  async function saveScore(inviteeId: string, criteriaId: string, value: number, note: string | null) {
-    const key = `${inviteeId}_${criteriaId}`;
+  async function saveScore(row: CandidateRow, criteriaId: string, value: number, note: string | null) {
+    const key = `${row.key}_${criteriaId}`;
     setSaving(key);
     try {
       const res = await fetch(`/api/public/exam/${token}/score`, {
         method:  "PUT",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ inviteeId, criteriaId, value, note }),
+        body:    JSON.stringify(
+          row.kind === "federated"
+            ? { federatedCandidateId: row.federatedCandidateId, criteriaId, value, note }
+            : { inviteeId: row.inviteeId, criteriaId, value, note },
+        ),
       });
       if (res.ok && data) {
         setData({
           ...data,
-          students: data.students.map(s => s.inviteeId !== inviteeId ? s : {
-            ...s,
-            scores: [...s.scores.filter(sc => sc.criteriaId !== criteriaId), { criteriaId, value, note }],
-          }),
+          students: row.kind === "local"
+            ? data.students.map(s => s.inviteeId !== row.inviteeId ? s : {
+                ...s,
+                scores: [...s.scores.filter(sc => sc.criteriaId !== criteriaId), { criteriaId, value, note }],
+              })
+            : data.students,
+          federatedStudents: row.kind === "federated"
+            ? data.federatedStudents.map(s => s.federatedCandidateId !== row.federatedCandidateId ? s : {
+                ...s,
+                scores: [...s.scores.filter(sc => sc.criteriaId !== criteriaId), { criteriaId, value, note }],
+              })
+            : data.federatedStudents,
         });
       }
     } finally {
       setSaving(null);
       setNoteOpen(null);
+    }
+  }
+
+  async function moveCandidate(row: CandidateRow, toEvaluatorId: string) {
+    setMoveError(null);
+    setMoving(row.key);
+    try {
+      const res = await fetch(`/api/public/exam/${token}/reassign`, {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(
+          row.kind === "federated"
+            ? { federatedCandidateId: row.federatedCandidateId, toEvaluatorId }
+            : { inviteeId: row.inviteeId, toEvaluatorId },
+        ),
+      });
+      const d = await res.json() as { error?: string };
+      if (!res.ok) { setMoveError(d.error ?? "No se pudo mudar"); return; }
+      setMoveOpen(null);
+      await load();
+    } finally {
+      setMoving(null);
     }
   }
 
@@ -154,6 +216,18 @@ export default function ExamEvaluatorPage() {
   }
 
   // ── Evaluación por criterio: un criterio a la vez, todos los alumnos abajo ──
+  // Candidatos locales + de dojos hijo vinculados, misma fila unificada.
+  const candidates: CandidateRow[] = [
+    ...data.students.map(s => ({
+      key: s.inviteeId, kind: "local" as const, inviteeId: s.inviteeId,
+      fullName: s.fullName, photo: s.photo, beltToPresent: s.beltToPresent, scores: s.scores,
+    })),
+    ...data.federatedStudents.map(s => ({
+      key: s.federatedCandidateId, kind: "federated" as const, federatedCandidateId: s.federatedCandidateId,
+      fullName: s.fullName, photo: s.photo, beltToPresent: s.beltToPresent, dojoLabel: s.dojoLabel, scores: s.scores,
+    })),
+  ].sort((a, b) => a.fullName.localeCompare(b.fullName));
+
   const activeCriteria = data.criteria.find(c => c.id === activeCriteriaId) ?? data.criteria[0] ?? null;
   const activeIndex    = activeCriteria ? data.criteria.findIndex(c => c.id === activeCriteria.id) : -1;
   const nextCriteria   = activeIndex >= 0 ? data.criteria[activeIndex + 1] ?? null : null;
@@ -174,7 +248,7 @@ export default function ExamEvaluatorPage() {
         {data.criteria.length > 0 && (
           <div className="flex gap-1.5 overflow-x-auto mt-3 pb-1 -mx-1 px-1">
             {data.criteria.map(c => {
-              const done = data.students.filter(s => s.scores.some(sc => sc.criteriaId === c.id)).length;
+              const done = candidates.filter(s => s.scores.some(sc => sc.criteriaId === c.id)).length;
               const isActive = activeCriteria?.id === c.id;
               return (
                 <button
@@ -184,7 +258,7 @@ export default function ExamEvaluatorPage() {
                     isActive ? "bg-dojo-gold text-black" : "bg-dojo-border/40 text-dojo-white hover:bg-dojo-border"
                   }`}
                 >
-                  {c.name} · {done}/{data.students.length}
+                  {c.name} · {done}/{candidates.length}
                 </button>
               );
             })}
@@ -198,26 +272,26 @@ export default function ExamEvaluatorPage() {
             El administrador todavía no configuró los criterios de este examen.
           </p>
         )}
-        {data.students.length === 0 && data.criteria.length > 0 && (
+        {candidates.length === 0 && data.criteria.length > 0 && (
           <p className="text-center text-dojo-muted text-sm py-8">No hay alumnos confirmados todavía.</p>
         )}
 
-        {activeCriteria && data.students.length > 0 && (
+        {activeCriteria && candidates.length > 0 && (
           <div className="card bg-dojo-gold/5 border-dojo-gold/30 flex items-center justify-between">
             <p className="font-bold text-dojo-white">{activeCriteria.name}</p>
             <span className="text-xs text-dojo-muted">peso {activeCriteria.weightPct}%</span>
           </div>
         )}
 
-        {activeCriteria && data.students.length > 0 && (
+        {activeCriteria && candidates.length > 0 && (
           <div className="rounded-xl border border-dojo-border divide-y divide-dojo-border overflow-hidden">
-            {data.students.map(s => {
+            {candidates.map(s => {
               const existing = s.scores.find(sc => sc.criteriaId === activeCriteria.id);
-              const key = `${s.inviteeId}_${activeCriteria.id}`;
+              const key = `${s.key}_${activeCriteria.id}`;
               const isSaving = saving === key;
               const beltInfo = getBeltInfo(s.beltToPresent);
               return (
-                <div key={s.inviteeId} className="px-3 py-2.5 space-y-1.5">
+                <div key={s.key} className="px-3 py-2.5 space-y-1.5">
                   <div className="flex items-center gap-2">
                     {/* Foto + nombre + cinta — fijos, no se van con el scroll horizontal */}
                     <div className="flex items-center gap-2 shrink-0 w-[132px]">
@@ -235,6 +309,9 @@ export default function ExamEvaluatorPage() {
                           style={{ backgroundColor: beltInfo.hex + "30", color: beltInfo.hex === "#FFFFFF" ? "#aaa" : beltInfo.hex }}>
                           {beltInfo.label}
                         </span>
+                        {s.dojoLabel && (
+                          <span className="text-[9px] text-dojo-gold/80 block truncate">↳ {s.dojoLabel}</span>
+                        )}
                       </div>
                     </div>
 
@@ -243,7 +320,7 @@ export default function ExamEvaluatorPage() {
                       {SCALE.map(v => (
                         <button
                           key={v}
-                          onClick={() => saveScore(s.inviteeId, activeCriteria.id, v, existing?.note ?? null)}
+                          onClick={() => saveScore(s, activeCriteria.id, v, existing?.note ?? null)}
                           disabled={isSaving}
                           className={`w-8 h-8 shrink-0 rounded-lg text-sm font-bold transition-colors ${
                             existing?.value === v
@@ -257,7 +334,37 @@ export default function ExamEvaluatorPage() {
                     </div>
 
                     {existing != null && <CheckCircle2 size={15} className="text-green-400 shrink-0" />}
+
+                    {data.canReassign && data.otherEvaluators.length > 0 && (
+                      <button
+                        onClick={() => { setMoveOpen(moveOpen === s.key ? null : s.key); setMoveError(null); }}
+                        disabled={s.scores.length > 0}
+                        title={s.scores.length > 0 ? "Ya lo evaluaste — no se puede mudar" : "Mudar a otro Sensei"}
+                        className="p-1 rounded-lg text-dojo-muted hover:text-dojo-gold hover:bg-dojo-gold/10 transition-colors shrink-0 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-dojo-muted"
+                      >
+                        <ArrowLeftRight size={14} />
+                      </button>
+                    )}
                   </div>
+
+                  {moveOpen === s.key && (
+                    <div className="pl-[140px] space-y-1.5">
+                      <p className="text-xs text-dojo-muted">Mudar a:</p>
+                      {moveError && <p className="text-xs text-red-400">{moveError}</p>}
+                      <div className="flex flex-wrap gap-1.5">
+                        {data.otherEvaluators.map(ev => (
+                          <button
+                            key={ev.id}
+                            onClick={() => moveCandidate(s, ev.id)}
+                            disabled={moving === s.key}
+                            className="text-xs px-2.5 py-1 rounded-full bg-dojo-border/40 text-dojo-white hover:bg-dojo-border transition-colors flex items-center gap-1"
+                          >
+                            {moving === s.key ? <Loader2 size={11} className="animate-spin" /> : null} {ev.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {noteOpen === key ? (
                     <div className="space-y-2 pl-[140px]">
@@ -270,7 +377,7 @@ export default function ExamEvaluatorPage() {
                       />
                       <div className="flex gap-2">
                         <button
-                          onClick={() => { if (existing) saveScore(s.inviteeId, activeCriteria.id, existing.value, noteDraft.trim() || null); }}
+                          onClick={() => { if (existing) saveScore(s, activeCriteria.id, existing.value, noteDraft.trim() || null); }}
                           disabled={existing == null}
                           className="btn-secondary text-xs flex-1"
                         >
@@ -293,7 +400,7 @@ export default function ExamEvaluatorPage() {
           </div>
         )}
 
-        {activeCriteria && data.students.length > 0 && (
+        {activeCriteria && candidates.length > 0 && (
           nextCriteria ? (
             <button onClick={goToNextCriteria} className="btn-primary w-full flex items-center justify-center gap-2">
               Siguiente criterio: {nextCriteria.name} <ArrowRight size={16} />

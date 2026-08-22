@@ -47,6 +47,8 @@ interface Application {
   status:      string;
   archivedAt:  string | null;
   invitees:    Invitee[];
+  offeredToParentAt:         string | null;
+  offeredToParentBeltFilter: string[];
 }
 
 interface CertTemplate { id: string; name: string; isDefault: boolean; }
@@ -120,6 +122,11 @@ export default function PostulacionDetallePage() {
 
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
+  // Federación cross-dojo: solo tiene sentido ofrecer esta postulación si el
+  // dojo tiene un padre ACTIVE vinculado.
+  const [parentDojoName, setParentDojoName] = useState<string | null>(null);
+  const [offerSaving, setOfferSaving] = useState(false);
+
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -129,7 +136,28 @@ export default function PostulacionDetallePage() {
     } finally { if (!silent) setLoading(false); }
   }, [id]);
 
-  useEffect(() => { load(); loadTemplates(); }, [load]);
+  const loadFederationStatus = useCallback(async () => {
+    const res = await fetch("/api/dojo-federation/status");
+    if (res.ok) {
+      const d = await res.json() as { asChild: { status: string; parentDojoName: string } | null };
+      setParentDojoName(d.asChild?.status === "ACTIVE" ? d.asChild.parentDojoName : null);
+    }
+  }, []);
+
+  useEffect(() => { load(); loadTemplates(); loadFederationStatus(); }, [load, loadFederationStatus]);
+
+  async function toggleOfferToParent() {
+    if (!app) return;
+    setOfferSaving(true);
+    try {
+      const res = await fetch(`/api/exam-applications/${id}/offer-to-parent`, {
+        method: app.offeredToParentAt ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: app.offeredToParentAt ? undefined : JSON.stringify({ beltFilter: [] }),
+      });
+      if (res.ok) await load(true);
+    } finally { setOfferSaving(false); }
+  }
 
   // Auto-polling cada 15s mientras la página es visible
   useEffect(() => {
@@ -402,6 +430,21 @@ export default function PostulacionDetallePage() {
           </button>
         </div>
       </div>
+
+      {canShowAttendance && parentDojoName && (
+        <div className="flex items-center justify-between gap-3 bg-dojo-gold/10 border border-dojo-gold/30 rounded-lg px-3 py-2.5 text-sm flex-wrap">
+          <span className="text-dojo-white">
+            🔗 Tu dojo padre es <span className="font-semibold">{parentDojoName}</span>.
+            {app.offeredToParentAt
+              ? " Esta postulación está ofrecida — pueden \"llamarla\" desde una de sus Evaluaciones."
+              : " Puedes ofrecerles esta postulación para que la usen en una de sus Evaluaciones (solo nombre, foto y cinta — nada más)."}
+          </span>
+          <button onClick={toggleOfferToParent} disabled={offerSaving} className="btn-secondary text-xs shrink-0 flex items-center gap-1.5">
+            {offerSaving ? <Loader2 size={13} className="animate-spin" /> : null}
+            {app.offeredToParentAt ? "Retirar oferta" : "Ofrecer a mi dojo padre"}
+          </button>
+        </div>
+      )}
 
       {perms.has(NAV_KEYS.CERTIFICADOS) && !templates.some(t => t.isDefault) && (
         <div className="flex items-center justify-between gap-3 bg-orange-900/20 border border-orange-800/40 rounded-lg px-3 py-2.5 text-sm flex-wrap">

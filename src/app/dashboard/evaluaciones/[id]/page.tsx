@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   ChevronLeft, Loader2, Trash2, Power, Copy, Check, Plus, Link2,
-  Search, X, CheckCircle2, Circle, XCircle, Lock, Pencil, ArrowLeft, ClipboardCheck,
+  Search, X, CheckCircle2, Circle, XCircle, Lock, Pencil, ArrowLeft, ClipboardCheck, Shuffle, AlertTriangle,
 } from "lucide-react";
 import { getBeltInfo, BELT_COLORS } from "@/lib/utils";
 
@@ -25,11 +25,20 @@ interface EvaluationDetail {
   resultsConfirmedAt: string | null;
 }
 interface Candidate {
-  inviteeId: string; studentId: string; fullName: string; photo: string | null;
+  source: "local" | "federated";
+  inviteeId?: string; federatedCandidateId?: string;
+  studentId?: string; fullName: string; photo: string | null;
   beltToPresent: string; finalScore: number | null; passed: boolean | null;
-  applicationTitle: string; scoresGiven: number; scoresExpected: number;
+  applicationTitle: string; childDojoName?: string; scoresGiven: number; scoresExpected: number;
+  homeInstructorName: string | null;
+  assignedEvaluatorName: string | null;
+  assignmentForced: boolean;
 }
 interface PickerApp { id: string; title: string; status: string; accepted: number; beltCounts: Record<string, number> }
+interface FederatedOffer {
+  applicationId: string; title: string; examDate: string; examTime: string;
+  childDojoName: string; beltFilter: string[]; candidateCount: number;
+}
 
 // Chips de cinta ordenados por progresión (blanca → negra), solo las que
 // tienen al menos un postulado aceptado en la postulación en cuestión.
@@ -188,6 +197,55 @@ export default function EvaluacionDetallePage() {
     } finally { setEditSaving(false); }
   }
 
+  // ── Llamar dojo (federación cross-dojo) ──────────────────────────────
+  const [fedPickerOpen, setFedPickerOpen] = useState(false);
+  const [fedOffers, setFedOffers] = useState<FederatedOffer[]>([]);
+  const [fedLoading, setFedLoading] = useState(false);
+  const [fedApp, setFedApp] = useState<FederatedOffer | null>(null);
+  const [fedBelts, setFedBelts] = useState<Set<string>>(new Set());
+  const [fedError, setFedError] = useState("");
+  const [fedSaving, setFedSaving] = useState(false);
+  const [fedJustLinked, setFedJustLinked] = useState<string | null>(null);
+
+  async function openFedPicker() {
+    setFedPickerOpen(true);
+    setFedApp(null);
+    setFedBelts(new Set());
+    setFedError("");
+    setFedJustLinked(null);
+    setFedLoading(true);
+    try {
+      const res = await fetch("/api/dojo-federation/offers");
+      if (res.ok) setFedOffers(await res.json() as FederatedOffer[]);
+    } finally { setFedLoading(false); }
+  }
+
+  function toggleFedBelt(belt: string) {
+    setFedBelts(prev => {
+      const next = new Set(prev);
+      if (next.has(belt)) next.delete(belt); else next.add(belt);
+      return next;
+    });
+  }
+
+  async function confirmFedLink() {
+    if (!fedApp) return;
+    setFedError("");
+    setFedSaving(true);
+    try {
+      const res = await fetch(`/api/evaluations/${id}/federated-link`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: fedApp.applicationId, beltFilter: [...fedBelts] }),
+      });
+      const d = await res.json() as { error?: string };
+      if (!res.ok) { setFedError(d.error ?? "Error al vincular"); return; }
+      setFedJustLinked(`${fedApp.title} (${fedApp.childDojoName})`);
+      setFedApp(null);
+      setFedBelts(new Set());
+      await load();
+    } finally { setFedSaving(false); }
+  }
+
   // ── Criterios ──────────────────────────────────────────────────────────
   const [newCritName,   setNewCritName]   = useState("");
   const [newCritWeight, setNewCritWeight] = useState("");
@@ -239,6 +297,38 @@ export default function EvaluacionDetallePage() {
   const [deletingEvaluation, setDeletingEvaluation] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // ── Distribución 1-a-1 Sensei↔alumno ──────────────────────────────────
+  const [distributing, setDistributing] = useState(false);
+  const [distributeMsg, setDistributeMsg] = useState<string | null>(null);
+  const [distributeError, setDistributeError] = useState("");
+  const [editingInstructorFor, setEditingInstructorFor] = useState<string | null>(null); // studentId
+  const [instructorDraft, setInstructorDraft] = useState("");
+  const [savingInstructor, setSavingInstructor] = useState(false);
+
+  async function distributeCandidates() {
+    setDistributeError("");
+    setDistributeMsg(null);
+    setDistributing(true);
+    try {
+      const res = await fetch(`/api/evaluations/${id}/distribute`, { method: "POST" });
+      const d = await res.json() as { error?: string; assigned?: number; forced?: number; message?: string };
+      if (!res.ok) { setDistributeError(d.error ?? "Error al distribuir"); return; }
+      setDistributeMsg(d.message ?? `${d.assigned} candidato(s) repartidos${d.forced ? ` — ${d.forced} forzado(s) por proporción numérica` : ""}.`);
+      await load();
+    } finally { setDistributing(false); }
+  }
+
+  async function saveInstructor(studentId: string) {
+    setSavingInstructor(true);
+    try {
+      const res = await fetch(`/api/students/${studentId}/home-instructor`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ homeInstructorName: instructorDraft.trim() || null }),
+      });
+      if (res.ok) { setEditingInstructorFor(null); await load(); }
+    } finally { setSavingInstructor(false); }
+  }
+
   // ── Generar resultados / Confirmar evaluación ────────────────────────
   const [resultsMode, setResultsMode] = useState(false);
   const [passDecisions, setPassDecisions] = useState<Record<string, boolean>>({});
@@ -288,24 +378,29 @@ export default function EvaluacionDetallePage() {
   function openResultsMode() {
     const prefill: Record<string, boolean> = {};
     for (const c of candidates) {
-      if (c.passed != null) prefill[c.inviteeId] = c.passed;
+      if (c.passed != null) prefill[candidateKey(c)] = c.passed;
     }
     setPassDecisions(prefill);
     setResultsMode(true);
   }
 
-  function setPassDecision(inviteeId: string, passed: boolean) {
-    setPassDecisions(prev => ({ ...prev, [inviteeId]: passed }));
+  function setPassDecision(key: string, passed: boolean) {
+    setPassDecisions(prev => ({ ...prev, [key]: passed }));
   }
 
   async function confirmResults() {
     setConfirmResultsError("");
     setConfirmingResults(true);
     try {
-      const decisions = Object.entries(passDecisions).map(([inviteeId, passed]) => ({ inviteeId, passed }));
+      const decisions = Object.entries(passDecisions)
+        .filter(([key]) => !key.startsWith("fed_"))
+        .map(([inviteeId, passed]) => ({ inviteeId, passed }));
+      const federatedDecisions = Object.entries(passDecisions)
+        .filter(([key]) => key.startsWith("fed_"))
+        .map(([key, passed]) => ({ federatedCandidateId: key.slice(4), passed }));
       const res = await fetch(`/api/evaluations/${id}/confirm-results`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decisions }),
+        body: JSON.stringify({ decisions, federatedDecisions }),
       });
       const d = await res.json() as { error?: string };
       if (!res.ok) { setConfirmResultsError(d.error ?? "Error al confirmar"); return; }
@@ -326,6 +421,13 @@ export default function EvaluacionDetallePage() {
       const d = await res.json() as { error?: string };
       setDeleteError(d.error ?? "Error al eliminar");
     } finally { setDeletingEvaluation(false); }
+  }
+
+  // Candidatos locales usan inviteeId; federados usan federatedCandidateId
+  // prefijado ("fed_") para no chocar con decisiones de candidatos locales
+  // que compartan el mismo cuid por casualidad entre tablas distintas.
+  function candidateKey(c: Candidate): string {
+    return c.source === "federated" ? `fed_${c.federatedCandidateId}` : c.inviteeId!;
   }
 
   function evaluatorLink(token: string) {
@@ -376,9 +478,14 @@ export default function EvaluacionDetallePage() {
       <div className="card space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-dojo-white text-sm flex items-center gap-1.5"><Link2 size={14} /> Postulaciones vinculadas</h3>
-          <button onClick={openPicker} className="btn-secondary text-xs flex items-center gap-1.5">
-            <Plus size={13} /> Llamar postulación
-          </button>
+          <div className="flex gap-2">
+            <button onClick={openFedPicker} className="btn-secondary text-xs flex items-center gap-1.5">
+              <Plus size={13} /> Llamar dojo
+            </button>
+            <button onClick={openPicker} className="btn-secondary text-xs flex items-center gap-1.5">
+              <Plus size={13} /> Llamar postulación
+            </button>
+          </div>
         </div>
         <div className="space-y-3">
           {ev.links.map(l => (
@@ -485,6 +592,20 @@ export default function EvaluacionDetallePage() {
             {evalSaving ? <Loader2 size={14} className="animate-spin" /> : "Agregar Sensei"}
           </button>
         </div>
+        {ev.evaluators.filter(e => e.active).length > 0 && candidates.length > 0 && !ev.resultsConfirmedAt && (
+          <div className="pt-2 border-t border-dojo-border space-y-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-xs text-dojo-muted flex items-center gap-1.5">
+                <Shuffle size={13} /> Reparte 1 Sensei por alumno — evita que a un Sensei le toquen sus propios alumnos, salvo que no haya otra opción.
+              </p>
+              <button onClick={distributeCandidates} disabled={distributing} className="btn-secondary text-xs flex items-center gap-1.5 shrink-0">
+                {distributing ? <Loader2 size={13} className="animate-spin" /> : <Shuffle size={13} />} Distribuir candidatos
+              </button>
+            </div>
+            {distributeError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{distributeError}</div>}
+            {distributeMsg && <div className="text-green-400 text-xs bg-green-900/20 border border-green-800/40 rounded-lg px-3 py-2">{distributeMsg}</div>}
+          </div>
+        )}
       </div>
 
       {/* Candidatos */}
@@ -503,11 +624,12 @@ export default function EvaluacionDetallePage() {
         </div>
         <div className="space-y-2">
           {candidates.map(c => {
+            const key = candidateKey(c);
             const belt = getBeltInfo(c.beltToPresent);
             const done = c.scoresGiven === c.scoresExpected && c.scoresExpected > 0;
-            const decided = ev.resultsConfirmedAt ? c.passed : passDecisions[c.inviteeId];
+            const decided = ev.resultsConfirmedAt ? c.passed : passDecisions[key];
             return (
-              <div key={c.inviteeId} className="flex items-center gap-3 flex-wrap">
+              <div key={key} className="flex items-center gap-3 flex-wrap">
                 {c.photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={c.photo} alt={c.fullName} className="w-9 h-9 rounded-full object-cover shrink-0" />
@@ -521,6 +643,40 @@ export default function EvaluacionDetallePage() {
                   <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: belt.hex + "30", color: belt.hex === "#FFFFFF" ? "#aaa" : belt.hex }}>
                     {belt.label}
                   </span>
+                  {c.childDojoName && (
+                    <span className="text-[10px] text-dojo-gold/80 ml-1.5">↳ {c.childDojoName}</span>
+                  )}
+                  {c.assignedEvaluatorName && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ml-1.5 inline-flex items-center gap-1 ${
+                      c.assignmentForced ? "bg-orange-900/30 text-orange-400" : "bg-dojo-border/40 text-dojo-muted"
+                    }`} title={c.assignmentForced ? "Asignación forzada — no había otra opción sin repetir instructor" : undefined}>
+                      {c.assignmentForced && <AlertTriangle size={9} />} {c.assignedEvaluatorName}
+                    </span>
+                  )}
+                  {c.source === "local" && (
+                    editingInstructorFor === c.studentId ? (
+                      <span className="inline-flex items-center gap-1 ml-1.5">
+                        <input
+                          autoFocus
+                          className="text-[10px] bg-dojo-border/40 rounded px-1.5 py-0.5 text-dojo-white w-24"
+                          placeholder="Instructor"
+                          value={instructorDraft}
+                          onChange={e => setInstructorDraft(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter" && c.studentId) saveInstructor(c.studentId); }}
+                        />
+                        <button onClick={() => c.studentId && saveInstructor(c.studentId)} disabled={savingInstructor} className="text-dojo-gold">
+                          {savingInstructor ? <Loader2 size={10} className="animate-spin" /> : <Check size={11} />}
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => { setEditingInstructorFor(c.studentId ?? null); setInstructorDraft(c.homeInstructorName ?? ""); }}
+                        className="text-[10px] text-dojo-muted hover:text-dojo-gold ml-1.5"
+                      >
+                        {c.homeInstructorName ? `👤 ${c.homeInstructorName}` : "+ instructor"}
+                      </button>
+                    )
+                  )}
                 </div>
                 {c.finalScore != null && <span className="text-xs text-dojo-gold font-semibold shrink-0">{c.finalScore.toFixed(2)}</span>}
                 <div className="flex items-center gap-1 text-xs shrink-0">
@@ -531,7 +687,7 @@ export default function EvaluacionDetallePage() {
                   <div className="flex items-center gap-1 shrink-0 w-full sm:w-auto justify-end">
                     <button
                       disabled={!!ev.resultsConfirmedAt}
-                      onClick={() => setPassDecision(c.inviteeId, true)}
+                      onClick={() => setPassDecision(key, true)}
                       className={`text-xs px-2 py-1 rounded-lg flex items-center gap-1 transition-colors ${
                         decided === true ? "bg-green-900/40 text-green-400 border border-green-700/50" : "bg-dojo-border/40 text-dojo-muted hover:text-dojo-white"
                       }`}
@@ -540,7 +696,7 @@ export default function EvaluacionDetallePage() {
                     </button>
                     <button
                       disabled={!!ev.resultsConfirmedAt}
-                      onClick={() => setPassDecision(c.inviteeId, false)}
+                      onClick={() => setPassDecision(key, false)}
                       className={`text-xs px-2 py-1 rounded-lg flex items-center gap-1 transition-colors ${
                         decided === false ? "bg-red-900/40 text-red-400 border border-red-700/50" : "bg-dojo-border/40 text-dojo-muted hover:text-dojo-white"
                       }`}
@@ -620,6 +776,87 @@ export default function EvaluacionDetallePage() {
                       </button>
                     ))}
                     {pickerFiltered.length === 0 && <p className="text-center text-dojo-muted text-sm py-4">Sin resultados</p>}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: llamar dojo (federación cross-dojo) */}
+      {fedPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-dojo-dark border border-dojo-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            {fedApp ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setFedApp(null); setFedBelts(new Set()); setFedError(""); }} className="p-1 -ml-1 text-dojo-muted hover:text-dojo-white">
+                    <ArrowLeft size={18} />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-dojo-white truncate">{fedApp.title}</p>
+                    <p className="text-xs text-dojo-gold">{fedApp.childDojoName}</p>
+                  </div>
+                  <button onClick={() => setFedPickerOpen(false)} className="p-1 text-dojo-muted hover:text-dojo-white"><X size={18} /></button>
+                </div>
+                {fedError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{fedError}</div>}
+                <p className="text-xs text-dojo-muted">
+                  Este dojo hijo ofreció {fedApp.beltFilter.length === 0 ? "todas las cintas" : "solo estas cintas"} de esta postulación. Elige cuáles pertenecen a esta Evaluación — sin elegir ninguna se incluyen todas las ofrecidas.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(fedApp.beltFilter.length > 0 ? fedApp.beltFilter : BELT_COLORS.map(b => b.value)).map(bv => {
+                    const belt = getBeltInfo(bv);
+                    const isSelected = fedBelts.has(bv);
+                    return (
+                      <button
+                        key={bv} type="button" onClick={() => toggleFedBelt(bv)}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                          isSelected ? "bg-dojo-gold text-black border-dojo-gold font-semibold" : "bg-dojo-border/30 text-dojo-white border-dojo-border hover:bg-dojo-border/60"
+                        }`}
+                      >
+                        {belt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button onClick={confirmFedLink} disabled={fedSaving} className="btn-primary w-full flex items-center justify-center gap-2">
+                  {fedSaving ? <Loader2 size={16} className="animate-spin" /> : "Vincular candidatos de este dojo"}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-dojo-white">Llamar dojo</p>
+                    <p className="text-xs text-dojo-muted">Postulaciones que un dojo hijo vinculado te ofreció explícitamente — nunca es una búsqueda abierta.</p>
+                  </div>
+                  <button onClick={() => setFedPickerOpen(false)} className="p-1 text-dojo-muted hover:text-dojo-white shrink-0"><X size={18} /></button>
+                </div>
+                {fedJustLinked && (
+                  <div className="text-green-400 text-xs bg-green-900/20 border border-green-800/40 rounded-lg px-3 py-2">
+                    ✓ &quot;{fedJustLinked}&quot; vinculada.
+                  </div>
+                )}
+                {fedError && <div className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{fedError}</div>}
+                {fedLoading ? (
+                  <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-dojo-gold" /></div>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto space-y-1">
+                    {fedOffers.map(o => (
+                      <button key={o.applicationId} onClick={() => { setFedApp(o); setFedBelts(new Set()); setFedError(""); setFedJustLinked(null); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-dojo-border/40 text-left transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-dojo-white truncate">{o.title}</p>
+                          <p className="text-xs text-dojo-gold truncate">{o.childDojoName}</p>
+                        </div>
+                        <span className="text-xs text-dojo-muted shrink-0">{o.candidateCount} candidatos</span>
+                      </button>
+                    ))}
+                    {fedOffers.length === 0 && (
+                      <p className="text-center text-dojo-muted text-sm py-4">
+                        Ningún dojo hijo vinculado te ha ofrecido una postulación todavía.
+                      </p>
+                    )}
                   </div>
                 )}
               </>

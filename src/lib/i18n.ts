@@ -34,6 +34,7 @@ const translations = {
       settingsCustomFields:   "Campos Personalizados",
       evaluaciones:           "Evaluaciones",
       "exam-attendance":      "Asistencia de Examen",
+      settingsFederation:     "Federación entre Dojos",
     },
     topbar: {
       dashboard:          "Dashboard",
@@ -129,6 +130,7 @@ const translations = {
       settingsCustomFields:   "Custom Fields",
       evaluaciones:           "Evaluations",
       "exam-attendance":      "Exam Attendance",
+      settingsFederation:     "Dojo Federation",
     },
     topbar: {
       dashboard:          "Dashboard",

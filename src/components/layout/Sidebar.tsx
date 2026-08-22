@@ -18,7 +18,7 @@ import {
   ChevronDown, Mail, LayoutDashboard, Video, ShieldCheck, Trophy, ScrollText,
   Crown, Lock, X, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag, Upload,
   Receipt, LayoutList, Bell, BellOff, Sparkles, GraduationCap, IdCard, ClipboardCheck,
-  Image as ImageIcon, QrCode,
+  Image as ImageIcon, QrCode, Link2,
 } from "lucide-react";
 import { usePushSubscription } from "@/lib/hooks/usePushSubscription";
 
@@ -110,6 +110,7 @@ const SETTINGS_DEFS: NavItemDef[] = [
   { href: "/dashboard/settings/import",      icon: Upload,      permKey: NAV_KEYS.SETTINGS_IMPORT,  labelKey: "importStudents"  },
   { href: "/dashboard/settings/push",        icon: Bell,        permKey: NAV_KEYS.SETTINGS_PUSH,    labelKey: "settingsPush"    },
   { href: "/dashboard/settings/custom-fields", icon: IdCard,    permKey: NAV_KEYS.SETTINGS_CUSTOM_FIELDS, labelKey: "settingsCustomFields" },
+  { href: "/dashboard/settings/federacion",  icon: Link2,       permKey: NAV_KEYS.SETTINGS_FEDERATION, labelKey: "settingsFederation" },
 ];
 
 const IDENTITY_PATHS = [

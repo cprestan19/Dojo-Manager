@@ -17,6 +17,7 @@ export const AUDIT_MODULE = {
   PORTAL:      "PORTAL",
   REGISTROS:   "REGISTROS",
   WHATSAPP:    "WHATSAPP",
+  FEDERATION:  "FEDERATION",
 } as const;
 
 export type AuditModule = typeof AUDIT_MODULE[keyof typeof AUDIT_MODULE];

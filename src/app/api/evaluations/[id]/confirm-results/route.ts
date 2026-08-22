@@ -39,11 +39,17 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Esta evaluación ya fue confirmada — no se puede volver a confirmar" }, { status: 400 });
     }
 
-    const body = await req.json() as { decisions?: { inviteeId?: string; passed?: boolean }[] };
+    const body = await req.json() as {
+      decisions?: { inviteeId?: string; passed?: boolean }[];
+      federatedDecisions?: { federatedCandidateId?: string; passed?: boolean }[];
+    };
     const decisions = (body.decisions ?? []).filter(
       (d): d is { inviteeId: string; passed: boolean } => !!d.inviteeId && typeof d.passed === "boolean",
     );
-    if (decisions.length === 0) {
+    const federatedDecisions = (body.federatedDecisions ?? []).filter(
+      (d): d is { federatedCandidateId: string; passed: boolean } => !!d.federatedCandidateId && typeof d.passed === "boolean",
+    );
+    if (decisions.length === 0 && federatedDecisions.length === 0) {
       return NextResponse.json({ error: "Debes marcar Aprobó/No aprobó para al menos un alumno" }, { status: 400 });
     }
 
@@ -71,7 +77,21 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
 
     const validDecisions = decisions.filter(d => validIds.has(d.inviteeId));
-    if (validDecisions.length === 0) {
+
+    // Mismo criterio para candidatos federados — resolver por FederatedCandidate
+    // realmente perteneciente a un vínculo de ESTA evaluación, nunca confiar en
+    // el id del body sin validar.
+    const federatedCandidateIds = federatedDecisions.map(d => d.federatedCandidateId);
+    const validFederated = federatedCandidateIds.length > 0
+      ? await prisma.federatedCandidate.findMany({
+          where:  { id: { in: federatedCandidateIds }, link: { evaluationId } },
+          select: { id: true },
+        })
+      : [];
+    const validFederatedIds = new Set(validFederated.map(c => c.id));
+    const validFederatedDecisions = federatedDecisions.filter(d => validFederatedIds.has(d.federatedCandidateId));
+
+    if (validDecisions.length === 0 && validFederatedDecisions.length === 0) {
       return NextResponse.json({ error: "Ninguno de los alumnos pertenece a esta evaluación" }, { status: 400 });
     }
 
@@ -80,6 +100,12 @@ export async function POST(req: NextRequest, { params }: Params) {
         prisma.examApplicationInvitee.update({
           where: { id: d.inviteeId },
           data:  { attended: true, passed: d.passed },
+        }),
+      ),
+      ...validFederatedDecisions.map(d =>
+        prisma.federatedCandidate.update({
+          where: { id: d.federatedCandidateId },
+          data:  { passed: d.passed },
         }),
       ),
       prisma.evaluation.update({ where: { id: evaluationId }, data: { resultsConfirmedAt: new Date() } }),
@@ -93,10 +119,13 @@ export async function POST(req: NextRequest, { params }: Params) {
       resourceType: "Evaluation",
       resourceId:   evaluationId,
       statusCode:   200,
-      details:      JSON.stringify({ confirmed: validDecisions.length, requested: decisions.length }),
+      details:      JSON.stringify({
+        confirmed: validDecisions.length, requested: decisions.length,
+        confirmedFederated: validFederatedDecisions.length, requestedFederated: federatedDecisions.length,
+      }),
     });
 
-    return NextResponse.json({ ok: true, confirmed: validDecisions.length });
+    return NextResponse.json({ ok: true, confirmed: validDecisions.length + validFederatedDecisions.length });
   } catch (err) {
     console.error("POST /api/evaluations/[id]/confirm-results", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

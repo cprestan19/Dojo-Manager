@@ -66,6 +66,13 @@ model Dojo {
   // (Plan/Subscription/Invoice), que siempre es en USD.
   currency String @default("USD") @map("currency")
 
+  // Código de invitación para vincularse como dojo hijo de un dojo padre en
+  // Evaluaciones (ver DojoParentLink). Lo genera el propio dojo hijo desde un
+  // botón "Link" — 10 dígitos, regenerable en cualquier momento (regenerar
+  // invalida el código anterior). null = nunca lo ha generado.
+  federationCode            String?   @unique @map("federation_code")
+  federationCodeGeneratedAt DateTime? @map("federation_code_generated_at")
+
   loginBgImage   String? @map("login_bg_image") @db.Text
   contractPolicy String? @map("contract_policy") @db.Text // texto de políticas/contrato mostrado en el auto-registro
   instagramUrl   String? @map("instagram_url")
@@ -122,8 +129,48 @@ model Dojo {
   whatsAppInboundMessages WhatsAppInboundMessage[]
   studentCustomFields     StudentCustomField[]
   evaluations             Evaluation[]
+  federationLinkAsChild   DojoParentLink?         @relation("DojoParentLinkChild")
+  federationLinksAsParent DojoParentLink[]        @relation("DojoParentLinkParent")
 
   @@map("dojos")
+}
+
+// ── Vínculo padre/hijo entre dojos para Evaluaciones cross-dojo ─────────────
+// Un dojo hijo genera un código (Dojo.federationCode) y lo comparte con el
+// dojo padre. El padre lo "verifica" (POST /verify) — eso crea esta fila en
+// PENDING, SIN dar acceso todavía. El hijo debe entrar a su propia pantalla
+// y presionar "Aceptar" para pasar a ACTIVE; solo entonces el padre puede ver
+// candidatos del hijo (siempre vía DTO limitado — nunca datos completos del
+// alumno). El hijo puede revocar en cualquier momento (→ REVOKED): corta
+// acceso futuro pero NUNCA borra puntajes ya registrados por el padre.
+//
+// childDojoId es @unique a propósito: un dojo hijo solo puede tener UN padre
+// vigente/pendiente a la vez (regla explícita del dueño del producto). Un
+// padre sí puede tener muchos hijos (parentDojoId no es único). Re-vincular
+// después de un REVOKED reutiliza la misma fila (upsert), nunca crea una
+// segunda — ver assertCanRequestLink() en src/lib/federation/authz.ts.
+model DojoParentLink {
+  id           String  @id @default(cuid())
+  childDojoId  String  @unique @map("child_dojo_id")
+  parentDojoId String  @map("parent_dojo_id")
+  status       String  @default("PENDING") @map("status") // PENDING | ACTIVE | REVOKED
+
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  requestedBy String?   @map("requested_by") // userId del dojo padre que verificó el código
+  acceptedAt  DateTime? @map("accepted_at")
+  acceptedBy  String?   @map("accepted_by") // userId del dojo hijo que aceptó
+  revokedAt   DateTime? @map("revoked_at")
+  revokedBy   String?   @map("revoked_by") // userId del dojo hijo que revocó
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  child  Dojo @relation("DojoParentLinkChild", fields: [childDojoId], references: [id], onDelete: Cascade)
+  parent Dojo @relation("DojoParentLinkParent", fields: [parentDojoId], references: [id], onDelete: Cascade)
+
+  @@index([parentDojoId])
+  @@index([status])
+  @@map("dojo_parent_links")
 }
 
 // ── Organizations / federations the dojo belongs to ─────────
@@ -344,6 +391,12 @@ model Student {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Instructor/Sensei habitual del alumno (texto libre, igual que ExamEvaluator.name
+  // — no hay cuentas de usuario para Senseis). Se usa solo para que el algoritmo de
+  // distribución de Evaluaciones evite asignarle sus propios alumnos a un Sensei,
+  // salvo que la proporción numérica lo haga inevitable.
+  homeInstructorName String? @map("home_instructor_name")
 
   // Absence risk level — updated when attendance is recorded or via batch recalculation.
   // ACTIVO  : attended within last 3 days
@@ -1779,9 +1832,18 @@ model ExamApplication {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
+  // Federación cross-dojo: el dojo HIJO ofrece explícitamente esta Postulación
+  // a su dojo padre (ver DojoParentLink) para que un padre pueda "llamarla"
+  // desde una de sus Evaluaciones. null = no ofrecida (el padre no la ve).
+  // Solo tiene efecto si hay un DojoParentLink ACTIVE — no expone nada por sí
+  // sola si el vínculo de dojos no está activo.
+  offeredToParentAt         DateTime? @map("offered_to_parent_at")
+  offeredToParentBeltFilter String[]  @default([]) @map("offered_to_parent_belt_filter")
+
   dojo             Dojo                          @relation(fields: [dojoId], references: [id], onDelete: Cascade)
   invitees         ExamApplicationInvitee[]
   evaluationLinks  EvaluationLink[]
+  federatedLinks   FederatedEvaluationLink[]
 
   @@index([dojoId, status])
   @@index([dojoId, examDate])
@@ -1816,6 +1878,7 @@ model ExamApplicationInvitee {
   student     Student               @relation(fields: [studentId], references: [id], onDelete: Restrict)
   certificate GeneratedCertificate?
   scores      ExamScore[]
+  assignments ExamAssignment[]
 
   @@unique([applicationId, studentId])
   @@index([studentId])
@@ -1845,9 +1908,12 @@ model Evaluation {
   // por sí sola, eso sigue siendo el paso de "Finalizar" de la Postulación.
   resultsConfirmedAt DateTime? @map("results_confirmed_at")
 
-  criteria   ExamCriteria[]
-  evaluators ExamEvaluator[]
-  links      EvaluationLink[]
+  criteria       ExamCriteria[]
+  evaluators     ExamEvaluator[]
+  links          EvaluationLink[]
+  federatedLinks FederatedEvaluationLink[]
+  assignments          ExamAssignment[]
+  federatedAssignments FederatedExamAssignment[]
 
   @@index([dojoId])
   @@map("evaluations")
@@ -1884,6 +1950,7 @@ model ExamCriteria {
 
   evaluation Evaluation  @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
   scores     ExamScore[]
+  federatedScores FederatedExamScore[]
 
   @@index([evaluationId])
   @@map("exam_criteria")
@@ -1900,9 +1967,129 @@ model ExamEvaluator {
 
   evaluation Evaluation  @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
   scores     ExamScore[]
+  federatedScores FederatedExamScore[]
+  assignments          ExamAssignment[]
+  federatedAssignments FederatedExamAssignment[]
 
   @@index([evaluationId])
   @@map("exam_evaluators")
+}
+
+// ── Asignación 1-a-1 Sensei↔alumno dentro de una Evaluación ─────────────
+// Reemplaza el modelo "panel" (todos los Senseis califican a todos) por
+// asignación exclusiva: cada alumno tiene EXACTAMENTE un Sensei responsable
+// dentro de ESTA Evaluación (@@unique por evaluationId+alumno, nunca global
+// — el mismo alumno puede estar en otra Evaluación distinta el mismo día,
+// ej. cinta amarilla en la mañana y cinta verde en la tarde).
+// forcedSelfAssignment=true marca cuando el algoritmo de distribución no tuvo
+// otra opción que asignarle a un Sensei uno de sus propios alumnos
+// (Student.homeInstructorName) por pura proporción numérica — nunca se oculta,
+// se muestra igual en el panel del admin para que quede claro que fue forzado.
+model ExamAssignment {
+  id                   String   @id @default(cuid())
+  evaluationId         String   @map("evaluation_id")
+  inviteeId            String   @map("invitee_id")
+  evaluatorId          String   @map("evaluator_id")
+  forcedSelfAssignment Boolean  @default(false) @map("forced_self_assignment")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  evaluation Evaluation             @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  invitee    ExamApplicationInvitee @relation(fields: [inviteeId], references: [id], onDelete: Cascade)
+  evaluator  ExamEvaluator          @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+
+  @@unique([evaluationId, inviteeId])
+  @@index([evaluatorId])
+  @@map("exam_assignments")
+}
+
+// Misma idea que ExamAssignment pero para candidatos federados (FederatedCandidate).
+model FederatedExamAssignment {
+  id                   String   @id @default(cuid())
+  evaluationId         String   @map("evaluation_id")
+  candidateId          String   @map("candidate_id")
+  evaluatorId          String   @map("evaluator_id")
+  forcedSelfAssignment Boolean  @default(false) @map("forced_self_assignment")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  evaluation Evaluation         @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  candidate  FederatedCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  evaluator  ExamEvaluator      @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+
+  @@unique([evaluationId, candidateId])
+  @@index([evaluatorId])
+  @@map("federated_exam_assignments")
+}
+
+// ── Federación cross-dojo: candidatos del dojo hijo dentro de una Evaluación
+// del dojo padre. Snapshot deliberado (no FK viva al Student/Invitee real del
+// hijo) — es la barrera estructural contra IDOR/joins-cruzando-tenants: el
+// padre nunca tiene, en ninguna tabla propia, una relación Prisma que resuelva
+// hasta datos del hijo más allá de lo copiado aquí en el momento de vincular.
+// childStudentId se guarda solo como referencia de auditoría — nunca se debe
+// usar para volver a consultar prisma.student en un request del padre.
+model FederatedEvaluationLink {
+  id            String   @id @default(cuid())
+  evaluationId  String   @map("evaluation_id")   // Evaluation del dojo PADRE
+  applicationId String   @map("application_id")  // ExamApplication del dojo HIJO (debe estar offeredToParentAt != null al vincular)
+  childDojoId   String   @map("child_dojo_id")
+  beltFilter    String[] @default([]) @map("belt_filter")
+  createdAt     DateTime @default(now()) @map("created_at")
+  createdBy     String?  @map("created_by")
+
+  evaluation  Evaluation       @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  application ExamApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  candidates  FederatedCandidate[]
+
+  @@unique([evaluationId, applicationId])
+  @@index([applicationId])
+  @@index([childDojoId])
+  @@map("federated_evaluation_links")
+}
+
+// Copia (snapshot) de un postulado del hijo, tomada en el momento de vincular
+// — solo los campos del allowlist (nombre, foto, cinta actual/a presentar).
+// Nunca se sincroniza en vivo de vuelta al hijo ni se actualiza sola.
+model FederatedCandidate {
+  id             String   @id @default(cuid())
+  linkId         String   @map("link_id")
+  parentDojoId   String   @map("parent_dojo_id") // redundante a propósito — filtra sin depender del join a link
+  childDojoId    String   @map("child_dojo_id")
+  childStudentId String   @map("child_student_id") // solo referencia/auditoría — nunca usado para requery cross-tenant
+  fullName       String
+  photo          String?  @db.Text
+  currentBelt    String?  @map("current_belt")
+  beltToPresent  String   @map("belt_to_present")
+  snapshotAt     DateTime @default(now()) @map("snapshot_at")
+  finalScore     Float?   @map("final_score")
+  passed         Boolean?
+
+  link        FederatedEvaluationLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  scores      FederatedExamScore[]
+  assignments FederatedExamAssignment[]
+
+  @@unique([linkId, childStudentId])
+  @@index([parentDojoId])
+  @@map("federated_candidates")
+}
+
+model FederatedExamScore {
+  id          String   @id @default(cuid())
+  candidateId String   @map("candidate_id")
+  criteriaId  String   @map("criteria_id")
+  evaluatorId String   @map("evaluator_id")
+  value       Float // escala 0-10
+  note        String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  candidate FederatedCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  criteria  ExamCriteria       @relation(fields: [criteriaId], references: [id], onDelete: Cascade)
+  evaluator ExamEvaluator      @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, criteriaId, evaluatorId])
+  @@index([candidateId])
+  @@index([evaluatorId])
+  @@map("federated_exam_scores")
 }
 
 model ExamScore {

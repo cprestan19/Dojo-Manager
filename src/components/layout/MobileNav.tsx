@@ -17,7 +17,7 @@ import {
   ClipboardList, QrCode, ChevronDown, Video, ShieldCheck,
   ChevronLeft, Mail, LayoutDashboard, Trophy, ScrollText,
   Crown, Lock, PhoneCall, Calendar, UserPlus, Globe, ShoppingBag,
-  Receipt, LayoutList, Bell, Upload, Sparkles, GraduationCap, IdCard, ClipboardCheck,
+  Receipt, LayoutList, Bell, Upload, Sparkles, GraduationCap, IdCard, ClipboardCheck, Link2,
 } from "lucide-react";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -51,6 +51,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/settings/import":           "Importar Alumnos",
   "/dashboard/settings/push":             "Notificaciones Push",
   "/dashboard/settings/custom-fields":    "Campos Personalizados",
+  "/dashboard/settings/federacion":       "Federación entre Dojos",
   "/dashboard/settings/public-page":      "Página Pública",
   "/dashboard/settings/card-template":    "Diseño de Carnet",
   "/dashboard/settings/certificados":     "Diplomas / Certificados",
@@ -133,6 +134,7 @@ const settingsDrawerItems: NavItem[] = [
   { href: "/dashboard/settings/import",      label: "Importar Alumnos",  icon: Upload,      permKey: NAV_KEYS.SETTINGS_IMPORT  },
   { href: "/dashboard/settings/push",        label: "Notificaciones Push",icon: Bell,       permKey: NAV_KEYS.SETTINGS_PUSH    },
   { href: "/dashboard/settings/custom-fields", label: "Campos Personalizados", icon: IdCard, permKey: NAV_KEYS.SETTINGS_CUSTOM_FIELDS },
+  { href: "/dashboard/settings/federacion",  label: "Federación entre Dojos", icon: Link2, permKey: NAV_KEYS.SETTINGS_FEDERATION },
 ];
 
 const IDENTITY_PATHS = [
@@ -167,6 +169,7 @@ const backRoutes: Record<string, string> = {
   "/dashboard/settings/import":             "/dashboard/settings",
   "/dashboard/settings/push":              "/dashboard/settings",
   "/dashboard/settings/custom-fields":     "/dashboard/settings",
+  "/dashboard/settings/federacion":        "/dashboard/settings",
   "/dashboard/settings/public-page":        "/dashboard/settings",
   "/dashboard/settings/card-template":      "/dashboard",
   "/dashboard/settings/certificados":       "/dashboard",

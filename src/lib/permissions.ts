@@ -32,6 +32,7 @@ export const NAV_KEYS = {
   SETTINGS_TERMS:  "settings.terms",
   SETTINGS_PUSH:   "settings.push",
   SETTINGS_CUSTOM_FIELDS: "settings.custom-fields",
+  SETTINGS_FEDERATION: "settings.federation",
   // No es un ítem de navegación del dashboard — se usa como feature-key de
   // Plan para decidir si los alumnos de un dojo pueden entrar a /portal.
   PORTAL_ACCESS:   "portal-access",
@@ -76,6 +77,7 @@ export const ALL_DOJO_KEYS: NavKey[] = [
   NAV_KEYS.SETTINGS_TERMS,
   NAV_KEYS.SETTINGS_PUSH,
   NAV_KEYS.SETTINGS_CUSTOM_FIELDS,
+  NAV_KEYS.SETTINGS_FEDERATION,
 ];
 
 // Permisos del sysadmin SIN dojo activo — solo gestión global de la plataforma
@@ -143,6 +145,7 @@ export const NAV_KEY_LABELS: Record<NavKey, string> = {
   "settings.terms":   "Políticas y Términos",
   "settings.push":    "Notificaciones Push",
   "settings.custom-fields": "Campos Personalizados",
+  "settings.federation":    "Federación entre Dojos",
   "portal-access":    "Portal de Alumnos",
   "portal-card-access": "Carnet Digital en Portal",
   "whatsapp-notifications": "Notificaciones por WhatsApp",
@@ -190,6 +193,7 @@ const NEWLY_ADDED_FOR_ADMIN: NavKey[] = [
   NAV_KEYS.CERTIFICADOS,
   NAV_KEYS.SETTINGS_PUSH,
   NAV_KEYS.SETTINGS_CUSTOM_FIELDS,
+  NAV_KEYS.SETTINGS_FEDERATION,
 ];
 
 // Resolve permissions: DB record > default > empty

@@ -81,3 +81,54 @@ export async function recomputeInviteeFinalScore(inviteeId: string): Promise<num
 
   return finalScore;
 }
+
+/**
+ * Igual que recomputeInviteeFinalScore pero para un FederatedCandidate
+ * (postulado de un dojo hijo, vinculado vía FederatedEvaluationLink). No
+ * necesita resolver el vínculo por cinta — el candidato ya es un snapshot
+ * fijado a una sola Evaluación desde que se creó.
+ */
+export async function recomputeFederatedCandidateFinalScore(candidateId: string): Promise<number | null> {
+  const candidate = await prisma.federatedCandidate.findUnique({
+    where:  { id: candidateId },
+    select: { link: { select: { evaluationId: true } } },
+  });
+  if (!candidate) return null;
+
+  const [criteria, scores] = await Promise.all([
+    prisma.examCriteria.findMany({
+      where:  { evaluationId: candidate.link.evaluationId },
+      select: { id: true, weightPct: true },
+    }),
+    prisma.federatedExamScore.findMany({
+      where:  { candidateId },
+      select: { criteriaId: true, value: true },
+    }),
+  ]);
+
+  const byCriteria = new Map<string, number[]>();
+  for (const s of scores) {
+    const arr = byCriteria.get(s.criteriaId) ?? [];
+    arr.push(s.value);
+    byCriteria.set(s.criteriaId, arr);
+  }
+
+  let weightedSum = 0;
+  let weightTotal = 0;
+  for (const c of criteria) {
+    const values = byCriteria.get(c.id);
+    if (!values || values.length === 0) continue;
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    weightedSum += avg * c.weightPct;
+    weightTotal += c.weightPct;
+  }
+
+  const finalScore = weightTotal > 0 ? Math.round((weightedSum / weightTotal) * 100) / 100 : null;
+
+  await prisma.federatedCandidate.update({
+    where: { id: candidateId },
+    data:  { finalScore },
+  });
+
+  return finalScore;
+}

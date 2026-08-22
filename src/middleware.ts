@@ -203,6 +203,19 @@ export async function middleware(req: NextRequest) {
     if (!rateLimit(`ping:${ip}`, 60, 60_000)) return tooManyRequests("60");
   }
 
+  // Federación cross-dojo: código de 10 dígitos — límite estricto para
+  // frenar fuerza bruta contra /verify (adivinar el código de otro dojo).
+  // GET /status queda fuera (solo lectura del propio dojo, sin input externo).
+  if (pathname === "/api/dojo-federation/verify" && req.method === "POST") {
+    if (!rateLimit(`fed-verify:${ip}`, 10, 60_000)) return tooManyRequests("60");
+  }
+  if (pathname === "/api/dojo-federation/code" && req.method === "POST") {
+    if (!rateLimit(`fed-code:${ip}`, 10, 60_000)) return tooManyRequests("60");
+  }
+  if ((pathname === "/api/dojo-federation/accept" || pathname === "/api/dojo-federation/revoke") && req.method === "POST") {
+    if (!rateLimit(`fed-manage:${ip}`, 20, 60_000)) return tooManyRequests("60");
+  }
+
   // ── Public page visitor tracking — fire-and-forget, never blocks response ───
   const PUBLIC_TRACKED = ["/", "/login", "/forgot-password", "/reset-password"];
   if (req.method === "GET" && PUBLIC_TRACKED.includes(pathname)) {
@@ -320,5 +333,6 @@ export const config = {
     "/api/system/news",
     "/api/system/news/:path*",
     "/api/user/ping",
+    "/api/dojo-federation/:path*",
   ],
 };
