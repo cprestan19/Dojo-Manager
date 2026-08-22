@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Clock, Plus, Edit2, Trash2, Save, X, Users, Search,
-  CheckCircle2, ChevronDown, ChevronRight, UserMinus,
+  CheckCircle2, ChevronDown, ChevronRight, UserMinus, User,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { BeltBadge } from "@/components/ui/BeltBadge";
@@ -27,6 +27,7 @@ interface Schedule {
   startTime: string;
   endTime: string;
   description: string | null;
+  instructorName: string | null;
   active: boolean;
   availableForTrial: boolean;
   _count: { attendances: number; studentSchedules: number };
@@ -51,6 +52,7 @@ interface FormState {
   startTime: string;
   endTime: string;
   description: string;
+  instructorName: string;
   active: boolean;
   availableForTrial: boolean;
   studentIds: string[];
@@ -71,7 +73,7 @@ const ALL_DAYS = [
 /* ── Helpers ── */
 
 function emptyForm(): FormState {
-  return { name: "", days: [], startTime: "08:00", endTime: "09:00", description: "", active: true, availableForTrial: false, studentIds: [] };
+  return { name: "", days: [], startTime: "08:00", endTime: "09:00", description: "", instructorName: "", active: true, availableForTrial: false, studentIds: [] };
 }
 
 function parseDays(raw: string): string[] {
@@ -176,6 +178,7 @@ export default function SchedulesPage() {
       startTime:   s.startTime,
       endTime:     s.endTime,
       description:       s.description ?? "",
+      instructorName:    s.instructorName ?? "",
       active:            s.active,
       availableForTrial: s.availableForTrial,
       studentIds:        s.studentSchedules.map(ss => ss.student.id),
@@ -504,9 +507,14 @@ export default function SchedulesPage() {
                     {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </span>
 
-                  {/* Name */}
-                  <span className="font-semibold text-dojo-white truncate min-w-0 shrink">
-                    {s.name}
+                  {/* Name + Sensei */}
+                  <span className="min-w-0 shrink">
+                    <span className="font-semibold text-dojo-white truncate block">{s.name}</span>
+                    {s.instructorName && (
+                      <span className="text-[11px] text-dojo-muted flex items-center gap-1 truncate">
+                        <User size={10} className="shrink-0" /> {s.instructorName}
+                      </span>
+                    )}
                   </span>
 
                   {/* Days chips */}
@@ -727,6 +735,16 @@ export default function SchedulesPage() {
                 className="form-input"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="form-label">Sensei</label>
+            <input
+              value={form.instructorName}
+              onChange={e => setForm(f => ({ ...f, instructorName: e.target.value }))}
+              className="form-input"
+              placeholder="Nombre del Sensei que atiende esta clase (opcional)"
+            />
           </div>
 
           <div>

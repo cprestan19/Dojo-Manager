@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
         startTime:   body.startTime,
         endTime:     body.endTime,
         description:       body.description ?? null,
+        instructorName:    body.instructorName?.trim() || null,
         active:            body.active ?? true,
         availableForTrial: body.availableForTrial ?? false,
       },

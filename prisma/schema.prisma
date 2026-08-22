@@ -608,6 +608,10 @@ model Schedule {
   startTime         String
   endTime           String
   description       String?
+  // Sensei que atiende esta clase — texto libre, sin cuenta de usuario (igual
+  // patrón que ExamEvaluator.name/GeneratedCertificate.instructorName). Solo
+  // informativo para la marcación diaria, opcional, no afecta Evaluaciones.
+  instructorName    String?            @map("instructor_name")
   active            Boolean            @default(true)
   availableForTrial Boolean            @default(false) @map("available_for_trial")
   createdAt         DateTime           @default(now())

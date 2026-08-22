@@ -29,6 +29,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
         startTime:   body.startTime,
         endTime:     body.endTime,
         description:       body.description ?? null,
+        instructorName:    body.instructorName?.trim() || null,
         active:            body.active ?? true,
         availableForTrial: body.availableForTrial ?? false,
       },
